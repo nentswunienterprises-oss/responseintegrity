@@ -44,6 +44,7 @@ import {
   nextMoveRecommendation,
 } from "./topicConditioningEngine";
 import { Progress } from "../ui/progress";
+import { displayTopicStability, topicStabilityConfirmationLabel, topicStabilityConfirmationExplanation } from "@shared/topicStabilityPresentation";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import type { PhaseLabel, StabilityLabel, TopicTrend } from "./topicConditioningEngine";
 import { useConfirmTrainingSession, useRespondTrainingSession, useRetryScheduledSessionMeetSync, useTrainingSessions } from "@/hooks/useScheduledSession";
@@ -69,6 +70,7 @@ type TopicRow = {
   topic: string;
   phase: PhaseLabel;
   stability: StabilityLabel;
+  progressionAuthority: "building" | "exit_confirmation_eligible" | "transfer_maintenance" | null;
   hasObservedState: boolean;
   requiresTargetedRediagnosis: boolean;
   targetedRediagnosisStartPhase: PhaseLabel | null;
@@ -81,6 +83,25 @@ type TopicRow = {
   recentLogs: string[];
   timeline: Array<{ date: string; phase: PhaseLabel; stability: StabilityLabel; kind: ObservationKind }>;
 };
+
+/**
+ * Bridge the independent progression gate into historical next-action copy.
+ * Only the next-action logic receives the compound compatibility value.
+ * Stability display and persisted state remain Low / Medium / High.
+ */
+function nextActionStabilityFor(row: Pick<TopicRow, "phase" | "stability" | "progressionAuthority">): StabilityLabel {
+  if (row.progressionAuthority === "building") {
+    return row.stability === "High Maintenance" ? "High" : row.stability;
+  }
+  if (
+    row.stability === "High" &&
+    (row.progressionAuthority === "exit_confirmation_eligible" ||
+      (row.progressionAuthority === "transfer_maintenance" && row.phase === "Time Pressure Stability"))
+  ) {
+    return "High Maintenance";
+  }
+  return row.stability;
+}
 
 type TutorSessionRecord = {
   id: string;
@@ -513,10 +534,10 @@ function deriveTransitionStatus(
 ) {
   const advanceTo = getNextActionData(phase, stability).advanceTo;
   if (trend === "Regressing" && !options?.suppressRegressed) return "Regressed" as const;
-  if (phase === "Time Pressure Stability" && stability === "High Maintenance") return "Transfer Ready" as const;
-  if (stability === "High Maintenance" && advanceTo) return "Maintenance Confirmation" as const;
-  if (stability === "High Maintenance") return "Maintain" as const;
-  if (stability === "High") return "Maintenance Check" as const;
+  if (phase === "Time Pressure Stability" && stability === "High Maintenance") return "Transfer Evidence Required" as const;
+  if (stability === "High Maintenance" && advanceTo) return "Phase-Exit Confirmation" as const;
+  if (stability === "High Maintenance") return "Hold and Verify" as const;
+  if (stability === "High") return "Repeatability Check" as const;
   if (stability === "Medium") return "Building" as const;
   return "Reinforce" as const;
 }
@@ -566,25 +587,25 @@ function interpretTopicState(
       Low: "Student still needs foundational clarity before independent execution.",
       Medium: "Student grasps concepts but needs more practice for consistency.",
       High: "Student has clear understanding and is ready for structured execution practice.",
-      "High Maintenance": "Student has reached the Clarity maintenance checkpoint. Confirm it in a later qualifying Clarity drill before progressing into Structured Execution.",
+      "High Maintenance": "High Clarity is recorded. A separate qualifying Clarity exit confirmation is needed before Structured Execution.",
     },
     "Structured Execution": {
       Low: "Student can follow steps but needs consistency and independence building.",
       Medium: "Student executes steps mostly independently but struggles with consistency.",
       High: "Student executes steps independently and is ready to build resilience under difficulty.",
-      "High Maintenance": "Student has reached the Structured Execution maintenance checkpoint. Confirm it in a later qualifying Structured Execution drill before progressing into Controlled Discomfort.",
+      "High Maintenance": "High independent execution is recorded. A separate qualifying exit confirmation is needed before Controlled Discomfort.",
     },
     "Controlled Discomfort": {
       Low: "Student struggles under difficulty but is building stability.",
       Medium: "Student handles difficulty with improving stability and consistency.",
       High: "Student handles difficulty with stability and is ready for time-pressure training.",
-      "High Maintenance": "Student has reached the Controlled Discomfort maintenance checkpoint. Confirm it in a later qualifying Controlled Discomfort drill before progressing into Time Pressure Stability.",
+      "High Maintenance": "High control under difficulty is recorded. A separate qualifying exit confirmation is needed before Time Pressure Stability.",
     },
     "Time Pressure Stability": {
       Low: "Student needs to maintain structure and speed consistency under time.",
       Medium: "Student handles time pressure mostly but needs refinement.",
       High: "Student is stable under time pressure and maintains execution quality.",
-      "High Maintenance": "Student sustained high time-pressure stability and is ready for mixed transfer work.",
+      "High Maintenance": "High timed stability is recorded. Maintain it and verify transfer with separate evidence.",
     },
   };
 
@@ -803,7 +824,7 @@ function buildTopics(
     string,
     {
       history: Array<{ date: string; phase: PhaseLabel; stability: StabilityLabel; note: string; kind: ObservationKind }>;
-      seeded?: { phase: PhaseLabel; stability: StabilityLabel };
+      seeded?: { phase: PhaseLabel; stability: StabilityLabel; progressionAuthority?: "building" | "exit_confirmation_eligible" | "transfer_maintenance" | null };
       requiresTargetedRediagnosis?: boolean;
       targetedRediagnosisStartPhase?: PhaseLabel | null;
       systemNextAction?: string | null;
@@ -845,6 +866,9 @@ function buildTopics(
       seeded: {
         phase: normalizePhase(entry?.phase || map?.entry_phase),
         stability: normalizeStability(entry?.stability || map?.stability),
+        progressionAuthority: ["building", "exit_confirmation_eligible", "transfer_maintenance"].includes(String(entry?.progressionAuthority || ""))
+          ? entry.progressionAuthority
+          : null,
       },
       requiresTargetedRediagnosis: entry?.requiresTargetedRediagnosis === true,
       targetedRediagnosisStartPhase: entry?.targetedRediagnosisStartPhase
@@ -889,8 +913,12 @@ function buildTopics(
     );
     const latest = history[history.length - 1];
     const hasObservedState = history.length > 0;
-    const phase = latest?.phase || entry.seeded?.phase || "Structured Execution";
-    const stability = latest?.stability || entry.seeded?.stability || "Low";
+    // An explicit canonical progression record supersedes older session-history
+    // labels. History stays available but does not overwrite the current state.
+    const explicitAuthority = entry.seeded?.progressionAuthority != null;
+    const phase = (explicitAuthority ? entry.seeded?.phase : latest?.phase) || entry.seeded?.phase || "Structured Execution";
+    const stability = (explicitAuthority ? entry.seeded?.stability : latest?.stability) || entry.seeded?.stability || "Low";
+    const progressionAuthority = entry.seeded?.progressionAuthority ?? null;
     const lastSessionDate = latest?.date;
 
     const formatRelativeObservationLabel = (index: number, kind: ObservationKind) => {
@@ -915,13 +943,14 @@ function buildTopics(
       .reverse()
       .map((h, index) => {
         const label = formatRelativeObservationLabel(index, h.kind);
-        return `${label} (${formatSessionDateTimeLabel(h.date)}): ${h.stability} stability`;
+        return `${label} (${formatSessionDateTimeLabel(h.date)}): ${displayTopicStability(h.stability)} stability${topicStabilityConfirmationLabel(h.stability, h.phase) ? " · Confirmation checkpoint" : ""}`;
       });
 
     rows.push({
       topic,
       phase,
       stability,
+      progressionAuthority,
       hasObservedState,
       requiresTargetedRediagnosis: entry.requiresTargetedRediagnosis === true,
       targetedRediagnosisStartPhase: entry.targetedRediagnosisStartPhase || null,
@@ -1398,20 +1427,20 @@ export default function StudentTopicConditioningDialog({
 
   const needsStabilizationCount = prioritizedTopics.filter((row) => row.stability === "Low").length;
   const readyToAdvanceCount = prioritizedTopics.filter(
-    (row) => !!getNextActionData(row.phase, row.stability).advanceTo,
+    (row) => !!getNextActionData(row.phase, nextActionStabilityFor(row)).advanceTo,
   ).length;
 
   const selectedRow = topics.find((row) => row.topic === selectedTopic) || prioritizedTopics[0];
   const hasObservedSelection = !!selectedRow?.hasObservedState;
   const phaseIx = selectedRow && hasObservedSelection ? phaseIndex(selectedRow.phase) : -1;
   const guidance = selectedRow && hasObservedSelection
-    ? actionGuidanceFor(selectedRow.phase, selectedRow.stability) : { doItems: [], avoidItems: [] };
+    ? actionGuidanceFor(selectedRow.phase, nextActionStabilityFor(selectedRow)) : { doItems: [], avoidItems: [] };
   const effectiveTopicForLog = topics.length > 0
     ? activeTopicField || selectedRow?.topic || ""
     : sanitizeTopic(manualTopicField) || "";
 
   const selectedInterpretation = selectedRow && hasObservedSelection
-    ? interpretTopicState(selectedRow.phase, selectedRow.stability, selectedRow.trend, {
+    ? interpretTopicState(selectedRow.phase, nextActionStabilityFor(selectedRow), selectedRow.trend, {
         enteredMaintenanceCheckpoint: enteredMaintenanceCheckpoint(
           selectedRow.phase,
           selectedRow.stability,
@@ -1429,7 +1458,7 @@ export default function StudentTopicConditioningDialog({
         selectedRow.requiresTargetedRediagnosis
           ? selectedRow.targetedRediagnosisStartPhase || selectedRow.phase
           : selectedRow.phase,
-        selectedRow.requiresTargetedRediagnosis ? "Low" : selectedRow.stability,
+        selectedRow.requiresTargetedRediagnosis ? "Low" : nextActionStabilityFor(selectedRow),
         selectedRow.requiresTargetedRediagnosis ? false : hasObservedSelection,
       )
     : null;
@@ -1547,7 +1576,7 @@ export default function StudentTopicConditioningDialog({
           : null,
         prepPlan: tutorPrepPlanFor(
           requiresTargetedRediagnosis ? rediagnosisStartPhase : topicState.phase,
-          requiresTargetedRediagnosis ? "Low" : topicState.stability,
+          requiresTargetedRediagnosis ? "Low" : nextActionStabilityFor(topicState),
           requiresTargetedRediagnosis ? false : topicState.hasObservedState,
         ),
       };
@@ -1728,7 +1757,7 @@ export default function StudentTopicConditioningDialog({
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
                   {prioritizedTopics.map((row) => {
-                    const topicIntel = interpretTopicState(row.phase, row.stability, row.trend, {
+                    const topicIntel = interpretTopicState(row.phase, nextActionStabilityFor(row), row.trend, {
                       enteredMaintenanceCheckpoint: enteredMaintenanceCheckpoint(
                         row.phase,
                         row.stability,
@@ -1743,12 +1772,12 @@ export default function StudentTopicConditioningDialog({
                       row.requiresTargetedRediagnosis
                         ? row.targetedRediagnosisStartPhase || row.phase
                         : row.phase,
-                      row.requiresTargetedRediagnosis ? "Low" : row.stability,
+                      row.requiresTargetedRediagnosis ? "Low" : nextActionStabilityFor(row),
                       row.requiresTargetedRediagnosis ? false : row.hasObservedState,
                     );
                     const isExpanded = expandedTopics.has(row.topic);
                     const phaseLabel = row.hasObservedState ? row.phase : "Unknown";
-                    const stabilityLabel = row.hasObservedState ? row.stability : "Unknown";
+                    const stabilityLabel = row.hasObservedState ? displayTopicStability(row.stability) : "Unknown";
                     return (
                       <div
                         key={`topic-card-${row.topic}`}
@@ -1767,6 +1796,9 @@ export default function StudentTopicConditioningDialog({
                             <p className="text-base font-semibold break-words">{row.topic}</p>
                             <p className="text-sm text-muted-foreground">Phase: <span className="font-medium text-foreground">{phaseLabel}</span></p>
                             <p className="text-sm text-muted-foreground">Stability: <span className="font-medium text-foreground">{stabilityLabel}</span></p>
+                            {row.hasObservedState && topicStabilityConfirmationLabel(row.stability, row.phase, row.progressionAuthority) ? (
+                              <p className="text-xs text-muted-foreground">{topicStabilityConfirmationLabel(row.stability, row.phase, row.progressionAuthority)}</p>
+                            ) : null}
                           </button>
                           <Button
                             type="button"
@@ -1824,7 +1856,8 @@ export default function StudentTopicConditioningDialog({
                                   key={`${row.topic}-${point.date}-${point.phase}-${index}`}
                                   className="rounded-md border border-border/60 bg-muted/20 px-2 py-0.5 text-[11px] text-muted-foreground"
                                 >
-                                  {toRelativeSessionLabel(index, point.kind)} · {point.phase} · {point.stability}
+                                  {toRelativeSessionLabel(index, point.kind)} · {point.phase} · {displayTopicStability(point.stability)}
+                          {topicStabilityConfirmationLabel(point.stability, point.phase) ? " · Confirmation checkpoint" : ""}
                                 </span>
                                 );
                               })}
@@ -1899,9 +1932,14 @@ export default function StudentTopicConditioningDialog({
                                     : "bg-red-400"
                                 }`}
                               />
-                              {row.stability}
+                              {displayTopicStability(row.stability)}
                             </Badge>
                           )}
+                          {row.hasObservedState && topicStabilityConfirmationLabel(row.stability, row.phase, row.progressionAuthority) ? (
+                            <Badge variant="outline" className="border-primary/20 text-muted-foreground">
+                              {topicStabilityConfirmationLabel(row.stability, row.phase, row.progressionAuthority)}
+                            </Badge>
+                          ) : null}
                         </div>
                           </>
                         )}
@@ -1957,7 +1995,10 @@ export default function StudentTopicConditioningDialog({
                   <div className="space-y-2 text-sm">
                     <p><span className="font-medium">Topic Name:</span> {selectedRow.topic}</p>
                     <p><span className="font-medium">Current Phase:</span> {hasObservedSelection ? selectedRow.phase : "Unknown"}</p>
-                    <p><span className="font-medium">Current Stability:</span> {hasObservedSelection ? selectedRow.stability : "Unknown"}</p>
+                    <p><span className="font-medium">Current Stability:</span> {hasObservedSelection ? displayTopicStability(selectedRow.stability) : "Unknown"}</p>
+                    {hasObservedSelection && topicStabilityConfirmationExplanation(selectedRow.stability, selectedRow.phase, selectedRow.progressionAuthority) ? (
+                      <p className="text-xs text-muted-foreground">{topicStabilityConfirmationExplanation(selectedRow.stability, selectedRow.phase, selectedRow.progressionAuthority)}</p>
+                    ) : null}
                     <p><span className="font-medium">Trend:</span> {selectedRow.trend}</p>
                     <p><span className="font-medium">Transition Status:</span> {selectedInterpretation?.transitionStatus || "Awaiting Observation"}</p>
                     <p><span className="font-medium">Specialist Meaning:</span> {selectedInterpretation?.tutorMeaning || "Topic is active but not yet observed."}</p>
@@ -2008,7 +2049,8 @@ export default function StudentTopicConditioningDialog({
                           key={point._renderKey}
                           className="inline-flex rounded-md border border-border/60 bg-muted/20 px-2 py-0.5 text-[11px] text-muted-foreground"
                         >
-                          {toRelativeSessionLabel(index, point.kind)} · {point.phase} · {point.stability}
+                          {toRelativeSessionLabel(index, point.kind)} · {point.phase} · {displayTopicStability(point.stability)}
+                          {topicStabilityConfirmationLabel(point.stability, point.phase) ? " · Confirmation checkpoint" : ""}
                         </span>
                       ))}
                     </div>
@@ -2049,9 +2091,12 @@ export default function StudentTopicConditioningDialog({
                         {hasObservedSelection ? (
                           <>
                             <p className="text-sm text-muted-foreground">
-                              Stability: {selectedRow.stability}
+                              Stability: {displayTopicStability(selectedRow.stability)}
                             </p>
                             <Progress value={stabilityPercent(selectedRow.stability)} />
+                            {topicStabilityConfirmationLabel(selectedRow.stability, selectedRow.phase, selectedRow.progressionAuthority) ? (
+                              <p className="text-xs text-muted-foreground">{topicStabilityConfirmationLabel(selectedRow.stability, selectedRow.phase, selectedRow.progressionAuthority)}</p>
+                            ) : null}
                             <div className="space-y-1.5">
                               <p className="text-sm font-medium">Recent Logs (Last 3 Observations)</p>
                               {(selectedRow.recentLogs || []).length === 0 ? (
@@ -2144,7 +2189,7 @@ export default function StudentTopicConditioningDialog({
                           {hasObservedSelection ? (
                             <>
                               <ul className="text-sm text-muted-foreground space-y-1">
-                                {getNextActionData(selectedRow.phase, selectedRow.stability).nextActions.map((a) => (
+                                {getNextActionData(selectedRow.phase, nextActionStabilityFor(selectedRow)).nextActions.map((a) => (
                                   <li key={a} className="flex items-start gap-1.5">
                                     <span className="mt-0.5 shrink-0 text-foreground/40">›</span>
                                     <span>{a}</span>
@@ -2154,7 +2199,7 @@ export default function StudentTopicConditioningDialog({
                               <div>
                                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Rules</p>
                                 <ul className="text-xs text-muted-foreground space-y-0.5">
-                                  {getNextActionData(selectedRow.phase, selectedRow.stability).rules.map((r) => (
+                                  {getNextActionData(selectedRow.phase, nextActionStabilityFor(selectedRow)).rules.map((r) => (
                                     <li key={r} className="flex items-start gap-1.5">
                                       <span className="shrink-0 text-foreground/40">-</span>
                                       <span>{r}</span>
@@ -2827,7 +2872,7 @@ export default function StudentTopicConditioningDialog({
                           {topic.topic} ({topic.requiresTargetedRediagnosis
                             ? `Re-Diagnosis Required - ${topic.targetedRediagnosisStartPhase || topic.phase}`
                             : topic.hasObservedState
-                              ? `${topic.phase} - ${topic.stability}`
+                              ? `${topic.phase} - ${displayTopicStability(topic.stability)}${topicStabilityConfirmationLabel(topic.stability, topic.phase) ? " (confirmation required)" : ""}`
                               : "Unobserved - Diagnosis First"})
                         </label>
                       </div>
@@ -2878,13 +2923,16 @@ export default function StudentTopicConditioningDialog({
                                   Targeted re-diagnosis required · starting signal {targetedRediagnosisStartPhase}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  Current state is held at {phase} · {stability} until evidence-native re-diagnosis establishes the trustworthy entry state.
+                                  Current state is held at {phase} · {displayTopicStability(stability)} until evidence-native re-diagnosis establishes the trustworthy entry state.
                                 </p>
                               </>
                             ) : !hasObservedState ? (
                               <p className="text-xs text-muted-foreground">Unobserved topic · diagnosis-first placement</p>
                             ) : (
-                              <p className="text-xs text-muted-foreground">{phase} · {stability}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {phase} · {displayTopicStability(stability)}
+                                {topicStabilityConfirmationLabel(stability, phase) ? " · Confirmation required" : ""}
+                              </p>
                             )}
                             <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
                               {requiresTargetedRediagnosis ? "Re-Diagnosis Prep" : prepPlan.drillType}

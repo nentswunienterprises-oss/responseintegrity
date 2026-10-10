@@ -9,12 +9,12 @@ export function interpretTopicState(
   if (stability === "High Maintenance") {
     const idx = phaseIndex(phase);
     if (idx === PHASES.length - 1) {
-      transitionStatus = "Maintain and transfer to new topics";
+      transitionStatus = "Maintain timed stability; verify transfer evidence separately";
     } else {
-      transitionStatus = `Advance to ${PHASES[idx + 1]}`;
+      transitionStatus = `Require a later qualifying exit confirmation before ${PHASES[idx + 1]}`;
     }
   } else if (stability === "High") {
-    transitionStatus = `Continue ${phase} drill until High Maintenance is earned`;
+    transitionStatus = `Continue ${phase} training to build repeatable evidence before exit confirmation`;
   } else if (stability === "Low") {
     if (phaseIndex(phase) === 0) {
       transitionStatus = "Hold at Clarity - reinforce foundations";
@@ -74,16 +74,16 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
         "Increase independent attempts",
         "Validate consistency across full set volume",
       ],
-      rules: ["Do NOT phase advance yet", "A later qualifying Clarity drill may earn High Maintenance"],
+      rules: ["Do NOT phase advance yet", "A later qualifying Clarity drill must independently establish the progression checkpoint"],
     },
     "High Maintenance": {
       primaryAction: "Run Clarity drill",
       nextActions: [
-        "Run High Maintenance confirmation in Clarity",
+        "Run a later qualifying phase-exit confirmation in Clarity",
         "Confirm repeatable clarity in a later qualifying drill",
         "Advance to Structured Execution only after confirmation",
       ],
-      rules: ["Do NOT phase advance yet", "Confirm High Maintenance in a later qualifying drill"],
+      rules: ["Do NOT phase advance yet", "Require a later qualifying drill before phase exit"],
       advanceTo: "Structured Execution",
     },
   },
@@ -115,16 +115,16 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
         "Confirm repeatable execution stability",
         "Increase independent execution consistency",
       ],
-      rules: ["Do NOT phase advance yet", "A later qualifying Structured Execution drill may earn High Maintenance"],
+      rules: ["Do NOT phase advance yet", "A later qualifying Structured Execution drill must independently establish the progression checkpoint"],
     },
     "High Maintenance": {
       primaryAction: "Run Structured Execution drill",
       nextActions: [
-        "Run High Maintenance confirmation in Structured Execution",
+        "Run a later qualifying phase-exit confirmation in Structured Execution",
         "Confirm repeatable execution stability in a later qualifying drill",
         "Advance to Controlled Discomfort only after confirmation",
       ],
-      rules: ["Do NOT phase advance yet", "Confirm High Maintenance in a later qualifying drill"],
+      rules: ["Do NOT phase advance yet", "Require a later qualifying drill before phase exit"],
       advanceTo: "Controlled Discomfort",
     },
   },
@@ -156,16 +156,16 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
         "Increase difficulty consistency",
         "Confirm composed starts under uncertainty",
       ],
-      rules: ["Do NOT phase advance yet", "A later qualifying Controlled Discomfort drill may earn High Maintenance"],
+      rules: ["Do NOT phase advance yet", "A later qualifying Controlled Discomfort drill must independently establish the progression checkpoint"],
     },
     "High Maintenance": {
       primaryAction: "Run Controlled Discomfort drill",
       nextActions: [
-        "Run High Maintenance confirmation in Controlled Discomfort",
+        "Run a later qualifying phase-exit confirmation in Controlled Discomfort",
         "Confirm composed stability under uncertainty in a later qualifying drill",
         "Advance to Time Pressure Stability only after confirmation",
       ],
-      rules: ["Do NOT phase advance yet", "Confirm High Maintenance in a later qualifying drill"],
+      rules: ["Do NOT phase advance yet", "Require a later qualifying drill before phase exit"],
       advanceTo: "Time Pressure Stability",
     },
   },
@@ -196,7 +196,7 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
         "Confirm structure under timed variation",
         "Sustain consistency across multiple sets",
       ],
-      rules: ["Do NOT declare transfer yet", "A later qualifying Time Pressure Stability drill may earn High Maintenance"],
+      rules: ["Do NOT declare transfer yet", "A later qualifying Time Pressure Stability drill must independently establish the progression checkpoint"],
     },
     "High Maintenance": {
       primaryAction: "Run Time Pressure Stability drill",
@@ -269,7 +269,7 @@ export function getPriorityReason(stability: StabilityLabel, trend: TopicTrend):
   if (trend === "Regressing") return `${stability} stability and regressing trend`;
   if (stability === "Low") return "Low stability needs reinforcement before progression";
   if (stability === "Medium") return "Medium stability still needs consistency";
-  if (stability === "High Maintenance") return "High Maintenance checkpoint reached; confirm it in a later qualifying drill before progression";
+  if (stability === "High Maintenance") return "High stability checkpoint recorded; separate later qualifying phase-exit evidence is still required";
   return "High stability with stable trend";
 }
 
@@ -282,11 +282,11 @@ export function getRecommendationConfidence(logCount: number): "Low" | "Medium" 
 export function nextMoveRecommendation(phase: PhaseLabel, stability: StabilityLabel): string {
   const idx = phaseIndex(phase);
   if (stability === "High Maintenance") {
-    if (idx === PHASES.length - 1) return "Maintain and transfer to new topics";
-    return `Confirm High Maintenance in ${phase} before advancing to ${PHASES[idx + 1]}`;
+    if (idx === PHASES.length - 1) return "Maintain timed stability and verify transfer through separate evidence";
+    return `Confirm the phase-exit evidence in ${phase} before advancing to ${PHASES[idx + 1]}`;
   }
   if (stability === "High") {
-    return `Continue ${phase} drill until High Maintenance is earned`;
+    return `Continue ${phase} training until qualifying repeatability is established`;
   }
   if (stability === "Low") {
     if (idx === 0) return "Hold at Clarity - reinforce foundations";

@@ -76,8 +76,12 @@ export function useTrainingSessions(studentId, enabled = true) {
     },
     enabled: !!studentId && enabled,
     retry: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchInterval: 10000,
+    refetchIntervalInBackground: false,
   });
 }
 

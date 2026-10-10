@@ -439,3 +439,204 @@ test("preview emergency auth accepts the shared sandbox password for a synthetic
     else process.env.VERCEL_ENV = previousVercelEnv;
   }
 });
+
+
+test("local Proof emergency auth lazily repairs a sandbox parent missing its private credential", async () => {
+  resetEmergencyLoginAttempts();
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousVercelEnv = process.env.VERCEL_ENV;
+  const previousDatabaseUrl = process.env.DATABASE_URL;
+  const previousSupabaseUrl = process.env.SUPABASE_URL;
+
+  process.env.NODE_ENV = "development";
+  delete process.env.VERCEL_ENV;
+  process.env.DATABASE_URL =
+    "postgresql://postgres.jftlxeacphvbnhbsbpxc:secret@localhost:5432/postgres";
+  process.env.SUPABASE_URL = "https://jftlxeacphvbnhbsbpxc.supabase.co";
+
+  const storedHash = await bcrypt.hash("SandboxPass123!", 4);
+  const queries: string[] = [];
+  let credentialReadCount = 0;
+
+  const pool = {
+    query: async (text: string) => {
+      queries.push(text);
+      if (text.includes("FROM auth.users")) return { rows: [] };
+      if (text.includes("FROM public.users")) {
+        return {
+          rows: [{
+            id: "sandbox-parent-id",
+            email: "sandbox-parent-proof@gmail.com",
+            role: "parent",
+          }],
+        };
+      }
+      if (text.includes("FROM private.emergency_auth_credentials")) {
+        credentialReadCount += 1;
+        return credentialReadCount === 1
+          ? { rows: [] }
+          : { rows: [{ user_id: "sandbox-parent-id", password_hash: storedHash }] };
+      }
+      if (text.includes("FROM public.parent_enrollments")) {
+        return { rows: [{ id: "sandbox-enrollment-id" }] };
+      }
+      if (text.includes("INSERT INTO private.emergency_auth_credentials")) {
+        return { rows: [] };
+      }
+      return { rows: [] };
+    },
+  } as any;
+
+  try {
+    const result = await authenticateEmergencyUser(
+      pool,
+      "sandbox-parent-proof@gmail.com",
+      "SandboxPass123!",
+      "127.0.0.1",
+    );
+    assert.equal("authUser" in result, true);
+    assert.equal(
+      queries.some((text) => text.includes("INSERT INTO private.emergency_auth_credentials")),
+      true,
+    );
+  } finally {
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+    if (previousVercelEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = previousVercelEnv;
+    if (previousDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = previousDatabaseUrl;
+    if (previousSupabaseUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = previousSupabaseUrl;
+  }
+});
+
+test("local Proof emergency auth replaces a stale sandbox parent credential with the shared password", async () => {
+  resetEmergencyLoginAttempts();
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousVercelEnv = process.env.VERCEL_ENV;
+  const previousDatabaseUrl = process.env.DATABASE_URL;
+  const previousSupabaseUrl = process.env.SUPABASE_URL;
+
+  process.env.NODE_ENV = "development";
+  delete process.env.VERCEL_ENV;
+  process.env.DATABASE_URL =
+    "postgresql://postgres.jftlxeacphvbnhbsbpxc:secret@localhost:5432/postgres";
+  process.env.SUPABASE_URL = "https://jftlxeacphvbnhbsbpxc.supabase.co";
+
+  const staleHash = await bcrypt.hash("old-sandbox-password", 4);
+  const sharedHash = await bcrypt.hash("SandboxPass123!", 4);
+  const queries: string[] = [];
+  let credentialReadCount = 0;
+
+  const pool = {
+    query: async (text: string) => {
+      queries.push(text);
+      if (text.includes("FROM auth.users")) return { rows: [] };
+      if (text.includes("FROM public.users")) {
+        return {
+          rows: [{
+            id: "sandbox-parent-id",
+            email: "sandbox-parent-proof@gmail.com",
+            role: "parent",
+          }],
+        };
+      }
+      if (text.includes("FROM private.emergency_auth_credentials")) {
+        credentialReadCount += 1;
+        return credentialReadCount === 1
+          ? { rows: [{ user_id: "sandbox-parent-id", password_hash: staleHash }] }
+          : { rows: [{ user_id: "sandbox-parent-id", password_hash: sharedHash }] };
+      }
+      if (text.includes("FROM public.parent_enrollments")) {
+        return { rows: [{ id: "sandbox-enrollment-id" }] };
+      }
+      if (text.includes("INSERT INTO private.emergency_auth_credentials")) {
+        return { rows: [] };
+      }
+      return { rows: [] };
+    },
+  } as any;
+
+  try {
+    const result = await authenticateEmergencyUser(
+      pool,
+      "sandbox-parent-proof@gmail.com",
+      "SandboxPass123!",
+      "127.0.0.1",
+    );
+    assert.equal("authUser" in result, true);
+    assert.equal(
+      queries.some((text) => text.includes("INSERT INTO private.emergency_auth_credentials")),
+      true,
+    );
+  } finally {
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+    if (previousVercelEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = previousVercelEnv;
+    if (previousDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = previousDatabaseUrl;
+    if (previousSupabaseUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = previousSupabaseUrl;
+  }
+});
+
+test("local non-Proof development does not self-heal a missing sandbox credential", async () => {
+  resetEmergencyLoginAttempts();
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousVercelEnv = process.env.VERCEL_ENV;
+  const previousDatabaseUrl = process.env.DATABASE_URL;
+  const previousSupabaseUrl = process.env.SUPABASE_URL;
+
+  process.env.NODE_ENV = "development";
+  delete process.env.VERCEL_ENV;
+  process.env.DATABASE_URL =
+    "postgresql://postgres.yzcnavucvwgmulcxgxvw:secret@localhost:5432/postgres";
+  process.env.SUPABASE_URL = "https://yzcnavucvwgmulcxgxvw.supabase.co";
+
+  const queries: string[] = [];
+  const pool = {
+    query: async (text: string) => {
+      queries.push(text);
+      if (text.includes("FROM auth.users")) return { rows: [] };
+      if (text.includes("FROM public.users")) {
+        return {
+          rows: [{
+            id: "sandbox-parent-id",
+            email: "sandbox-parent-proof@gmail.com",
+            role: "parent",
+          }],
+        };
+      }
+      if (text.includes("FROM private.emergency_auth_credentials")) return { rows: [] };
+      return { rows: [] };
+    },
+  } as any;
+
+  try {
+    const result = await authenticateEmergencyUser(
+      pool,
+      "sandbox-parent-proof@gmail.com",
+      "SandboxPass123!",
+      "127.0.0.1",
+    );
+    assert.deepEqual(result, {
+      error: "invalid",
+      reason: "credential_not_provisioned",
+    });
+    assert.equal(
+      queries.some((text) => text.includes("INSERT INTO private.emergency_auth_credentials")),
+      false,
+    );
+  } finally {
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+    if (previousVercelEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = previousVercelEnv;
+    if (previousDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = previousDatabaseUrl;
+    if (previousSupabaseUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = previousSupabaseUrl;
+  }
+});

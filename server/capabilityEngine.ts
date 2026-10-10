@@ -44,7 +44,7 @@ export function buildPublicCapabilityAssessment(plan: CapabilityAttemptPlan) {
   });
 }
 
-function isProofCapabilityReviewEnvironment() {
+export function isProofCapabilityReviewEnvironment() {
   let supabaseHost = "";
   try {
     supabaseHost = new URL(String(process.env.SUPABASE_URL || "")).hostname.toLowerCase();

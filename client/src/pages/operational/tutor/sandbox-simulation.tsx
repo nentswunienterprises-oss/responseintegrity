@@ -34,6 +34,7 @@ import {
 } from "@/components/tutor/TrainingLiveDeliveryUi";
 import { ResponseSnapshotCard } from "@/components/tutor/ResponseSnapshotCard";
 import type { ResponseSnapshotV1 } from "@shared/responseSnapshot";
+import { displayTopicStability, topicStabilityConfirmationLabel } from "@shared/topicStabilityPresentation";
 import {
   NEXT_ACTION_ENGINE,
   type TopicPhase,
@@ -291,6 +292,7 @@ type HistoryData = {
     sessionNumber: number;
     prescribedPhase: string;
     prescribedStability: string;
+    activeTopicKey?: string | null;
     divergenceActive: boolean;
     route: string;
     targetPhase: string | null;
@@ -301,6 +303,7 @@ type HistoryData = {
     eventSequence: number;
     sessionNumber: number;
     phase: string;
+    topicKey?: string | null;
     setId: string;
     repNumber: number;
     conditionKept: boolean | null;
@@ -314,6 +317,7 @@ type HistoryData = {
     id: string;
     sessionNumber: number;
     phase: string;
+    topicKey?: string | null;
     authorityAligned: boolean;
     stateTrackAligned: boolean;
     completedAt: string;
@@ -812,16 +816,18 @@ export default function SpecialistSandboxSimulation({
       : nextActionData?.primaryAction || "Not recorded";
     const nextConstraint = nextActionData?.rules?.[0] || null;
     const formatState = (phase?: string | null, stability?: string | null) =>
-      phase && stability ? `${phase} · ${stability}` : phase || stability || "Not recorded";
+      phase && stability
+        ? `${phase} · ${displayTopicStability(stability)}${topicStabilityConfirmationLabel(stability, phase) ? " · Confirmation required" : ""}`
+        : phase || displayTopicStability(stability) || "Not recorded";
     const sessionResult =
       phaseAfter && stabilityAfter
         ? transitionReason === "stability advance"
-          ? `${routeTopic}: stability improved to ${stabilityAfter} in ${phaseAfter}`
+          ? `${routeTopic}: stability improved to ${displayTopicStability(stabilityAfter)} in ${phaseAfter}`
           : transitionReason === "stability regress"
-            ? `${routeTopic}: stability regressed to ${stabilityAfter} in ${phaseAfter}`
+            ? `${routeTopic}: stability regressed to ${displayTopicStability(stabilityAfter)} in ${phaseAfter}`
             : transitionReason === "phase progress"
-              ? `${routeTopic}: phase advanced to ${phaseAfter} at ${stabilityAfter} stability`
-              : `${routeTopic}: stability held at ${stabilityAfter} in ${phaseAfter}`
+              ? `${routeTopic}: phase advanced to ${phaseAfter} at ${displayTopicStability(stabilityAfter)} stability`
+              : `${routeTopic}: stability held at ${displayTopicStability(stabilityAfter)} in ${phaseAfter}${topicStabilityConfirmationLabel(stabilityAfter, phaseAfter) ? "; separate confirmation required" : ""}`
         : `${routeTopic}: session evidence recorded`;
     return (
       <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
@@ -1372,7 +1378,10 @@ export default function SpecialistSandboxSimulation({
               </div>
               <div className="flex flex-wrap gap-2">
                 <Badge variant="outline">{form.prescribedPhase}</Badge>
-                <Badge variant="secondary">{form.prescribedStability}</Badge>
+                <Badge variant="secondary">{displayTopicStability(form.prescribedStability)}</Badge>
+                {topicStabilityConfirmationLabel(form.prescribedStability, form.prescribedPhase) ? (
+                  <Badge variant="outline">{topicStabilityConfirmationLabel(form.prescribedStability, form.prescribedPhase)}</Badge>
+                ) : null}
               </div>
             </div>
           </CardHeader>
@@ -1852,7 +1861,7 @@ export default function SpecialistSandboxSimulation({
                   >
                     <div>
                       <p className="font-medium">
-                        Session {session.sessionNumber} · {session.phase}
+                        Session {session.sessionNumber} · {session.topicKey ? session.topicKey.split(" ").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ") + " · " : ""}{session.phase}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         RI authority {session.authorityAligned ? "aligned" : "diverged"} · state{" "}

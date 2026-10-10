@@ -23,6 +23,7 @@ import {
   resolveEvidenceSelection,
 } from "./responseIntegrityDrillRegistry";
 import type { TopicPhase } from "./topicConditioningEngine";
+import { resolveSandboxBehaviorProfile, sandboxBehaviorProfileMultiplier } from "./sandboxBehaviorProfiles";
 import {
   getLegacyStatefulSandboxV1ScenarioTruthAudit,
 } from "./statefulSandboxV1ScenarioTruthAudit";
@@ -305,6 +306,44 @@ test("constrained shuffle is deterministic and can target the earliest unsupport
   assert.notEqual(withoutRepeat.key, "b");
 });
 
+test("Sandbox student behavior profile is deterministic and changes phase tendencies without suppressing evidence anomalies", () => {
+  const seed = "student-profile-seed";
+  const first = resolveSandboxBehaviorProfile(seed);
+  const second = resolveSandboxBehaviorProfile(seed);
+  assert.equal(first, second);
+
+  const decisionMultipliers = [
+    sandboxBehaviorProfileMultiplier({
+      seed,
+      phase: "Clarity",
+      trajectoryClass: "supported",
+    }),
+    sandboxBehaviorProfileMultiplier({
+      seed,
+      phase: "Clarity",
+      trajectoryClass: "conditional",
+    }),
+  ];
+  assert.ok(decisionMultipliers.some((value) => value !== 1));
+
+  assert.equal(
+    sandboxBehaviorProfileMultiplier({
+      seed,
+      phase: "Clarity",
+      trajectoryClass: "not_observed",
+    }),
+    1,
+  );
+  assert.equal(
+    sandboxBehaviorProfileMultiplier({
+      seed,
+      phase: "Clarity",
+      trajectoryClass: "confounded",
+    }),
+    1,
+  );
+});
+
 test("continuity tags persist across turns while outcomes can clear stale conditions", () => {
   const first = outcomeFor({
     setId: "clarity.identification",
@@ -449,6 +488,70 @@ test("full Sandbox session runs canonical and Specialist records through the rea
     diverged.capabilityEvidence.find((item) => item.layer === "continuity_integrity")?.evidenceClass,
     "breakdown",
   );
+});
+
+test("three distinct evidence-native Sandbox sessions establish High, repeatability eligibility, then phase exit", () => {
+  let previous = {
+    phase: "Clarity" as TopicPhase,
+    stability: "Low" as "Low" | "Medium" | "High",
+    progressionAuthority: "building" as "building" | "exit_confirmation_eligible" | "transfer_maintenance",
+  };
+
+  const expected = [
+    { phase: "Clarity", stability: "High", progressionAuthority: "building" },
+    { phase: "Clarity", stability: "High", progressionAuthority: "exit_confirmation_eligible" },
+    { phase: "Structured Execution", stability: "Low", progressionAuthority: "building" },
+  ] as const;
+
+  for (let i = 0; i < expected.length; i += 1) {
+    const turns = fullClaritySession().map((turn) => ({
+      ...turn,
+      sessionNumber: i + 1,
+    }));
+    const result = evaluateSandboxCompletedSession({
+      phase: previous.phase,
+      canonicalPreviousStability: previous.stability,
+      specialistPreviousStability: previous.stability,
+      canonicalPreviousProgressionAuthority: previous.progressionAuthority,
+      specialistPreviousProgressionAuthority: previous.progressionAuthority,
+      turns,
+      priorCompletedSessions: i,
+      priorTracksDiverged: false,
+    });
+    assert.equal(result.systemOutcomeMatched, true);
+    assert.deepEqual(result.canonicalNext, expected[i]);
+    assert.deepEqual(result.specialistNext, expected[i]);
+    assert.equal(
+      result.capabilityEvidence.find((item) => item.layer === "continuity_integrity")?.evidenceClass,
+      i === 0 ? "not_observed" : "supported",
+    );
+    previous = result.canonicalNext;
+  }
+});
+
+test("legacy checkpoint and separated checkpoint give identical held continuity, without false state changes", () => {
+  const turns = fullClaritySession();
+  const priorSessions = 2;
+  const legacy = evaluateSandboxCompletedSession({
+    phase: "Clarity",
+    canonicalPreviousStability: "High Maintenance",
+    specialistPreviousStability: "High Maintenance",
+    turns,
+    priorCompletedSessions: priorSessions,
+    priorTracksDiverged: false,
+  });
+  const canonical = evaluateSandboxCompletedSession({
+    phase: "Clarity",
+    canonicalPreviousStability: "High",
+    specialistPreviousStability: "High",
+    canonicalPreviousProgressionAuthority: "exit_confirmation_eligible",
+    specialistPreviousProgressionAuthority: "exit_confirmation_eligible",
+    turns,
+    priorCompletedSessions: priorSessions,
+    priorTracksDiverged: false,
+  });
+  assert.deepEqual(legacy.canonicalNext, canonical.canonicalNext);
+  assert.equal(legacy.systemOutcomeMatched, canonical.systemOutcomeMatched);
 });
 
 const policy: SandboxCapabilityReadinessPolicy = {

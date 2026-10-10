@@ -16,6 +16,12 @@ import {
 } from "./trainingEvidenceContract";
 import type { TopicPhase, TopicStability } from "./topicConditioningEngine";
 import {
+  normalizeCapabilityProgressionState,
+  transitionCapabilityProgression,
+  toLegacyTopicStability,
+  type ProgressionAuthority,
+} from "./capabilityProgressionAuthority";
+import {
   getTrainingObservationDefinitionV2,
   TRAINING_DECISION_EVIDENCE_CLASSES,
 } from "./trainingObservationContractV2";
@@ -89,6 +95,8 @@ export type TrainingEvidenceAuthorityRoute = {
   route: "normal_training" | "targeted_rediagnosis";
   nextPhase: TopicPhase;
   nextStability: TopicStability;
+  nextCapabilityStability: "Low" | "Medium" | "High";
+  nextProgressionAuthority: ProgressionAuthority;
   transitionReason: TrainingEvidenceTransitionReason | "targeted re-diagnosis required";
   targetPhase: TopicPhase | null;
   reason: string;
@@ -100,11 +108,13 @@ export type TrainingEvidenceEvaluation =
       authority: "evidence_native";
       phase: TopicPhase;
       previousStability: TopicStability;
+      previousProgressionAuthority: ProgressionAuthority;
       observedStability: TrainingObservedStability;
       dimensions: TrainingDimensionDecision[];
       highMaintenanceEntryQualified: boolean;
       exitQualified: boolean;
       predictedTransition: ReturnType<typeof transitionTrainingStateFromEvidence>;
+      progressionTransition: ReturnType<typeof transitionCapabilityProgression>;
       ineligibleEvidenceCount: number;
       interventionEvents: TrainingInterventionEvent[];
       inheritedRescueSignals: TrainingInheritedRescueSignalOccurrence[];
@@ -369,10 +379,12 @@ const allDimensionsHaveSupportInSets = (
 export const evaluateTrainingEvidence = ({
   phase,
   previousStability,
+  previousProgressionAuthority,
   sets,
 }: {
   phase: TopicPhase;
   previousStability: TopicStability;
+  previousProgressionAuthority?: ProgressionAuthority | null;
   sets: SubmittedEvidenceSet[];
 }): TrainingEvidenceEvaluation => {
   const schema = getDrillSchemaDefinition("training", phase);
@@ -610,22 +622,35 @@ export const evaluateTrainingEvidence = ({
     };
   }
 
+  const priorProgressionState = normalizeCapabilityProgressionState({
+    phase,
+    stability: previousStability,
+    progression: previousProgressionAuthority,
+  });
+  const progressionTransition = transitionCapabilityProgression({
+    previous: priorProgressionState,
+    observedStability,
+    repeatabilityQualified: highMaintenanceEntryQualified,
+    exitQualified,
+  });
+  const predictedTransition = {
+    nextPhase: progressionTransition.next.phase,
+    nextStability: toLegacyTopicStability(progressionTransition.next),
+    transitionReason: progressionTransition.transitionReason,
+  };
+
   return {
     status: "evaluated",
     authority: "evidence_native",
     phase,
     previousStability,
+    previousProgressionAuthority: priorProgressionState.progression,
     observedStability,
     dimensions: decisions,
     highMaintenanceEntryQualified,
     exitQualified,
-    predictedTransition: transitionTrainingStateFromEvidence({
-      previousPhase: phase,
-      previousStability,
-      observedStability,
-      highMaintenanceEntryQualified,
-      exitQualified,
-    }),
+    predictedTransition,
+    progressionTransition,
     ineligibleEvidenceCount: occurrences.filter(
       (item) => item.evidenceClass === "not_observed" || item.evidenceClass === "confounded",
     ).length,
@@ -650,6 +675,8 @@ export const resolveTrainingEvidenceAuthorityRoute = (
       route: "targeted_rediagnosis",
       nextPhase: evaluation.phase,
       nextStability: evaluation.previousStability,
+      nextCapabilityStability: evaluation.previousStability === "High Maintenance" ? "High" : evaluation.previousStability,
+      nextProgressionAuthority: evaluation.previousProgressionAuthority,
       transitionReason: "targeted re-diagnosis required",
       targetPhase: prerequisite.targetPhase,
       reason: prerequisite.reason,
@@ -659,6 +686,8 @@ export const resolveTrainingEvidenceAuthorityRoute = (
     route: "normal_training",
     nextPhase: evaluation.predictedTransition.nextPhase,
     nextStability: evaluation.predictedTransition.nextStability,
+    nextCapabilityStability: evaluation.progressionTransition.next.stability,
+    nextProgressionAuthority: evaluation.progressionTransition.next.progression,
     transitionReason: evaluation.predictedTransition.transitionReason,
     targetPhase: null,
     reason: prerequisite.status === "cleared"

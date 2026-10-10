@@ -24,6 +24,44 @@ const finiteNumberOrNull = (value: unknown) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+export type TrainingPackageProgressSummary = {
+  sessionQuota: number;
+  sessionsUsed: number;
+  sessionsRemaining: number;
+};
+
+/**
+ * Display only an internally consistent package balance. Session history
+ * belongs to the delivery record and must never be substituted for a missing
+ * or mismatched membership balance.
+ */
+export function resolveTrainingPackageProgressSummary(
+  monthlyQuota: TrainingPackageQuotaSnapshot | null | undefined,
+): TrainingPackageProgressSummary | null {
+  if (!monthlyQuota) return null;
+
+  const countOrNull = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return null;
+    const count = Number(value);
+    return Number.isSafeInteger(count) && count >= 0 ? count : null;
+  };
+
+  const sessionQuota = countOrNull(monthlyQuota.session_quota);
+  const sessionsUsed = countOrNull(monthlyQuota.sessions_used);
+  const sessionsRemaining = countOrNull(monthlyQuota.sessions_remaining);
+  if (
+    sessionQuota === null ||
+    sessionQuota <= 0 ||
+    sessionsUsed === null ||
+    sessionsRemaining === null ||
+    sessionsUsed + sessionsRemaining !== sessionQuota
+  ) {
+    return null;
+  }
+
+  return { sessionQuota, sessionsUsed, sessionsRemaining };
+}
+
 export function evaluateTrainingPackageQuota(
   operationalMode: unknown,
   monthlyQuota: TrainingPackageQuotaSnapshot | null | undefined,
@@ -149,11 +187,11 @@ export function resolveTrainingTabAvailability(options: {
     return {
       code: "NO_SESSIONS_BOOKED",
       blocked: false,
-      title: "No sessions booked",
+      title: "No current lessons booked",
       message:
         packageBacked && remaining !== null
-          ? `The family has ${remaining} package session${remaining === 1 ? "" : "s"} remaining, but no current training sessions are booked.`
-          : "There are no current training sessions booked for this student.",
+          ? `The family has ${remaining} package session${remaining === 1 ? "" : "s"} remaining, but no current training lessons are booked. Previously completed lessons remain in history.`
+          : "There are no current training lessons booked for this student. Previously completed lessons remain in history.",
     };
   }
 

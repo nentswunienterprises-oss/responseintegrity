@@ -11,14 +11,14 @@ test("proof personas are restricted to the dedicated Proof identity domain", () 
   assert.equal(isPreviewProofPersonaEmail("coo@proof.responseintegrity.co.za.attacker.test"), false);
 });
 
-test("Preview synthetic sandbox persona fallback remains Preview-only and credential-backed", () => {
+test("Synthetic Sandbox fallback stays in Preview or isolated local Proof and remains credential-backed", () => {
   assert.equal(isPreviewSyntheticSandboxPersonaEmail("coo@proof.responseintegrity.co.za"), true);
   assert.equal(isPreviewSyntheticSandboxPersonaEmail("proof-shadow-a@responseintegrity.test"), true);
   assert.equal(isPreviewSyntheticSandboxPersonaEmail("sandbox-specialist@responseintegrity.test"), true);
   assert.equal(isPreviewSyntheticSandboxPersonaEmail("real.parent@example.com"), false);
 
   const source = readFileSync(resolve(process.cwd(), "server/supabaseAuth.ts"), "utf8");
-  const fallbackStart = source.indexOf('if (process.env.VERCEL_ENV === "preview")', source.indexOf("Supabase signin error"));
+  const fallbackStart = source.indexOf('if (process.env.VERCEL_ENV === "preview" || isProofDbAuthMode())', source.indexOf("Supabase signin error"));
   const fallbackEnd = source.indexOf("const isRateLimited", fallbackStart);
   const fallback = source.slice(fallbackStart, fallbackEnd);
 
@@ -29,4 +29,9 @@ test("Preview synthetic sandbox persona fallback remains Preview-only and creden
   assert.match(fallback, /isProofPersona \|\| isSandboxSpecialist/);
   assert.match(fallback, /emergencyExpectedRoleMatches\(fallbackUser\.role, expectedRole\)/);
   assert.doesNotMatch(fallback, /process\.env\.VERCEL_ENV === "production"/);
+
+  const emergencyModeSource = readFileSync(resolve(process.cwd(), "server/emergencyMode.ts"), "utf8");
+  assert.match(emergencyModeSource, /if \(!isNonProductionRuntime\) return false/);
+  assert.match(emergencyModeSource, /PROOF_PROJECT_REFS\.has\(databaseRef\)/);
+  assert.match(emergencyModeSource, /PROOF_PROJECT_REFS\.has\(supabaseRef\)/);
 });

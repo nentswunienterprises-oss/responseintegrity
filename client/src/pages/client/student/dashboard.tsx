@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useQuery } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
 import { useNavigate } from "react-router-dom";
+import { displayTopicStability, topicStabilityConfirmationLabel } from "@shared/topicStabilityPresentation";
 
 interface StudentStats {
   bossBattlesCompleted: number;
@@ -65,8 +66,8 @@ const STUDENT_STATE_ENGINE: Record<PhaseLabel, Record<StabilityLabel, StudentSta
     },
     "High Maintenance": {
       status: "Clarity is stable in this topic.",
-      meaning: "You have held clear understanding long enough to move forward.",
-      focus: "Training can now shift into structured execution.",
+      meaning: "Your clarity has a strong checkpoint, but a further qualifying session must confirm readiness to advance.",
+      focus: "Training remains focused on Clarity until that separate exit confirmation is complete.",
       drillPurpose: "Maintain clarity while preparing for execution training.",
     },
   },
@@ -91,8 +92,8 @@ const STUDENT_STATE_ENGINE: Record<PhaseLabel, Record<StabilityLabel, StudentSta
     },
     "High Maintenance": {
       status: "Execution is stable in this topic.",
-      meaning: "The structure is holding consistently and can now be pressured.",
-      focus: "Training can now shift into controlled discomfort.",
+      meaning: "Your execution has a strong checkpoint. A separate qualifying confirmation must still support progression.",
+      focus: "Training remains in Structured Execution until the exit confirmation is complete.",
       drillPurpose: "Maintain execution while preparing for harder problem conditions.",
     },
   },
@@ -118,7 +119,7 @@ const STUDENT_STATE_ENGINE: Record<PhaseLabel, Record<StabilityLabel, StudentSta
     "High Maintenance": {
       status: "Challenge-performance is stable in this topic.",
       meaning: "You are holding structure even when the work becomes difficult.",
-      focus: "Training can now shift into time-pressure stability.",
+      focus: "Training remains in Controlled Discomfort until a separate exit confirmation is complete.",
       drillPurpose: "Maintain challenge-performance while preparing for timed work.",
     },
   },
@@ -144,7 +145,7 @@ const STUDENT_STATE_ENGINE: Record<PhaseLabel, Record<StabilityLabel, StudentSta
     "High Maintenance": {
       status: "Timed performance is stable in this topic.",
       meaning: "You have held structure and accuracy consistently under pressure.",
-      focus: "Training is maintaining this level and expanding transfer.",
+      focus: "Training maintains timed stability and verifies transfer with separate evidence.",
       drillPurpose: "Maintain top timed performance and transfer it broadly.",
     },
   },
@@ -398,8 +399,13 @@ export default function StudentDashboard() {
                         Stage: {row.phase || "Unknown"}
                       </span>
                       <span className="rounded-full border border-primary/30 bg-background/80 px-3 py-1 text-xs text-foreground">
-                        Stability: {row.stability || "Unknown"}
+                        Stability: {displayTopicStability(row.stability)}
                       </span>
+                      {topicStabilityConfirmationLabel(row.stability, row.phase) ? (
+                        <span className="rounded-full border border-primary/20 px-3 py-1 text-xs text-muted-foreground">
+                          {topicStabilityConfirmationLabel(row.stability, row.phase)}
+                        </span>
+                      ) : null}
                     </div>
 
                     {hasProgressUpdate && (

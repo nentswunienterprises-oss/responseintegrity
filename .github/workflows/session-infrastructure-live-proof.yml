@@ -1,0 +1,45 @@
+name: Session Infrastructure Non-review Live Proof
+on:
+  push:
+    branches: [fix/preview-training-session-authority]
+    paths:
+      - .github/workflows/session-infrastructure-live-proof.yml
+      - scripts/sessionInfrastructureLiveProof.mjs
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  session-infrastructure-live-proof:
+    runs-on: ubuntu-latest
+    environment: production-db
+    timeout-minutes: 20
+    env:
+      RI_PRODUCTION_DATABASE_URL: ${{ secrets.RI_PRODUCTION_DATABASE_URL }}
+      RI_PROOF_SPECIALIST_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
+      RI_PROOF_SPECIALIST_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      RELEASE_APP_SHA: 33008c4f7ed5473b458d3b21e4943b1fa5ba2aad
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Configure verified source database CA trust
+        env:
+          RI_PRODUCTION_DB_CA_CERT: ${{ secrets.RI_PRODUCTION_DB_CA_CERT }}
+        run: |
+          test -n "$RI_PRODUCTION_DB_CA_CERT"
+          CA_PATH="$RUNNER_TEMP/supabase-source-ca.crt"
+          printf '%s\n' "$RI_PRODUCTION_DB_CA_CERT" > "$CA_PATH"
+          chmod 600 "$CA_PATH"
+          echo "NODE_EXTRA_CA_CERTS=$CA_PATH" >> "$GITHUB_ENV"
+      - name: Prove six approved Mastery gates through authenticated Proof APIs
+        run: node scripts/sessionInfrastructureLiveProof.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: session-infrastructure-live-proof
+          path: artifacts/session-infrastructure-live-proof.json
+          if-no-files-found: error

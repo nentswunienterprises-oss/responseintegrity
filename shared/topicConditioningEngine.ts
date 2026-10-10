@@ -247,7 +247,7 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
     "High Maintenance": {
       status: "Your child has sustained strong clarity in this topic.",
       meaning: "They have held high performance consistently and are ready for progression decisions.",
-      focus: "We are now transitioning into Structured Execution training.",
+      focus: "We are seeking a separate qualifying Clarity exit confirmation before Structured Execution begins.",
     },
   },
   "Structured Execution": {
@@ -269,7 +269,7 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
     "High Maintenance": {
       status: "Your child has sustained strong execution consistency in this topic.",
       meaning: "They have held high execution quality across sessions and are ready for progression decisions.",
-      focus: "We are now transitioning into Controlled Discomfort training.",
+      focus: "We are seeking a separate qualifying Structured Execution exit confirmation before Controlled Discomfort begins.",
     },
   },
   "Controlled Discomfort": {
@@ -291,7 +291,7 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
     "High Maintenance": {
       status: "Your child has sustained strong performance under challenge in this topic.",
       meaning: "They have held high stability in difficult work and are ready for progression decisions.",
-      focus: "We are now transitioning into Time Pressure Stability training.",
+      focus: "We are seeking a separate qualifying Controlled Discomfort exit confirmation before Time Pressure Stability begins.",
     },
   },
   "Time Pressure Stability": {
@@ -313,7 +313,7 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
     "High Maintenance": {
       status: "Your child has sustained top stability under time pressure.",
       meaning: "They consistently maintain structure and accuracy under timed conditions.",
-      focus: "We are maintaining performance and expanding transfer across related topics.",
+      focus: "We are maintaining timed performance and verifying transfer separately before claiming it.",
     },
   },
 };

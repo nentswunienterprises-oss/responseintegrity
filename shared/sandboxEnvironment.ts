@@ -1,4 +1,5 @@
 import { PHASES, type TopicPhase, type TopicStability } from "./topicConditioningEngine";
+import { normalizeCapabilityProgressionState, type CapabilityStability, type ProgressionAuthority } from "./capabilityProgressionAuthority";
 import {
   getDrillSchemaDefinition,
   getDrillSchemaDefinitionByVersion,
@@ -31,6 +32,7 @@ import {
   type ResponseEvidenceDimensionState,
 } from "./responseEvidenceModel";
 import type { TrainingDimensionId } from "./trainingEvidenceContract";
+import { sandboxBehaviorProfileMultiplier } from "./sandboxBehaviorProfiles";
 import {
   getLegacyStatefulSandboxV1RequiredStructureStepPlanAudit,
   getLegacyStatefulSandboxV1ScenarioTruthAudit,
@@ -135,11 +137,13 @@ export type SandboxSessionEvaluation = {
   systemOutcomeMatched: boolean;
   canonicalNext: {
     phase: TopicPhase;
-    stability: TopicStability;
+    stability: CapabilityStability;
+    progressionAuthority: ProgressionAuthority;
   };
   specialistNext: {
     phase: TopicPhase;
-    stability: TopicStability;
+    stability: CapabilityStability;
+    progressionAuthority: ProgressionAuthority;
   };
   capabilityEvidence: SandboxCapabilityOccurrence[];
   studentStateAuthoritative: false;
@@ -569,7 +573,15 @@ export function selectSandboxOutcome(input: {
           definition.key,
           definition.version,
         ].join(":"),
-      ) / Math.max(0.05, definition.weight);
+      ) / Math.max(
+        0.05,
+        definition.weight *
+          sandboxBehaviorProfileMultiplier({
+            seed: input.seed,
+            phase: definition.phase,
+            trajectoryClass: definition.trajectoryClass,
+          }),
+      );
     return scoreFor(a) - scoreFor(b) || a.key.localeCompare(b.key);
   })[0];
 }
@@ -799,12 +811,16 @@ const routesMatch = (
   a.route === b.route &&
   a.nextPhase === b.nextPhase &&
   a.nextStability === b.nextStability &&
+  a.nextCapabilityStability === b.nextCapabilityStability &&
+  a.nextProgressionAuthority === b.nextProgressionAuthority &&
   a.targetPhase === b.targetPhase;
 
 export function evaluateSandboxCompletedSession(input: {
   phase: TopicPhase;
   canonicalPreviousStability: TopicStability;
   specialistPreviousStability: TopicStability;
+  canonicalPreviousProgressionAuthority?: ProgressionAuthority | null;
+  specialistPreviousProgressionAuthority?: ProgressionAuthority | null;
   turns: SandboxCompletedTurn[];
   priorCompletedSessions: number;
   priorTracksDiverged: boolean;
@@ -823,11 +839,13 @@ export function evaluateSandboxCompletedSession(input: {
   const canonicalEvaluation = evaluateTrainingEvidence({
     phase: input.phase,
     previousStability: input.canonicalPreviousStability,
+    previousProgressionAuthority: input.canonicalPreviousProgressionAuthority,
     sets: canonicalEvidence,
   });
   const specialistEvaluation = evaluateTrainingEvidence({
     phase: input.phase,
     previousStability: input.specialistPreviousStability,
+    previousProgressionAuthority: input.specialistPreviousProgressionAuthority,
     sets: specialistEvidence,
   });
 
@@ -861,9 +879,18 @@ export function evaluateSandboxCompletedSession(input: {
     reason,
   });
 
+  // Compare independent state fields, not the legacy "High Maintenance" projection.
+  // The repeatability checkpoint is a meaningful longitudinal change, but
+  // holding that checkpoint in a later session is not a second state change.
+  const canonicalPreviousState = normalizeCapabilityProgressionState({
+    phase: input.phase,
+    stability: input.canonicalPreviousStability,
+    progression: input.canonicalPreviousProgressionAuthority,
+  });
   const canonicalStateChanged =
-    canonicalRoute.nextPhase !== input.phase ||
-    canonicalRoute.nextStability !== input.canonicalPreviousStability;
+    canonicalRoute.nextPhase !== canonicalPreviousState.phase ||
+    canonicalRoute.nextCapabilityStability !== canonicalPreviousState.stability ||
+    canonicalRoute.nextProgressionAuthority !== canonicalPreviousState.progression;
 
   const continuityClass: ResponseEvidenceClass =
     !systemOutcomeMatched
@@ -880,11 +907,13 @@ export function evaluateSandboxCompletedSession(input: {
     systemOutcomeMatched,
     canonicalNext: {
       phase: canonicalRoute.nextPhase,
-      stability: canonicalRoute.nextStability,
+      stability: canonicalRoute.nextCapabilityStability,
+      progressionAuthority: canonicalRoute.nextProgressionAuthority,
     },
     specialistNext: {
       phase: specialistRoute.nextPhase,
-      stability: specialistRoute.nextStability,
+      stability: specialistRoute.nextCapabilityStability,
+      progressionAuthority: specialistRoute.nextProgressionAuthority,
     },
     capabilityEvidence: [
       occurrence(
