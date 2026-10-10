@@ -546,23 +546,13 @@ function normalizeExecutiveAppointment(row: any): ExecutiveRoleAppointment {
 }
 
 async function getExecutiveCandidateUsers() {
-  if (isEmergencyDbMode()) {
-    const result = await pool.query(
-      `SELECT id, email, name, role, created_at, updated_at
-         FROM public.users
-        WHERE role::text = ANY($1::text[])`,
-      [EXECUTIVE_ROLES],
-    );
-    return result.rows.map(normalizeExecutiveUser);
-  }
-
-  const { data, error } = await supabase
-    .from("users")
-    .select("id, email, name, role, created_at, updated_at")
-    .in("role", [...EXECUTIVE_ROLES]);
-
-  if (error) throw error;
-  return (data || []).map(normalizeExecutiveUser);
+  const result = await pool.query(
+    `SELECT id, email, name, role, created_at, updated_at
+       FROM public.users
+      WHERE role::text = ANY($1::text[])`,
+    [EXECUTIVE_ROLES],
+  );
+  return result.rows.map(normalizeExecutiveUser);
 }
 
 async function getExecutiveAppointments() {
@@ -973,14 +963,16 @@ function buildCompanySummary(tasks: ReturnType<typeof buildHydratedTasks>, weekl
 }
 
 async function buildOverviewPayload(currentUserId: string) {
-  const currentUserRecord = await supabase
-    .from("users")
-    .select("id, email, name, role, created_at, updated_at")
-    .eq("id", currentUserId)
-    .maybeSingle();
-
-  if (currentUserRecord.error) throw currentUserRecord.error;
-  const currentUser = currentUserRecord.data ? normalizeExecutiveUser(currentUserRecord.data) : null;
+  const currentUserResult = await pool.query(
+    `SELECT id, email, name, role, created_at, updated_at
+       FROM public.users
+      WHERE id = $1
+      LIMIT 1`,
+    [currentUserId],
+  );
+  const currentUser = currentUserResult.rows[0]
+    ? normalizeExecutiveUser(currentUserResult.rows[0])
+    : null;
   if (!currentUser || !isExecutiveRole(currentUser.role)) {
     throw new Error("Executive user not found");
   }
