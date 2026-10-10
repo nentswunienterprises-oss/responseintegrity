@@ -14,7 +14,7 @@ test("production DB authority locks the verified The Hub baseline", () => {
   assert.equal(result.authority.productionProjectRef, "yzcnavucvwgmulcxgxvw");
   assert.equal(result.authority.baseline.commit, "a8c1aab29b230ce523c0353cfcc4eb4b1ae07627");
   assert.equal(result.baselineCount, 15);
-  assert.equal(result.managedCount, 9);
+  assert.equal(result.managedCount, 10);
   assert.deepEqual(result.authority.managedMigrations, [
     {
       path: "migrations/20260927_diagnosis_activity_context_separation.sql",
@@ -69,6 +69,12 @@ test("production DB authority locks the verified The Hub baseline", () => {
       description:
         "Restrict default Supabase service_role grants to required intake and append-only issue history permissions.",
       risk: "additive",
+    },
+    {
+      path: "migrations/20261010_revoke_anon_sensitive_tables.sql",
+      description:
+        "Revoke PUBLIC and anon privileges from eight high-sensitivity legacy public relations after verified server-side credential readiness, reducing unauthenticated Data API exposure without changing authenticated or service-role access.",
+      risk: "destructive",
     },
   ]);
 });
