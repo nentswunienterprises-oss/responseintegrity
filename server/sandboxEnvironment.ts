@@ -936,6 +936,10 @@ async function readinessFor(input: {
   if (!input.bank.capabilityPolicy) {
     return {
       policyAvailable: false as const,
+      bankKey: input.bank.bankKey,
+      bankVersion: input.bank.bankVersion,
+      policyStatus: null,
+      policyVersion: null,
       evidenceReady: false,
       practicalsReady: false,
       automaticTransition: false as const,
@@ -953,6 +957,9 @@ async function readinessFor(input: {
   ]);
   return {
     policyAvailable: true as const,
+    bankKey: input.bank.bankKey,
+    bankVersion: input.bank.bankVersion,
+    policyVersion: input.bank.capabilityPolicy.policyVersion,
     ...evaluateSandboxCapabilityReadiness({
       policy: input.bank.capabilityPolicy,
       evidence,
@@ -970,6 +977,10 @@ export async function getSandboxCapabilityReadiness(input: {
   if (!bank) {
     return {
       policyAvailable: false as const,
+      bankKey: null,
+      bankVersion: null,
+      policyStatus: null,
+      policyVersion: null,
       evidenceReady: false,
       practicalsReady: false,
       automaticTransition: false as const,

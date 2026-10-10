@@ -101,6 +101,11 @@
       "path": "migrations/20261004_specialist_development_pathway_authority.sql",
       "description": "Restore the public Specialist Development Pathway table required by the longitudinal development record and existing Trial governance, with server-only Data API access and non-retroactive backfill inside the current 90-day maximum window.",
       "risk": "additive"
+    },
+    {
+      "path": "migrations/20261009_practicals_evidence_stage_v1.sql",
+      "description": "Create governed post-Sandbox Practicals submission and TD review evidence, server-only stateful Execute challenge truth and append-only live response transcript without changing Trial or live permission.",
+      "risk": "additive"
     }
   ]
 }

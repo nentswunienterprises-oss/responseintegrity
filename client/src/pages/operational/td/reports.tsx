@@ -18,8 +18,6 @@ interface WeeklyCheckIn {
   sessionsSummary: string;
   wins: string;
   challenges: string;
-  emotions: string;
-  skillImprovement: string;
   helpNeeded?: string;
   nextWeekGoals: string;
   submittedAt: string;
@@ -136,18 +134,6 @@ export default function TDReports() {
                   <div className="space-y-2">
                     <h4 className="font-semibold text-sm text-orange-700">⚠️ Challenges</h4>
                     <p className="text-sm text-gray-600 leading-relaxed">{checkIn.challenges}</p>
-                  </div>
-
-                  {/* Emotions */}
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-sm text-purple-700">💭 Emotions & Thoughts</h4>
-                    <p className="text-sm text-gray-600 leading-relaxed">{checkIn.emotions}</p>
-                  </div>
-
-                  {/* Skill Improvement */}
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-sm text-indigo-700">🎯 Skill Improvement Focus</h4>
-                    <p className="text-sm text-gray-600 leading-relaxed">{checkIn.skillImprovement}</p>
                   </div>
 
                   {/* Next Week Goals */}

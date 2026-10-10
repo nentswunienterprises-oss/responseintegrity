@@ -8,6 +8,7 @@ import { registerCapabilityEngineRoutes } from "./routes/capabilityEngine";
 import { registerSandboxSimulationRoutes } from "./routes/sandboxSimulation";
 import { registerSandboxEnvironmentRoutes } from "./routes/sandboxEnvironment";
 import { registerSpecialistDevelopmentRoutes } from "./routes/specialistDevelopment";
+import { registerCapabilityPracticalEvidenceRoutes } from "./routes/capabilityPracticalEvidence";
 import { setupAuth } from "./supabaseAuth";
 
 let appPromise: Promise<Express> | null = null;
@@ -81,6 +82,7 @@ async function initializeApp(): Promise<Express> {
   registerSandboxSimulationRoutes(app);
   registerSandboxEnvironmentRoutes(app);
   registerSpecialistDevelopmentRoutes(app);
+  registerCapabilityPracticalEvidenceRoutes(app);
   await registerRoutes(app);
 
   app.use((req, res) => {

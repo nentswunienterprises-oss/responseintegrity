@@ -490,8 +490,6 @@ export const insertWeeklyCheckInSchema = createInsertSchema(weeklyCheckIns).omit
   sessionsSummary: z.string().min(1, "Please describe your sessions"),
   wins: z.string().min(1, "Please share your wins"),
   challenges: z.string().min(1, "Please describe challenges"),
-  emotions: z.string().min(1, "Please share your emotions and thoughts"),
-  skillImprovement: z.string().min(1, "Please describe what you're working on"),
   helpNeeded: z.string().optional(),
   nextWeekGoals: z.string().min(1, "Please set goals for next week"),
 });
