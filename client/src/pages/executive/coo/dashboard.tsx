@@ -38,6 +38,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Link } from "react-router-dom";
+import { CooDashboardIssueInbox } from "@/components/coo/CooDashboardIssueInbox";
 
 function getOperatingStateBadgeClass(stateKey?: string) {
   switch (stateKey) {
@@ -555,6 +556,8 @@ export default function COODashboard() {
             </CardHeader>
           </Card>
         </section>
+        {/* COO Issue Inbox — above Pilot Considerations */}
+        <CooDashboardIssueInbox enabled={isAuthenticated && !authLoading} />
         {/* Grade Monitoring System Link - hidden */}
         {false && <section>
           <Card className="mb-4">
