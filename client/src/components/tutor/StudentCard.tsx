@@ -12,6 +12,7 @@ import { useStudentWorkflowState, useMarkHandoverCompleted, useRespondToAssignme
 import { TutorIntroSessionActions } from "./TutorIntroSessionActions";
 import { useScheduledSession, useTrainingSessions } from "@/hooks/useScheduledSession";
 import { resolveTrainingPackageProgressSummary } from "@shared/trainingPackageQuota";
+import { displayTopicStability, topicStabilityConfirmationLabel } from "@shared/topicStabilityPresentation";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -929,8 +930,13 @@ export function StudentCard({
                     <div className="mt-2 flex flex-wrap items-start gap-2">
                       <span className="min-w-0 text-sm font-medium leading-5 text-foreground">{topic.phase}</span>
                       <span className="shrink-0 whitespace-nowrap text-xs px-2 py-0.5 rounded-full border border-primary/20 bg-muted/40 text-foreground">
-                        {topic.stability}
+                        {displayTopicStability(topic.stability)}
                       </span>
+                      {topicStabilityConfirmationLabel(topic.stability, topic.phase) ? (
+                        <span className="text-[11px] text-muted-foreground">
+                          {topicStabilityConfirmationLabel(topic.stability, topic.phase)}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 ))}
@@ -1282,7 +1288,10 @@ function HandoverVerificationSection({
           </div>
           <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
             <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Stability</p>
-            <p className="mt-1 text-sm font-medium text-foreground">{displayStability}</p>
+            <p className="mt-1 text-sm font-medium text-foreground">{displayTopicStability(displayStability)}</p>
+            {topicStabilityConfirmationLabel(displayStability, displayPhase) ? (
+              <p className="mt-1 text-xs text-muted-foreground">{topicStabilityConfirmationLabel(displayStability, displayPhase)}</p>
+            ) : null}
           </div>
         </div>
       </div>
@@ -1320,7 +1329,10 @@ function HandoverVerificationSection({
               </div>
               <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
                 <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Confirmed Stability</p>
-                <p className="mt-1 text-sm font-medium text-foreground">{latestSummary.resultingStability || "-"}</p>
+                <p className="mt-1 text-sm font-medium text-foreground">{latestSummary.resultingStability ? displayTopicStability(latestSummary.resultingStability) : "-"}</p>
+                {topicStabilityConfirmationLabel(latestSummary.resultingStability, latestSummary.resultingPhase) ? (
+                  <p className="mt-1 text-xs text-muted-foreground">{topicStabilityConfirmationLabel(latestSummary.resultingStability, latestSummary.resultingPhase)}</p>
+                ) : null}
               </div>
             </div>
           )}
