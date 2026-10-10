@@ -267,10 +267,7 @@ function PortalLanding() {
               <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)] lg:items-start">
                 <div className="space-y-6">
                   <div className="max-w-3xl">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em]" style={{ color: "var(--ri-cream)" }}>
-                      Why We Exist
-                    </p>
-                    <h2 className="mt-3 text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight leading-tight" style={{ color: "var(--ri-cream)" }}>
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight leading-tight" style={{ color: "var(--ri-cream)" }}>
                       Response training for the gap between understanding and execution.
                     </h2>
                   </div>

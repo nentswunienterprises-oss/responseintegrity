@@ -14,6 +14,8 @@ const app = source("client/src/App.tsx");
 const serverEntry = source("server/index.ts");
 const vercelEntry = source("server/vercelPreviewApi.ts");
 const portalRoutes = source("shared/portals.ts");
+const cooDashboard = source("client/src/pages/executive/coo/dashboard.tsx");
+const cooInboxPreview = source("client/src/components/coo/CooDashboardIssueInbox.tsx");
 
 test("Log Issue is neutral, technical-aware and submit gating uses actual form state", () => {
   assert.match(modal, /\/api\/issues/);
@@ -82,4 +84,20 @@ test("the issue inbox is registered and reachable by only the relevant executive
   assert.match(inbox, /\/api\/issues\/inbox/);
   assert.match(inbox, /Record resolution/);
   assert.doesNotMatch(inbox, /\/api\/hr\/disputes/);
+});
+
+test("COO Dashboard shows the real Issue Inbox above Pilot Considerations", () => {
+  const placement = cooDashboard.indexOf("<CooDashboardIssueInbox");
+  assert.ok(placement > cooDashboard.indexOf("Contribution Integrity quick launch"));
+  assert.ok(placement < cooDashboard.indexOf("Pilot Considerations Section"));
+  assert.match(cooDashboard, /CooDashboardIssueInbox enabled=\{isAuthenticated && !authLoading\}/);
+
+  assert.match(cooInboxPreview, /aria-labelledby="coo-dashboard-issue-inbox-heading"/);
+  assert.match(cooInboxPreview, /queryKey: \["\/api\/issues\/inbox"\]/);
+  assert.match(cooInboxPreview, /queryFn: getQueryFn\(\{ on401: "throw" \}\)/);
+  assert.match(cooInboxPreview, /to="\/executive\/coo\/issues"/);
+  assert.match(cooInboxPreview, /Technology, Operations, and People/);
+  assert.match(cooInboxPreview, /outstanding\.slice\(0, 3\)/);
+  assert.match(cooInboxPreview, /isError/);
+  assert.match(cooInboxPreview, /No outstanding issues/);
 });
