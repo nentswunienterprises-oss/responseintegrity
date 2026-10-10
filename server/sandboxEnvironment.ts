@@ -2108,7 +2108,7 @@ export async function getSandboxEnvironmentHistory(input: {
   });
   const [events, sessions, readiness] = await Promise.all([
     pool.query(
-      `SELECT id, event_sequence, session_number, phase, set_id, rep_number,
+      `SELECT id, event_sequence, session_number, phase, topic_key, set_id, rep_number,
               condition_kept, total_observations, matching_observations,
               matching_evidence_statuses, observation_exact, evidence_exact, completed_at
          FROM specialist_sandbox_rep_events
@@ -2118,7 +2118,7 @@ export async function getSandboxEnvironmentHistory(input: {
       [bundle.trajectory.id],
     ),
     pool.query(
-      `SELECT id, session_number, phase, authority_aligned, state_track_aligned,
+      `SELECT id, session_number, phase, topic_key, authority_aligned, state_track_aligned,
               state_change_observed, student_breakdown_recovery_observed, completed_at
          FROM specialist_sandbox_session_evaluations
         WHERE trajectory_id = $1
@@ -2140,6 +2140,7 @@ export async function getSandboxEnvironmentHistory(input: {
       sessionNumber: bundle.trajectory.session_number,
       prescribedPhase: bundle.truth.canonical_phase,
       prescribedStability: bundle.truth.canonical_stability,
+      activeTopicKey: bundle.trajectory.active_topic_key,
       divergenceActive: bundle.trajectory.divergence_active,
       route: bundle.truth.canonical_route,
       targetPhase: bundle.truth.canonical_targeted_rediagnosis_phase,
@@ -2150,6 +2151,7 @@ export async function getSandboxEnvironmentHistory(input: {
       eventSequence: Number(row.event_sequence),
       sessionNumber: Number(row.session_number),
       phase: String(row.phase),
+      topicKey: row.topic_key ? String(row.topic_key) : null,
       setId: String(row.set_id),
       repNumber: Number(row.rep_number),
       conditionKept: row.condition_kept === null ? null : Boolean(row.condition_kept),
@@ -2163,6 +2165,7 @@ export async function getSandboxEnvironmentHistory(input: {
       id: String(row.id),
       sessionNumber: Number(row.session_number),
       phase: String(row.phase),
+      topicKey: row.topic_key ? String(row.topic_key) : null,
       authorityAligned: Boolean(row.authority_aligned),
       stateTrackAligned: Boolean(row.state_track_aligned),
       stateChangeObserved: Boolean(row.state_change_observed),
