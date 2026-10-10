@@ -70,6 +70,7 @@ type TopicRow = {
   topic: string;
   phase: PhaseLabel;
   stability: StabilityLabel;
+  progressionAuthority: "building" | "exit_confirmation_eligible" | "transfer_maintenance" | null;
   hasObservedState: boolean;
   requiresTargetedRediagnosis: boolean;
   targetedRediagnosisStartPhase: PhaseLabel | null;
@@ -804,7 +805,7 @@ function buildTopics(
     string,
     {
       history: Array<{ date: string; phase: PhaseLabel; stability: StabilityLabel; note: string; kind: ObservationKind }>;
-      seeded?: { phase: PhaseLabel; stability: StabilityLabel };
+      seeded?: { phase: PhaseLabel; stability: StabilityLabel; progressionAuthority?: "building" | "exit_confirmation_eligible" | "transfer_maintenance" | null };
       requiresTargetedRediagnosis?: boolean;
       targetedRediagnosisStartPhase?: PhaseLabel | null;
       systemNextAction?: string | null;
@@ -846,6 +847,9 @@ function buildTopics(
       seeded: {
         phase: normalizePhase(entry?.phase || map?.entry_phase),
         stability: normalizeStability(entry?.stability || map?.stability),
+        progressionAuthority: ["building", "exit_confirmation_eligible", "transfer_maintenance"].includes(String(entry?.progressionAuthority || ""))
+          ? entry.progressionAuthority
+          : null,
       },
       requiresTargetedRediagnosis: entry?.requiresTargetedRediagnosis === true,
       targetedRediagnosisStartPhase: entry?.targetedRediagnosisStartPhase
@@ -892,6 +896,7 @@ function buildTopics(
     const hasObservedState = history.length > 0;
     const phase = latest?.phase || entry.seeded?.phase || "Structured Execution";
     const stability = latest?.stability || entry.seeded?.stability || "Low";
+    const progressionAuthority = entry.seeded?.progressionAuthority ?? null;
     const lastSessionDate = latest?.date;
 
     const formatRelativeObservationLabel = (index: number, kind: ObservationKind) => {
@@ -923,6 +928,7 @@ function buildTopics(
       topic,
       phase,
       stability,
+      progressionAuthority,
       hasObservedState,
       requiresTargetedRediagnosis: entry.requiresTargetedRediagnosis === true,
       targetedRediagnosisStartPhase: entry.targetedRediagnosisStartPhase || null,
@@ -1768,8 +1774,8 @@ export default function StudentTopicConditioningDialog({
                             <p className="text-base font-semibold break-words">{row.topic}</p>
                             <p className="text-sm text-muted-foreground">Phase: <span className="font-medium text-foreground">{phaseLabel}</span></p>
                             <p className="text-sm text-muted-foreground">Stability: <span className="font-medium text-foreground">{stabilityLabel}</span></p>
-                            {row.hasObservedState && topicStabilityConfirmationLabel(row.stability, row.phase) ? (
-                              <p className="text-xs text-muted-foreground">{topicStabilityConfirmationLabel(row.stability, row.phase)}</p>
+                            {row.hasObservedState && topicStabilityConfirmationLabel(row.stability, row.phase, row.progressionAuthority) ? (
+                              <p className="text-xs text-muted-foreground">{topicStabilityConfirmationLabel(row.stability, row.phase, row.progressionAuthority)}</p>
                             ) : null}
                           </button>
                           <Button
@@ -1907,9 +1913,9 @@ export default function StudentTopicConditioningDialog({
                               {displayTopicStability(row.stability)}
                             </Badge>
                           )}
-                          {row.hasObservedState && topicStabilityConfirmationLabel(row.stability, row.phase) ? (
+                          {row.hasObservedState && topicStabilityConfirmationLabel(row.stability, row.phase, row.progressionAuthority) ? (
                             <Badge variant="outline" className="border-primary/20 text-muted-foreground">
-                              {topicStabilityConfirmationLabel(row.stability, row.phase)}
+                              {topicStabilityConfirmationLabel(row.stability, row.phase, row.progressionAuthority)}
                             </Badge>
                           ) : null}
                         </div>
@@ -1968,8 +1974,8 @@ export default function StudentTopicConditioningDialog({
                     <p><span className="font-medium">Topic Name:</span> {selectedRow.topic}</p>
                     <p><span className="font-medium">Current Phase:</span> {hasObservedSelection ? selectedRow.phase : "Unknown"}</p>
                     <p><span className="font-medium">Current Stability:</span> {hasObservedSelection ? displayTopicStability(selectedRow.stability) : "Unknown"}</p>
-                    {hasObservedSelection && topicStabilityConfirmationExplanation(selectedRow.stability, selectedRow.phase) ? (
-                      <p className="text-xs text-muted-foreground">{topicStabilityConfirmationExplanation(selectedRow.stability, selectedRow.phase)}</p>
+                    {hasObservedSelection && topicStabilityConfirmationExplanation(selectedRow.stability, selectedRow.phase, selectedRow.progressionAuthority) ? (
+                      <p className="text-xs text-muted-foreground">{topicStabilityConfirmationExplanation(selectedRow.stability, selectedRow.phase, selectedRow.progressionAuthority)}</p>
                     ) : null}
                     <p><span className="font-medium">Trend:</span> {selectedRow.trend}</p>
                     <p><span className="font-medium">Transition Status:</span> {selectedInterpretation?.transitionStatus || "Awaiting Observation"}</p>
@@ -2066,8 +2072,8 @@ export default function StudentTopicConditioningDialog({
                               Stability: {displayTopicStability(selectedRow.stability)}
                             </p>
                             <Progress value={stabilityPercent(selectedRow.stability)} />
-                            {topicStabilityConfirmationLabel(selectedRow.stability, selectedRow.phase) ? (
-                              <p className="text-xs text-muted-foreground">{topicStabilityConfirmationLabel(selectedRow.stability, selectedRow.phase)}</p>
+                            {topicStabilityConfirmationLabel(selectedRow.stability, selectedRow.phase, selectedRow.progressionAuthority) ? (
+                              <p className="text-xs text-muted-foreground">{topicStabilityConfirmationLabel(selectedRow.stability, selectedRow.phase, selectedRow.progressionAuthority)}</p>
                             ) : null}
                             <div className="space-y-1.5">
                               <p className="text-sm font-medium">Recent Logs (Last 3 Observations)</p>
