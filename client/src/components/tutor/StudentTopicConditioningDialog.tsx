@@ -84,6 +84,25 @@ type TopicRow = {
   timeline: Array<{ date: string; phase: PhaseLabel; stability: StabilityLabel; kind: ObservationKind }>;
 };
 
+/**
+ * Bridge the independent progression gate into historical next-action copy.
+ * Only the next-action logic receives the compound compatibility value.
+ * Stability display and persisted state remain Low / Medium / High.
+ */
+function nextActionStabilityFor(row: Pick<TopicRow, "phase" | "stability" | "progressionAuthority">): StabilityLabel {
+  if (row.progressionAuthority === "building") {
+    return row.stability === "High Maintenance" ? "High" : row.stability;
+  }
+  if (
+    row.stability === "High" &&
+    (row.progressionAuthority === "exit_confirmation_eligible" ||
+      (row.progressionAuthority === "transfer_maintenance" && row.phase === "Time Pressure Stability"))
+  ) {
+    return "High Maintenance";
+  }
+  return row.stability;
+}
+
 type TutorSessionRecord = {
   id: string;
   studentId?: string;
@@ -894,8 +913,11 @@ function buildTopics(
     );
     const latest = history[history.length - 1];
     const hasObservedState = history.length > 0;
-    const phase = latest?.phase || entry.seeded?.phase || "Structured Execution";
-    const stability = latest?.stability || entry.seeded?.stability || "Low";
+    // An explicit canonical progression record supersedes older session-history
+    // labels. History stays available but does not overwrite the current state.
+    const explicitAuthority = entry.seeded?.progressionAuthority != null;
+    const phase = (explicitAuthority ? entry.seeded?.phase : latest?.phase) || entry.seeded?.phase || "Structured Execution";
+    const stability = (explicitAuthority ? entry.seeded?.stability : latest?.stability) || entry.seeded?.stability || "Low";
     const progressionAuthority = entry.seeded?.progressionAuthority ?? null;
     const lastSessionDate = latest?.date;
 
@@ -1405,20 +1427,20 @@ export default function StudentTopicConditioningDialog({
 
   const needsStabilizationCount = prioritizedTopics.filter((row) => row.stability === "Low").length;
   const readyToAdvanceCount = prioritizedTopics.filter(
-    (row) => !!getNextActionData(row.phase, row.stability).advanceTo,
+    (row) => !!getNextActionData(row.phase, nextActionStabilityFor(row)).advanceTo,
   ).length;
 
   const selectedRow = topics.find((row) => row.topic === selectedTopic) || prioritizedTopics[0];
   const hasObservedSelection = !!selectedRow?.hasObservedState;
   const phaseIx = selectedRow && hasObservedSelection ? phaseIndex(selectedRow.phase) : -1;
   const guidance = selectedRow && hasObservedSelection
-    ? actionGuidanceFor(selectedRow.phase, selectedRow.stability) : { doItems: [], avoidItems: [] };
+    ? actionGuidanceFor(selectedRow.phase, nextActionStabilityFor(selectedRow)) : { doItems: [], avoidItems: [] };
   const effectiveTopicForLog = topics.length > 0
     ? activeTopicField || selectedRow?.topic || ""
     : sanitizeTopic(manualTopicField) || "";
 
   const selectedInterpretation = selectedRow && hasObservedSelection
-    ? interpretTopicState(selectedRow.phase, selectedRow.stability, selectedRow.trend, {
+    ? interpretTopicState(selectedRow.phase, nextActionStabilityFor(selectedRow), selectedRow.trend, {
         enteredMaintenanceCheckpoint: enteredMaintenanceCheckpoint(
           selectedRow.phase,
           selectedRow.stability,
@@ -1436,7 +1458,7 @@ export default function StudentTopicConditioningDialog({
         selectedRow.requiresTargetedRediagnosis
           ? selectedRow.targetedRediagnosisStartPhase || selectedRow.phase
           : selectedRow.phase,
-        selectedRow.requiresTargetedRediagnosis ? "Low" : selectedRow.stability,
+        selectedRow.requiresTargetedRediagnosis ? "Low" : nextActionStabilityFor(selectedRow),
         selectedRow.requiresTargetedRediagnosis ? false : hasObservedSelection,
       )
     : null;
@@ -1554,7 +1576,7 @@ export default function StudentTopicConditioningDialog({
           : null,
         prepPlan: tutorPrepPlanFor(
           requiresTargetedRediagnosis ? rediagnosisStartPhase : topicState.phase,
-          requiresTargetedRediagnosis ? "Low" : topicState.stability,
+          requiresTargetedRediagnosis ? "Low" : nextActionStabilityFor(topicState),
           requiresTargetedRediagnosis ? false : topicState.hasObservedState,
         ),
       };
@@ -1735,7 +1757,7 @@ export default function StudentTopicConditioningDialog({
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
                   {prioritizedTopics.map((row) => {
-                    const topicIntel = interpretTopicState(row.phase, row.stability, row.trend, {
+                    const topicIntel = interpretTopicState(row.phase, nextActionStabilityFor(row), row.trend, {
                       enteredMaintenanceCheckpoint: enteredMaintenanceCheckpoint(
                         row.phase,
                         row.stability,
@@ -1750,7 +1772,7 @@ export default function StudentTopicConditioningDialog({
                       row.requiresTargetedRediagnosis
                         ? row.targetedRediagnosisStartPhase || row.phase
                         : row.phase,
-                      row.requiresTargetedRediagnosis ? "Low" : row.stability,
+                      row.requiresTargetedRediagnosis ? "Low" : nextActionStabilityFor(row),
                       row.requiresTargetedRediagnosis ? false : row.hasObservedState,
                     );
                     const isExpanded = expandedTopics.has(row.topic);
@@ -2167,7 +2189,7 @@ export default function StudentTopicConditioningDialog({
                           {hasObservedSelection ? (
                             <>
                               <ul className="text-sm text-muted-foreground space-y-1">
-                                {getNextActionData(selectedRow.phase, selectedRow.stability).nextActions.map((a) => (
+                                {getNextActionData(selectedRow.phase, nextActionStabilityFor(selectedRow)).nextActions.map((a) => (
                                   <li key={a} className="flex items-start gap-1.5">
                                     <span className="mt-0.5 shrink-0 text-foreground/40">›</span>
                                     <span>{a}</span>
@@ -2177,7 +2199,7 @@ export default function StudentTopicConditioningDialog({
                               <div>
                                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Rules</p>
                                 <ul className="text-xs text-muted-foreground space-y-0.5">
-                                  {getNextActionData(selectedRow.phase, selectedRow.stability).rules.map((r) => (
+                                  {getNextActionData(selectedRow.phase, nextActionStabilityFor(selectedRow)).rules.map((r) => (
                                     <li key={r} className="flex items-start gap-1.5">
                                       <span className="shrink-0 text-foreground/40">-</span>
                                       <span>{r}</span>
