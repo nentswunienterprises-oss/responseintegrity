@@ -22,6 +22,7 @@ const buildInput = (): TrainingEvidenceShadowDatasetInput => ({
     authority: "evidence_native",
     phase: "Clarity",
     previousStability: "High",
+    previousProgressionAuthority: "building",
     observedStability: "Medium",
     dimensions: [],
     highMaintenanceEntryQualified: false,
@@ -29,6 +30,10 @@ const buildInput = (): TrainingEvidenceShadowDatasetInput => ({
     predictedTransition: {
       nextPhase: "Clarity",
       nextStability: "Medium",
+      transitionReason: "stability regress",
+    },
+    progressionTransition: {
+      next: { phase: "Clarity", stability: "Medium", progression: "building" },
       transitionReason: "stability regress",
     },
     ineligibleEvidenceCount: 1,
