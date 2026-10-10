@@ -27,6 +27,17 @@ export function getIssueTeam(category: IssueCategory): IssueOwnerTeam {
   return item.team;
 }
 
+/**
+ * View authority is separate from review/action authority.
+ * COO oversees all issues, including sensitive People reports, while the
+ * People team retains ownership of personnel-case handling.
+ */
+export function issueTeamsVisibleToRole(role: string): IssueOwnerTeam[] {
+  if (role === "coo") return ["technology", "operations", "people"];
+  return issueTeamsForRole(role);
+}
+
+/** Teams whose issues the role may move or resolve. */
 export function issueTeamsForRole(role: string): IssueOwnerTeam[] {
   switch (role) {
     case "ceo":

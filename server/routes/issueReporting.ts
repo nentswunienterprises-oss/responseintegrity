@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { pool } from "../db";
 import { isAuthenticated } from "../supabaseAuth";
-import { getIssueTeam, issueTeamsForRole } from "@shared/issueReporting";
+import { getIssueTeam, issueTeamsForRole, issueTeamsVisibleToRole } from "@shared/issueReporting";
 
 const reportSchema = z.object({
   category: z.enum(["technical", "workflow", "service", "people", "other"]),
@@ -86,8 +86,8 @@ export function registerIssueReportingRoutes(app: Express) {
   app.get("/api/issues/inbox", isAuthenticated, async (req: Request, res: Response) => {
     const user = actor(req);
     if (!user) return res.status(401).json({ message: "Sign in to see issues." });
-    const allowedTeams = issueTeamsForRole(user.role);
-    if (allowedTeams.length === 0) return res.status(403).json({ message: "Forbidden" });
+    const visibleTeams = issueTeamsVisibleToRole(user.role);
+    if (visibleTeams.length === 0) return res.status(403).json({ message: "Forbidden" });
     res.setHeader("Cache-Control", "private, no-store");
     try {
       const result = await pool.query(
@@ -102,9 +102,12 @@ export function registerIssueReportingRoutes(app: Express) {
           WHERE i.owner_team = ANY($1::varchar[])
           ORDER BY (i.status = 'resolved') ASC, i.created_at DESC
           LIMIT 150`,
-        [allowedTeams],
+        [visibleTeams],
       );
-      res.json({ items: result.rows });
+      res.json({ items: result.rows.map((issue) => ({
+        ...issue,
+        canManage: issueTeamsForRole(user.role).includes(issue.ownerTeam),
+      })) });
     } catch (error) {
       return handleIssueError(res, error);
     }
