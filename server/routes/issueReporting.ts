@@ -66,6 +66,7 @@ export function registerIssueReportingRoutes(app: Express) {
   app.get("/api/issues/mine", isAuthenticated, async (req: Request, res: Response) => {
     const user = actor(req);
     if (!user) return res.status(401).json({ message: "Sign in to see your reports." });
+    res.setHeader("Cache-Control", "private, no-store");
     try {
       const result = await pool.query(
         `SELECT id, category, title, impact, status,
@@ -87,6 +88,7 @@ export function registerIssueReportingRoutes(app: Express) {
     if (!user) return res.status(401).json({ message: "Sign in to see issues." });
     const allowedTeams = issueTeamsForRole(user.role);
     if (allowedTeams.length === 0) return res.status(403).json({ message: "Forbidden" });
+    res.setHeader("Cache-Control", "private, no-store");
     try {
       const result = await pool.query(
         `SELECT i.id, i.category, i.owner_team AS "ownerTeam", i.title,
