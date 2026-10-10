@@ -1434,6 +1434,12 @@ export async function prepareSandboxEnvironment(input: {
     studentId: input.studentId,
     allowCompleted: true,
   });
+  // A completed booking may be reopened for read-only history, but must never
+  // move the simulated student to a different topic.
+  if (String(boundScheduledSession.status || "") === "completed" &&
+      sandboxTopicKey(initialBundle.trajectory.active_topic_key) !== sandboxTopicKey(input.topic)) {
+    throw httpError(409, "This completed Sandbox booking belongs to an earlier topic. Return to the Pod to select the next confirmed lesson.");
+  }
   const bundle = await selectSandboxTopicTrajectory({
     tutorAssignmentId: input.tutorAssignmentId,
     tutorId: input.tutorId,
