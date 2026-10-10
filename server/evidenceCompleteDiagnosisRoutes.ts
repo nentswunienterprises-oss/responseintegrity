@@ -508,74 +508,34 @@ async function completeScheduledTrainingSessionAfterDiagnosis(input: {
   if (!scheduledSessionId) return;
 
   const completedAt = input.completedAt || new Date().toISOString();
+  const updated = await pool.query(
+    `UPDATE public.scheduled_sessions
+        SET status = 'completed',
+            attendance_status = 'both_joined',
+            recording_status = 'manual_not_tracked',
+            transcript_status = 'manual_not_tracked',
+            updated_at = $4
+      WHERE id::text = $1::text
+        AND tutor_id::text = $2::text
+        AND student_id::text = $3::text
+        AND type = 'training'
+        AND status IN ('confirmed', 'scheduled', 'ready', 'live')
+    RETURNING id, status`,
+    [scheduledSessionId, input.tutorId, input.studentId, completedAt],
+  );
+  if (updated.rows[0]) return;
 
-  if (isEmergencyDbMode()) {
-    const updated = await pool.query(
-      `UPDATE public.scheduled_sessions
-          SET status = 'completed',
-              attendance_status = 'both_joined',
-              recording_status = 'manual_not_tracked',
-              transcript_status = 'manual_not_tracked',
-              updated_at = $4
-        WHERE id::text = $1::text
-          AND tutor_id::text = $2::text
-          AND student_id::text = $3::text
-          AND type = 'training'
-          AND status IN ('confirmed', 'scheduled', 'ready', 'live')
-      RETURNING id, status`,
-      [scheduledSessionId, input.tutorId, input.studentId, completedAt],
-    );
-    if (updated.rows[0]) return;
-
-    const existing = await pool.query(
-      `SELECT status
-         FROM public.scheduled_sessions
-        WHERE id::text = $1::text
-          AND tutor_id::text = $2::text
-          AND student_id::text = $3::text
-          AND type = 'training'
-        LIMIT 1`,
-      [scheduledSessionId, input.tutorId, input.studentId],
-    );
-    if (String(existing.rows[0]?.status || "") === "completed") return;
-    throw new Error("Completed re-diagnosis could not retire its scheduled training session.");
-  }
-
-  const { data: updatedSession, error: updateError } = await supabase
-    .from("scheduled_sessions")
-    .update({
-      status: "completed",
-      attendance_status: "both_joined",
-      recording_status: "manual_not_tracked",
-      transcript_status: "manual_not_tracked",
-      updated_at: completedAt,
-    })
-    .eq("id", scheduledSessionId)
-    .eq("tutor_id", input.tutorId)
-    .eq("student_id", input.studentId)
-    .eq("type", "training")
-    .in("status", ["confirmed", "scheduled", "ready", "live"])
-    .select("id, status")
-    .maybeSingle();
-
-  if (updateError) {
-    throw new Error(`Failed to retire completed re-diagnosis session: ${updateError.message}`);
-  }
-  if (updatedSession) return;
-
-  const { data: existingSession, error: existingError } = await supabase
-    .from("scheduled_sessions")
-    .select("status")
-    .eq("id", scheduledSessionId)
-    .eq("tutor_id", input.tutorId)
-    .eq("student_id", input.studentId)
-    .eq("type", "training")
-    .maybeSingle();
-
-  if (existingError) {
-    throw new Error(`Failed to verify completed re-diagnosis session: ${existingError.message}`);
-  }
-  if (String(existingSession?.status || "") === "completed") return;
+  const existing = await pool.query(
+    `SELECT status
+       FROM public.scheduled_sessions
+      WHERE id::text = $1::text
+        AND tutor_id::text = $2::text
+        AND student_id::text = $3::text
+        AND type = 'training'
+      LIMIT 1`,
+    [scheduledSessionId, input.tutorId, input.studentId],
+  );
+  if (String(existing.rows[0]?.status || "") === "completed") return;
 
   throw new Error("Completed re-diagnosis could not retire its scheduled training session.");
 }
