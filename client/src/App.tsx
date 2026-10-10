@@ -149,6 +149,7 @@ import ExecutiveHRUpdates from "@/pages/executive/hr/updates";
 import ExecutiveHRApplications from "@/pages/executive/hr/applications";
 import ExecutiveHRBrain from "@/pages/executive/hr/brain";
 import ExecutiveHRDisputes from "@/pages/executive/hr/disputes";
+import ExecutiveIssueInbox from "@/pages/executive/issues";
 import ExecutiveCommandRhythmDashboard from "@/pages/executive/command-rhythm-dashboard";
 import ExecutiveCEOBoard from "@/pages/executive/ceo/board";
 import ExecutiveGateway from "@/pages/executive/gateway";
@@ -607,6 +608,11 @@ function Router() {
       <Route path="/executive/hr/applications" element={<ExecutiveSeatGuard role="hr"><DashboardLayout><ExecutiveHRApplications /></DashboardLayout></ExecutiveSeatGuard>} />
       <Route path="/executive/hr/brain" element={<ExecutiveSeatGuard role="hr"><DashboardLayout><ExecutiveHRBrain /></DashboardLayout></ExecutiveSeatGuard>} />
       <Route path="/executive/hr/disputes" element={<ExecutiveSeatGuard role="hr"><DashboardLayout><ExecutiveHRDisputes /></DashboardLayout></ExecutiveSeatGuard>} />
+
+      <Route path="/executive/coo/issues" element={<ExecutiveSeatGuard role="coo"><DashboardLayout><ExecutiveIssueInbox /></DashboardLayout></ExecutiveSeatGuard>} />
+      <Route path="/executive/hr/issues" element={<ExecutiveSeatGuard role="hr"><DashboardLayout><ExecutiveIssueInbox /></DashboardLayout></ExecutiveSeatGuard>} />
+      <Route path="/executive/cto/issues" element={<ExecutiveSeatGuard role="cto"><DashboardLayout><ExecutiveIssueInbox /></DashboardLayout></ExecutiveSeatGuard>} />
+      <Route path="/executive/ceo/issues" element={<ExecutiveSeatGuard role="ceo"><DashboardLayout><ExecutiveIssueInbox /></DashboardLayout></ExecutiveSeatGuard>} />
 
       {/* CEO Routes */}
       <Route path="/executive/ceo/board" element={<DashboardLayout><ExecutiveCEOBoard /></DashboardLayout>} />
