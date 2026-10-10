@@ -10,6 +10,7 @@ export function buildTopics(
   topic: string;
   phase: PhaseLabel;
   stability: StabilityLabel;
+  progressionAuthority: "building" | "exit_confirmation_eligible" | "transfer_maintenance" | null;
   hasObservedState: boolean;
   lastUpdated: string | null;
   lastSession: string;
@@ -22,7 +23,7 @@ export function buildTopics(
     string,
     {
       history: Array<{ date: string; phase: PhaseLabel; stability: StabilityLabel; note: string }>;
-      seeded?: { phase: PhaseLabel; stability: StabilityLabel };
+      seeded?: { phase: PhaseLabel; stability: StabilityLabel; progressionAuthority?: "building" | "exit_confirmation_eligible" | "transfer_maintenance" | null };
     }
   >();
 
@@ -53,6 +54,9 @@ export function buildTopics(
       seeded: {
         phase: normalizePhase(entry?.phase || map?.entry_phase),
         stability: normalizeStability(entry?.stability || map?.stability),
+        progressionAuthority: ["building", "exit_confirmation_eligible", "transfer_maintenance"].includes(String(entry?.progressionAuthority || ""))
+          ? entry.progressionAuthority
+          : null,
       },
     });
   });
@@ -85,6 +89,7 @@ export function buildTopics(
     topic: string;
     phase: PhaseLabel;
     stability: StabilityLabel;
+    progressionAuthority: "building" | "exit_confirmation_eligible" | "transfer_maintenance" | null;
     hasObservedState: boolean;
     lastUpdated: string | null;
     lastSession: string;
@@ -99,6 +104,7 @@ export function buildTopics(
     const latest = history[history.length - 1];
     const phase = latest?.phase || entry.seeded?.phase || "Structured Execution";
     const stability = latest?.stability || entry.seeded?.stability || "Low";
+    const progressionAuthority = entry.seeded?.progressionAuthority ?? null;
     const lastSessionDate = latest?.date;
 
     const recentLogs = history
@@ -119,6 +125,7 @@ export function buildTopics(
       topic,
       phase,
       stability,
+      progressionAuthority,
       hasObservedState: history.length > 0,
       lastUpdated: lastSessionDate || null,
       lastSession: formatLastUpdatedLabel(lastSessionDate),
