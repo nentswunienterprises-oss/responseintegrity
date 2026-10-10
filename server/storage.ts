@@ -978,20 +978,31 @@ export class SupabaseStorage implements IStorage {
       certification_status: assignment.certificationStatus,
       operational_mode: assignment.operationalMode || "training",
     };
-    const assignmentResult = await pool.query(
-      `INSERT INTO public.tutor_assignments
-        (tutor_id, pod_id, student_count, certification_status, operational_mode)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
-      [
-        dbAssignment.tutor_id,
-        dbAssignment.pod_id,
-        dbAssignment.student_count,
-        dbAssignment.certification_status,
-        dbAssignment.operational_mode,
-      ],
-    );
-    const data = assignmentResult.rows[0];
+    let data: any = null;
+    if (!isTheHubDatabaseRuntime()) {
+      const result = await supabase
+        .from("tutor_assignments")
+        .insert(dbAssignment)
+        .select()
+        .single();
+      data = result.data;
+      if (result.error) throw new Error(`Failed to create tutor assignment: ${result.error.message}`);
+    } else {
+      const assignmentResult = await pool.query(
+        `INSERT INTO public.tutor_assignments
+          (tutor_id, pod_id, student_count, certification_status, operational_mode)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING *`,
+        [
+          dbAssignment.tutor_id,
+          dbAssignment.pod_id,
+          dbAssignment.student_count,
+          dbAssignment.certification_status,
+          dbAssignment.operational_mode,
+        ],
+      );
+      data = assignmentResult.rows[0];
+    }
     if (!data) throw new Error("Failed to create tutor assignment");
     // Transform snake_case to camelCase
     return {
@@ -1007,24 +1018,30 @@ export class SupabaseStorage implements IStorage {
 
   async getTutorAssignment(tutorId: string): Promise<(TutorAssignment & { pod: Pod }) | undefined> {
     console.log("🔍 Looking for tutor assignment for tutorId:", tutorId);
-    const assignmentResult = await pool.query(
-      `SELECT id, tutor_id, pod_id, student_count, certification_status, operational_mode, created_at
-         FROM public.tutor_assignments
-        WHERE tutor_id = $1
-        LIMIT 1`,
-      [tutorId],
-    );
-    const assignment = assignmentResult.rows[0];
+    let assignment: any = null;
+    if (!isTheHubDatabaseRuntime()) {
+      const { data, error } = await supabase
+        .from("tutor_assignments")
+        .select("*")
+        .eq("tutor_id", tutorId)
+        .maybeSingle();
+      if (error) {
+        console.log("ℹ️ No assignment found:", error.message);
+      }
+      assignment = data || null;
+    } else {
+      const assignmentResult = await pool.query(
+        `SELECT id, tutor_id, pod_id, student_count, certification_status, operational_mode, created_at
+           FROM public.tutor_assignments
+          WHERE tutor_id = $1
+          LIMIT 1`,
+        [tutorId],
+      );
+      assignment = assignmentResult.rows[0] || null;
+    }
     if (!assignment) return undefined;
 
-    const podResult = await pool.query(
-      `SELECT id, pod_name, pod_type, vehicle, phase, td_id, status, start_date, end_date, deleted_at, created_at
-         FROM public.pods
-        WHERE id = $1
-        LIMIT 1`,
-      [assignment.pod_id],
-    );
-    const pod = podResult.rows[0];
+    const pod = await this.getPod(assignment.pod_id);
     if (!pod) return undefined;
 
     return {
@@ -1035,23 +1052,18 @@ export class SupabaseStorage implements IStorage {
       certificationStatus: assignment.certification_status,
       operationalMode: assignment.operational_mode,
       createdAt: assignment.created_at,
-      pod: {
-        id: pod.id,
-        podName: pod.pod_name,
-        podType: pod.pod_type,
-        vehicle: pod.vehicle,
-        phase: pod.phase,
-        tdId: pod.td_id,
-        status: pod.status,
-        startDate: pod.start_date,
-        endDate: pod.end_date,
-        deletedAt: pod.deleted_at,
-        createdAt: pod.created_at,
-      },
+      pod,
     };
   }
 
   async getTutorAssignmentsByPod(podId: string): Promise<TutorAssignment[]> {
+    if (!isTheHubDatabaseRuntime()) {
+      const { data } = await supabase
+        .from("tutor_assignments")
+        .select("*")
+        .eq("pod_id", podId);
+      return (data || []).map((assignment: any) => transformSnakeToCamel(assignment) as TutorAssignment);
+    }
     const result = await pool.query(
       `SELECT id, tutor_id, pod_id, student_count, certification_status, operational_mode, created_at
          FROM public.tutor_assignments
@@ -1063,6 +1075,10 @@ export class SupabaseStorage implements IStorage {
   }
 
   async updateCertificationStatus(id: string, status: string): Promise<void> {
+    if (!isTheHubDatabaseRuntime()) {
+      await supabase.from("tutor_assignments").update({ certification_status: status }).eq("id", id);
+      return;
+    }
     await pool.query(
       `UPDATE public.tutor_assignments SET certification_status = $2 WHERE id = $1`,
       [id, status],
@@ -1070,6 +1086,10 @@ export class SupabaseStorage implements IStorage {
   }
 
   async updateTutorOperationalMode(id: string, operationalMode: TutorTrainingMode): Promise<void> {
+    if (!isTheHubDatabaseRuntime()) {
+      await supabase.from("tutor_assignments").update({ operational_mode: operationalMode }).eq("id", id);
+      return;
+    }
     await pool.query(
       `UPDATE public.tutor_assignments SET operational_mode = $2 WHERE id = $1`,
       [id, operationalMode],
@@ -1077,6 +1097,11 @@ export class SupabaseStorage implements IStorage {
   }
 
   async deleteTutorAssignment(id: string): Promise<void> {
+    if (!isTheHubDatabaseRuntime()) {
+      const { error } = await supabase.from("tutor_assignments").delete().eq("id", id);
+      if (error) throw new Error(`Failed to delete tutor assignment ${id}: ${error.message}`);
+      return;
+    }
     await pool.query(`DELETE FROM public.tutor_assignments WHERE id = $1`, [id]);
   }
 
