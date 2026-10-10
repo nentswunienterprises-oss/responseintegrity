@@ -170,15 +170,10 @@ async function loadTrialCaseOverview(caseRow: any): Promise<TrialCaseOverview> {
   }
   const reviewByPlacementId = new Map(reviews.map((review: any) => [String(review.placement_id), review]));
 
-  const derivedWindowStartedAt = caseRow.window_started_at || (
-    (placementRows || []).length === 2
-      ? [...(placementRows || [])]
-          .map((placement: any) => String(placement.started_at || ""))
-          .filter(Boolean)
-          .sort((left, right) => new Date(left).getTime() - new Date(right).getTime())
-          .pop() || null
-      : null
-  );
+  // Delivery clock is established by the DB trigger when the first completed
+  // scheduled session belongs to a current Trial placement. Creating the case
+  // or placing either family must never start (or restart) its 35-day window.
+  const derivedWindowStartedAt = caseRow.window_started_at || null;
   const preliminaryWindow = deriveTrialWindow({
     windowStartedAt: derivedWindowStartedAt,
     windowEndsAt: caseRow.window_ends_at,
@@ -339,7 +334,7 @@ export async function extendTrialCase(input: {
   const overview = await getTrialCaseById(input.caseId);
   if (!overview) throw new Error("Trial case not found");
   if (!overview.window.startedAt || !overview.window.standardEndsAt) {
-    throw new Error("The 14-day Trial window starts only after both families are placed.");
+    throw new Error("The 35-day Trial window starts on the first completed Trial session.");
   }
   if (overview.window.extensionEndsAt) throw new Error("This Trial case already has a documented extension.");
 
@@ -351,7 +346,7 @@ export async function extendTrialCase(input: {
   const pathwayStandardTime = new Date(pathway.standardEndsAt).getTime();
   const pathwayEffectiveTime = new Date(pathway.timeline.effectiveEndsAt).getTime();
   if (!Number.isFinite(extensionTime) || extensionTime <= standardEndTime) {
-    throw new Error("The Trial extension must end after the standard 14-day window.");
+    throw new Error("The Trial extension must end after the standard 35-day window.");
   }
   if (extensionTime > pathwayStandardTime && !pathway.timeline.extensionApproved) {
     throw new Error("Approve the documented 75-to-90-day pathway extension before Trial can run beyond day 75.");
