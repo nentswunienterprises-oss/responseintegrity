@@ -1,10 +1,10 @@
 -- Stage-scoped practical evidence, adapted from the unmerged Capability Engine Sprint 14.
 -- No live identity may graduate through this migration alone.
 
-CREATE TABLE IF NOT EXISTS specialist_capability_practical_evidence (
+CREATE TABLE IF NOT EXISTS public.specialist_capability_practical_evidence (
   id varchar PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  tutor_assignment_id varchar NOT NULL REFERENCES tutor_assignments(id) ON DELETE CASCADE,
-  tutor_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  tutor_assignment_id varchar NOT NULL REFERENCES public.tutor_assignments(id),
+  tutor_id varchar NOT NULL REFERENCES public.users(id),
   proof_key varchar NOT NULL CHECK (proof_key IN ('prepare', 'execute', 'evidence')),
   proof_version integer NOT NULL CHECK (proof_version > 0),
   attempt_number integer NOT NULL CHECK (attempt_number > 0),
@@ -18,13 +18,13 @@ CREATE TABLE IF NOT EXISTS specialist_capability_practical_evidence (
   UNIQUE (tutor_assignment_id, proof_key, proof_version, attempt_number)
 );
 
-ALTER TABLE specialist_capability_practical_evidence ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE specialist_capability_practical_evidence FROM anon, authenticated;
+ALTER TABLE public.specialist_capability_practical_evidence ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.specialist_capability_practical_evidence FROM PUBLIC, anon, authenticated;
 
-CREATE TABLE IF NOT EXISTS specialist_capability_practical_reviews (
+CREATE TABLE IF NOT EXISTS public.specialist_capability_practical_reviews (
   id varchar PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  evidence_id varchar NOT NULL UNIQUE REFERENCES specialist_capability_practical_evidence(id) ON DELETE CASCADE,
-  reviewer_id varchar NOT NULL REFERENCES users(id),
+  evidence_id varchar NOT NULL UNIQUE REFERENCES public.specialist_capability_practical_evidence(id),
+  reviewer_id varchar NOT NULL REFERENCES public.users(id),
   reviewer_role varchar NOT NULL,
   outcome varchar NOT NULL CHECK (outcome IN ('approved', 'repeat_required', 'integrity_review')),
   reason_code varchar,
@@ -33,14 +33,14 @@ CREATE TABLE IF NOT EXISTS specialist_capability_practical_reviews (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-ALTER TABLE specialist_capability_practical_reviews ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE specialist_capability_practical_reviews FROM anon, authenticated;
+ALTER TABLE public.specialist_capability_practical_reviews ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.specialist_capability_practical_reviews FROM PUBLIC, anon, authenticated;
 
 CREATE INDEX IF NOT EXISTS idx_capability_practical_tutor
-  ON specialist_capability_practical_evidence (tutor_assignment_id, submitted_at DESC);
+  ON public.specialist_capability_practical_evidence (tutor_assignment_id, submitted_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_capability_practical_reviewed_at
-  ON specialist_capability_practical_reviews (reviewed_at DESC);
+  ON public.specialist_capability_practical_reviews (reviewed_at DESC);
 
 
 ALTER TABLE public.specialist_capability_practical_evidence ADD COLUMN IF NOT EXISTS rubric_version integer;
@@ -174,6 +174,48 @@ DROP TRIGGER IF EXISTS trg_execute_truth_immutable ON private.specialist_practic
 CREATE TRIGGER trg_execute_truth_immutable
   BEFORE UPDATE OR DELETE ON private.specialist_practical_execute_challenge_truth
   FOR EACH ROW EXECUTE FUNCTION private.reject_practical_execute_mutation();
+
+-- The review, submission and final completion ledger must be append-only.
+-- Removing an assignment or user must not silently erase qualification proof.
+DROP TRIGGER IF EXISTS trg_practical_submission_immutable ON public.specialist_capability_practical_evidence;
+CREATE TRIGGER trg_practical_submission_immutable
+  BEFORE UPDATE OR DELETE ON public.specialist_capability_practical_evidence
+  FOR EACH ROW EXECUTE FUNCTION private.reject_practical_execute_mutation();
+DROP TRIGGER IF EXISTS trg_practical_review_immutable ON public.specialist_capability_practical_reviews;
+CREATE TRIGGER trg_practical_review_immutable
+  BEFORE UPDATE OR DELETE ON public.specialist_capability_practical_reviews
+  FOR EACH ROW EXECUTE FUNCTION private.reject_practical_execute_mutation();
+DROP TRIGGER IF EXISTS trg_practical_completion_immutable ON public.specialist_practical_completion_decisions;
+CREATE TRIGGER trg_practical_completion_immutable
+  BEFORE UPDATE OR DELETE ON public.specialist_practical_completion_decisions
+  FOR EACH ROW EXECUTE FUNCTION private.reject_practical_execute_mutation();
+
+CREATE OR REPLACE FUNCTION private.guard_practical_execute_challenge_transition()
+RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $ BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION 'Execute challenges cannot be deleted or reset';
+  END IF;
+  IF OLD.status <> 'active'
+     OR NEW.id IS DISTINCT FROM OLD.id
+     OR NEW.tutor_assignment_id IS DISTINCT FROM OLD.tutor_assignment_id
+     OR NEW.tutor_id IS DISTINCT FROM OLD.tutor_id
+     OR NEW.challenge_version IS DISTINCT FROM OLD.challenge_version
+     OR NEW.attempt_number IS DISTINCT FROM OLD.attempt_number
+     OR NEW.started_at IS DISTINCT FROM OLD.started_at
+     OR NEW.active_turn <> OLD.active_turn + 1
+     OR NEW.active_turn > 4
+     OR (NEW.active_turn = 4 AND (NEW.status <> 'complete' OR NEW.completed_at IS NULL))
+     OR (NEW.active_turn < 4 AND (NEW.status <> 'active' OR NEW.completed_at IS NOT NULL))
+  THEN
+    RAISE EXCEPTION 'Execute challenge must advance one recorded turn, never reset';
+  END IF;
+  RETURN NEW;
+END; $;
+REVOKE ALL ON FUNCTION private.guard_practical_execute_challenge_transition() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS trg_practical_execute_challenge_guard ON public.specialist_practical_execute_challenges;
+CREATE TRIGGER trg_practical_execute_challenge_guard
+  BEFORE UPDATE OR DELETE ON public.specialist_practical_execute_challenges
+  FOR EACH ROW EXECUTE FUNCTION private.guard_practical_execute_challenge_transition();
 
 -- An Execute v2 TD decision must retain the reviewer's affirmative video/trace concordance declaration.
 ALTER TABLE public.specialist_capability_practical_reviews
