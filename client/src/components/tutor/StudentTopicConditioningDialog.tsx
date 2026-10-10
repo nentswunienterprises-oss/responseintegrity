@@ -44,6 +44,7 @@ import {
   nextMoveRecommendation,
 } from "./topicConditioningEngine";
 import { Progress } from "../ui/progress";
+import { displayTopicStability, topicStabilityConfirmationLabel, topicStabilityConfirmationExplanation } from "@shared/topicStabilityPresentation";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import type { PhaseLabel, StabilityLabel, TopicTrend } from "./topicConditioningEngine";
 import { useConfirmTrainingSession, useRespondTrainingSession, useRetryScheduledSessionMeetSync, useTrainingSessions } from "@/hooks/useScheduledSession";
@@ -513,10 +514,10 @@ function deriveTransitionStatus(
 ) {
   const advanceTo = getNextActionData(phase, stability).advanceTo;
   if (trend === "Regressing" && !options?.suppressRegressed) return "Regressed" as const;
-  if (phase === "Time Pressure Stability" && stability === "High Maintenance") return "Transfer Ready" as const;
-  if (stability === "High Maintenance" && advanceTo) return "Maintenance Confirmation" as const;
-  if (stability === "High Maintenance") return "Maintain" as const;
-  if (stability === "High") return "Maintenance Check" as const;
+  if (phase === "Time Pressure Stability" && stability === "High Maintenance") return "Transfer Evidence Required" as const;
+  if (stability === "High Maintenance" && advanceTo) return "Phase-Exit Confirmation" as const;
+  if (stability === "High Maintenance") return "Hold and Verify" as const;
+  if (stability === "High") return "Repeatability Check" as const;
   if (stability === "Medium") return "Building" as const;
   return "Reinforce" as const;
 }
@@ -566,25 +567,25 @@ function interpretTopicState(
       Low: "Student still needs foundational clarity before independent execution.",
       Medium: "Student grasps concepts but needs more practice for consistency.",
       High: "Student has clear understanding and is ready for structured execution practice.",
-      "High Maintenance": "Student has reached the Clarity maintenance checkpoint. Confirm it in a later qualifying Clarity drill before progressing into Structured Execution.",
+      "High Maintenance": "High Clarity is recorded. A separate qualifying Clarity exit confirmation is needed before Structured Execution.",
     },
     "Structured Execution": {
       Low: "Student can follow steps but needs consistency and independence building.",
       Medium: "Student executes steps mostly independently but struggles with consistency.",
       High: "Student executes steps independently and is ready to build resilience under difficulty.",
-      "High Maintenance": "Student has reached the Structured Execution maintenance checkpoint. Confirm it in a later qualifying Structured Execution drill before progressing into Controlled Discomfort.",
+      "High Maintenance": "High independent execution is recorded. A separate qualifying exit confirmation is needed before Controlled Discomfort.",
     },
     "Controlled Discomfort": {
       Low: "Student struggles under difficulty but is building stability.",
       Medium: "Student handles difficulty with improving stability and consistency.",
       High: "Student handles difficulty with stability and is ready for time-pressure training.",
-      "High Maintenance": "Student has reached the Controlled Discomfort maintenance checkpoint. Confirm it in a later qualifying Controlled Discomfort drill before progressing into Time Pressure Stability.",
+      "High Maintenance": "High control under difficulty is recorded. A separate qualifying exit confirmation is needed before Time Pressure Stability.",
     },
     "Time Pressure Stability": {
       Low: "Student needs to maintain structure and speed consistency under time.",
       Medium: "Student handles time pressure mostly but needs refinement.",
       High: "Student is stable under time pressure and maintains execution quality.",
-      "High Maintenance": "Student sustained high time-pressure stability and is ready for mixed transfer work.",
+      "High Maintenance": "High timed stability is recorded. Maintain it and verify transfer with separate evidence.",
     },
   };
 
@@ -1824,7 +1825,8 @@ export default function StudentTopicConditioningDialog({
                                   key={`${row.topic}-${point.date}-${point.phase}-${index}`}
                                   className="rounded-md border border-border/60 bg-muted/20 px-2 py-0.5 text-[11px] text-muted-foreground"
                                 >
-                                  {toRelativeSessionLabel(index, point.kind)} · {point.phase} · {point.stability}
+                                  {toRelativeSessionLabel(index, point.kind)} · {point.phase} · {displayTopicStability(point.stability)}
+                          {topicStabilityConfirmationLabel(point.stability, point.phase) ? " · Confirmation checkpoint" : ""}
                                 </span>
                                 );
                               })}
@@ -1899,7 +1901,12 @@ export default function StudentTopicConditioningDialog({
                                     : "bg-red-400"
                                 }`}
                               />
-                              {row.stability}
+                              {displayTopicStability(row.stability)}
+                            </Badge>
+                          )}
+                          {row.hasObservedState && topicStabilityConfirmationLabel(row.stability, row.phase) ? (
+                            <Badge variant="outline" className="border-primary/20 text-muted-foreground">
+                              {topicStabilityConfirmationLabel(row.stability, row.phase)}
                             </Badge>
                           )}
                         </div>
@@ -1957,7 +1964,10 @@ export default function StudentTopicConditioningDialog({
                   <div className="space-y-2 text-sm">
                     <p><span className="font-medium">Topic Name:</span> {selectedRow.topic}</p>
                     <p><span className="font-medium">Current Phase:</span> {hasObservedSelection ? selectedRow.phase : "Unknown"}</p>
-                    <p><span className="font-medium">Current Stability:</span> {hasObservedSelection ? selectedRow.stability : "Unknown"}</p>
+                    <p><span className="font-medium">Current Stability:</span> {hasObservedSelection ? displayTopicStability(selectedRow.stability) : "Unknown"}</p>
+                    {hasObservedSelection && topicStabilityConfirmationExplanation(selectedRow.stability, selectedRow.phase) ? (
+                      <p className="text-xs text-muted-foreground">{topicStabilityConfirmationExplanation(selectedRow.stability, selectedRow.phase)}</p>
+                    ) : null}
                     <p><span className="font-medium">Trend:</span> {selectedRow.trend}</p>
                     <p><span className="font-medium">Transition Status:</span> {selectedInterpretation?.transitionStatus || "Awaiting Observation"}</p>
                     <p><span className="font-medium">Specialist Meaning:</span> {selectedInterpretation?.tutorMeaning || "Topic is active but not yet observed."}</p>
@@ -2049,9 +2059,12 @@ export default function StudentTopicConditioningDialog({
                         {hasObservedSelection ? (
                           <>
                             <p className="text-sm text-muted-foreground">
-                              Stability: {selectedRow.stability}
+                              Stability: {displayTopicStability(selectedRow.stability)}
                             </p>
                             <Progress value={stabilityPercent(selectedRow.stability)} />
+                            {topicStabilityConfirmationLabel(selectedRow.stability, selectedRow.phase) ? (
+                              <p className="text-xs text-muted-foreground">{topicStabilityConfirmationLabel(selectedRow.stability, selectedRow.phase)}</p>
+                            ) : null}
                             <div className="space-y-1.5">
                               <p className="text-sm font-medium">Recent Logs (Last 3 Observations)</p>
                               {(selectedRow.recentLogs || []).length === 0 ? (
