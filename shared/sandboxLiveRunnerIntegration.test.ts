@@ -22,6 +22,10 @@ const studentCardSource = readFileSync(
   new URL("../client/src/components/tutor/StudentCard.tsx", import.meta.url),
   "utf8",
 );
+const studentTopicDialogSource = readFileSync(
+  new URL("../client/src/components/tutor/StudentTopicConditioningDialog.tsx", import.meta.url),
+  "utf8",
+);
 const sandboxGuideSource = readFileSync(
   new URL("../client/src/components/tutor/sandboxGuide.ts", import.meta.url),
   "utf8",
@@ -566,19 +570,26 @@ test("emergency Pod respects mixed student ID column types", () => {
   );
 });
 
-test("Sandbox Program Progress counts completed stateful sessions and carries visible Specialist state", () => {
+test("Sandbox history stays separate from the current package balance in the student card", () => {
   assert.match(
     studentCardSource,
     /const countedProgramProgress =[\s\S]*student\.sessionProgress/,
   );
   assert.match(
     studentCardSource,
-    /const sessionProgress = isSandboxStudent[\s\S]*countedProgramProgress/,
+    /resolveTrainingPackageProgressSummary\(trainingSessionsData\?\.monthlyQuota\)/,
   );
   assert.match(
     studentCardSource,
-    /const sessionsRemaining = isSandboxStudent[\s\S]*progressTotal/,
+    /const sessionProgress = isSandboxStudent\s*\? sandboxPackage\?\.sessionsUsed/,
   );
+  assert.match(
+    studentCardSource,
+    /const sessionsRemaining = isSandboxStudent\s*\? sandboxPackage\?\.sessionsRemaining/,
+  );
+  assert.match(studentCardSource, /const progressLabel = isSandboxStudent \? "Current Package"/);
+  assert.match(studentCardSource, /Package balance is unavailable or inconsistent/);
+  assert.match(studentTopicDialogSource, /monthlyQuota: trainingSessionsData\?\.monthlyQuota/);
   assert.match(serverRoutesSource, /specialist_sandbox_session_evaluations/);
   assert.match(serverRoutesSource, /sandbox-session:/);
   assert.match(serverRoutesSource, /specialist_phase, specialist_stability/);
