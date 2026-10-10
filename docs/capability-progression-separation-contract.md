@@ -1,6 +1,6 @@
 # RI Capability Stability and Progression Authority Separation
 
-Status: Founder approved 2026-10-10. **Implementation staged; not Production-authorized.**
+Status: Founder approved 2026-10-10. **Proof schema promoted and verified; matching application release and live Sandbox acceptance pending; The Hub Production not authorized.**
 
 ## Locked meaning
 
@@ -32,3 +32,14 @@ The Sandbox Specialist and private canonical truth tracks persist **separate col
 6. Keep Production DB migration authority closed until The Hub-specific approval, migration registration, readbacks and negative-access verification.
 
 No migration has been applied by adding this document or code branch. No readiness gate is considered proven solely from CI.
+
+## Proof schema promotion evidence (2026-10-10)
+
+- **Target:** Response Integrity Capability Proof, Supabase project `jftlxeacphvbnhbsbpxc` (not The Hub).
+- **Promotion:** `proof_separate_sandbox_progression_authority_20261010` applied successfully; Supabase migration-history version `20261010201018`.
+- **Before:** four Specialist trajectories, four canonical trajectories, with one `High Maintenance` checkpoint in each track.
+- **After:** zero combined stability values in active trajectories; one `High + exit_confirmation_eligible` in each track, preserving both earned gates.
+- **Historical session evaluations:** nine before and after; no historical session evaluation or evidence mutation.
+- **Integrity:** both CHECK constraints validated. Negative writes for Low + eligibility, Medium + eligibility, transfer maintenance before TPS, and retired combined stability all rejected; no mutations persisted.
+- **Access:** both tables retain enabled RLS and deny direct SELECT/INSERT/UPDATE to `anon` and `authenticated`.
+- **Release boundary:** Proof data schema is ahead of the old Sandbox runtime. Do not execute sessions with an older app build: it may still write `High Maintenance` and violate the new constraint. Deploy the matching branch code to Proof and verify longitudinal Sandbox continuity before calling the experience ready. This migration is **not** authority to apply it to The Hub.
