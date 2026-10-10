@@ -206,3 +206,16 @@ test("the 35-day expiry is independent of when the second family was assigned", 
   assert.equal(expired.state, "extension_required");
   assert.equal(expired.isExpired, true);
 });
+
+test("a corrupted lower per-family session requirement never reduces the 2 x 9 certification gate", () => {
+  const first = eligiblePlacement("placement-1", "family-1");
+  const second = eligiblePlacement("placement-2", "family-2");
+  second.progress = { ...second.progress, requiredSessionCount: 8, qualifyingSessionCount: 8 };
+  const result = evaluateTrialCertificationGate({
+    placements: [first,second],
+    riskState: "clear",
+  });
+  assert.equal(result.reviewable, false);
+  assert.match(result.blockers.join(" "), /exactly nine/);
+  assert.match(result.blockers.join(" "), /8\/9/);
+});
