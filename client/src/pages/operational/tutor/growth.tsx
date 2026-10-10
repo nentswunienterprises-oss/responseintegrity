@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Plus, ClipboardList, LockKeyhole, WalletCards } from "lucide-react";
+import { Calendar, Plus, LockKeyhole, WalletCards } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import type { Reflection } from "@shared/schema";
@@ -43,8 +43,6 @@ export default function TutorGrowth() {
     sessionsSummary: "",
     wins: "",
     challenges: "",
-    emotions: "",
-    skillImprovement: "",
     helpNeeded: "",
     nextWeekGoals: "",
   });
@@ -140,8 +138,6 @@ export default function TutorGrowth() {
         sessionsSummary: "",
         wins: "",
         challenges: "",
-        emotions: "",
-        skillImprovement: "",
         helpNeeded: "",
         nextWeekGoals: "",
       });
@@ -313,8 +309,7 @@ export default function TutorGrowth() {
         <Card className="p-6 border bg-slate-50/30 border-slate-200">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div>
-              <h2 className="text-lg font-semibold flex items-center gap-2 mb-1">
-                <ClipboardList className="w-5 h-5 text-slate-600" />
+              <h2 className="text-lg font-semibold mb-1">
                 Weekly Check-In
               </h2>
               <p className="text-sm text-muted-foreground">
@@ -383,38 +378,6 @@ export default function TutorGrowth() {
                     value={checkInData.challenges}
                     onChange={(e) =>
                       setCheckInData({ ...checkInData, challenges: e.target.value })
-                    }
-                    className="min-h-24 resize-none"
-                  />
-                </div>
-
-                {/* Emotions & Thoughts */}
-                <div className="space-y-2">
-                  <Label htmlFor="emotions" className="font-semibold">
-                    Emotions felt and thoughts
-                  </Label>
-                  <Textarea
-                    id="emotions"
-                    placeholder="How are you feeling? What's on your mind?"
-                    value={checkInData.emotions}
-                    onChange={(e) =>
-                      setCheckInData({ ...checkInData, emotions: e.target.value })
-                    }
-                    className="min-h-24 resize-none"
-                  />
-                </div>
-
-                {/* Skill Improvement */}
-                <div className="space-y-2">
-                  <Label htmlFor="skill-improvement" className="font-semibold">
-                    Working on improving about student transformation skills
-                  </Label>
-                  <Textarea
-                    id="skill-improvement"
-                    placeholder="What aspect of your tutoring/transformation skills are you working on?"
-                    value={checkInData.skillImprovement}
-                    onChange={(e) =>
-                      setCheckInData({ ...checkInData, skillImprovement: e.target.value })
                     }
                     className="min-h-24 resize-none"
                   />
