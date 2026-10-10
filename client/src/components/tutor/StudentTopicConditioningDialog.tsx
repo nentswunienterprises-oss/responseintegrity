@@ -2018,7 +2018,8 @@ export default function StudentTopicConditioningDialog({
                           key={point._renderKey}
                           className="inline-flex rounded-md border border-border/60 bg-muted/20 px-2 py-0.5 text-[11px] text-muted-foreground"
                         >
-                          {toRelativeSessionLabel(index, point.kind)} · {point.phase} · {point.stability}
+                          {toRelativeSessionLabel(index, point.kind)} · {point.phase} · {displayTopicStability(point.stability)}
+                          {topicStabilityConfirmationLabel(point.stability, point.phase) ? " · Confirmation checkpoint" : ""}
                         </span>
                       ))}
                     </div>
