@@ -411,18 +411,20 @@ export async function setupAuth(app: Express) {
       const fullName = `${first_name} ${last_name}`.trim() || email.split("@")[0];
       console.log("  Full name for insert:", fullName);
       
-      const { data: newUser, error: insertError } = await supabase
-        .from("users")
-        .insert({
-          id: authData.user.id,
-          email: normalizedEmail,
-          role,
-          first_name,
-          last_name,
-          name: fullName,
-        })
-        .select()
-        .maybeSingle();
+      let newUser: any = null;
+      let insertError: any = null;
+      try {
+        const insertResult = await pool.query(
+          `INSERT INTO public.users
+            (id, email, role, first_name, last_name, name)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING *`,
+          [authData.user.id, normalizedEmail, role, first_name, last_name, fullName],
+        );
+        newUser = insertResult.rows[0] || null;
+      } catch (error) {
+        insertError = error;
+      }
 
       if (insertError) {
         console.error("❌ Error creating user record:", insertError);
@@ -852,13 +854,26 @@ export async function setupAuth(app: Express) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      // Get user from our database
-      // ✅ Get user directly from Supabase 'users' table
-      let { data: user, error: fetchError } = await supabase
-        .from("users")
-        .select("*")
-        .eq("email", email)
-        .maybeSingle();
+      // Get the application profile through the privileged PostgreSQL connection.
+      let user: any = null;
+      let fetchError: any = null;
+      try {
+        const userResult = await pool.query(
+          `SELECT *
+             FROM public.users
+            WHERE lower(email) = lower($1)
+            LIMIT 1`,
+          [email],
+        );
+        user = userResult.rows[0] || null;
+      } catch (error) {
+        fetchError = error;
+      }
+
+      if (fetchError) {
+        console.error("❌ Failed to load application user profile:", fetchError);
+        return res.status(500).json({ message: "Failed to load user profile" });
+      }
 
       // If user record doesn't exist yet, auto-provision it using auth info
       if (!user) {
@@ -873,18 +888,20 @@ export async function setupAuth(app: Express) {
         const first_name = (authData.user.user_metadata as any)?.first_name || "";
         const last_name = (authData.user.user_metadata as any)?.last_name || "";
 
-        const { data: newUser, error: insertError } = await supabase
-          .from("users")
-          .insert({
-            id: authData.user.id,
-            email: normalizedEmail,
-            role: roleToAssign,
-            first_name,
-            last_name,
-            name,
-          })
-          .select()
-          .maybeSingle();
+        let newUser: any = null;
+        let insertError: any = null;
+        try {
+          const insertResult = await pool.query(
+            `INSERT INTO public.users
+              (id, email, role, first_name, last_name, name)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             RETURNING *`,
+            [authData.user.id, normalizedEmail, roleToAssign, first_name, last_name, name],
+          );
+          newUser = insertResult.rows[0] || null;
+        } catch (error) {
+          insertError = error;
+        }
 
         if (insertError || !newUser) {
           console.error("❌ Failed to auto-provision user:", insertError);
