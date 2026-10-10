@@ -2118,7 +2118,6 @@ export class SupabaseStorage implements IStorage {
   async createTutorOnboardingAcceptance(
     input: CreateTutorOnboardingAcceptanceInput
   ): Promise<{ application?: TutorApplication; acceptance?: TutorOnboardingAcceptance }> {
-    if (isEmergencyDbMode()) {
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
@@ -2328,252 +2327,6 @@ export class SupabaseStorage implements IStorage {
       } finally {
         client.release();
       }
-    }
-
-    const { data: existing, error: existingError } = await supabase
-      .from("tutor_applications")
-      .select("id, user_id, documents_status, document_submission_step, phone, email")
-      .eq("id", input.applicationId)
-      .eq("user_id", input.userId)
-      .single();
-
-    if (existingError || !existing) {
-      console.error("Error fetching application for onboarding acceptance:", existingError);
-      return {};
-    }
-
-    const documentsStatus = normalizeTutorDocumentStatuses(existing.documents_status);
-    const currentStep = buildCurrentStepFromStatuses(documentsStatus);
-
-    for (let step = 1; step < input.documentStep; step++) {
-      if (String(documentsStatus[step.toString()] || "not_started") !== "approved") {
-        throw new Error(`Sequential step order violation: step ${step} must be completed first.`);
-      }
-    }
-
-    if (input.documentStep !== currentStep) {
-      throw new Error(`Sequential step order violation: current acceptance step is ${currentStep}.`);
-    }
-
-    if (String(documentsStatus[input.documentStep.toString()] || "not_started") === "approved") {
-      throw new Error(`Step ${input.documentStep} has already been accepted.`);
-    }
-
-    const { data: duplicateAcceptance, error: duplicateAcceptanceError } = await supabase
-      .from("tutor_onboarding_acceptances")
-      .select("id")
-      .eq("application_id", input.applicationId)
-      .eq("user_id", input.userId)
-      .eq("document_step", input.documentStep)
-      .eq("document_version", input.documentVersion)
-      .eq("document_checksum", input.documentChecksum)
-      .limit(1)
-      .maybeSingle();
-
-    if (duplicateAcceptanceError) {
-      throw new Error(`Failed to check onboarding acceptance history: ${duplicateAcceptanceError.message}`);
-    }
-    if (duplicateAcceptance) {
-      throw new Error(`Step ${input.documentStep} has already been accepted.`);
-    }
-
-    const acceptancePayload: InsertTutorOnboardingAcceptance = {
-      applicationId: input.applicationId,
-      userId: input.userId,
-      documentStep: input.documentStep,
-      documentCode: input.documentCode,
-      documentTitle: input.documentTitle,
-      documentVersion: input.documentVersion,
-      documentEffectiveDate: input.documentEffectiveDate ?? null,
-      documentLastUpdatedAt: input.documentLastUpdatedAt ?? null,
-      documentSnapshot: input.documentSnapshot,
-      documentChecksum: input.documentChecksum,
-      typedFullName: input.typedFullName,
-      accountEmail: input.accountEmail,
-      phoneNumberSnapshot: input.phoneNumberSnapshot ?? null,
-      acceptedTimezone: input.acceptedTimezone ?? null,
-      ipAddress: input.ipAddress ?? null,
-      userAgent: input.userAgent ?? null,
-      deviceType: input.deviceType ?? null,
-      platform: input.platform ?? null,
-      sessionId: input.sessionId ?? null,
-      locale: input.locale ?? null,
-      sourceFlow: input.sourceFlow ?? null,
-      formSnapshotJson: input.formSnapshotJson ?? null,
-      acceptedClausesJson: input.acceptedClauses.map((clause) => clause.key),
-      scrollCompletionPercent: input.scrollCompletionPercent ?? null,
-      viewStartedAt: input.viewStartedAt ?? null,
-      viewCompletedAt: input.viewCompletedAt ?? null,
-      acceptClickedAt: input.acceptClickedAt ?? null,
-    };
-
-    const { data: acceptanceRow, error: acceptanceError } = await supabase
-      .from("tutor_onboarding_acceptances")
-      .insert({
-        application_id: acceptancePayload.applicationId,
-        user_id: acceptancePayload.userId,
-        document_step: acceptancePayload.documentStep,
-        document_code: acceptancePayload.documentCode,
-        document_title: acceptancePayload.documentTitle,
-        document_version: acceptancePayload.documentVersion,
-        document_effective_date: acceptancePayload.documentEffectiveDate,
-        document_last_updated_at: acceptancePayload.documentLastUpdatedAt,
-        document_snapshot: acceptancePayload.documentSnapshot,
-        document_checksum: acceptancePayload.documentChecksum,
-        typed_full_name: acceptancePayload.typedFullName,
-        account_email: acceptancePayload.accountEmail,
-        phone_number_snapshot: acceptancePayload.phoneNumberSnapshot,
-        accepted_timezone: acceptancePayload.acceptedTimezone,
-        ip_address: acceptancePayload.ipAddress,
-        user_agent: acceptancePayload.userAgent,
-        device_type: acceptancePayload.deviceType,
-        platform: acceptancePayload.platform,
-        session_id: acceptancePayload.sessionId,
-        locale: acceptancePayload.locale,
-        source_flow: acceptancePayload.sourceFlow,
-        form_snapshot_json: acceptancePayload.formSnapshotJson,
-        accepted_clauses_json: acceptancePayload.acceptedClausesJson,
-        scroll_completion_percent: acceptancePayload.scrollCompletionPercent,
-        view_started_at: acceptancePayload.viewStartedAt,
-        view_completed_at: acceptancePayload.viewCompletedAt,
-        accept_clicked_at: acceptancePayload.acceptClickedAt,
-      })
-      .select("*")
-      .single();
-
-    if (acceptanceError || !acceptanceRow) {
-      throw new Error(`Failed to create onboarding acceptance: ${acceptanceError?.message || "no data returned"}`);
-    }
-
-    const clauseRows: InsertTutorOnboardingClauseAcknowledgement[] = input.acceptedClauses.map((clause) => ({
-      acceptanceId: acceptanceRow.id,
-      clauseKey: clause.key,
-      clauseLabel: clause.label,
-    }));
-
-    if (clauseRows.length) {
-      const { error: clauseError } = await supabase
-        .from("tutor_onboarding_clause_acknowledgements")
-        .insert(
-          clauseRows.map((clause) => ({
-            acceptance_id: clause.acceptanceId,
-            clause_key: clause.clauseKey,
-            clause_label: clause.clauseLabel,
-          }))
-        );
-
-      if (clauseError) {
-        throw new Error(`Failed to save onboarding clause acknowledgements: ${clauseError.message}`);
-      }
-    }
-
-    const eventRows: InsertTutorOnboardingAcceptanceEvent[] = [
-      {
-        acceptanceId: acceptanceRow.id,
-        applicationId: input.applicationId,
-        userId: input.userId,
-        documentStep: input.documentStep,
-        eventType: "view_started",
-        payload: { at: input.viewStartedAt?.toISOString?.() ?? null },
-      },
-      {
-        acceptanceId: acceptanceRow.id,
-        applicationId: input.applicationId,
-        userId: input.userId,
-        documentStep: input.documentStep,
-        eventType: "view_completed",
-        payload: {
-          at: input.viewCompletedAt?.toISOString?.() ?? null,
-          scrollCompletionPercent: input.scrollCompletionPercent ?? null,
-        },
-      },
-      {
-        acceptanceId: acceptanceRow.id,
-        applicationId: input.applicationId,
-        userId: input.userId,
-        documentStep: input.documentStep,
-        eventType: "accepted",
-        payload: {
-          at: input.acceptClickedAt?.toISOString?.() ?? null,
-          method: "checkbox_typed_name",
-          clauses: input.acceptedClauses.map((clause) => clause.key),
-          formSnapshot: input.formSnapshotJson ?? null,
-        },
-      },
-    ];
-
-    const { error: eventError } = await supabase
-      .from("tutor_onboarding_acceptance_events")
-      .insert(
-        eventRows.map((eventRow) => ({
-          acceptance_id: eventRow.acceptanceId,
-          application_id: eventRow.applicationId,
-          user_id: eventRow.userId,
-          document_step: eventRow.documentStep,
-          event_type: eventRow.eventType,
-          payload: eventRow.payload ?? null,
-        }))
-      );
-
-    if (eventError) {
-      throw new Error(`Failed to save onboarding acceptance events: ${eventError.message}`);
-    }
-
-    const isAcceptanceOnlyStep = hasAcceptanceOnlyStep(input.documentStep);
-    const documentFields = getSequentialTutorDocumentFields(input.documentStep);
-    const acceptanceRecordedAt = new Date();
-    documentsStatus[input.documentStep.toString()] = isAcceptanceOnlyStep ? "approved" : "pending_upload";
-    if (isAcceptanceOnlyStep && input.documentStep < 6) {
-      const nextStep = (input.documentStep + 1).toString();
-      if (documentsStatus[nextStep] !== "approved") {
-        documentsStatus[nextStep] = "pending_upload";
-      }
-    }
-
-    const updateData: Record<string, any> = {
-      documents_status: documentsStatus,
-      document_submission_step:
-        isAcceptanceOnlyStep && input.documentStep < 6 ? input.documentStep + 1 : input.documentStep,
-      updated_at: acceptanceRecordedAt,
-    };
-
-    if (isAcceptanceOnlyStep) {
-      updateData[documentFields.verified] = true;
-      updateData[documentFields.verifiedBy] = input.userId;
-      updateData[documentFields.verifiedAt] = acceptanceRecordedAt;
-      updateData[documentFields.rejectionReason] = null;
-    }
-
-    const acceptedIdType = String(input.formSnapshotJson?.idType ?? "")
-      .trim()
-      .toLowerCase();
-    if (acceptedIdType === "sa_id" || acceptedIdType === "passport") {
-      updateData.id_type = acceptedIdType;
-    }
-
-    updateData[documentFields.rejectionReason] = null;
-
-    const { data: updatedApplication, error: updateError } = await supabase
-      .from("tutor_applications")
-      .update(updateData)
-      .eq("id", input.applicationId)
-      .select("*")
-      .single();
-
-    if (updateError || !updatedApplication) {
-      throw new Error(`Failed to update onboarding application state: ${updateError?.message || "no data returned"}`);
-    }
-
-    const [hydratedApplication] = await hydrateTutorApplicationsWithOnboardingState([
-      transformSnakeToCamel(updatedApplication) as TutorApplication,
-    ]);
-
-    return {
-      application: hydratedApplication,
-      acceptance: transformSnakeToCamel(acceptanceRow) as TutorOnboardingAcceptance,
-    };
-  }
-
   async uploadCompletedTutorSequentialDocument(
     applicationId: string,
     docStep: number,
@@ -2588,50 +2341,49 @@ export class SupabaseStorage implements IStorage {
       throw new Error(`Completed template fields are not configured for step ${docStep}.`);
     }
 
-    const { data: existing, error: existingError } = await supabase
-      .from("tutor_applications")
-      .select(`documents_status, ${fields.url}`)
-      .eq("id", applicationId)
-      .single();
+    const existingResult = await pool.query(
+      `SELECT * FROM public.tutor_applications WHERE id = $1 LIMIT 1`,
+      [applicationId],
+    );
+    const existing = existingResult.rows[0];
+    if (!existing) return undefined;
 
-    if (existingError) {
-      console.error("Error fetching sequential state before completed upload:", existingError);
-      return undefined;
-    }
-
-    const documentsStatus = normalizeTutorDocumentStatuses(existing?.documents_status);
+    const documentsStatus = normalizeTutorDocumentStatuses(existing.documents_status);
     const stepStatus = String(documentsStatus[docStep.toString()] || "not_started");
     if (stepStatus !== "pending_review" && stepStatus !== "approved") {
       throw new Error(
         `Completed template upload is only allowed while step ${docStep} is pending review or already approved.`
       );
     }
-    if (!existing?.[fields.url]) {
+    if (!existing[fields.url]) {
       throw new Error(
         `Tutor-signed document is required before uploading the platform-completed version for step ${docStep}.`
       );
     }
 
-    const updateData: Record<string, any> = {
-      updated_at: new Date(),
-      [fields.completedTemplateUrl]: completedDocumentUrl,
-      [fields.completedTemplateUploadedAt]: new Date(),
-      [fields.completedTemplateUploadedBy]: completedBy,
-    };
-
-    const { data, error } = await supabase
-      .from("tutor_applications")
-      .update(updateData)
-      .eq("id", applicationId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error uploading completed sequential document:", error);
-      return undefined;
+    const columns = [
+      fields.completedTemplateUrl,
+      fields.completedTemplateUploadedAt,
+      fields.completedTemplateUploadedBy,
+    ];
+    if (columns.some((column) => !/^[a-z0-9_]+$/i.test(column))) {
+      throw new Error("Invalid tutor application column");
     }
 
-    return data ? (transformSnakeToCamel(data) as TutorApplication) : undefined;
+    const result = await pool.query(
+      `UPDATE public.tutor_applications
+          SET updated_at = NOW(),
+              "${fields.completedTemplateUrl}" = $2,
+              "${fields.completedTemplateUploadedAt}" = NOW(),
+              "${fields.completedTemplateUploadedBy}" = $3
+        WHERE id = $1
+        RETURNING *`,
+      [applicationId, completedDocumentUrl, completedBy],
+    );
+
+    return result.rows[0]
+      ? (transformSnakeToCamel(result.rows[0]) as TutorApplication)
+      : undefined;
   }
 
   async reviewTutorSequentialDocument(
@@ -2648,7 +2400,6 @@ export class SupabaseStorage implements IStorage {
 
     const fields = getSequentialTutorDocumentFields(docStep);
 
-    if (isEmergencyDbMode()) {
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
@@ -2788,117 +2539,18 @@ export class SupabaseStorage implements IStorage {
       } finally {
         client.release();
       }
-    }
-
-    const { data: existing, error: existingError } = await supabase
-      .from("tutor_applications")
-      .select(
-        "documents_status, doc_1_completed_template_url, doc_2_completed_template_url, doc_3_completed_template_url, doc_4_completed_template_url, doc_5_completed_template_url, doc_1_submission_url, doc_2_submission_url, doc_3_submission_url, doc_4_submission_url, doc_5_submission_url, doc_6_submission_url"
-      )
-      .eq("id", applicationId)
-      .single();
-
-    if (existingError) {
-      console.error("Error fetching sequential review state:", existingError);
-      return undefined;
-    }
-
-    const documentsStatus = normalizeTutorDocumentStatuses(existing?.documents_status);
-    const currentStepStatus = String(documentsStatus[docStep.toString()] || "not_started");
-    if (currentStepStatus !== "pending_review") {
-      throw new Error(`Step ${docStep} is not currently pending review.`);
-    }
-
-    const updateData: Record<string, any> = {
-      updated_at: new Date(),
-      [fields.verified]: approved,
-      [fields.verifiedBy]: approved ? reviewedBy : null,
-      [fields.verifiedAt]: approved ? new Date() : null,
-      [fields.rejectionReason]: approved ? null : (rejectionReason || "Please review and resubmit"),
-    };
-
-    if (approved) {
-      const tutorSignedUrl = existing?.[fields.url];
-      if (!tutorSignedUrl) {
-        throw new Error(`Tutor-signed document is required before approving step ${docStep}.`);
-      }
-
-      const effectiveCompletedUrl =
-        completedDocumentUrl ||
-        (fields.completedTemplateUrl ? existing?.[fields.completedTemplateUrl] : null);
-
-      documentsStatus[docStep.toString()] = "approved";
-
-      if (docStep < 6) {
-        const nextStep = (docStep + 1).toString();
-        if (documentsStatus[nextStep] !== "approved") {
-          documentsStatus[nextStep] = "pending_upload";
-        }
-        updateData.document_submission_step = docStep + 1;
-      } else {
-        updateData.document_submission_step = 6;
-      }
-
-      const allSequentialDocumentsApproved = ["1", "2", "3", "4", "5", "6"].every(
-        (step) => String(documentsStatus[step] || "") === "approved"
-      );
-      if (allSequentialDocumentsApproved) {
-        updateData.onboarding_completed_at = new Date();
-      }
-
-      if (fields.completedTemplateUrl && effectiveCompletedUrl) {
-        updateData[fields.completedTemplateUrl] = effectiveCompletedUrl;
-      }
-
-      // Keep persisted status within DB enum values.
-      // Gateway status "confirmed" is derived from documents_status at read time.
-    } else {
-      documentsStatus[docStep.toString()] = "rejected";
-      updateData.document_submission_step = docStep;
-      if (fields.completedTemplateUrl) {
-        updateData[fields.completedTemplateUrl] = null;
-      }
-      if (fields.completedTemplateUploadedAt) {
-        updateData[fields.completedTemplateUploadedAt] = null;
-      }
-      if (fields.completedTemplateUploadedBy) {
-        updateData[fields.completedTemplateUploadedBy] = null;
-      }
-    }
-
-    updateData.documents_status = documentsStatus;
-
-    const { data, error } = await supabase
-      .from("tutor_applications")
-      .update(updateData)
-      .eq("id", applicationId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error reviewing sequential onboarding document:", error);
-      return undefined;
-    }
-
-    return data ? (transformSnakeToCamel(data) as TutorApplication) : undefined;
-  }
-
   async completeTutorOnboarding(applicationId: string): Promise<TutorApplication | undefined> {
-    const { data, error } = await supabase
-      .from("tutor_applications")
-      .update({
-        onboarding_completed_at: new Date(),
-        updated_at: new Date(),
-      })
-      .eq("id", applicationId)
-      .select()
-      .single();
-    
-    if (error) {
-      console.error("Error completing onboarding:", error);
-      return undefined;
-    }
-    return data ? (transformSnakeToCamel(data) as TutorApplication) : undefined;
+    const result = await pool.query(
+      `UPDATE public.tutor_applications
+          SET onboarding_completed_at = NOW(),
+              updated_at = NOW()
+        WHERE id = $1
+        RETURNING *`,
+      [applicationId],
+    );
+    return result.rows[0]
+      ? (transformSnakeToCamel(result.rows[0]) as TutorApplication)
+      : undefined;
   }
 
   // Roles
