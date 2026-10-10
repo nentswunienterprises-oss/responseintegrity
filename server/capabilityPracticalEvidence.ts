@@ -1,6 +1,7 @@
 import { pool } from "./db";
 import { getSandboxCapabilityReadiness } from "./sandboxEnvironment";
 import { derivePracticalCompletionGate } from "@shared/practicalCompletionGate";
+import { evaluatePracticalEntryGate } from "@shared/practicalEntryGate";
 import { assertCompletedExecuteChallenge, getExecuteChallengeForTd } from "./practicalExecuteChallenge";
 import {
   CAPABILITY_PRACTICAL_PROOFS,
@@ -530,13 +531,16 @@ export async function getPracticalEntryStatus(tutorAssignmentId: string, tutorId
   );
   const signoff = result.rows[0] || null;
   const readiness = await getSandboxCapabilityReadiness({ tutorAssignmentId, tutorId });
-  const blockers: string[] = [];
-  if (assignment.operational_mode !== "sandbox") blockers.push("The Specialist is not in Sandbox.");
-  if (!assignment.td_id) blockers.push("The Specialist is missing an assigned TD.");
-  if (signoff?.decision !== "passed") blockers.push("Latest version-2 assigned-TD Practicals-readiness approval is missing.");
-  if (signoff?.checklist?.capability_snapshot?.practicalsReady !== true) blockers.push("TD sign-off lacks positive Sandbox capability evidence.");
-  if (!readiness.practicalsReady) blockers.push("Current Sandbox capability evidence is not ready.");
-  return { ready: blockers.length === 0, blockers, signoffId: signoff?.id || null };
+  const gate = evaluatePracticalEntryGate({
+    operationalMode: assignment.operational_mode,
+    assignedTdId: String(assignment.td_id || "") || null,
+    latestAssignedTdSignoff: signoff ? {
+      decision: signoff.decision,
+      capabilitySnapshot: signoff.checklist?.capability_snapshot || null,
+    } : null,
+    currentReadiness: readiness,
+  });
+  return { ...gate, signoffId: signoff?.id || null };
 }
 
 async function assertPracticalEntry(tutorAssignmentId: string, tutorId: string) {
