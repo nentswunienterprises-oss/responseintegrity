@@ -211,7 +211,7 @@ export async function recordExecuteTurn(input: {
     const done=event.number===EXECUTE_CHALLENGE_TURNS;
     await client.query(
       `UPDATE public.specialist_practical_execute_challenges
-       SET active_turn=$2,status=$3,completed_at=CASE WHEN $3='complete' THEN now() ELSE null END
+       SET active_turn=$2,status=$3::varchar,completed_at=CASE WHEN $3::varchar='complete' THEN now() ELSE null END
        WHERE id=$1`,[c.id,event.number+1,done?"complete":"active"],
     );
     await client.query("COMMIT");
