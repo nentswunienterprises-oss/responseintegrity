@@ -111,6 +111,11 @@
       "path": "migrations/20261010_neutral_issue_reporting_v1.sql",
       "description": "Add role-scoped neutral issue reporting for Technology, Operations, and People with protected intake, status ledger and no browser table access.",
       "risk": "additive"
+    },
+    {
+      "path": "migrations/20261010_neutral_issue_reporting_service_grants.sql",
+      "description": "Restrict default Supabase service_role grants to required intake and append-only issue history permissions.",
+      "risk": "additive"
     }
   ]
 }
