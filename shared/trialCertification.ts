@@ -1,7 +1,7 @@
 export const TRIAL_REQUIRED_FAMILIES = 2;
 export const TRIAL_REQUIRED_SESSIONS_PER_FAMILY = 9;
-export const TRIAL_WINDOW_DAYS = 14;
-export const TRIAL_RECOMMENDED_SESSIONS_PER_WEEK = "4-5";
+export const TRIAL_WINDOW_DAYS = 35;
+export const TRIAL_RECOMMENDED_SESSIONS_PER_WEEK = "2-4";
 
 export type TrialCaseStatus =
   | "active"
@@ -17,7 +17,7 @@ export type TrialOutcomeClassification = "positive" | "mixed" | "negative";
 export type TrialReviewDecision = "positive" | "remediation_required" | "unsuccessful";
 export type TrialCertificationDecision = "certified" | "remediation_required" | "unsuccessful";
 export type TrialWindowState =
-  | "awaiting_families"
+  | "awaiting_first_session"
   | "active"
   | "extension_active"
   | "extension_required"
@@ -156,7 +156,7 @@ export function deriveTrialWindow({
 }): TrialWindowOverview {
   if (!windowStartedAt) {
     return {
-      state: "awaiting_families",
+      state: "awaiting_first_session",
       startedAt: null,
       standardEndsAt: null,
       extensionEndsAt: extensionEndsAt || null,
@@ -247,7 +247,9 @@ export function deriveTrialPlacementProgress({
     const rightTime = parseTime(right.completedAt) ?? parseTime(right.scheduledAt) ?? 0;
     return leftTime - rightTime || left.id.localeCompare(right.id);
   });
-  const sessionsInsideBoundary = orderedCompletedSessions.slice(0, requiredSessionCount);
+  // Count the first N QUALIFYING sessions, not merely the first N completed
+  // appointments. An unlogged completion cannot consume one of the nine slots.
+  const sessionsInsideBoundary = orderedCompletedSessions;
   const loggedSessions = sessionsInsideBoundary.filter((session) => session.hasRequiredLog);
   const qualifyingSessions = loggedSessions.slice(0, requiredSessionCount);
   const qualifyingSessionIds = new Set(qualifyingSessions.map((session) => session.id));
@@ -320,7 +322,7 @@ export function evaluateTrialCertificationGate({
     blockers.push(
       window.extensionEndsAt
         ? "The documented Trial extension ended before the required evidence was complete."
-        : "The 14-day Trial window ended before the required evidence was complete; a documented COO extension is required.",
+        : "The 35-day Trial window ended before the required evidence was complete; a documented COO extension is required.",
     );
   }
 
