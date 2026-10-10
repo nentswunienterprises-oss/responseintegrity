@@ -16,7 +16,7 @@ ALTER TABLE public.tutor_trial_cases
 -- or manually weakened placement count cannot reduce certification requirements.
 ALTER TABLE public.tutor_trial_placements
   ADD CONSTRAINT tutor_trial_nine_sessions_per_family_contract
-  CHECK (required_session_count = 9);
+  CHECK (required_session_count IS NOT NULL AND required_session_count = 9);
 
 -- Window chronology must remain internally consistent; an ordinary window
 -- always lasts exactly 35 calendar days, including after a correction to
