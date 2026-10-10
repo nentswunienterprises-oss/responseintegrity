@@ -749,58 +749,58 @@ export class SupabaseStorage implements IStorage {
       }
       return attribution;
     };
-    const { data: existing, error: existingError } = await supabase
-      .from("users")
-      .select("production_link_code, tracking_source, tracking_campaign")
-      .eq("id", userId)
-      .maybeSingle();
-    if (existingError) throw new Error(`Failed to read user attribution: ${existingError.message}`);
-    if (!existing) throw new Error("User not found while claiming Production Link attribution");
-    if (existing.production_link_code && existing.production_link_code !== productionLinkCode) {
-      throw new Error("Existing Production Link attribution cannot be reassigned");
-    }
-    if (existing.production_link_code) {
-      return updateCachedUser({
-        productionLinkCode: existing.production_link_code,
-        trackingSource: existing.tracking_source || null,
-        trackingCampaign: existing.tracking_campaign || null,
-      });
-    }
 
-    const { data, error } = await supabase
-      .from("users")
-      .update({
-        production_link_code: productionLinkCode,
-        tracking_source: trackingSource,
-        tracking_campaign: trackingCampaign,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", userId)
-      .is("production_link_code", null)
-      .select("production_link_code, tracking_source, tracking_campaign")
-      .maybeSingle();
-    if (error) throw new Error(`Failed to persist user attribution: ${error.message}`);
-    if (!data) {
-      const { data: current, error: currentError } = await supabase
-        .from("users")
-        .select("production_link_code, tracking_source, tracking_campaign")
-        .eq("id", userId)
-        .single();
-      if (currentError) throw new Error(`Failed to read claimed user attribution: ${currentError.message}`);
-      if (current.production_link_code !== productionLinkCode) {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const existingResult = await client.query(
+        `SELECT production_link_code, tracking_source, tracking_campaign
+           FROM public.users
+          WHERE id = $1
+          FOR UPDATE`,
+        [userId],
+      );
+      const existing = existingResult.rows[0];
+      if (!existing) throw new Error("User not found while claiming Production Link attribution");
+      if (existing.production_link_code && existing.production_link_code !== productionLinkCode) {
         throw new Error("Existing Production Link attribution cannot be reassigned");
       }
+      if (existing.production_link_code) {
+        await client.query("COMMIT");
+        return updateCachedUser({
+          productionLinkCode: existing.production_link_code,
+          trackingSource: existing.tracking_source || null,
+          trackingCampaign: existing.tracking_campaign || null,
+        });
+      }
+
+      const updatedResult = await client.query(
+        `UPDATE public.users
+            SET production_link_code = $2,
+                tracking_source = $3,
+                tracking_campaign = $4,
+                updated_at = NOW()
+          WHERE id = $1
+            AND production_link_code IS NULL
+        RETURNING production_link_code, tracking_source, tracking_campaign`,
+        [userId, productionLinkCode, trackingSource, trackingCampaign],
+      );
+      const updated = updatedResult.rows[0];
+      if (!updated) {
+        throw new Error("Existing Production Link attribution cannot be reassigned");
+      }
+      await client.query("COMMIT");
       return updateCachedUser({
-        productionLinkCode: current.production_link_code,
-        trackingSource: current.tracking_source || null,
-        trackingCampaign: current.tracking_campaign || null,
+        productionLinkCode: updated.production_link_code,
+        trackingSource: updated.tracking_source || null,
+        trackingCampaign: updated.tracking_campaign || null,
       });
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
     }
-    return updateCachedUser({
-      productionLinkCode: data.production_link_code,
-      trackingSource: data.tracking_source || null,
-      trackingCampaign: data.tracking_campaign || null,
-    });
   }
 
   async getPods(): Promise<Pod[]> {
@@ -1768,13 +1768,11 @@ export class SupabaseStorage implements IStorage {
       }
       
       // Validate user exists
-      const { data: user, error: userError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("id", userId)
-        .single();
-      
-      if (userError || !user) {
+      const userResult = await pool.query(
+        `SELECT id FROM public.users WHERE id = $1 LIMIT 1`,
+        [userId],
+      );
+      if (!userResult.rows[0]) {
         console.error("User not found:", userId);
         throw new Error("User not found");
       }
@@ -2152,12 +2150,13 @@ export class SupabaseStorage implements IStorage {
       return [];
     }
 
-    const { data: users } = await supabase
-      .from("users")
-      .select("*")
-      .in("id", approvedUserIds);
-
-    const usersById = new Map((users || []).map((user: any) => [user.id, user]));
+    const usersResult = await pool.query(
+      `SELECT *
+         FROM public.users
+        WHERE id::text = ANY($1::text[])`,
+      [approvedUserIds],
+    );
+    const usersById = new Map(usersResult.rows.map((user: any) => [user.id, mapDbUser(user)]));
 
     return approvedUserIds.map((userId) => {
       const existingUser = usersById.get(userId);
@@ -3090,12 +3089,11 @@ export class SupabaseStorage implements IStorage {
 
   async checkTDPodAssignment(email: string): Promise<string | null> {
     // First get the user ID from email
-    const { data: user } = await supabase
-      .from("users")
-      .select("id")
-      .eq("email", email)
-      .maybeSingle();
-    
+    const userResult = await pool.query(
+      `SELECT id FROM public.users WHERE lower(email) = lower($1) LIMIT 1`,
+      [email],
+    );
+    const user = userResult.rows[0];
     if (!user) return null;
     
     // Check if this TD has any assigned pods in the pods table
@@ -3471,11 +3469,14 @@ export class SupabaseStorage implements IStorage {
     // For each lead, get parent and encounter info
     const enriched = await Promise.all(leads.map(async (lead: any) => {
       // Get user info
-      const { data: user } = await supabase
-        .from("users")
-        .select("id, email, first_name, last_name, name")
-        .eq("id", lead.user_id)
-        .maybeSingle();
+      const userResult = await pool.query(
+        `SELECT id, email, first_name, last_name, name
+           FROM public.users
+          WHERE id = $1
+          LIMIT 1`,
+        [lead.user_id],
+      );
+      const user = userResult.rows[0] || null;
       
       // Get encounter info if exists
       let encounterData = null;
@@ -3533,14 +3534,16 @@ export class SupabaseStorage implements IStorage {
       throw new Error("A completed trial is required before a production reward can be recorded");
     }
 
-    const { data: paidSubscription } = await supabase
-      .from("payment_transactions")
-      .select("id")
-      .eq("parent_id", parentId)
-      .eq("student_id", studentId)
-      .eq("payment_status", "paid")
-      .limit(1)
-      .maybeSingle();
+    const paidSubscriptionResult = await pool.query(
+      `SELECT id
+         FROM public.payment_transactions
+        WHERE parent_id = $1
+          AND student_id = $2
+          AND payment_status = 'paid'
+        LIMIT 1`,
+      [parentId, studentId],
+    );
+    const paidSubscription = paidSubscriptionResult.rows[0] || null;
 
     if (!paidSubscription) {
       throw new Error("A verified paid subscription is required before a production reward can be recorded");
@@ -3594,11 +3597,14 @@ export class SupabaseStorage implements IStorage {
         .maybeSingle();
       
       // Get user info
-      const { data: user } = await supabase
-        .from("users")
-        .select("id, email, first_name, last_name, name")
-        .eq("id", close.parent_id)
-        .maybeSingle();
+      const userResult = await pool.query(
+        `SELECT id, email, first_name, last_name, name
+           FROM public.users
+          WHERE id = $1
+          LIMIT 1`,
+        [close.parent_id],
+      );
+      const user = userResult.rows[0] || null;
       
       // Get encounter info if lead has one
       let encounterData = null;
