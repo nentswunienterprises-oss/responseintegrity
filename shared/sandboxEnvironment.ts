@@ -1,4 +1,5 @@
 import { PHASES, type TopicPhase, type TopicStability } from "./topicConditioningEngine";
+import type { ProgressionAuthority } from "./capabilityProgressionAuthority";
 import {
   getDrillSchemaDefinition,
   getDrillSchemaDefinitionByVersion,
@@ -808,12 +809,16 @@ const routesMatch = (
   a.route === b.route &&
   a.nextPhase === b.nextPhase &&
   a.nextStability === b.nextStability &&
+  a.nextCapabilityStability === b.nextCapabilityStability &&
+  a.nextProgressionAuthority === b.nextProgressionAuthority &&
   a.targetPhase === b.targetPhase;
 
 export function evaluateSandboxCompletedSession(input: {
   phase: TopicPhase;
   canonicalPreviousStability: TopicStability;
   specialistPreviousStability: TopicStability;
+  canonicalPreviousProgressionAuthority?: ProgressionAuthority | null;
+  specialistPreviousProgressionAuthority?: ProgressionAuthority | null;
   turns: SandboxCompletedTurn[];
   priorCompletedSessions: number;
   priorTracksDiverged: boolean;
@@ -832,11 +837,13 @@ export function evaluateSandboxCompletedSession(input: {
   const canonicalEvaluation = evaluateTrainingEvidence({
     phase: input.phase,
     previousStability: input.canonicalPreviousStability,
+    previousProgressionAuthority: input.canonicalPreviousProgressionAuthority,
     sets: canonicalEvidence,
   });
   const specialistEvaluation = evaluateTrainingEvidence({
     phase: input.phase,
     previousStability: input.specialistPreviousStability,
+    previousProgressionAuthority: input.specialistPreviousProgressionAuthority,
     sets: specialistEvidence,
   });
 
@@ -872,7 +879,9 @@ export function evaluateSandboxCompletedSession(input: {
 
   const canonicalStateChanged =
     canonicalRoute.nextPhase !== input.phase ||
-    canonicalRoute.nextStability !== input.canonicalPreviousStability;
+    canonicalRoute.nextStability !== input.canonicalPreviousStability ||
+    (input.canonicalPreviousProgressionAuthority != null &&
+      canonicalRoute.nextProgressionAuthority !== input.canonicalPreviousProgressionAuthority);
 
   const continuityClass: ResponseEvidenceClass =
     !systemOutcomeMatched
