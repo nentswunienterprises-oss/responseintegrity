@@ -1861,7 +1861,7 @@ export default function SpecialistSandboxSimulation({
                   >
                     <div>
                       <p className="font-medium">
-                        Session {session.sessionNumber} · {session.topicKey ? session.topicKey.replace(/\\b\\w/g, (letter) => letter.toUpperCase()) + " · " : ""}{session.phase}
+                        Session {session.sessionNumber} · {session.topicKey ? session.topicKey.split(" ").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ") + " · " : ""}{session.phase}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         RI authority {session.authorityAligned ? "aligned" : "diverged"} · state{" "}
