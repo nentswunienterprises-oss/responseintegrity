@@ -109,7 +109,7 @@ export function LogDisputeModal({ open, onOpenChange }: LogDisputeModalProps) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="issue-category">Category *</Label>
-            <Select value={formData.category} onValueChange={(value: IssueCategory) => setFormData((current) => ({ ...current, category: value }))}>
+            <Select value={formData.category} onValueChange={(value) => setFormData((current) => ({ ...current, category: value as IssueCategory }))}>
               <SelectTrigger id="issue-category">
                 <SelectValue placeholder="What kind of issue is this?" />
               </SelectTrigger>
@@ -169,7 +169,7 @@ export function LogDisputeModal({ open, onOpenChange }: LogDisputeModalProps) {
 
           <div className="space-y-2">
             <Label htmlFor="issue-impact">Impact *</Label>
-            <Select value={formData.impact} onValueChange={(value: IssueImpact) => setFormData((current) => ({ ...current, impact: value }))}>
+            <Select value={formData.impact} onValueChange={(value) => setFormData((current) => ({ ...current, impact: value as IssueImpact }))}>
               <SelectTrigger id="issue-impact">
                 <SelectValue placeholder="How is this affecting you?" />
               </SelectTrigger>
