@@ -292,6 +292,7 @@ type HistoryData = {
     sessionNumber: number;
     prescribedPhase: string;
     prescribedStability: string;
+    activeTopicKey?: string | null;
     divergenceActive: boolean;
     route: string;
     targetPhase: string | null;
@@ -302,6 +303,7 @@ type HistoryData = {
     eventSequence: number;
     sessionNumber: number;
     phase: string;
+    topicKey?: string | null;
     setId: string;
     repNumber: number;
     conditionKept: boolean | null;
@@ -315,6 +317,7 @@ type HistoryData = {
     id: string;
     sessionNumber: number;
     phase: string;
+    topicKey?: string | null;
     authorityAligned: boolean;
     stateTrackAligned: boolean;
     completedAt: string;
@@ -1858,7 +1861,7 @@ export default function SpecialistSandboxSimulation({
                   >
                     <div>
                       <p className="font-medium">
-                        Session {session.sessionNumber} · {session.phase}
+                        Session {session.sessionNumber} · {session.topicKey ? session.topicKey.replace(/\\b\\w/g, (letter) => letter.toUpperCase()) + " · " : ""}{session.phase}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         RI authority {session.authorityAligned ? "aligned" : "diverged"} · state{" "}
