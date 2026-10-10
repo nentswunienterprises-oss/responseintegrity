@@ -2327,6 +2327,8 @@ export class SupabaseStorage implements IStorage {
       } finally {
         client.release();
       }
+  }
+
   async uploadCompletedTutorSequentialDocument(
     applicationId: string,
     docStep: number,
@@ -2539,6 +2541,8 @@ export class SupabaseStorage implements IStorage {
       } finally {
         client.release();
       }
+  }
+
   async completeTutorOnboarding(applicationId: string): Promise<TutorApplication | undefined> {
     const result = await pool.query(
       `UPDATE public.tutor_applications
