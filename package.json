@@ -33,7 +33,9 @@
     "test:db-authority": "node --import tsx --test scripts/productionMigrationAuthority.test.ts",
     "test:practicals": "node --import tsx --test shared/practicalExecuteChallenge.test.ts shared/capabilityPracticalEvidence.test.ts shared/practicalCompletionGate.test.ts shared/practicalEntryGate.test.ts",
     "test:practicals-db": "node --import tsx --test scripts/practicalsMigrationIntegration.test.ts",
-    "test:practicals-prod-unauth": "node --import tsx --test scripts/practicalsProductionUnauthenticated.test.ts"
+    "test:practicals-prod-unauth": "node --import tsx --test scripts/practicalsProductionUnauthenticated.test.ts",
+    "test:trial:policy": "node --import tsx --test shared/trialCertification.test.ts",
+    "test:trial:db": "node --import tsx --test scripts/trialWindowMigrationIntegration.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
