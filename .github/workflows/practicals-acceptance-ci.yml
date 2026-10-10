@@ -17,6 +17,7 @@ on:
       - 'config/production-migration-authority.json'
       - '.github/workflows/practicals-acceptance-ci.yml'
       - 'scripts/practicalsMigrationIntegration.test.ts'
+      - 'scripts/practicalsProductionUnauthenticated.test.ts'
       - 'package.json'
   push:
     branches: [main]
@@ -59,6 +60,8 @@ jobs:
         run: npm run test:practicals-db
         env:
           PRACTICALS_CI_DATABASE_URL: postgresql://postgres:practicals_ci@localhost:5432/practicals_ci
+      - name: Real production API no-session authorization (read-only)
+        run: npm run test:practicals-prod-unauth
       - name: Vercel API bundle
         run: npm run build:vercel-api
       - name: Frontend bundle
