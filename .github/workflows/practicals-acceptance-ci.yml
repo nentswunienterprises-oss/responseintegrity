@@ -4,6 +4,9 @@ on:
     paths:
       - 'shared/practicalExecuteChallenge*'
       - 'shared/capabilityPracticalEvidence.ts'
+      - 'shared/practicalEntryGate*'
+      - 'server/sandboxEnvironment.ts'
+      - 'client/src/components/sandbox/SandboxReadinessAssessmentCard.tsx'
       - 'server/practicalExecuteChallenge.ts'
       - 'server/capabilityPracticalEvidence.ts'
       - 'server/routes/capabilityPracticalEvidence.ts'
