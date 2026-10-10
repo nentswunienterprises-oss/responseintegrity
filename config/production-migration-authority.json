@@ -116,6 +116,11 @@
       "path": "migrations/20261010_neutral_issue_reporting_service_grants.sql",
       "description": "Restrict default Supabase service_role grants to required intake and append-only issue history permissions.",
       "risk": "additive"
+    },
+    {
+      "path": "migrations/20261010_revoke_anon_sensitive_tables.sql",
+      "description": "Revoke PUBLIC and anon privileges from eight high-sensitivity legacy public relations after verified server-side credential readiness, reducing unauthenticated Data API exposure without changing authenticated or service-role access.",
+      "risk": "destructive"
     }
   ]
 }

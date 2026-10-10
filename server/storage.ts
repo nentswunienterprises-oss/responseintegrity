@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { db, pool } from "./db";
-import { isEmergencyDbMode } from "./emergencyMode";
+import { isEmergencyDbMode, isTheHubDatabaseRuntime } from "./emergencyMode";
 import {
   User, UpsertUser,
   Pod, InsertPod,
@@ -89,6 +89,29 @@ export function transformSnakeToCamel(obj: any): any {
 
 export function toJsonbParam(value: unknown) {
   return JSON.stringify(value ?? null);
+}
+
+function mapDbUser(data: any): User {
+  return {
+    id: data.id,
+    email: data.email,
+    firstName: data.first_name,
+    lastName: data.last_name,
+    phone: data.phone,
+    bio: data.bio,
+    profileImageUrl: data.profile_image_url,
+    productionLinkCode: data.production_link_code,
+    trackingSource: data.tracking_source,
+    trackingCampaign: data.tracking_campaign,
+    password: data.password,
+    role: data.role,
+    name: data.name,
+    grade: data.grade,
+    school: data.school,
+    verified: data.verified,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  } as User;
 }
 
 type SequentialDocumentStatus =
@@ -470,88 +493,28 @@ export class SupabaseStorage implements IStorage {
   __userCache: Record<string, User | undefined> = {};
 
   async getUser(id: string): Promise<User | undefined> {
-    // Check in-memory cache first
     if (this.__userCache[id]) {
       return this.__userCache[id];
     }
     try {
-      if (isEmergencyDbMode()) {
-        const result = await pool.query(
-          `SELECT id, email, first_name, last_name, phone, bio, profile_image_url,
-                  production_link_code, tracking_source, tracking_campaign, role,
-                  name, grade, school, verified, created_at, updated_at
-             FROM public.users
-            WHERE id = $1
-            LIMIT 1`,
-          [id],
-        );
-        const data = result.rows[0];
-        if (!data) return undefined;
-        const user = {
-          id: data.id,
-          email: data.email,
-          firstName: data.first_name,
-          lastName: data.last_name,
-          phone: data.phone,
-          bio: data.bio,
-          profileImageUrl: data.profile_image_url,
-          productionLinkCode: data.production_link_code,
-          trackingSource: data.tracking_source,
-          trackingCampaign: data.tracking_campaign,
-          role: data.role,
-          name: data.name,
-          grade: data.grade,
-          school: data.school,
-          verified: data.verified,
-          createdAt: data.created_at,
-          updatedAt: data.updated_at,
-        } as User;
-        this.__userCache[id] = user;
-        return user;
-      }
-      // Explicitly select only user columns to avoid any relationship pollution
-      const { data, error } = await supabase
-        .from("users")
-        .select("id,email,first_name,last_name,phone,bio,profile_image_url,production_link_code,tracking_source,tracking_campaign,password,role,name,grade,school,verified,created_at,updated_at")
-        .eq("id", id)
-        .maybeSingle();
-      if (error) {
-        console.error("Error fetching user:", error);
-        return undefined;
-      }
-      if (!data) {
-        return undefined;
-      }
-      // Transform snake_case to camelCase
-      const user = {
-        id: data.id,
-        email: data.email,
-        firstName: data.first_name,
-        lastName: data.last_name,
-        phone: data.phone,
-        bio: data.bio,
-        profileImageUrl: data.profile_image_url,
-        productionLinkCode: data.production_link_code,
-        trackingSource: data.tracking_source,
-        trackingCampaign: data.tracking_campaign,
-        password: data.password,
-        role: data.role,
-        name: data.name,
-        grade: data.grade,
-        school: data.school,
-        verified: data.verified,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
-      };
-      // Validate role is one of the expected values
+      const result = await pool.query(
+        `SELECT id, email, first_name, last_name, phone, bio, profile_image_url,
+                production_link_code, tracking_source, tracking_campaign, password,
+                role, name, grade, school, verified, created_at, updated_at
+           FROM public.users
+          WHERE id = $1
+          LIMIT 1`,
+        [id],
+      );
+      const data = result.rows[0];
+      if (!data) return undefined;
+      const user = mapDbUser(data);
       const validRoles = ["parent", "student", "tutor", "td", "affiliate", "od", "coo", "hr", "ceo", "cto", "cmo"];
-      if (!validRoles.includes(data.role as string)) {
+      if (!validRoles.includes(String(data.role))) {
         console.error("❌ INVALID ROLE DETECTED:", data.role, "for user", id);
-        console.error("   Full user data:", JSON.stringify(data));
       }
-      // Store in cache for this request
-      this.__userCache[id] = user as User;
-      return user as User;
+      this.__userCache[id] = user;
+      return user;
     } catch (err) {
       console.error("Exception in getUser:", err);
       return undefined;
@@ -560,49 +523,22 @@ export class SupabaseStorage implements IStorage {
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     try {
-      // Explicitly select only user columns to avoid any relationship pollution
-      const { data, error } = await supabase
-        .from("users")
-        .select("id,email,first_name,last_name,phone,bio,profile_image_url,password,role,name,grade,school,verified,created_at,updated_at")
-        .eq("email", email)
-        .maybeSingle();
-      
-      if (error) {
-        console.error("❌ Error fetching user by email:", error);
-        return undefined;
-      }
-      
-      if (!data) {
-        return undefined;
-      }
-      
-      // Transform snake_case to camelCase
-      const user = {
-        id: data.id,
-        email: data.email,
-        firstName: data.first_name,
-        lastName: data.last_name,
-        phone: data.phone,
-        bio: data.bio,
-        profileImageUrl: data.profile_image_url,
-        password: data.password,
-        role: data.role,
-        name: data.name,
-        grade: data.grade,
-        school: data.school,
-        verified: data.verified,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
-      };
-      
-      // Validate role is one of the expected values
+      const result = await pool.query(
+        `SELECT id, email, first_name, last_name, phone, bio, profile_image_url,
+                production_link_code, tracking_source, tracking_campaign, password,
+                role, name, grade, school, verified, created_at, updated_at
+           FROM public.users
+          WHERE lower(email) = lower($1)
+          LIMIT 1`,
+        [email],
+      );
+      const data = result.rows[0];
+      if (!data) return undefined;
       const validRoles = ["parent", "student", "tutor", "td", "affiliate", "od", "coo", "hr", "ceo", "cto", "cmo"];
-      if (!validRoles.includes(data.role as string)) {
+      if (!validRoles.includes(String(data.role))) {
         console.error("❌ INVALID ROLE DETECTED:", data.role, "for email", email);
-        console.error("   Full user data:", JSON.stringify(data));
       }
-      
-      return user as User;
+      return mapDbUser(data);
     } catch (err) {
       console.error("Exception in getUserByEmail:", err);
       return undefined;
@@ -610,129 +546,95 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getUsersByRole(role: string): Promise<User[]> {
-    const { data } = await supabase.from("users").select("id,email,first_name,last_name,phone,bio,profile_image_url,password,role,name,grade,school,verified,created_at,updated_at").eq("role", role);
-    if (!data) return [];
-    
-    // Transform snake_case to camelCase
-    return data.map(d => ({
-      id: d.id,
-      email: d.email,
-      firstName: d.first_name,
-      lastName: d.last_name,
-      phone: d.phone,
-      bio: d.bio,
-      profileImageUrl: d.profile_image_url,
-      password: d.password,
-      role: d.role,
-      name: d.name,
-      grade: d.grade,
-      school: d.school,
-      verified: d.verified,
-      createdAt: d.created_at,
-      updatedAt: d.updated_at,
-    }));
+    const result = await pool.query(
+      `SELECT id, email, first_name, last_name, phone, bio, profile_image_url,
+              production_link_code, tracking_source, tracking_campaign, password,
+              role, name, grade, school, verified, created_at, updated_at
+         FROM public.users
+        WHERE role::text = $1`,
+      [role],
+    );
+    return result.rows.map(mapDbUser);
   }
 
   async upsertUser(user: any): Promise<User> {
-    const dbUser: any = {
-      id: user.id,
-      email: user.email,
-      first_name: user.firstName,
-      last_name: user.lastName,
-      phone: user.phone,
-      bio: user.bio,
-      profile_image_url: user.profileImageUrl,
-      name: [user.firstName, user.lastName].filter(Boolean).join(" ") || "User",
-    };
-    if (user.role) {
-      if (user.role === "od" && !isAllowedOdEmail(user.email)) {
-        throw new Error("This email is not allowed to use the OD role");
-      }
-      dbUser.role = user.role;
+    if (user.role === "od" && !isAllowedOdEmail(user.email)) {
+      throw new Error("This email is not allowed to use the OD role");
     }
 
-    const { data, error } = await supabase
-      .from("users")
-      .upsert(dbUser)
-      .select("id,email,first_name,last_name,phone,bio,profile_image_url,production_link_code,tracking_source,tracking_campaign,password,role,name,grade,school,verified,created_at,updated_at")
-      .single();
-    if (error) throw new Error(`Supabase error: ${error.message}`);
-    if (!data) throw new Error("Failed to upsert user");
-    
-    // Transform snake_case to camelCase
-    return {
-      id: data.id,
-      email: data.email,
-      firstName: data.first_name,
-      lastName: data.last_name,
-      phone: data.phone,
-      bio: data.bio,
-      profileImageUrl: data.profile_image_url,
-      productionLinkCode: data.production_link_code,
-      trackingSource: data.tracking_source,
-      trackingCampaign: data.tracking_campaign,
-      password: data.password,
-      role: data.role,
-      name: data.name,
-      grade: data.grade,
-      school: data.school,
-      verified: data.verified,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-    } as User;
+    const fields: Array<[string, unknown]> = [
+      ["id", user.id],
+      ["email", user.email],
+      ["first_name", user.firstName],
+      ["last_name", user.lastName],
+      ["phone", user.phone],
+      ["bio", user.bio],
+      ["profile_image_url", user.profileImageUrl],
+      ["name", [user.firstName, user.lastName].filter(Boolean).join(" ") || "User"],
+      ...(user.role !== undefined ? [["role", user.role] as [string, unknown]] : []),
+    ].filter(([, value]) => value !== undefined);
+
+    const columns = fields.map(([column]) => column);
+    const values = fields.map(([, value]) => value);
+    const placeholders = values.map((_, index) => `$${index + 1}`);
+    const updates = columns
+      .filter((column) => column !== "id")
+      .map((column) => `${column} = EXCLUDED.${column}`);
+
+    const result = await pool.query(
+      `INSERT INTO public.users (${columns.join(", ")})
+       VALUES (${placeholders.join(", ")})
+       ON CONFLICT (id) DO UPDATE SET ${updates.join(", ")}
+       RETURNING id, email, first_name, last_name, phone, bio, profile_image_url,
+                 production_link_code, tracking_source, tracking_campaign, password,
+                 role, name, grade, school, verified, created_at, updated_at`,
+      values,
+    );
+    if (!result.rows[0]) throw new Error("Failed to upsert user");
+    delete this.__userCache[user.id];
+    return mapDbUser(result.rows[0]);
   }
 
   async updateUserVerification(id: string, verified: boolean): Promise<User | undefined> {
-    const { data } = await supabase.from("users").update({ verified, updated_at: new Date() }).eq("id", id).select("id,email,first_name,last_name,phone,bio,profile_image_url,password,role,name,grade,school,verified,created_at,updated_at").single();
-    if (!data) return undefined;
-    
-    // Transform snake_case to camelCase
-    return {
-      id: data.id,
-      email: data.email,
-      firstName: data.first_name,
-      lastName: data.last_name,
-      phone: data.phone,
-      bio: data.bio,
-      profileImageUrl: data.profile_image_url,
-      password: data.password,
-      role: data.role,
-      name: data.name,
-      grade: data.grade,
-      school: data.school,
-      verified: data.verified,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-    } as User;
+    const result = await pool.query(
+      `UPDATE public.users
+          SET verified = $2, updated_at = NOW()
+        WHERE id = $1
+      RETURNING id, email, first_name, last_name, phone, bio, profile_image_url,
+                production_link_code, tracking_source, tracking_campaign, password,
+                role, name, grade, school, verified, created_at, updated_at`,
+      [id, verified],
+    );
+    if (!result.rows[0]) return undefined;
+    delete this.__userCache[id];
+    return mapDbUser(result.rows[0]);
   }
 
   async updateUserProfile(id: string, data: { phone?: string | null; bio?: string | null; profileImageUrl?: string | null }): Promise<User | undefined> {
-    const updateData: any = { updated_at: new Date() };
-    if (data.phone !== undefined) updateData.phone = data.phone;
-    if (data.bio !== undefined) updateData.bio = data.bio;
-    if (data.profileImageUrl !== undefined) updateData.profile_image_url = data.profileImageUrl;
+    const fields: Array<[string, unknown]> = [];
+    if (data.phone !== undefined) fields.push(["phone", data.phone]);
+    if (data.bio !== undefined) fields.push(["bio", data.bio]);
+    if (data.profileImageUrl !== undefined) fields.push(["profile_image_url", data.profileImageUrl]);
 
-    const { data: result } = await supabase.from("users").update(updateData).eq("id", id).select("id,email,first_name,last_name,phone,bio,profile_image_url,password,role,name,grade,school,verified,created_at,updated_at").single();
-    if (!result) return undefined;
-    
-    // Transform snake_case to camelCase
-    return {
-      id: result.id,
-      email: result.email,
-      firstName: result.first_name,
-      lastName: result.last_name,
-      phone: result.phone,
-      bio: result.bio,
-      profileImageUrl: result.profile_image_url,
-      password: result.password,
-      role: result.role,
-      name: result.name,
-      grade: result.grade,
-      school: result.school,
-      verified: result.verified,
-      createdAt: result.created_at,
-      updatedAt: result.updated_at,
-    } as User;
+    const values: unknown[] = [id];
+    const assignments = fields.map(([column, value]) => {
+      values.push(value);
+      return `${column} = $${values.length}`;
+    });
+    assignments.push("updated_at = NOW()");
+
+    const result = await pool.query(
+      `UPDATE public.users
+          SET ${assignments.join(", ")}
+        WHERE id = $1
+      RETURNING id, email, first_name, last_name, phone, bio, profile_image_url,
+                production_link_code, tracking_source, tracking_campaign, password,
+                role, name, grade, school, verified, created_at, updated_at`,
+      values,
+    );
+    if (!result.rows[0]) return undefined;
+    delete this.__userCache[id];
+    return mapDbUser(result.rows[0]);
   }
 
   async getFirstProductionLeadByUser(userId: string): Promise<any | null> {
@@ -847,58 +749,113 @@ export class SupabaseStorage implements IStorage {
       }
       return attribution;
     };
-    const { data: existing, error: existingError } = await supabase
-      .from("users")
-      .select("production_link_code, tracking_source, tracking_campaign")
-      .eq("id", userId)
-      .maybeSingle();
-    if (existingError) throw new Error(`Failed to read user attribution: ${existingError.message}`);
-    if (!existing) throw new Error("User not found while claiming Production Link attribution");
-    if (existing.production_link_code && existing.production_link_code !== productionLinkCode) {
-      throw new Error("Existing Production Link attribution cannot be reassigned");
-    }
-    if (existing.production_link_code) {
-      return updateCachedUser({
-        productionLinkCode: existing.production_link_code,
-        trackingSource: existing.tracking_source || null,
-        trackingCampaign: existing.tracking_campaign || null,
-      });
-    }
 
-    const { data, error } = await supabase
-      .from("users")
-      .update({
-        production_link_code: productionLinkCode,
-        tracking_source: trackingSource,
-        tracking_campaign: trackingCampaign,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", userId)
-      .is("production_link_code", null)
-      .select("production_link_code, tracking_source, tracking_campaign")
-      .maybeSingle();
-    if (error) throw new Error(`Failed to persist user attribution: ${error.message}`);
-    if (!data) {
-      const { data: current, error: currentError } = await supabase
+    if (!isTheHubDatabaseRuntime()) {
+      const { data: existing, error: existingError } = await supabase
         .from("users")
         .select("production_link_code, tracking_source, tracking_campaign")
         .eq("id", userId)
-        .single();
-      if (currentError) throw new Error(`Failed to read claimed user attribution: ${currentError.message}`);
-      if (current.production_link_code !== productionLinkCode) {
+        .maybeSingle();
+      if (existingError) throw new Error(`Failed to read user attribution: ${existingError.message}`);
+      if (!existing) throw new Error("User not found while claiming Production Link attribution");
+      if (existing.production_link_code && existing.production_link_code !== productionLinkCode) {
         throw new Error("Existing Production Link attribution cannot be reassigned");
       }
+      if (existing.production_link_code) {
+        return updateCachedUser({
+          productionLinkCode: existing.production_link_code,
+          trackingSource: existing.tracking_source || null,
+          trackingCampaign: existing.tracking_campaign || null,
+        });
+      }
+
+      const { data, error } = await supabase
+        .from("users")
+        .update({
+          production_link_code: productionLinkCode,
+          tracking_source: trackingSource,
+          tracking_campaign: trackingCampaign,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId)
+        .is("production_link_code", null)
+        .select("production_link_code, tracking_source, tracking_campaign")
+        .maybeSingle();
+      if (error) throw new Error(`Failed to persist user attribution: ${error.message}`);
+      if (!data) {
+        const { data: current, error: currentError } = await supabase
+          .from("users")
+          .select("production_link_code, tracking_source, tracking_campaign")
+          .eq("id", userId)
+          .single();
+        if (currentError) throw new Error(`Failed to read claimed user attribution: ${currentError.message}`);
+        if (current.production_link_code !== productionLinkCode) {
+          throw new Error("Existing Production Link attribution cannot be reassigned");
+        }
+        return updateCachedUser({
+          productionLinkCode: current.production_link_code,
+          trackingSource: current.tracking_source || null,
+          trackingCampaign: current.tracking_campaign || null,
+        });
+      }
       return updateCachedUser({
-        productionLinkCode: current.production_link_code,
-        trackingSource: current.tracking_source || null,
-        trackingCampaign: current.tracking_campaign || null,
+        productionLinkCode: data.production_link_code,
+        trackingSource: data.tracking_source || null,
+        trackingCampaign: data.tracking_campaign || null,
       });
     }
-    return updateCachedUser({
-      productionLinkCode: data.production_link_code,
-      trackingSource: data.tracking_source || null,
-      trackingCampaign: data.tracking_campaign || null,
-    });
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const existingResult = await client.query(
+        `SELECT production_link_code, tracking_source, tracking_campaign
+           FROM public.users
+          WHERE id = $1
+          FOR UPDATE`,
+        [userId],
+      );
+      const existing = existingResult.rows[0];
+      if (!existing) throw new Error("User not found while claiming Production Link attribution");
+      if (existing.production_link_code && existing.production_link_code !== productionLinkCode) {
+        throw new Error("Existing Production Link attribution cannot be reassigned");
+      }
+      if (existing.production_link_code) {
+        await client.query("COMMIT");
+        return updateCachedUser({
+          productionLinkCode: existing.production_link_code,
+          trackingSource: existing.tracking_source || null,
+          trackingCampaign: existing.tracking_campaign || null,
+        });
+      }
+
+      const updatedResult = await client.query(
+        `UPDATE public.users
+            SET production_link_code = $2,
+                tracking_source = $3,
+                tracking_campaign = $4,
+                updated_at = NOW()
+          WHERE id = $1
+            AND production_link_code IS NULL
+        RETURNING production_link_code, tracking_source, tracking_campaign`,
+        [userId, productionLinkCode, trackingSource, trackingCampaign],
+      );
+      const updated = updatedResult.rows[0];
+      if (!updated) {
+        throw new Error("Existing Production Link attribution cannot be reassigned");
+      }
+      await client.query("COMMIT");
+      return updateCachedUser({
+        productionLinkCode: updated.production_link_code,
+        trackingSource: updated.tracking_source || null,
+        trackingCampaign: updated.tracking_campaign || null,
+      });
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async getPods(): Promise<Pod[]> {
@@ -1021,7 +978,31 @@ export class SupabaseStorage implements IStorage {
       certification_status: assignment.certificationStatus,
       operational_mode: assignment.operationalMode || "training",
     };
-    const { data } = await supabase.from("tutor_assignments").insert(dbAssignment).select().single();
+    let data: any = null;
+    if (!isTheHubDatabaseRuntime()) {
+      const result = await supabase
+        .from("tutor_assignments")
+        .insert(dbAssignment)
+        .select()
+        .single();
+      data = result.data;
+      if (result.error) throw new Error(`Failed to create tutor assignment: ${result.error.message}`);
+    } else {
+      const assignmentResult = await pool.query(
+        `INSERT INTO public.tutor_assignments
+          (tutor_id, pod_id, student_count, certification_status, operational_mode)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING *`,
+        [
+          dbAssignment.tutor_id,
+          dbAssignment.pod_id,
+          dbAssignment.student_count,
+          dbAssignment.certification_status,
+          dbAssignment.operational_mode,
+        ],
+      );
+      data = assignmentResult.rows[0];
+    }
     if (!data) throw new Error("Failed to create tutor assignment");
     // Transform snake_case to camelCase
     return {
@@ -1037,7 +1018,18 @@ export class SupabaseStorage implements IStorage {
 
   async getTutorAssignment(tutorId: string): Promise<(TutorAssignment & { pod: Pod }) | undefined> {
     console.log("🔍 Looking for tutor assignment for tutorId:", tutorId);
-    if (isEmergencyDbMode()) {
+    let assignment: any = null;
+    if (!isTheHubDatabaseRuntime()) {
+      const { data, error } = await supabase
+        .from("tutor_assignments")
+        .select("*")
+        .eq("tutor_id", tutorId)
+        .maybeSingle();
+      if (error) {
+        console.log("ℹ️ No assignment found:", error.message);
+      }
+      assignment = data || null;
+    } else {
       const assignmentResult = await pool.query(
         `SELECT id, tutor_id, pod_id, student_count, certification_status, operational_mode, created_at
            FROM public.tutor_assignments
@@ -1045,84 +1037,14 @@ export class SupabaseStorage implements IStorage {
           LIMIT 1`,
         [tutorId],
       );
-      const assignment = assignmentResult.rows[0];
-      if (!assignment) return undefined;
+      assignment = assignmentResult.rows[0] || null;
+    }
+    if (!assignment) return undefined;
 
-      const podResult = await pool.query(
-        `SELECT id, pod_name, pod_type, vehicle, phase, td_id, status, start_date, end_date, deleted_at, created_at
-           FROM public.pods
-          WHERE id = $1
-          LIMIT 1`,
-        [assignment.pod_id],
-      );
-      const pod = podResult.rows[0];
-      if (!pod) return undefined;
+    const pod = await this.getPod(assignment.pod_id);
+    if (!pod) return undefined;
 
-      return {
-        id: assignment.id,
-        tutorId: assignment.tutor_id,
-        podId: assignment.pod_id,
-        studentCount: assignment.student_count,
-        certificationStatus: assignment.certification_status,
-        operationalMode: assignment.operational_mode,
-        createdAt: assignment.created_at,
-        pod: {
-          id: pod.id,
-          podName: pod.pod_name,
-          podType: pod.pod_type,
-          vehicle: pod.vehicle,
-          phase: pod.phase,
-          tdId: pod.td_id,
-          status: pod.status,
-          startDate: pod.start_date,
-          endDate: pod.end_date,
-          deletedAt: pod.deleted_at,
-          createdAt: pod.created_at,
-        },
-      };
-    }
-    const { data, error } = await supabase.from("tutor_assignments").select("*").eq("tutor_id", tutorId).maybeSingle();
-    if (error) {
-      console.log("ℹ️ No assignment found (expected for single()):", error.message);
-    }
-    if (!data) {
-      console.log("❌ No assignment data returned");
-      return undefined;
-    }
-    console.log("✅ Found assignment:", JSON.stringify(data, null, 2));
-    const pod = await this.getPod(data.pod_id);
-    if (!pod) {
-      console.log("❌ Pod not found for pod_id:", data.pod_id);
-      return undefined;
-    }
-    // Transform snake_case to camelCase
     return {
-      id: data.id,
-      tutorId: data.tutor_id,
-      podId: data.pod_id,
-      studentCount: data.student_count,
-      certificationStatus: data.certification_status,
-      operationalMode: data.operational_mode,
-      createdAt: data.created_at,
-      pod,
-    };
-  }
-
-  async getTutorAssignmentsByPod(podId: string): Promise<TutorAssignment[]> {
-    if (isEmergencyDbMode()) {
-      const result = await pool.query(
-        `SELECT id, tutor_id, pod_id, student_count, certification_status, operational_mode, created_at
-           FROM public.tutor_assignments
-          WHERE pod_id = $1
-          ORDER BY created_at ASC`,
-        [podId],
-      );
-      return result.rows.map((assignment: any) => transformSnakeToCamel(assignment) as TutorAssignment);
-    }
-    const { data } = await supabase.from("tutor_assignments").select("*").eq("pod_id", podId);
-    if (!data) return [];
-    // Transform snake_case to camelCase
-    return data.map((assignment: any) => ({
       id: assignment.id,
       tutorId: assignment.tutor_id,
       podId: assignment.pod_id,
@@ -1130,22 +1052,57 @@ export class SupabaseStorage implements IStorage {
       certificationStatus: assignment.certification_status,
       operationalMode: assignment.operational_mode,
       createdAt: assignment.created_at,
-    }));
+      pod,
+    };
+  }
+
+  async getTutorAssignmentsByPod(podId: string): Promise<TutorAssignment[]> {
+    if (!isTheHubDatabaseRuntime()) {
+      const { data } = await supabase
+        .from("tutor_assignments")
+        .select("*")
+        .eq("pod_id", podId);
+      return (data || []).map((assignment: any) => transformSnakeToCamel(assignment) as TutorAssignment);
+    }
+    const result = await pool.query(
+      `SELECT id, tutor_id, pod_id, student_count, certification_status, operational_mode, created_at
+         FROM public.tutor_assignments
+        WHERE pod_id = $1
+        ORDER BY created_at ASC`,
+      [podId],
+    );
+    return result.rows.map((assignment: any) => transformSnakeToCamel(assignment) as TutorAssignment);
   }
 
   async updateCertificationStatus(id: string, status: string): Promise<void> {
-    await supabase.from("tutor_assignments").update({ certification_status: status }).eq("id", id);
+    if (!isTheHubDatabaseRuntime()) {
+      await supabase.from("tutor_assignments").update({ certification_status: status }).eq("id", id);
+      return;
+    }
+    await pool.query(
+      `UPDATE public.tutor_assignments SET certification_status = $2 WHERE id = $1`,
+      [id, status],
+    );
   }
 
   async updateTutorOperationalMode(id: string, operationalMode: TutorTrainingMode): Promise<void> {
-    await supabase.from("tutor_assignments").update({ operational_mode: operationalMode }).eq("id", id);
+    if (!isTheHubDatabaseRuntime()) {
+      await supabase.from("tutor_assignments").update({ operational_mode: operationalMode }).eq("id", id);
+      return;
+    }
+    await pool.query(
+      `UPDATE public.tutor_assignments SET operational_mode = $2 WHERE id = $1`,
+      [id, operationalMode],
+    );
   }
 
   async deleteTutorAssignment(id: string): Promise<void> {
-    const { error } = await supabase.from("tutor_assignments").delete().eq("id", id);
-    if (error) {
-      throw new Error(`Failed to delete tutor assignment ${id}: ${error.message}`);
+    if (!isTheHubDatabaseRuntime()) {
+      const { error } = await supabase.from("tutor_assignments").delete().eq("id", id);
+      if (error) throw new Error(`Failed to delete tutor assignment ${id}: ${error.message}`);
+      return;
     }
+    await pool.query(`DELETE FROM public.tutor_assignments WHERE id = $1`, [id]);
   }
 
   // Students
@@ -1200,94 +1157,82 @@ export class SupabaseStorage implements IStorage {
       parent_id: parentId,
       parent_enrollment_id: parentEnrollmentId,
     };
-    const { data, error: insertError } = await supabase.from("students").insert(dbStudent).select().single();
-    if (insertError) {
-      console.error("[createStudent] Supabase insert error:", insertError, dbStudent);
-      throw new Error("Failed to create student: " + insertError.message);
+    try {
+      const result = await pool.query(
+        `INSERT INTO public.students
+          (name, grade, tutor_id, session_progress, concept_mastery, parent_contact, parent_id, parent_enrollment_id)
+         VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)
+         RETURNING *`,
+        [
+          dbStudent.name,
+          dbStudent.grade,
+          dbStudent.tutor_id,
+          dbStudent.session_progress,
+          JSON.stringify(dbStudent.concept_mastery || {}),
+          dbStudent.parent_contact,
+          dbStudent.parent_id,
+          dbStudent.parent_enrollment_id,
+        ],
+      );
+      if (!result.rows[0]) throw new Error("No data returned");
+      return transformSnakeToCamel(result.rows[0]);
+    } catch (error) {
+      console.error("[createStudent] PostgreSQL insert error:", error, dbStudent);
+      throw new Error(
+        "Failed to create student: " + (error instanceof Error ? error.message : String(error)),
+      );
     }
-    if (!data) {
-      console.error("[createStudent] Supabase insert returned no data:", dbStudent);
-      throw new Error("Failed to create student: No data returned");
-    }
-    return transformSnakeToCamel(data);
   }
 
   async getStudent(id: string): Promise<Student | undefined> {
-    if (isEmergencyDbMode()) {
-      const result = await pool.query("SELECT * FROM public.students WHERE id = $1 LIMIT 1", [id]);
-      return result.rows[0] ? transformSnakeToCamel(result.rows[0]) as Student : undefined;
-    }
-    const { data } = await supabase.from("students").select("*").eq("id", id).maybeSingle();
-    if (!data) return undefined;
-    return transformSnakeToCamel(data);
+    const result = await pool.query("SELECT * FROM public.students WHERE id = $1 LIMIT 1", [id]);
+    return result.rows[0] ? transformSnakeToCamel(result.rows[0]) as Student : undefined;
   }
 
   async getStudentsByTutor(tutorId: string): Promise<Student[]> {
-    if (isEmergencyDbMode()) {
-      const result = await pool.query(
-        "SELECT * FROM public.students WHERE tutor_id = $1 ORDER BY created_at ASC",
-        [tutorId],
-      );
-      return result.rows
-        .filter((student: any) => student.id && String(student.id).trim() !== "")
-        .map((student: any) => transformSnakeToCamel(student) as Student);
-    }
-    const { data } = await supabase.from("students").select("*").eq("tutor_id", tutorId);
-    if (!data) return [];
-    return (data ?? [])
-      .filter(student => student.id && student.id.trim() !== "")
-      .map(student => transformSnakeToCamel(student));
+    const result = await pool.query(
+      "SELECT * FROM public.students WHERE tutor_id = $1 ORDER BY created_at ASC",
+      [tutorId],
+    );
+    return result.rows
+      .filter((student: any) => student.id && String(student.id).trim() !== "")
+      .map((student: any) => transformSnakeToCamel(student) as Student);
   }
 
   async updateStudentProgress(id: string, sessionCount: number, confidenceDelta: number): Promise<void> {
     const student = await this.getStudent(id);
     if (!student) return;
-    await supabase.from("students").update({ session_progress: sessionCount, updated_at: new Date() }).eq("id", id);
+    await pool.query(
+      `UPDATE public.students SET session_progress = $2, updated_at = NOW() WHERE id = $1`,
+      [id, sessionCount],
+    );
   }
 
   async updateStudent(id: string, data: Partial<Student>): Promise<Student | undefined> {
-    // Convert camelCase keys to snake_case for database
     const dbData: any = {};
     for (const [key, value] of Object.entries(data)) {
-      if (key === 'id' || key === 'createdAt' || key === 'updatedAt') continue; // Skip readonly fields
+      if (key === "id" || key === "createdAt" || key === "updatedAt") continue;
       const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
       dbData[snakeKey] = value;
     }
-    dbData.updated_at = new Date().toISOString();
 
-    if (isEmergencyDbMode()) {
-      const allowedColumns = new Set([
-        "name", "grade", "session_progress", "concept_mastery", "confidence_score",
-        "parent_contact", "personal_profile", "emotional_insights", "academic_diagnosis",
-        "identity_sheet", "identity_sheet_completed_at", "tutor_id", "parent_id", "parent_enrollment_id",
-      ]);
-      const entries = Object.entries(dbData).filter(([key]) => allowedColumns.has(key));
-      if (entries.length === 0) return this.getStudent(id);
-      const assignments = entries.map(([key], index) => `"${key}" = $${index + 1}`).join(", ");
-      const values = entries.map(([, value]) => value);
-      values.push(id);
-      const result = await pool.query(
-        `UPDATE public.students SET ${assignments}, updated_at = NOW()
-          WHERE id = $${values.length}
-          RETURNING *`,
-        values,
-      );
-      return result.rows[0] ? transformSnakeToCamel(result.rows[0]) as Student : undefined;
-    }
-
-    const { data: updated, error } = await supabase
-      .from("students")
-      .update(dbData)
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error updating student:", error);
-      return undefined;
-    }
-
-    return transformSnakeToCamel(updated);
+    const allowedColumns = new Set([
+      "name", "grade", "session_progress", "concept_mastery", "confidence_score",
+      "parent_contact", "personal_profile", "emotional_insights", "academic_diagnosis",
+      "identity_sheet", "identity_sheet_completed_at", "tutor_id", "parent_id", "parent_enrollment_id",
+    ]);
+    const entries = Object.entries(dbData).filter(([key]) => allowedColumns.has(key));
+    if (entries.length === 0) return this.getStudent(id);
+    const assignments = entries.map(([key], index) => `"${key}" = $${index + 1}`).join(", ");
+    const values = entries.map(([, value]) => value);
+    values.push(id);
+    const result = await pool.query(
+      `UPDATE public.students SET ${assignments}, updated_at = NOW()
+        WHERE id = $${values.length}
+        RETURNING *`,
+      values,
+    );
+    return result.rows[0] ? transformSnakeToCamel(result.rows[0]) as Student : undefined;
   }
 
   // Session
@@ -1358,12 +1303,12 @@ export class SupabaseStorage implements IStorage {
 
   async getSessionsByPod(podId: string): Promise<Session[]> {
     // Get all tutors in this pod, then get all their sessions
-    const { data: assignments } = await supabase
-      .from("tutor_assignments")
-      .select("tutor_id")
-      .eq("pod_id", podId);
-    
-    if (!assignments || assignments.length === 0) {
+    const assignmentsResult = await pool.query(
+      `SELECT tutor_id FROM public.tutor_assignments WHERE pod_id = $1`,
+      [podId],
+    );
+    const assignments = assignmentsResult.rows;
+    if (assignments.length === 0) {
       return [];
     }
 
@@ -1866,13 +1811,11 @@ export class SupabaseStorage implements IStorage {
       }
       
       // Validate user exists
-      const { data: user, error: userError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("id", userId)
-        .single();
-      
-      if (userError || !user) {
+      const userResult = await pool.query(
+        `SELECT id FROM public.users WHERE id = $1 LIMIT 1`,
+        [userId],
+      );
+      if (!userResult.rows[0]) {
         console.error("User not found:", userId);
         throw new Error("User not found");
       }
@@ -1961,55 +1904,7 @@ export class SupabaseStorage implements IStorage {
 
   // Tutor Applications
   async createTutorApplication(application: any): Promise<TutorApplication> {
-    const normalizedIdType =
-      String(application?.idType ?? application?.id_type ?? "")
-        .trim()
-        .toLowerCase();
-    const dbApplication = {
-      user_id: application.userId,
-      production_link_code: application.productionLinkCode || null,
-      tracking_source: application.trackingSource || null,
-      tracking_campaign: application.trackingCampaign || null,
-      full_name: application.fullName,
-      age: application.age,
-      phone: application.phone,
-      email: application.email,
-      city: application.city,
-      completed_matric: application.completedMatric,
-      matric_year: application.matricYear,
-      math_level: application.mathLevel,
-      math_result: application.mathResult,
-      other_subjects: application.otherSubjects,
-      current_situation: application.currentSituation,
-      current_situation_other: application.currentSituationOther,
-      interest_reason: application.interestReason,
-      helped_before: application.helpedBefore,
-      help_explanation: application.helpExplanation,
-      student_dont_get: application.studentDontGet,
-      pressure_story: application.pressureStory,
-      pressure_response: application.pressureResponse,
-      panic_cause: application.panicCause,
-      discipline_reason: application.disciplineReason,
-      repeat_mistake_response: application.repeatMistakeResponse,
-      tt_meaning: application.ttMeaning,
-      structure_preference: application.structurePreference,
-      hours_per_week: application.hoursPerWeek,
-      available_afternoon: application.availableAfternoon,
-      final_reason: application.finalReason,
-      commitment: application.commitment,
-      status: application.status,
-      ...(normalizedIdType === "sa_id" || normalizedIdType === "passport"
-        ? { id_type: normalizedIdType }
-        : {}),
-    };
-    const { data, error } = await supabase
-      .from("tutor_applications")
-      .insert(dbApplication)
-      .select()
-      .single();
-    if (error) throw new Error(`Failed to create tutor application: ${error.message}`);
-    if (!data) throw new Error("Failed to create tutor application: No data returned");
-    return data;
+    return this.createTutorApplicationEmergency(application);
   }
 
   async createTutorApplicationEmergency(application: any): Promise<TutorApplication> {
@@ -2077,158 +1972,83 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getTutorApplicationsByUser(userId: string): Promise<TutorApplication[]> {
-    if (isEmergencyDbMode()) {
-      const result = await pool.query(
-        `SELECT * FROM public.tutor_applications
-          WHERE user_id = $1
-          ORDER BY created_at DESC`,
-        [userId],
-      );
-      return hydrateTutorApplicationsWithOnboardingStateEmergency(
-        result.rows.map((application: any) => transformSnakeToCamel(application) as TutorApplication),
-      );
-    }
-    const { data } = await supabase
-      .from("tutor_applications")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
-    return hydrateTutorApplicationsWithOnboardingState(
-      (data ?? []).map(transformSnakeToCamel) as TutorApplication[]
+    const result = await pool.query(
+      `SELECT * FROM public.tutor_applications
+        WHERE user_id = $1
+        ORDER BY created_at DESC`,
+      [userId],
+    );
+    return hydrateTutorApplicationsWithOnboardingStateEmergency(
+      result.rows.map((application: any) => transformSnakeToCamel(application) as TutorApplication),
     );
   }
 
   async getTutorApplications(): Promise<TutorApplication[]> {
-    if (isEmergencyDbMode()) {
-      const result = await pool.query(
-        `SELECT * FROM public.tutor_applications
-          ORDER BY created_at DESC`,
-      );
-      return hydrateTutorApplicationsWithOnboardingStateEmergency(
-        result.rows.map((application: any) => transformSnakeToCamel(application) as TutorApplication),
-      );
-    }
-    const { data, error } = await supabase
-      .from("tutor_applications")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) {
-      console.error("Error fetching tutor applications:", error);
-      throw new Error(`Failed to fetch tutor applications: ${error.message}`);
-    }
-    return hydrateTutorApplicationsWithOnboardingState(
-      (data ?? []).map(transformSnakeToCamel) as TutorApplication[]
+    const result = await pool.query(
+      `SELECT * FROM public.tutor_applications ORDER BY created_at DESC`,
+    );
+    return hydrateTutorApplicationsWithOnboardingStateEmergency(
+      result.rows.map((application: any) => transformSnakeToCamel(application) as TutorApplication),
     );
   }
 
   async getTutorApplicationsByStatus(status: "pending" | "approved" | "rejected"): Promise<TutorApplication[]> {
-    if (isEmergencyDbMode()) {
-      const result = await pool.query(
-        `SELECT * FROM public.tutor_applications
-          WHERE status = $1
-          ORDER BY created_at DESC`,
-        [status],
-      );
-      return hydrateTutorApplicationsWithOnboardingStateEmergency(
-        result.rows.map((application: any) => transformSnakeToCamel(application) as TutorApplication),
-      );
-    }
-    const { data, error } = await supabase
-      .from("tutor_applications")
-      .select("*")
-      .eq("status", status)
-      .order("created_at", { ascending: false });
-    if (error) {
-      console.error(`Error fetching tutor applications by status ${status}:`, error);
-      throw new Error(`Failed to fetch tutor applications: ${error.message}`);
-    }
-    return hydrateTutorApplicationsWithOnboardingState(
-      (data ?? []).map(transformSnakeToCamel) as TutorApplication[]
+    const result = await pool.query(
+      `SELECT * FROM public.tutor_applications
+        WHERE status = $1
+        ORDER BY created_at DESC`,
+      [status],
+    );
+    return hydrateTutorApplicationsWithOnboardingStateEmergency(
+      result.rows.map((application: any) => transformSnakeToCamel(application) as TutorApplication),
     );
   }
 
   async approveTutorApplication(id: string, reviewedBy: string): Promise<TutorApplication | undefined> {
-    if (isEmergencyDbMode()) {
-      const result = await pool.query(
-        `UPDATE public.tutor_applications
-            SET status = 'approved',
-                reviewed_by = $2,
-                reviewed_at = now(),
-                document_submission_step = 1,
-                documents_status = $3::jsonb,
-                updated_at = now()
-          WHERE id = $1
-          RETURNING *`,
-        [
-          id,
-          reviewedBy,
-          JSON.stringify(INITIAL_TUTOR_DOCUMENT_STATUSES),
-        ],
-      );
-      return result.rows[0]
-        ? (transformSnakeToCamel(result.rows[0]) as TutorApplication)
-        : undefined;
-    }
-    const { data, error } = await supabase
-      .from("tutor_applications")
-      .update({
-        status: "approved",
-        reviewed_by: reviewedBy,
-        reviewed_at: new Date(),
-        document_submission_step: 1,
-        documents_status: INITIAL_TUTOR_DOCUMENT_STATUSES,
-        updated_at: new Date(),
-      })
-      .eq("id", id)
-      .select()
-      .single();
-    if (error) {
-      console.error("Error approving tutor application:", error);
-      return undefined;
-    }
-    return data ? (transformSnakeToCamel(data) as TutorApplication) : undefined;
+    const result = await pool.query(
+      `UPDATE public.tutor_applications
+          SET status = 'approved',
+              reviewed_by = $2,
+              reviewed_at = now(),
+              document_submission_step = 1,
+              documents_status = $3::jsonb,
+              updated_at = now()
+        WHERE id = $1
+        RETURNING *`,
+      [id, reviewedBy, JSON.stringify(INITIAL_TUTOR_DOCUMENT_STATUSES)],
+    );
+    return result.rows[0]
+      ? (transformSnakeToCamel(result.rows[0]) as TutorApplication)
+      : undefined;
   }
 
   async rejectTutorApplication(id: string, reviewedBy: string, reason: string): Promise<TutorApplication | undefined> {
-    if (isEmergencyDbMode()) {
-      const result = await pool.query(
-        `UPDATE public.tutor_applications
-            SET status = 'rejected',
-                reviewed_by = $2,
-                reviewed_at = now(),
-                rejection_reason = $3,
-                updated_at = now()
-          WHERE id = $1
-          RETURNING *`,
-        [id, reviewedBy, reason],
-      );
-      return result.rows[0]
-        ? (transformSnakeToCamel(result.rows[0]) as TutorApplication)
-        : undefined;
-    }
-    const { data } = await supabase
-      .from("tutor_applications")
-      .update({
-        status: "rejected",
-        reviewed_by: reviewedBy,
-        reviewed_at: new Date(),
-        rejection_reason: reason,
-        updated_at: new Date(),
-      })
-      .eq("id", id)
-      .select()
-      .single();
-    return data ?? undefined;
+    const result = await pool.query(
+      `UPDATE public.tutor_applications
+          SET status = 'rejected',
+              reviewed_by = $2,
+              reviewed_at = now(),
+              rejection_reason = $3,
+              updated_at = now()
+        WHERE id = $1
+        RETURNING *`,
+      [id, reviewedBy, reason],
+    );
+    return result.rows[0]
+      ? (transformSnakeToCamel(result.rows[0]) as TutorApplication)
+      : undefined;
   }
 
   async getApprovedTutors(): Promise<User[]> {
-    const { data: eligibleApplications } = await supabase
-      .from("tutor_applications")
-      .select("user_id, full_name, email, phone, city, documents_status")
-      .eq("status", "approved")
-      .not("user_id", "is", null);
+    const applicationsResult = await pool.query(
+      `SELECT user_id, full_name, email, phone, city, documents_status
+         FROM public.tutor_applications
+        WHERE status = 'approved'
+          AND user_id IS NOT NULL`,
+    );
+    const eligibleApplications = applicationsResult.rows;
 
-    if (!eligibleApplications || eligibleApplications.length === 0) {
+    if (eligibleApplications.length === 0) {
       return [];
     }
 
@@ -2250,12 +2070,13 @@ export class SupabaseStorage implements IStorage {
       return [];
     }
 
-    const { data: users } = await supabase
-      .from("users")
-      .select("*")
-      .in("id", approvedUserIds);
-
-    const usersById = new Map((users || []).map((user: any) => [user.id, user]));
+    const usersResult = await pool.query(
+      `SELECT *
+         FROM public.users
+        WHERE id::text = ANY($1::text[])`,
+      [approvedUserIds],
+    );
+    const usersById = new Map(usersResult.rows.map((user: any) => [user.id, mapDbUser(user)]));
 
     return approvedUserIds.map((userId) => {
       const existingUser = usersById.get(userId);
@@ -2288,19 +2109,15 @@ export class SupabaseStorage implements IStorage {
     documentUrl: string
   ): Promise<TutorApplication | undefined> {
     const fields = getSequentialTutorDocumentFields(docStep);
-    const { data: existing, error: existingError } = await supabase
-      .from("tutor_applications")
-      .select("documents_status, document_submission_step")
-      .eq("id", applicationId)
-      .single();
+    const existingResult = await pool.query(
+      `SELECT * FROM public.tutor_applications WHERE id = $1 LIMIT 1`,
+      [applicationId],
+    );
+    const existing = existingResult.rows[0];
+    if (!existing) return undefined;
 
-    if (existingError) {
-      console.error("Error fetching sequential document status:", existingError);
-      return undefined;
-    }
-
-    const documentsStatus = normalizeTutorDocumentStatuses(existing?.documents_status);
-    const submissionStepRaw = Number(existing?.document_submission_step);
+    const documentsStatus = normalizeTutorDocumentStatuses(existing.documents_status);
+    const submissionStepRaw = Number(existing.document_submission_step);
     let expectedStep = 0;
     for (let step = 1; step <= 6; step++) {
       if (String(documentsStatus[step.toString()] || "not_started") !== "approved") {
@@ -2352,35 +2169,35 @@ export class SupabaseStorage implements IStorage {
       [fields.verifiedAt]: null,
       [fields.rejectionReason]: null,
     };
-    if (fields.completedTemplateUrl) {
-      updateData[fields.completedTemplateUrl] = null;
-    }
-    if (fields.completedTemplateUploadedAt) {
-      updateData[fields.completedTemplateUploadedAt] = null;
-    }
-    if (fields.completedTemplateUploadedBy) {
-      updateData[fields.completedTemplateUploadedBy] = null;
-    }
+    if (fields.completedTemplateUrl) updateData[fields.completedTemplateUrl] = null;
+    if (fields.completedTemplateUploadedAt) updateData[fields.completedTemplateUploadedAt] = null;
+    if (fields.completedTemplateUploadedBy) updateData[fields.completedTemplateUploadedBy] = null;
 
-    const { data, error } = await supabase
-      .from("tutor_applications")
-      .update(updateData)
-      .eq("id", applicationId)
-      .select()
-      .single();
+    const entries = Object.entries(updateData);
+    const values = entries.map(([, value]) => value);
+    values.push(applicationId);
+    const assignments = entries
+      .map(([key], index) => {
+        if (!/^[a-z0-9_]+$/i.test(key)) throw new Error("Invalid tutor application column");
+        return `"${key}" = $${index + 1}`;
+      })
+      .join(", ");
 
-    if (error) {
-      console.error("Error updating sequential onboarding document:", error);
-      return undefined;
-    }
-
-    return data ? (transformSnakeToCamel(data) as TutorApplication) : undefined;
+    const result = await pool.query(
+      `UPDATE public.tutor_applications
+          SET ${assignments}
+        WHERE id = $${values.length}
+        RETURNING *`,
+      values,
+    );
+    return result.rows[0]
+      ? (transformSnakeToCamel(result.rows[0]) as TutorApplication)
+      : undefined;
   }
 
   async createTutorOnboardingAcceptance(
     input: CreateTutorOnboardingAcceptanceInput
   ): Promise<{ application?: TutorApplication; acceptance?: TutorOnboardingAcceptance }> {
-    if (isEmergencyDbMode()) {
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
@@ -2590,250 +2407,6 @@ export class SupabaseStorage implements IStorage {
       } finally {
         client.release();
       }
-    }
-
-    const { data: existing, error: existingError } = await supabase
-      .from("tutor_applications")
-      .select("id, user_id, documents_status, document_submission_step, phone, email")
-      .eq("id", input.applicationId)
-      .eq("user_id", input.userId)
-      .single();
-
-    if (existingError || !existing) {
-      console.error("Error fetching application for onboarding acceptance:", existingError);
-      return {};
-    }
-
-    const documentsStatus = normalizeTutorDocumentStatuses(existing.documents_status);
-    const currentStep = buildCurrentStepFromStatuses(documentsStatus);
-
-    for (let step = 1; step < input.documentStep; step++) {
-      if (String(documentsStatus[step.toString()] || "not_started") !== "approved") {
-        throw new Error(`Sequential step order violation: step ${step} must be completed first.`);
-      }
-    }
-
-    if (input.documentStep !== currentStep) {
-      throw new Error(`Sequential step order violation: current acceptance step is ${currentStep}.`);
-    }
-
-    if (String(documentsStatus[input.documentStep.toString()] || "not_started") === "approved") {
-      throw new Error(`Step ${input.documentStep} has already been accepted.`);
-    }
-
-    const { data: duplicateAcceptance, error: duplicateAcceptanceError } = await supabase
-      .from("tutor_onboarding_acceptances")
-      .select("id")
-      .eq("application_id", input.applicationId)
-      .eq("user_id", input.userId)
-      .eq("document_step", input.documentStep)
-      .eq("document_version", input.documentVersion)
-      .eq("document_checksum", input.documentChecksum)
-      .limit(1)
-      .maybeSingle();
-
-    if (duplicateAcceptanceError) {
-      throw new Error(`Failed to check onboarding acceptance history: ${duplicateAcceptanceError.message}`);
-    }
-    if (duplicateAcceptance) {
-      throw new Error(`Step ${input.documentStep} has already been accepted.`);
-    }
-
-    const acceptancePayload: InsertTutorOnboardingAcceptance = {
-      applicationId: input.applicationId,
-      userId: input.userId,
-      documentStep: input.documentStep,
-      documentCode: input.documentCode,
-      documentTitle: input.documentTitle,
-      documentVersion: input.documentVersion,
-      documentEffectiveDate: input.documentEffectiveDate ?? null,
-      documentLastUpdatedAt: input.documentLastUpdatedAt ?? null,
-      documentSnapshot: input.documentSnapshot,
-      documentChecksum: input.documentChecksum,
-      typedFullName: input.typedFullName,
-      accountEmail: input.accountEmail,
-      phoneNumberSnapshot: input.phoneNumberSnapshot ?? null,
-      acceptedTimezone: input.acceptedTimezone ?? null,
-      ipAddress: input.ipAddress ?? null,
-      userAgent: input.userAgent ?? null,
-      deviceType: input.deviceType ?? null,
-      platform: input.platform ?? null,
-      sessionId: input.sessionId ?? null,
-      locale: input.locale ?? null,
-      sourceFlow: input.sourceFlow ?? null,
-      formSnapshotJson: input.formSnapshotJson ?? null,
-      acceptedClausesJson: input.acceptedClauses.map((clause) => clause.key),
-      scrollCompletionPercent: input.scrollCompletionPercent ?? null,
-      viewStartedAt: input.viewStartedAt ?? null,
-      viewCompletedAt: input.viewCompletedAt ?? null,
-      acceptClickedAt: input.acceptClickedAt ?? null,
-    };
-
-    const { data: acceptanceRow, error: acceptanceError } = await supabase
-      .from("tutor_onboarding_acceptances")
-      .insert({
-        application_id: acceptancePayload.applicationId,
-        user_id: acceptancePayload.userId,
-        document_step: acceptancePayload.documentStep,
-        document_code: acceptancePayload.documentCode,
-        document_title: acceptancePayload.documentTitle,
-        document_version: acceptancePayload.documentVersion,
-        document_effective_date: acceptancePayload.documentEffectiveDate,
-        document_last_updated_at: acceptancePayload.documentLastUpdatedAt,
-        document_snapshot: acceptancePayload.documentSnapshot,
-        document_checksum: acceptancePayload.documentChecksum,
-        typed_full_name: acceptancePayload.typedFullName,
-        account_email: acceptancePayload.accountEmail,
-        phone_number_snapshot: acceptancePayload.phoneNumberSnapshot,
-        accepted_timezone: acceptancePayload.acceptedTimezone,
-        ip_address: acceptancePayload.ipAddress,
-        user_agent: acceptancePayload.userAgent,
-        device_type: acceptancePayload.deviceType,
-        platform: acceptancePayload.platform,
-        session_id: acceptancePayload.sessionId,
-        locale: acceptancePayload.locale,
-        source_flow: acceptancePayload.sourceFlow,
-        form_snapshot_json: acceptancePayload.formSnapshotJson,
-        accepted_clauses_json: acceptancePayload.acceptedClausesJson,
-        scroll_completion_percent: acceptancePayload.scrollCompletionPercent,
-        view_started_at: acceptancePayload.viewStartedAt,
-        view_completed_at: acceptancePayload.viewCompletedAt,
-        accept_clicked_at: acceptancePayload.acceptClickedAt,
-      })
-      .select("*")
-      .single();
-
-    if (acceptanceError || !acceptanceRow) {
-      throw new Error(`Failed to create onboarding acceptance: ${acceptanceError?.message || "no data returned"}`);
-    }
-
-    const clauseRows: InsertTutorOnboardingClauseAcknowledgement[] = input.acceptedClauses.map((clause) => ({
-      acceptanceId: acceptanceRow.id,
-      clauseKey: clause.key,
-      clauseLabel: clause.label,
-    }));
-
-    if (clauseRows.length) {
-      const { error: clauseError } = await supabase
-        .from("tutor_onboarding_clause_acknowledgements")
-        .insert(
-          clauseRows.map((clause) => ({
-            acceptance_id: clause.acceptanceId,
-            clause_key: clause.clauseKey,
-            clause_label: clause.clauseLabel,
-          }))
-        );
-
-      if (clauseError) {
-        throw new Error(`Failed to save onboarding clause acknowledgements: ${clauseError.message}`);
-      }
-    }
-
-    const eventRows: InsertTutorOnboardingAcceptanceEvent[] = [
-      {
-        acceptanceId: acceptanceRow.id,
-        applicationId: input.applicationId,
-        userId: input.userId,
-        documentStep: input.documentStep,
-        eventType: "view_started",
-        payload: { at: input.viewStartedAt?.toISOString?.() ?? null },
-      },
-      {
-        acceptanceId: acceptanceRow.id,
-        applicationId: input.applicationId,
-        userId: input.userId,
-        documentStep: input.documentStep,
-        eventType: "view_completed",
-        payload: {
-          at: input.viewCompletedAt?.toISOString?.() ?? null,
-          scrollCompletionPercent: input.scrollCompletionPercent ?? null,
-        },
-      },
-      {
-        acceptanceId: acceptanceRow.id,
-        applicationId: input.applicationId,
-        userId: input.userId,
-        documentStep: input.documentStep,
-        eventType: "accepted",
-        payload: {
-          at: input.acceptClickedAt?.toISOString?.() ?? null,
-          method: "checkbox_typed_name",
-          clauses: input.acceptedClauses.map((clause) => clause.key),
-          formSnapshot: input.formSnapshotJson ?? null,
-        },
-      },
-    ];
-
-    const { error: eventError } = await supabase
-      .from("tutor_onboarding_acceptance_events")
-      .insert(
-        eventRows.map((eventRow) => ({
-          acceptance_id: eventRow.acceptanceId,
-          application_id: eventRow.applicationId,
-          user_id: eventRow.userId,
-          document_step: eventRow.documentStep,
-          event_type: eventRow.eventType,
-          payload: eventRow.payload ?? null,
-        }))
-      );
-
-    if (eventError) {
-      throw new Error(`Failed to save onboarding acceptance events: ${eventError.message}`);
-    }
-
-    const isAcceptanceOnlyStep = hasAcceptanceOnlyStep(input.documentStep);
-    const documentFields = getSequentialTutorDocumentFields(input.documentStep);
-    const acceptanceRecordedAt = new Date();
-    documentsStatus[input.documentStep.toString()] = isAcceptanceOnlyStep ? "approved" : "pending_upload";
-    if (isAcceptanceOnlyStep && input.documentStep < 6) {
-      const nextStep = (input.documentStep + 1).toString();
-      if (documentsStatus[nextStep] !== "approved") {
-        documentsStatus[nextStep] = "pending_upload";
-      }
-    }
-
-    const updateData: Record<string, any> = {
-      documents_status: documentsStatus,
-      document_submission_step:
-        isAcceptanceOnlyStep && input.documentStep < 6 ? input.documentStep + 1 : input.documentStep,
-      updated_at: acceptanceRecordedAt,
-    };
-
-    if (isAcceptanceOnlyStep) {
-      updateData[documentFields.verified] = true;
-      updateData[documentFields.verifiedBy] = input.userId;
-      updateData[documentFields.verifiedAt] = acceptanceRecordedAt;
-      updateData[documentFields.rejectionReason] = null;
-    }
-
-    const acceptedIdType = String(input.formSnapshotJson?.idType ?? "")
-      .trim()
-      .toLowerCase();
-    if (acceptedIdType === "sa_id" || acceptedIdType === "passport") {
-      updateData.id_type = acceptedIdType;
-    }
-
-    updateData[documentFields.rejectionReason] = null;
-
-    const { data: updatedApplication, error: updateError } = await supabase
-      .from("tutor_applications")
-      .update(updateData)
-      .eq("id", input.applicationId)
-      .select("*")
-      .single();
-
-    if (updateError || !updatedApplication) {
-      throw new Error(`Failed to update onboarding application state: ${updateError?.message || "no data returned"}`);
-    }
-
-    const [hydratedApplication] = await hydrateTutorApplicationsWithOnboardingState([
-      transformSnakeToCamel(updatedApplication) as TutorApplication,
-    ]);
-
-    return {
-      application: hydratedApplication,
-      acceptance: transformSnakeToCamel(acceptanceRow) as TutorOnboardingAcceptance,
-    };
   }
 
   async uploadCompletedTutorSequentialDocument(
@@ -2850,50 +2423,49 @@ export class SupabaseStorage implements IStorage {
       throw new Error(`Completed template fields are not configured for step ${docStep}.`);
     }
 
-    const { data: existing, error: existingError } = await supabase
-      .from("tutor_applications")
-      .select(`documents_status, ${fields.url}`)
-      .eq("id", applicationId)
-      .single();
+    const existingResult = await pool.query(
+      `SELECT * FROM public.tutor_applications WHERE id = $1 LIMIT 1`,
+      [applicationId],
+    );
+    const existing = existingResult.rows[0];
+    if (!existing) return undefined;
 
-    if (existingError) {
-      console.error("Error fetching sequential state before completed upload:", existingError);
-      return undefined;
-    }
-
-    const documentsStatus = normalizeTutorDocumentStatuses(existing?.documents_status);
+    const documentsStatus = normalizeTutorDocumentStatuses(existing.documents_status);
     const stepStatus = String(documentsStatus[docStep.toString()] || "not_started");
     if (stepStatus !== "pending_review" && stepStatus !== "approved") {
       throw new Error(
         `Completed template upload is only allowed while step ${docStep} is pending review or already approved.`
       );
     }
-    if (!existing?.[fields.url]) {
+    if (!existing[fields.url]) {
       throw new Error(
         `Tutor-signed document is required before uploading the platform-completed version for step ${docStep}.`
       );
     }
 
-    const updateData: Record<string, any> = {
-      updated_at: new Date(),
-      [fields.completedTemplateUrl]: completedDocumentUrl,
-      [fields.completedTemplateUploadedAt]: new Date(),
-      [fields.completedTemplateUploadedBy]: completedBy,
-    };
-
-    const { data, error } = await supabase
-      .from("tutor_applications")
-      .update(updateData)
-      .eq("id", applicationId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error uploading completed sequential document:", error);
-      return undefined;
+    const columns = [
+      fields.completedTemplateUrl,
+      fields.completedTemplateUploadedAt,
+      fields.completedTemplateUploadedBy,
+    ];
+    if (columns.some((column) => !/^[a-z0-9_]+$/i.test(column))) {
+      throw new Error("Invalid tutor application column");
     }
 
-    return data ? (transformSnakeToCamel(data) as TutorApplication) : undefined;
+    const result = await pool.query(
+      `UPDATE public.tutor_applications
+          SET updated_at = NOW(),
+              "${fields.completedTemplateUrl}" = $2,
+              "${fields.completedTemplateUploadedAt}" = NOW(),
+              "${fields.completedTemplateUploadedBy}" = $3
+        WHERE id = $1
+        RETURNING *`,
+      [applicationId, completedDocumentUrl, completedBy],
+    );
+
+    return result.rows[0]
+      ? (transformSnakeToCamel(result.rows[0]) as TutorApplication)
+      : undefined;
   }
 
   async reviewTutorSequentialDocument(
@@ -2910,7 +2482,6 @@ export class SupabaseStorage implements IStorage {
 
     const fields = getSequentialTutorDocumentFields(docStep);
 
-    if (isEmergencyDbMode()) {
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
@@ -3050,117 +2621,20 @@ export class SupabaseStorage implements IStorage {
       } finally {
         client.release();
       }
-    }
-
-    const { data: existing, error: existingError } = await supabase
-      .from("tutor_applications")
-      .select(
-        "documents_status, doc_1_completed_template_url, doc_2_completed_template_url, doc_3_completed_template_url, doc_4_completed_template_url, doc_5_completed_template_url, doc_1_submission_url, doc_2_submission_url, doc_3_submission_url, doc_4_submission_url, doc_5_submission_url, doc_6_submission_url"
-      )
-      .eq("id", applicationId)
-      .single();
-
-    if (existingError) {
-      console.error("Error fetching sequential review state:", existingError);
-      return undefined;
-    }
-
-    const documentsStatus = normalizeTutorDocumentStatuses(existing?.documents_status);
-    const currentStepStatus = String(documentsStatus[docStep.toString()] || "not_started");
-    if (currentStepStatus !== "pending_review") {
-      throw new Error(`Step ${docStep} is not currently pending review.`);
-    }
-
-    const updateData: Record<string, any> = {
-      updated_at: new Date(),
-      [fields.verified]: approved,
-      [fields.verifiedBy]: approved ? reviewedBy : null,
-      [fields.verifiedAt]: approved ? new Date() : null,
-      [fields.rejectionReason]: approved ? null : (rejectionReason || "Please review and resubmit"),
-    };
-
-    if (approved) {
-      const tutorSignedUrl = existing?.[fields.url];
-      if (!tutorSignedUrl) {
-        throw new Error(`Tutor-signed document is required before approving step ${docStep}.`);
-      }
-
-      const effectiveCompletedUrl =
-        completedDocumentUrl ||
-        (fields.completedTemplateUrl ? existing?.[fields.completedTemplateUrl] : null);
-
-      documentsStatus[docStep.toString()] = "approved";
-
-      if (docStep < 6) {
-        const nextStep = (docStep + 1).toString();
-        if (documentsStatus[nextStep] !== "approved") {
-          documentsStatus[nextStep] = "pending_upload";
-        }
-        updateData.document_submission_step = docStep + 1;
-      } else {
-        updateData.document_submission_step = 6;
-      }
-
-      const allSequentialDocumentsApproved = ["1", "2", "3", "4", "5", "6"].every(
-        (step) => String(documentsStatus[step] || "") === "approved"
-      );
-      if (allSequentialDocumentsApproved) {
-        updateData.onboarding_completed_at = new Date();
-      }
-
-      if (fields.completedTemplateUrl && effectiveCompletedUrl) {
-        updateData[fields.completedTemplateUrl] = effectiveCompletedUrl;
-      }
-
-      // Keep persisted status within DB enum values.
-      // Gateway status "confirmed" is derived from documents_status at read time.
-    } else {
-      documentsStatus[docStep.toString()] = "rejected";
-      updateData.document_submission_step = docStep;
-      if (fields.completedTemplateUrl) {
-        updateData[fields.completedTemplateUrl] = null;
-      }
-      if (fields.completedTemplateUploadedAt) {
-        updateData[fields.completedTemplateUploadedAt] = null;
-      }
-      if (fields.completedTemplateUploadedBy) {
-        updateData[fields.completedTemplateUploadedBy] = null;
-      }
-    }
-
-    updateData.documents_status = documentsStatus;
-
-    const { data, error } = await supabase
-      .from("tutor_applications")
-      .update(updateData)
-      .eq("id", applicationId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error reviewing sequential onboarding document:", error);
-      return undefined;
-    }
-
-    return data ? (transformSnakeToCamel(data) as TutorApplication) : undefined;
   }
 
   async completeTutorOnboarding(applicationId: string): Promise<TutorApplication | undefined> {
-    const { data, error } = await supabase
-      .from("tutor_applications")
-      .update({
-        onboarding_completed_at: new Date(),
-        updated_at: new Date(),
-      })
-      .eq("id", applicationId)
-      .select()
-      .single();
-    
-    if (error) {
-      console.error("Error completing onboarding:", error);
-      return undefined;
-    }
-    return data ? (transformSnakeToCamel(data) as TutorApplication) : undefined;
+    const result = await pool.query(
+      `UPDATE public.tutor_applications
+          SET onboarding_completed_at = NOW(),
+              updated_at = NOW()
+        WHERE id = $1
+        RETURNING *`,
+      [applicationId],
+    );
+    return result.rows[0]
+      ? (transformSnakeToCamel(result.rows[0]) as TutorApplication)
+      : undefined;
   }
 
   // Roles
@@ -3188,12 +2662,11 @@ export class SupabaseStorage implements IStorage {
 
   async checkTDPodAssignment(email: string): Promise<string | null> {
     // First get the user ID from email
-    const { data: user } = await supabase
-      .from("users")
-      .select("id")
-      .eq("email", email)
-      .maybeSingle();
-    
+    const userResult = await pool.query(
+      `SELECT id FROM public.users WHERE lower(email) = lower($1) LIMIT 1`,
+      [email],
+    );
+    const user = userResult.rows[0];
     if (!user) return null;
     
     // Check if this TD has any assigned pods in the pods table
@@ -3569,11 +3042,14 @@ export class SupabaseStorage implements IStorage {
     // For each lead, get parent and encounter info
     const enriched = await Promise.all(leads.map(async (lead: any) => {
       // Get user info
-      const { data: user } = await supabase
-        .from("users")
-        .select("id, email, first_name, last_name, name")
-        .eq("id", lead.user_id)
-        .maybeSingle();
+      const userResult = await pool.query(
+        `SELECT id, email, first_name, last_name, name
+           FROM public.users
+          WHERE id = $1
+          LIMIT 1`,
+        [lead.user_id],
+      );
+      const user = userResult.rows[0] || null;
       
       // Get encounter info if exists
       let encounterData = null;
@@ -3631,14 +3107,16 @@ export class SupabaseStorage implements IStorage {
       throw new Error("A completed trial is required before a production reward can be recorded");
     }
 
-    const { data: paidSubscription } = await supabase
-      .from("payment_transactions")
-      .select("id")
-      .eq("parent_id", parentId)
-      .eq("student_id", studentId)
-      .eq("payment_status", "paid")
-      .limit(1)
-      .maybeSingle();
+    const paidSubscriptionResult = await pool.query(
+      `SELECT id
+         FROM public.payment_transactions
+        WHERE parent_id = $1
+          AND student_id = $2
+          AND payment_status = 'paid'
+        LIMIT 1`,
+      [parentId, studentId],
+    );
+    const paidSubscription = paidSubscriptionResult.rows[0] || null;
 
     if (!paidSubscription) {
       throw new Error("A verified paid subscription is required before a production reward can be recorded");
@@ -3692,11 +3170,14 @@ export class SupabaseStorage implements IStorage {
         .maybeSingle();
       
       // Get user info
-      const { data: user } = await supabase
-        .from("users")
-        .select("id, email, first_name, last_name, name")
-        .eq("id", close.parent_id)
-        .maybeSingle();
+      const userResult = await pool.query(
+        `SELECT id, email, first_name, last_name, name
+           FROM public.users
+          WHERE id = $1
+          LIMIT 1`,
+        [close.parent_id],
+      );
+      const user = userResult.rows[0] || null;
       
       // Get encounter info if lead has one
       let encounterData = null;
