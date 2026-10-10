@@ -90,7 +90,7 @@ export function normalizeSandboxCanonicalLane(value: unknown): SandboxCanonicalT
   }
   return {
     ...lane,
-    previousTrajectoryClass: source.previousTrajectoryClass ?? null,
+    previousTrajectoryClass: typeof source.previousTrajectoryClass === "string" ? source.previousTrajectoryClass : null,
     continuityTags,
     recentOutcomeKeys,
     priorTracksDiverged: source.priorTracksDiverged,
