@@ -20,7 +20,7 @@ test("The Hub Trial window starts on first completed session and lasts 35 days",
       "CREATE TABLE public.users(id varchar PRIMARY KEY);",
       "CREATE TABLE public.tutor_trial_cases(id varchar PRIMARY KEY, tutor_id varchar NOT NULL, status varchar NOT NULL DEFAULT 'active', updated_at timestamptz NOT NULL DEFAULT now());",
       "CREATE TABLE public.tutor_trial_placements(id varchar PRIMARY KEY, case_id varchar NOT NULL, student_id varchar NOT NULL, status varchar NOT NULL DEFAULT 'active', started_at timestamptz NOT NULL DEFAULT now(), required_session_count integer NOT NULL DEFAULT 9);",
-      "CREATE TABLE public.scheduled_sessions(id uuid PRIMARY KEY, tutor_id varchar, student_id uuid, scheduled_time timestamp without time zone, status varchar);",
+      "CREATE TABLE public.scheduled_sessions(id uuid PRIMARY KEY, tutor_id varchar, student_id uuid, scheduled_time timestamp without time zone, status varchar, type varchar);",
     ].join("\n"));
     const sql = readFileSync("migrations/20261010_trial_35_day_first_session.sql", "utf8");
     await db.query(sql);
@@ -52,11 +52,11 @@ test("The Hub Trial window starts on first completed session and lasts 35 days",
       );
       return rows[0];
     };
-    const session=async(input:{date:string; student:string; tutor?:string; status?:string})=>{
+    const session=async(input:{date:string; student:string; tutor?:string; status?:string; type?:string})=>{
       const id=randomUUID();
       await db.query(
-        "INSERT INTO public.scheduled_sessions(id,tutor_id,student_id,scheduled_time,status) VALUES ($1,$2,$3,$4,$5)",
-        [id,input.tutor||tutor,input.student,input.date,input.status||"scheduled"],
+        "INSERT INTO public.scheduled_sessions(id,tutor_id,student_id,scheduled_time,status,type) VALUES ($1,$2,$3,$4,$5,$6)",
+        [id,input.tutor||tutor,input.student,input.date,input.status||"scheduled",input.type||"training"],
       );
       return id;
     };
@@ -74,6 +74,12 @@ test("The Hub Trial window starts on first completed session and lasts 35 days",
     );
     assert.equal((await row()).window_started_at,null,
       "Placing first Trial family must not start Trial clock");
+
+    // Intro attendance is NOT qualifying Trial delivery, even if completed
+    // with a currently placed family after the placement timestamp.
+    await session({student:familyA,date:"2026-08-01T12:00:00.000Z",status:"completed",type:"intro"});
+    assert.equal((await row()).window_started_at,null,
+      "Intro sessions cannot start the Trial training clock");
 
     // First delivered session can legitimately start before second family is placed.
     const first=await session({student:familyA,date:"2026-08-03T10:00:00.000Z"});
