@@ -133,6 +133,7 @@ export const ROLE_NAVIGATION: Record<
     { label: "Pods", path: "/executive/coo/pods" },
     { label: "Brain", path: "/executive/coo/brain" },
     { label: "Broadcast", path: "/executive/coo/broadcast" },
+    { label: "Issue Inbox", path: "/executive/coo/issues" },
   ],
 
   // Executive Portal - HR
@@ -140,6 +141,7 @@ export const ROLE_NAVIGATION: Record<
     { label: "Dashboard", path: "/executive/hr/dashboard" },
     { label: "Brain", path: "/executive/hr/brain" },
     { label: "Disputes", path: "/executive/hr/disputes" },
+    { label: "Issue Inbox", path: "/executive/hr/issues" },
     { label: "Updates", path: "/executive/hr/updates" },
   ],
 
@@ -147,10 +149,12 @@ export const ROLE_NAVIGATION: Record<
   ceo: [
     { label: "Dashboard", path: "/executive/ceo/dashboard" },
     { label: "Brain", path: "/executive/ceo/board" },
+    { label: "Issue Inbox", path: "/executive/ceo/issues" },
   ],
   cto: [
     { label: "Gateway", path: "/executive/gateway" },
     { label: "Dashboard", path: "/executive/cto/dashboard" },
+    { label: "Issue Inbox", path: "/executive/cto/issues" },
   ],
   cmo: [
     { label: "Gateway", path: "/executive/gateway" },

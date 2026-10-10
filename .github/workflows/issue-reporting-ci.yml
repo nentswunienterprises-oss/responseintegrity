@@ -1,0 +1,48 @@
+name: Neutral Issue Reporting CI
+
+on:
+  pull_request:
+    paths:
+      - "shared/issueReporting*"
+      - "server/routes/issueReporting.ts"
+      - "server/issueReportingRouteContract.test.ts"
+      - "client/src/components/LogDisputeModal.tsx"
+      - "client/src/pages/executive/issues.tsx"
+      - "client/src/components/layout/account-menu.tsx"
+      - "client/src/components/layout/dashboard-layout.tsx"
+      - "client/src/App.tsx"
+      - "shared/portals.ts"
+      - "server/index.ts"
+      - "server/vercelPreviewApi.ts"
+      - "migrations/20261010_neutral_issue_reporting_v1.sql"
+      - "package.json"
+      - ".github/workflows/issue-reporting-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "shared/issueReporting*"
+      - "server/routes/issueReporting.ts"
+      - "server/issueReportingRouteContract.test.ts"
+      - "client/src/components/LogDisputeModal.tsx"
+      - "client/src/pages/executive/issues.tsx"
+      - "server/index.ts"
+      - "server/vercelPreviewApi.ts"
+      - "migrations/20261010_neutral_issue_reporting_v1.sql"
+      - "package.json"
+
+jobs:
+  issue-reporting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Neutral issue reporting boundaries
+        run: npm run test:issues
+      - name: Frontend bundle
+        run: npx vite build
+      - name: Vercel API bundle
+        run: npm run build:vercel-api

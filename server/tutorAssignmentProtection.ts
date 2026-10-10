@@ -1,5 +1,6 @@
 import type { TutorTrainingMode } from "@shared/battleTesting";
 import { storage, supabase } from "./storage";
+import { pool } from "./db";
 
 export const ACTIVE_PARENT_ENROLLMENT_STATUSES = [
   "awaiting_tutor_acceptance",
@@ -158,10 +159,11 @@ export async function restoreDetachedEnrollmentToTutor(enrollment: any, tutorId:
     await restoreStudentTutorLink(String(enrollment.assigned_student_id), tutorId);
   }
 
-  const { data: linkedStudents } = await supabase
-    .from("students")
-    .select("id")
-    .eq("parent_enrollment_id", enrollment.id);
+  const linkedStudentsResult = await pool.query(
+    `SELECT id FROM public.students WHERE parent_enrollment_id = $1`,
+    [enrollment.id],
+  );
+  const linkedStudents = linkedStudentsResult.rows;
 
   for (const linkedStudent of linkedStudents || []) {
     const studentId = String(linkedStudent.id || "");
@@ -170,11 +172,14 @@ export async function restoreDetachedEnrollmentToTutor(enrollment: any, tutorId:
     await restoreStudentTutorLink(studentId, tutorId);
   }
 
-  const { data: fallbackStudents } = await supabase
-    .from("students")
-    .select("id")
-    .eq("parent_id", enrollment.user_id)
-    .eq("name", enrollment.student_full_name);
+  const fallbackStudentsResult = await pool.query(
+    `SELECT id
+       FROM public.students
+      WHERE parent_id = $1
+        AND name = $2`,
+    [enrollment.user_id, enrollment.student_full_name],
+  );
+  const fallbackStudents = fallbackStudentsResult.rows;
 
   for (const fallbackStudent of fallbackStudents || []) {
     const studentId = String(fallbackStudent.id || "");
@@ -204,12 +209,15 @@ export async function cleanupDetachedEnrollmentArtifacts(enrollment: any, previo
     const parentId = (student as any).parentId || null;
     const staleSessionIds = new Set<string>();
 
-    const { data: tutorStudentSessions } = await supabase
-      .from("scheduled_sessions")
-      .select("id, status")
-      .eq("tutor_id", previousTutorId)
-      .eq("student_id", studentId)
-      .in("type", ["intro", "training"]);
+    const tutorStudentSessionsResult = await pool.query(
+      `SELECT id, status
+         FROM public.scheduled_sessions
+        WHERE tutor_id = $1
+          AND student_id = $2
+          AND type = ANY($3::text[])`,
+      [previousTutorId, studentId, ["intro", "training"]],
+    );
+    const tutorStudentSessions = tutorStudentSessionsResult.rows;
 
     for (const row of tutorStudentSessions || []) {
       if (String(row.status || "").toLowerCase() !== "completed") {
@@ -218,13 +226,16 @@ export async function cleanupDetachedEnrollmentArtifacts(enrollment: any, previo
     }
 
     if (parentId) {
-      const { data: parentOnlyIntroSessions } = await supabase
-        .from("scheduled_sessions")
-        .select("id, status")
-        .eq("tutor_id", previousTutorId)
-        .eq("parent_id", parentId)
-        .is("student_id", null)
-        .eq("type", "intro");
+      const parentOnlyIntroSessionsResult = await pool.query(
+        `SELECT id, status
+           FROM public.scheduled_sessions
+          WHERE tutor_id = $1
+            AND parent_id = $2
+            AND student_id IS NULL
+            AND type = 'intro'`,
+        [previousTutorId, parentId],
+      );
+      const parentOnlyIntroSessions = parentOnlyIntroSessionsResult.rows;
 
       for (const row of parentOnlyIntroSessions || []) {
         if (String(row.status || "").toLowerCase() !== "completed") {
@@ -234,10 +245,10 @@ export async function cleanupDetachedEnrollmentArtifacts(enrollment: any, previo
     }
 
     if (staleSessionIds.size > 0) {
-      await supabase
-        .from("scheduled_sessions")
-        .delete()
-        .in("id", Array.from(staleSessionIds));
+      await pool.query(
+        `DELETE FROM public.scheduled_sessions WHERE id = ANY($1::varchar[])`,
+        [Array.from(staleSessionIds)],
+      );
     }
 
     await storage.updateStudent(studentId, {
@@ -255,11 +266,14 @@ export async function cleanupDetachedEnrollmentArtifacts(enrollment: any, previo
     }
   }
 
-  const { data: linkedStudents } = await supabase
-    .from("students")
-    .select("id")
-    .eq("tutor_id", previousTutorId)
-    .eq("parent_enrollment_id", enrollment.id);
+  const linkedStudentsResult = await pool.query(
+    `SELECT id
+       FROM public.students
+      WHERE tutor_id = $1
+        AND parent_enrollment_id = $2`,
+    [previousTutorId, enrollment.id],
+  );
+  const linkedStudents = linkedStudentsResult.rows;
 
   for (const linkedStudent of linkedStudents || []) {
     try {
@@ -269,12 +283,15 @@ export async function cleanupDetachedEnrollmentArtifacts(enrollment: any, previo
     }
   }
 
-  const { data: fallbackStudents } = await supabase
-    .from("students")
-    .select("id")
-    .eq("tutor_id", previousTutorId)
-    .eq("parent_id", enrollment.user_id)
-    .eq("name", enrollment.student_full_name);
+  const fallbackStudentsResult = await pool.query(
+    `SELECT id
+       FROM public.students
+      WHERE tutor_id = $1
+        AND parent_id = $2
+        AND name = $3`,
+    [previousTutorId, enrollment.user_id, enrollment.student_full_name],
+  );
+  const fallbackStudents = fallbackStudentsResult.rows;
 
   for (const fallbackStudent of fallbackStudents || []) {
     if (!linkedStudents?.some((ls) => ls.id === fallbackStudent.id)) {
@@ -327,18 +344,22 @@ export async function cleanupLegacyLiveEnrollmentsForNonLiveTutor(
 
   let protectedTrialEnrollmentIds = new Set<string>();
   if (certificationMode === "trial") {
-    const { data: trialCases, error: trialCaseError } = await supabase
-      .from("tutor_trial_cases")
-      .select("id")
-      .eq("tutor_id", tutorId)
-      .in("status", ["active", "reviewable", "remediation_required"]);
-
-    if (trialCaseError) {
+    let trialCases: any[] = [];
+    try {
+      const trialCasesResult = await pool.query(
+        `SELECT id
+           FROM public.tutor_trial_cases
+          WHERE tutor_id = $1
+            AND status = ANY($2::text[])`,
+        [tutorId, ["active", "reviewable", "remediation_required"]],
+      );
+      trialCases = trialCasesResult.rows;
+    } catch (trialCaseError) {
       console.error("Failed to verify governed Trial placements during assignment cleanup:", trialCaseError);
       return { detachedCount: 0, detachedEnrollments: [] as any[] };
     }
 
-    const trialCaseIds = (trialCases || []).map((trialCase: any) => String(trialCase.id));
+    const trialCaseIds = trialCases.map((trialCase: any) => String(trialCase.id));
     if (trialCaseIds.length > 0) {
       const { data: trialPlacements, error: trialPlacementError } = await supabase
         .from("tutor_trial_placements")

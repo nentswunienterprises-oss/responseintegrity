@@ -16,3 +16,10 @@ test("Specialist, TD and COO account menus expose the shared RI Appearance contr
   assert.match(source, /Warm Dark/);
   assert.match(source, /value="dark"/);
 });
+
+test("Specialist account menu does not expose the View Profile link", () => {
+  assert.doesNotMatch(source, /View Profile/);
+  assert.doesNotMatch(source, /\/specialist\/profile/);
+  assert.match(source, /getRoleName\(user\.role\)/);
+  assert.match(source, /Log Out/);
+});

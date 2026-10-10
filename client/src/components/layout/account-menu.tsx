@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import type { User } from "@shared/schema";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +15,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, Palette, Shield } from "lucide-react";
+import { ClipboardList, LogOut, Palette } from "lucide-react";
 import { getRoleName, isCOO, isTD, isTutor } from "@/lib/roles";
 import { logout } from "@/lib/auth";
 import { useRITheme } from "@/lib/riTheme";
@@ -119,20 +118,10 @@ export function AccountMenu({
 
         <DropdownMenuSeparator />
 
-        <div className="flex items-center justify-between px-2 py-2">
+        <div className="flex items-center px-2 py-2">
           <Badge className="bg-primary/10 text-primary border-primary/20 text-xs">
             {user?.role ? getRoleName(user.role) : "Unknown"}
           </Badge>
-          {isTutor(user) && (
-            <DropdownMenuItem asChild className="p-0">
-              <Link
-                to="/specialist/profile"
-                className="cursor-pointer text-xs font-semibold text-primary hover:text-primary/80"
-              >
-                View Profile
-              </Link>
-            </DropdownMenuItem>
-          )}
         </div>
 
         <DropdownMenuSeparator />
@@ -175,7 +164,7 @@ export function AccountMenu({
               onClick={onLogIssue}
               className="gap-2 font-medium"
             >
-              <Shield className="w-4 h-4" />
+              <ClipboardList className="w-4 h-4" />
               Log Issue
             </DropdownMenuItem>
             <DropdownMenuSeparator />
