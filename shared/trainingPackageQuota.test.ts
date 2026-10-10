@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   evaluateTrainingPackageQuota,
   isPackageBackedTrainingMode,
+  resolveTrainingPackageProgressSummary,
 } from "./trainingPackageQuota";
 
 test("Sandbox and Certified Live are package-backed training modes", () => {
@@ -48,6 +49,61 @@ test("remaining package capacity permits Sandbox delivery", () => {
   assert.equal(decision.blocked, false);
   assert.equal(decision.code, null);
   assert.equal(decision.sessionsRemaining, 2);
+});
+
+test("Sandbox package progress uses the membership balance instead of the historical completed-session count", () => {
+  assert.deepEqual(
+    resolveTrainingPackageProgressSummary({
+      session_quota: 8,
+      sessions_used: 4,
+      sessions_remaining: 4,
+    }),
+    { sessionQuota: 8, sessionsUsed: 4, sessionsRemaining: 4 },
+  );
+  assert.deepEqual(
+    resolveTrainingPackageProgressSummary({
+      session_quota: 12,
+      sessions_used: 7,
+      sessions_remaining: 5,
+    }),
+    { sessionQuota: 12, sessionsUsed: 7, sessionsRemaining: 5 },
+  );
+});
+
+test("Sandbox package progress never manufactures usage from history or inconsistent membership data", () => {
+  assert.equal(resolveTrainingPackageProgressSummary(null), null);
+  assert.equal(
+    resolveTrainingPackageProgressSummary({
+      session_quota: 8,
+      sessions_used: 1,
+      sessions_remaining: 4,
+    }),
+    null,
+  );
+  assert.equal(
+    resolveTrainingPackageProgressSummary({
+      session_quota: 8,
+      sessions_used: undefined,
+      sessions_remaining: 4,
+    }),
+    null,
+  );
+  assert.equal(
+    resolveTrainingPackageProgressSummary({
+      session_quota: 8,
+      sessions_used: 8,
+      sessions_remaining: -1,
+    }),
+    null,
+  );
+  assert.equal(
+    resolveTrainingPackageProgressSummary({
+      session_quota: 0,
+      sessions_used: 0,
+      sessions_remaining: 0,
+    }),
+    null,
+  );
 });
 
 test("Trial is not accidentally governed by monthly package quota", () => {
@@ -104,7 +160,9 @@ test("Training tab distinguishes no booking from commercial blockage", async () 
   });
   assert.equal(noBooking.code, "NO_SESSIONS_BOOKED");
   assert.equal(noBooking.blocked, false);
+  assert.equal(noBooking.title, "No current lessons booked");
   assert.match(noBooking.message, /5 package sessions remaining/);
+  assert.match(noBooking.message, /Previously completed lessons remain in history/);
 
   const booked = resolveTrainingTabAvailability({
     operationalMode: "sandbox",
