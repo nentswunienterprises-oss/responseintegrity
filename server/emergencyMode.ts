@@ -1,3 +1,5 @@
+const HUB_PROJECT_REF = "yzcnavucvwgmulcxgxvw";
+
 const PROOF_PROJECT_REFS = new Set([
   "jftlxeacphvbnhbsbpxc",
   "tzgkiaiwnhmnzznvmbfg",
@@ -54,4 +56,14 @@ export function isEmergencyDbMode() {
   }
 
   return process.env.EMERGENCY_DB_MODE === "true";
+}
+
+export function isTheHubDatabaseRuntime(
+  env: Record<string, string | undefined> = process.env,
+) {
+  const databaseRef = databaseProjectRef(env.DATABASE_URL);
+  if (databaseRef) return databaseRef === HUB_PROJECT_REF;
+
+  const supabaseRef = supabaseProjectRef(env.SUPABASE_URL);
+  return supabaseRef === HUB_PROJECT_REF;
 }
