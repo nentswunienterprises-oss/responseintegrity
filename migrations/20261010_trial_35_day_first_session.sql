@@ -45,8 +45,7 @@ ALTER TABLE public.tutor_trial_cases
 CREATE OR REPLACE FUNCTION public.capture_tutor_trial_first_session_v2()
 RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $$
 DECLARE
-  first_delivered_at timestamptz;
-BEGIN
+  first_delivered_at timestamptz; BEGIN
   IF NEW.status IS DISTINCT FROM 'completed'
      OR NEW.scheduled_time IS NULL
      OR NEW.student_id IS NULL
