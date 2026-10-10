@@ -3,6 +3,14 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { displayTopicStability, topicStabilityConfirmationLabel } from "./topicStabilityPresentation";
 
+const sandboxAuthoritySource = readFileSync(
+  new URL("../server/sandboxEnvironment.ts", import.meta.url),
+  "utf8",
+);
+const sandboxTopicAuthoritySource = readFileSync(
+  new URL("./sandboxTopicAuthority.ts", import.meta.url),
+  "utf8",
+);
 const liveRunnerSource = readFileSync(
   new URL("../client/src/components/tutor/IntroSessionDrillRunner.tsx", import.meta.url),
   "utf8",
@@ -105,6 +113,18 @@ test("legacy high-stability checkpoint is a public High label with explicit conf
   assert.match(topicMapSource, /row\.progressionAuthority === "exit_confirmation_eligible"/);
   assert.match(topicMapSource, /getNextActionData\(selectedRow\.phase, nextActionStabilityFor\(selectedRow\)\)/);
   assert.match(topicMapSource, /entry\.seeded\?\.progressionAuthority/);
+});
+
+test("selected topic is authoritative for the Sandbox drill and cannot be silently replaced by student-wide Clarity", () => {
+  assert.match(topicMapSource, /mode=training&topic=\$\{topicParam\}&phase=\$\{phaseParam\}/);
+  assert.match(sandboxRunnerSource, /&topic=\$\{encodeURIComponent\(routeTopic\)\}/);
+  assert.match(sandboxAuthoritySource, /selectSandboxTopicTrajectory\(\{/);
+  assert.match(sandboxAuthoritySource, /resolveSandboxTopicSeed\(student\.rows\[0\]\?\.concept_mastery, input\.topic\)/);
+  assert.match(sandboxAuthoritySource, /sandboxTopicKey\(input\.topic\) !== sandboxTopicKey\(bundle\.trajectory\.active_topic_key\)/);
+  assert.match(sandboxAuthoritySource, /canonical_topic_states/);
+  assert.match(sandboxAuthoritySource, /specialist_topic_states/);
+  assert.match(sandboxAuthoritySource, /AND topic_key = \$2/);
+  assert.match(sandboxTopicAuthoritySource, /requiresTargetedRediagnosis === true/);
 });
 
 test("Sandbox mode uses the existing live-runner route rather than a separate runner flow", () => {
