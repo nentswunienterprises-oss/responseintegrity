@@ -64,6 +64,7 @@ async function loadTrialPlacementOverview(
     .select("id, status, scheduled_time, updated_at")
     .eq("tutor_id", placement.tutor_id)
     .eq("student_id", placement.student_id)
+    .eq("type", "training")
     .eq("status", "completed")
     .gte("scheduled_time", placement.started_at)
     .order("scheduled_time", { ascending: true });
