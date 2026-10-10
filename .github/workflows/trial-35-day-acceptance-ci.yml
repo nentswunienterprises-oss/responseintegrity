@@ -1,0 +1,65 @@
+name: Trial 35-Day Acceptance CI
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/trial-35-day-acceptance-ci.yml'
+      - 'migrations/20261010_trial_35_day_first_session.sql'
+      - 'config/production-migration-authority.json'
+      - 'scripts/productionMigrationAuthority.test.ts'
+      - 'shared/trialCertification.ts'
+      - 'shared/trialCertification.test.ts'
+      - 'server/trialCertification.ts'
+      - 'client/src/components/trial/TrialProgressCard.tsx'
+      - 'scripts/trialWindowMigrationIntegration.test.ts'
+      - 'package.json'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/trial-35-day-acceptance-ci.yml'
+      - 'migrations/20261010_trial_35_day_first_session.sql'
+      - 'shared/trialCertification.ts'
+      - 'server/trialCertification.ts'
+
+permissions:
+  contents: read
+
+jobs:
+  trial-window:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: trial_policy_ci
+          POSTGRES_DB: trial_policy_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d trial_policy_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Trial 35-day and 2x9 qualification policy
+        run: npm run test:trial:policy
+      - name: Real PostgreSQL first-session and COO extension integrity
+        run: npm run test:trial:db
+        env:
+          TRIAL_WINDOW_CI_DATABASE_URL: postgresql://postgres:trial_policy_ci@localhost:5432/trial_policy_ci
+      - name: Managed production migration authority
+        run: npm run test:db-authority
+      - name: Vercel API bundle
+        run: npm run build:vercel-api
+      - name: Frontend bundle
+        run: npx vite build
