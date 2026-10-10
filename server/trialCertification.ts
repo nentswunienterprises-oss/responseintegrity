@@ -17,6 +17,7 @@ import {
   type TrialTestimonialPermission,
 } from "@shared/trialCertification";
 import { getSpecialistDevelopmentPathway } from "./specialistDevelopmentPathway";
+import { getPracticalCompletionStatus } from "./capabilityPracticalEvidence";
 
 const OPEN_TRIAL_CASE_STATUSES: TrialCaseStatus[] = ["active", "reviewable", "remediation_required"];
 
@@ -294,6 +295,11 @@ export async function createTrialCase(input: {
         ? "The 75-day pathway window has ended. A documented extension is required before Trial can open."
         : "The Specialist Development Pathway has expired and cannot open Trial.",
     );
+  }
+
+  const practicals = await getPracticalCompletionStatus(input.tutorAssignmentId, input.tutorId);
+  if (!practicals.readyForTrial) {
+    throw new Error("Trial cannot open before the three Practicals and assigned TD completion decision are approved.");
   }
 
   const existing = await getOpenTrialCaseForTutor(input.tutorId);

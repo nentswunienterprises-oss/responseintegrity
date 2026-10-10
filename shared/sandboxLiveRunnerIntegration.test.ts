@@ -94,7 +94,7 @@ test("Sandbox mode uses the existing live-runner route rather than a separate ru
   );
   assert.match(
     liveRunnerSource,
-    /<SpecialistSandboxSimulation[\s\S]*studentIdOverride=\{String\(studentId\)\}[\s\S]*tutorAssignmentIdOverride=\{runtimeMode\.assignmentId\}[\s\S]*operationalModeOverride=\{operationalMode\}[\s\S]*embedded/,
+    /<SpecialistSandboxSimulation[\s\S]*studentIdOverride=\{String\(studentId\)\}[\s\S]*tutorAssignmentIdOverride=\{sandboxAssignmentId\}[\s\S]*operationalModeOverride=\{operationalMode\}[\s\S]*embedded/,
   );
   assert.match(sandboxRouteSource, /app\.get\("\/api\/tutor\/runtime-mode"/);
   assert.match(sandboxRouteSource, /Cache-Control", "no-store, max-age=0"/);
@@ -137,7 +137,7 @@ test("Sandbox diagnosis keeps the evidence-native runner and projects private si
   );
   assert.match(
     sandboxRediagnosisSource,
-    /studentBehavior: selected\.studentBehavior/,
+    /studentBehavior:\s*projectSandboxLiveBehavior\(\{[\s\S]*behavior: selected\.studentBehavior/,
   );
   assert.doesNotMatch(
     sandboxRediagnosisSource.slice(
@@ -195,7 +195,7 @@ test("Sandbox Handover stays on the live Handover runner and records one observa
     /!isHandoverContinuityVerification && \([\s\S]*of \{set\?\.reps \?\? 0\}/,
   );
 
-  const handoverPrepStart = liveRunnerSource.indexOf('if (mode === "handover")');
+  const handoverPrepStart = liveRunnerSource.indexOf('if (mode === "handover")', liveRunnerSource.indexOf('function buildVerificationPrepSpec('));
   const handoverPrepEnd = liveRunnerSource.indexOf(
     'title: "Targeted Re-Diagnosis Prep"',
     handoverPrepStart,
@@ -215,8 +215,8 @@ test("Sandbox Handover stays on the live Handover runner and records one observa
     /drillMode === "handover" && showModeInstructions && \(/,
   );
   const regularHandoverPrep = liveRunnerSource.slice(
-    liveRunnerSource.indexOf('if (mode === "handover")'),
-    liveRunnerSource.indexOf('title: "Targeted Re-Diagnosis Prep"'),
+    handoverPrepStart,
+    handoverPrepEnd,
   );
   assert.match(
     regularHandoverPrep,

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { SandboxReadinessAssessmentCard } from "@/components/sandbox/SandboxReadinessAssessmentCard";
+import { TdPracticalsCompletion } from "@/components/sandbox/TdPracticalsCompletion";
 
 type CapabilityAssessment = {
   assessmentKey: string;
@@ -690,6 +691,8 @@ export default function SpecialistDevelopmentRecordPage() {
               Later-stage evidence
             </h2>
           </div>
+
+          {!isCooView ? <TdPracticalsCompletion tutorId={record.specialist.id} /> : null}
 
           <Card className="rounded-none">
             <CardContent className="p-5">

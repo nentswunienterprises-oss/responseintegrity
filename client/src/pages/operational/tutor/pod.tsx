@@ -600,6 +600,18 @@ export default function TutorPod() {
           </Card>
         ) : null}
 
+        {sandboxTrainingActive ? (
+          <Card className="border-primary/15 bg-background shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-4 p-5">
+              <div>
+                <h2 className="font-semibold">Practicals</h2>
+                <p className="text-sm text-muted-foreground">Opens after capability readiness and assigned TD approval. Sandbox permission remains unchanged.</p>
+              </div>
+              <Button asChild variant="outline"><Link to="/specialist/practicals">View Practicals</Link></Button>
+            </div>
+          </Card>
+        ) : null}
+
         <div className="tutor-pod-stats grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <Card className="ri-metric-card border-primary/15 bg-background shadow-sm">
             <div className="px-4 py-4 sm:px-5 sm:py-5">

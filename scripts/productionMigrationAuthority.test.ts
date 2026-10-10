@@ -14,7 +14,7 @@ test("production DB authority locks the verified The Hub baseline", () => {
   assert.equal(result.authority.productionProjectRef, "yzcnavucvwgmulcxgxvw");
   assert.equal(result.authority.baseline.commit, "a8c1aab29b230ce523c0353cfcc4eb4b1ae07627");
   assert.equal(result.baselineCount, 15);
-  assert.equal(result.managedCount, 6);
+  assert.equal(result.managedCount, 7);
   assert.deepEqual(result.authority.managedMigrations, [
     {
       path: "migrations/20260927_diagnosis_activity_context_separation.sql",
@@ -50,6 +50,12 @@ test("production DB authority locks the verified The Hub baseline", () => {
       path: "migrations/20261004_specialist_development_pathway_authority.sql",
       description:
         "Restore the public Specialist Development Pathway table required by the longitudinal development record and existing Trial governance, with server-only Data API access and non-retroactive backfill inside the current 90-day maximum window.",
+      risk: "additive",
+    },
+    {
+      path: "migrations/20261009_practicals_evidence_stage_v1.sql",
+      description:
+        "Create governed post-Sandbox Practicals submission and TD review evidence, server-only stateful Execute challenge truth and append-only live response transcript without changing Trial or live permission.",
       risk: "additive",
     },
   ]);

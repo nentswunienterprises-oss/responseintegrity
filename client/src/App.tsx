@@ -88,6 +88,7 @@ import TDNoPod from "@/pages/operational/td/no-pod";
 import TDDashboard from "@/pages/operational/td/dashboard";
 import TDOverview from "@/pages/operational/td/overview";
 import SpecialistDevelopmentRecordPage from "@/pages/operational/td/specialist-development";
+import PracticalReview from "@/pages/operational/td/practicals-review";
 import TDTutors from "@/pages/operational/td/tutors";
 import TDReports from "@/pages/operational/td/reports";
 import TDUpdates from "@/pages/operational/td/updates";
@@ -121,6 +122,7 @@ import TutorBlueprint from "@/pages/operational/tutor/blueprint";
 import ResponseIntegrityOS from "@/pages/operational/tutor/response-integrity-os";
 import SpecialistCapabilityAssessment from "@/pages/operational/tutor/capability-assessment";
 import SpecialistSandboxSimulation from "@/pages/operational/tutor/sandbox-simulation";
+import SpecialistPracticals from "@/pages/operational/tutor/practicals";
 import OperationalTDDashboard from "@/pages/operational/td/dashboard";
 import TdGateway from "@/pages/operational/td/gateway";
 import TdLanding from "@/pages/operational/td/landing";
@@ -546,6 +548,7 @@ function Router() {
       <Route path="/operational/td/my-pods" element={<TdGatewayGuard><DashboardLayout><TDOverview /></DashboardLayout></TdGatewayGuard>} />
       <Route path="/operational/td/my-pods/:podId" element={<TdGatewayGuard><DashboardLayout><TDOverview /></DashboardLayout></TdGatewayGuard>} />
       <Route path="/operational/td/my-pods/:podId/specialists/:tutorId/development" element={<TdGatewayGuard><DashboardLayout><SpecialistDevelopmentRecordPage /></DashboardLayout></TdGatewayGuard>} />
+      <Route path="/operational/td/practicals-review" element={<TdGatewayGuard><DashboardLayout><PracticalReview /></DashboardLayout></TdGatewayGuard>} />
       <Route path="/operational/td/reports" element={<TdGatewayGuard><DashboardLayout><TDReports /></DashboardLayout></TdGatewayGuard>} />
       <Route path="/operational/td/updates" element={<TdGatewayGuard><DashboardLayout><TDUpdates /></DashboardLayout></TdGatewayGuard>} />
 
@@ -619,6 +622,7 @@ function Router() {
 
       {/* ==================== LEGACY ROUTES (Backwards Compatibility) ==================== */}
       {/* Legacy Tutor Routes */}
+      <Route path="/specialist/practicals" element={<TutorGatewayGuard>{withSpecialistTheme(<SpecialistPracticals />)}</TutorGatewayGuard>} />
       <Route path="/specialist/pod" element={<TutorGatewayGuard><TutorPod /></TutorGatewayGuard>} />
       <Route path="/specialist/growth" element={<TutorGatewayGuard><TutorGrowth /></TutorGatewayGuard>} />
       <Route path="/specialist/academics" element={<TutorGatewayGuard><TutorAcademics /></TutorGatewayGuard>} />
