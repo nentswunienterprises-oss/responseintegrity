@@ -44,6 +44,7 @@ export type ExecuteTranscriptTurn = {
   situation: ExecuteScenarioTurn;
   response: ExecuteResponse;
   riskFlags: string[];
+  recordedAt?: string | Date | null;
 };
 
 const INITIAL_BEHAVIORS = [
