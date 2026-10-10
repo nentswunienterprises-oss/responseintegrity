@@ -91,6 +91,29 @@ export function toJsonbParam(value: unknown) {
   return JSON.stringify(value ?? null);
 }
 
+function mapDbUser(data: any): User {
+  return {
+    id: data.id,
+    email: data.email,
+    firstName: data.first_name,
+    lastName: data.last_name,
+    phone: data.phone,
+    bio: data.bio,
+    profileImageUrl: data.profile_image_url,
+    productionLinkCode: data.production_link_code,
+    trackingSource: data.tracking_source,
+    trackingCampaign: data.tracking_campaign,
+    password: data.password,
+    role: data.role,
+    name: data.name,
+    grade: data.grade,
+    school: data.school,
+    verified: data.verified,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  } as User;
+}
+
 type SequentialDocumentStatus =
   | "not_started"
   | "pending_upload"
@@ -470,88 +493,28 @@ export class SupabaseStorage implements IStorage {
   __userCache: Record<string, User | undefined> = {};
 
   async getUser(id: string): Promise<User | undefined> {
-    // Check in-memory cache first
     if (this.__userCache[id]) {
       return this.__userCache[id];
     }
     try {
-      if (isEmergencyDbMode()) {
-        const result = await pool.query(
-          `SELECT id, email, first_name, last_name, phone, bio, profile_image_url,
-                  production_link_code, tracking_source, tracking_campaign, role,
-                  name, grade, school, verified, created_at, updated_at
-             FROM public.users
-            WHERE id = $1
-            LIMIT 1`,
-          [id],
-        );
-        const data = result.rows[0];
-        if (!data) return undefined;
-        const user = {
-          id: data.id,
-          email: data.email,
-          firstName: data.first_name,
-          lastName: data.last_name,
-          phone: data.phone,
-          bio: data.bio,
-          profileImageUrl: data.profile_image_url,
-          productionLinkCode: data.production_link_code,
-          trackingSource: data.tracking_source,
-          trackingCampaign: data.tracking_campaign,
-          role: data.role,
-          name: data.name,
-          grade: data.grade,
-          school: data.school,
-          verified: data.verified,
-          createdAt: data.created_at,
-          updatedAt: data.updated_at,
-        } as User;
-        this.__userCache[id] = user;
-        return user;
-      }
-      // Explicitly select only user columns to avoid any relationship pollution
-      const { data, error } = await supabase
-        .from("users")
-        .select("id,email,first_name,last_name,phone,bio,profile_image_url,production_link_code,tracking_source,tracking_campaign,password,role,name,grade,school,verified,created_at,updated_at")
-        .eq("id", id)
-        .maybeSingle();
-      if (error) {
-        console.error("Error fetching user:", error);
-        return undefined;
-      }
-      if (!data) {
-        return undefined;
-      }
-      // Transform snake_case to camelCase
-      const user = {
-        id: data.id,
-        email: data.email,
-        firstName: data.first_name,
-        lastName: data.last_name,
-        phone: data.phone,
-        bio: data.bio,
-        profileImageUrl: data.profile_image_url,
-        productionLinkCode: data.production_link_code,
-        trackingSource: data.tracking_source,
-        trackingCampaign: data.tracking_campaign,
-        password: data.password,
-        role: data.role,
-        name: data.name,
-        grade: data.grade,
-        school: data.school,
-        verified: data.verified,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
-      };
-      // Validate role is one of the expected values
+      const result = await pool.query(
+        `SELECT id, email, first_name, last_name, phone, bio, profile_image_url,
+                production_link_code, tracking_source, tracking_campaign, password,
+                role, name, grade, school, verified, created_at, updated_at
+           FROM public.users
+          WHERE id = $1
+          LIMIT 1`,
+        [id],
+      );
+      const data = result.rows[0];
+      if (!data) return undefined;
+      const user = mapDbUser(data);
       const validRoles = ["parent", "student", "tutor", "td", "affiliate", "od", "coo", "hr", "ceo", "cto", "cmo"];
-      if (!validRoles.includes(data.role as string)) {
+      if (!validRoles.includes(String(data.role))) {
         console.error("❌ INVALID ROLE DETECTED:", data.role, "for user", id);
-        console.error("   Full user data:", JSON.stringify(data));
       }
-      // Store in cache for this request
-      this.__userCache[id] = user as User;
-      return user as User;
+      this.__userCache[id] = user;
+      return user;
     } catch (err) {
       console.error("Exception in getUser:", err);
       return undefined;
@@ -560,49 +523,22 @@ export class SupabaseStorage implements IStorage {
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     try {
-      // Explicitly select only user columns to avoid any relationship pollution
-      const { data, error } = await supabase
-        .from("users")
-        .select("id,email,first_name,last_name,phone,bio,profile_image_url,password,role,name,grade,school,verified,created_at,updated_at")
-        .eq("email", email)
-        .maybeSingle();
-      
-      if (error) {
-        console.error("❌ Error fetching user by email:", error);
-        return undefined;
-      }
-      
-      if (!data) {
-        return undefined;
-      }
-      
-      // Transform snake_case to camelCase
-      const user = {
-        id: data.id,
-        email: data.email,
-        firstName: data.first_name,
-        lastName: data.last_name,
-        phone: data.phone,
-        bio: data.bio,
-        profileImageUrl: data.profile_image_url,
-        password: data.password,
-        role: data.role,
-        name: data.name,
-        grade: data.grade,
-        school: data.school,
-        verified: data.verified,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
-      };
-      
-      // Validate role is one of the expected values
+      const result = await pool.query(
+        `SELECT id, email, first_name, last_name, phone, bio, profile_image_url,
+                production_link_code, tracking_source, tracking_campaign, password,
+                role, name, grade, school, verified, created_at, updated_at
+           FROM public.users
+          WHERE lower(email) = lower($1)
+          LIMIT 1`,
+        [email],
+      );
+      const data = result.rows[0];
+      if (!data) return undefined;
       const validRoles = ["parent", "student", "tutor", "td", "affiliate", "od", "coo", "hr", "ceo", "cto", "cmo"];
-      if (!validRoles.includes(data.role as string)) {
+      if (!validRoles.includes(String(data.role))) {
         console.error("❌ INVALID ROLE DETECTED:", data.role, "for email", email);
-        console.error("   Full user data:", JSON.stringify(data));
       }
-      
-      return user as User;
+      return mapDbUser(data);
     } catch (err) {
       console.error("Exception in getUserByEmail:", err);
       return undefined;
@@ -610,129 +546,95 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getUsersByRole(role: string): Promise<User[]> {
-    const { data } = await supabase.from("users").select("id,email,first_name,last_name,phone,bio,profile_image_url,password,role,name,grade,school,verified,created_at,updated_at").eq("role", role);
-    if (!data) return [];
-    
-    // Transform snake_case to camelCase
-    return data.map(d => ({
-      id: d.id,
-      email: d.email,
-      firstName: d.first_name,
-      lastName: d.last_name,
-      phone: d.phone,
-      bio: d.bio,
-      profileImageUrl: d.profile_image_url,
-      password: d.password,
-      role: d.role,
-      name: d.name,
-      grade: d.grade,
-      school: d.school,
-      verified: d.verified,
-      createdAt: d.created_at,
-      updatedAt: d.updated_at,
-    }));
+    const result = await pool.query(
+      `SELECT id, email, first_name, last_name, phone, bio, profile_image_url,
+              production_link_code, tracking_source, tracking_campaign, password,
+              role, name, grade, school, verified, created_at, updated_at
+         FROM public.users
+        WHERE role::text = $1`,
+      [role],
+    );
+    return result.rows.map(mapDbUser);
   }
 
   async upsertUser(user: any): Promise<User> {
-    const dbUser: any = {
-      id: user.id,
-      email: user.email,
-      first_name: user.firstName,
-      last_name: user.lastName,
-      phone: user.phone,
-      bio: user.bio,
-      profile_image_url: user.profileImageUrl,
-      name: [user.firstName, user.lastName].filter(Boolean).join(" ") || "User",
-    };
-    if (user.role) {
-      if (user.role === "od" && !isAllowedOdEmail(user.email)) {
-        throw new Error("This email is not allowed to use the OD role");
-      }
-      dbUser.role = user.role;
+    if (user.role === "od" && !isAllowedOdEmail(user.email)) {
+      throw new Error("This email is not allowed to use the OD role");
     }
 
-    const { data, error } = await supabase
-      .from("users")
-      .upsert(dbUser)
-      .select("id,email,first_name,last_name,phone,bio,profile_image_url,production_link_code,tracking_source,tracking_campaign,password,role,name,grade,school,verified,created_at,updated_at")
-      .single();
-    if (error) throw new Error(`Supabase error: ${error.message}`);
-    if (!data) throw new Error("Failed to upsert user");
-    
-    // Transform snake_case to camelCase
-    return {
-      id: data.id,
-      email: data.email,
-      firstName: data.first_name,
-      lastName: data.last_name,
-      phone: data.phone,
-      bio: data.bio,
-      profileImageUrl: data.profile_image_url,
-      productionLinkCode: data.production_link_code,
-      trackingSource: data.tracking_source,
-      trackingCampaign: data.tracking_campaign,
-      password: data.password,
-      role: data.role,
-      name: data.name,
-      grade: data.grade,
-      school: data.school,
-      verified: data.verified,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-    } as User;
+    const fields: Array<[string, unknown]> = [
+      ["id", user.id],
+      ["email", user.email],
+      ["first_name", user.firstName],
+      ["last_name", user.lastName],
+      ["phone", user.phone],
+      ["bio", user.bio],
+      ["profile_image_url", user.profileImageUrl],
+      ["name", [user.firstName, user.lastName].filter(Boolean).join(" ") || "User"],
+      ...(user.role !== undefined ? [["role", user.role] as [string, unknown]] : []),
+    ].filter(([, value]) => value !== undefined);
+
+    const columns = fields.map(([column]) => column);
+    const values = fields.map(([, value]) => value);
+    const placeholders = values.map((_, index) => `$${index + 1}`);
+    const updates = columns
+      .filter((column) => column !== "id")
+      .map((column) => `${column} = EXCLUDED.${column}`);
+
+    const result = await pool.query(
+      `INSERT INTO public.users (${columns.join(", ")})
+       VALUES (${placeholders.join(", ")})
+       ON CONFLICT (id) DO UPDATE SET ${updates.join(", ")}
+       RETURNING id, email, first_name, last_name, phone, bio, profile_image_url,
+                 production_link_code, tracking_source, tracking_campaign, password,
+                 role, name, grade, school, verified, created_at, updated_at`,
+      values,
+    );
+    if (!result.rows[0]) throw new Error("Failed to upsert user");
+    delete this.__userCache[user.id];
+    return mapDbUser(result.rows[0]);
   }
 
   async updateUserVerification(id: string, verified: boolean): Promise<User | undefined> {
-    const { data } = await supabase.from("users").update({ verified, updated_at: new Date() }).eq("id", id).select("id,email,first_name,last_name,phone,bio,profile_image_url,password,role,name,grade,school,verified,created_at,updated_at").single();
-    if (!data) return undefined;
-    
-    // Transform snake_case to camelCase
-    return {
-      id: data.id,
-      email: data.email,
-      firstName: data.first_name,
-      lastName: data.last_name,
-      phone: data.phone,
-      bio: data.bio,
-      profileImageUrl: data.profile_image_url,
-      password: data.password,
-      role: data.role,
-      name: data.name,
-      grade: data.grade,
-      school: data.school,
-      verified: data.verified,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-    } as User;
+    const result = await pool.query(
+      `UPDATE public.users
+          SET verified = $2, updated_at = NOW()
+        WHERE id = $1
+      RETURNING id, email, first_name, last_name, phone, bio, profile_image_url,
+                production_link_code, tracking_source, tracking_campaign, password,
+                role, name, grade, school, verified, created_at, updated_at`,
+      [id, verified],
+    );
+    if (!result.rows[0]) return undefined;
+    delete this.__userCache[id];
+    return mapDbUser(result.rows[0]);
   }
 
   async updateUserProfile(id: string, data: { phone?: string | null; bio?: string | null; profileImageUrl?: string | null }): Promise<User | undefined> {
-    const updateData: any = { updated_at: new Date() };
-    if (data.phone !== undefined) updateData.phone = data.phone;
-    if (data.bio !== undefined) updateData.bio = data.bio;
-    if (data.profileImageUrl !== undefined) updateData.profile_image_url = data.profileImageUrl;
+    const fields: Array<[string, unknown]> = [];
+    if (data.phone !== undefined) fields.push(["phone", data.phone]);
+    if (data.bio !== undefined) fields.push(["bio", data.bio]);
+    if (data.profileImageUrl !== undefined) fields.push(["profile_image_url", data.profileImageUrl]);
 
-    const { data: result } = await supabase.from("users").update(updateData).eq("id", id).select("id,email,first_name,last_name,phone,bio,profile_image_url,password,role,name,grade,school,verified,created_at,updated_at").single();
-    if (!result) return undefined;
-    
-    // Transform snake_case to camelCase
-    return {
-      id: result.id,
-      email: result.email,
-      firstName: result.first_name,
-      lastName: result.last_name,
-      phone: result.phone,
-      bio: result.bio,
-      profileImageUrl: result.profile_image_url,
-      password: result.password,
-      role: result.role,
-      name: result.name,
-      grade: result.grade,
-      school: result.school,
-      verified: result.verified,
-      createdAt: result.created_at,
-      updatedAt: result.updated_at,
-    } as User;
+    const values: unknown[] = [id];
+    const assignments = fields.map(([column, value]) => {
+      values.push(value);
+      return `${column} = $${values.length}`;
+    });
+    assignments.push("updated_at = NOW()");
+
+    const result = await pool.query(
+      `UPDATE public.users
+          SET ${assignments.join(", ")}
+        WHERE id = $1
+      RETURNING id, email, first_name, last_name, phone, bio, profile_image_url,
+                production_link_code, tracking_source, tracking_campaign, password,
+                role, name, grade, school, verified, created_at, updated_at`,
+      values,
+    );
+    if (!result.rows[0]) return undefined;
+    delete this.__userCache[id];
+    return mapDbUser(result.rows[0]);
   }
 
   async getFirstProductionLeadByUser(userId: string): Promise<any | null> {
