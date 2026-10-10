@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { displayTopicStability, topicStabilityConfirmationLabel } from "./topicStabilityPresentation";
 
 const liveRunnerSource = readFileSync(
   new URL("../client/src/components/tutor/IntroSessionDrillRunner.tsx", import.meta.url),
@@ -16,6 +17,10 @@ const introSessionRouteSource = readFileSync(
 );
 const evidenceDiagnosisRunnerSource = readFileSync(
   new URL("../client/src/components/tutor/EvidenceCompleteDiagnosisRunner.tsx", import.meta.url),
+  "utf8",
+);
+const topicMapSource = readFileSync(
+  new URL("../client/src/components/tutor/StudentTopicConditioningDialog.tsx", import.meta.url),
   "utf8",
 );
 const studentCardSource = readFileSync(
@@ -78,6 +83,25 @@ const sandboxReadinessCardSource = readFileSync(
   new URL("../client/src/components/sandbox/SandboxReadinessAssessmentCard.tsx", import.meta.url),
   "utf8",
 );
+
+test("legacy high-stability checkpoint is a public High label with explicit confirmation, not state mutation", () => {
+  assert.equal(displayTopicStability("High Maintenance"), "High");
+  assert.equal(
+    topicStabilityConfirmationLabel("High Maintenance", "Clarity"),
+    "Phase-exit confirmation required",
+  );
+  assert.equal(topicStabilityConfirmationLabel("High", "Clarity"), null);
+  assert.equal(
+    topicStabilityConfirmationLabel("High Maintenance", "Time Pressure Stability"),
+    "Transfer evidence must be confirmed",
+  );
+  assert.match(studentCardSource, /displayTopicStability\(topic\.stability\)/);
+  assert.match(studentCardSource, /topicStabilityConfirmationLabel\(topic\.stability, topic\.phase\)/);
+  assert.match(topicMapSource, /displayTopicStability\(row\.stability\)/);
+  assert.match(topicMapSource, /topicStabilityConfirmationLabel\(row\.stability, row\.phase\)/);
+  // The next-action and phase gates still consume original, evidence-bearing state.
+  assert.match(topicMapSource, /getNextActionData\(selectedRow\.phase, selectedRow\.stability\)/);
+});
 
 test("Sandbox mode uses the existing live-runner route rather than a separate runner flow", () => {
   assert.match(
