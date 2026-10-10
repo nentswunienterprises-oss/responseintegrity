@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Plus, ClipboardList, LockKeyhole, WalletCards } from "lucide-react";
+import { Calendar, Plus, LockKeyhole, WalletCards } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import type { Reflection } from "@shared/schema";
@@ -309,8 +309,7 @@ export default function TutorGrowth() {
         <Card className="p-6 border bg-slate-50/30 border-slate-200">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div>
-              <h2 className="text-lg font-semibold flex items-center gap-2 mb-1">
-                <ClipboardList className="w-5 h-5 text-slate-600" />
+              <h2 className="text-lg font-semibold mb-1">
                 Weekly Check-In
               </h2>
               <p className="text-sm text-muted-foreground">
