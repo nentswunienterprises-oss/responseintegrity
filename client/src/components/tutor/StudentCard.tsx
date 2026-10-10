@@ -932,9 +932,9 @@ export function StudentCard({
                       <span className="shrink-0 whitespace-nowrap text-xs px-2 py-0.5 rounded-full border border-primary/20 bg-muted/40 text-foreground">
                         {displayTopicStability(topic.stability)}
                       </span>
-                      {topicStabilityConfirmationLabel(topic.stability, topic.phase) ? (
+                      {topicStabilityConfirmationLabel(topic.stability, topic.phase, topic.progressionAuthority) ? (
                         <span className="text-[11px] text-muted-foreground">
-                          {topicStabilityConfirmationLabel(topic.stability, topic.phase)}
+                          {topicStabilityConfirmationLabel(topic.stability, topic.phase, topic.progressionAuthority)}
                         </span>
                       ) : null}
                     </div>
