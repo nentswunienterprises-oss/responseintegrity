@@ -15,7 +15,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, Palette, Shield } from "lucide-react";
+import { ClipboardList, LogOut, Palette } from "lucide-react";
 import { getRoleName, isCOO, isTD, isTutor } from "@/lib/roles";
 import { logout } from "@/lib/auth";
 import { useRITheme } from "@/lib/riTheme";
@@ -164,7 +164,7 @@ export function AccountMenu({
               onClick={onLogIssue}
               className="gap-2 font-medium"
             >
-              <Shield className="w-4 h-4" />
+              <ClipboardList className="w-4 h-4" />
               Log Issue
             </DropdownMenuItem>
             <DropdownMenuSeparator />
