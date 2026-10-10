@@ -282,7 +282,7 @@ export function getRecommendationConfidence(logCount: number): "Low" | "Medium" 
 export function nextMoveRecommendation(phase: PhaseLabel, stability: StabilityLabel): string {
   const idx = phaseIndex(phase);
   if (stability === "High Maintenance") {
-    if (idx === PHASES.length - 1) return "Maintain and transfer to new topics";
+    if (idx === PHASES.length - 1) return "Maintain timed stability and verify transfer through separate evidence";
     return `Confirm the phase-exit evidence in ${phase} before advancing to ${PHASES[idx + 1]}`;
   }
   if (stability === "High") {
