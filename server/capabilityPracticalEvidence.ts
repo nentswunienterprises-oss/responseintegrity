@@ -520,16 +520,19 @@ export async function getPracticalEntryStatus(tutorAssignmentId: string, tutorId
   const result = await pool.query(
     `SELECT id, decision, checklist FROM public.tutor_sandbox_mock_assessments
       WHERE tutor_assignment_id=$1 AND tutor_id=$2
+        AND assessed_by_user_id=$3
+        AND checklist->>'assessment_version'='2'
         AND checklist->>'assessment_owner'='td'
         AND checklist->>'next_stage'='practicals'
       ORDER BY assessed_at DESC, id DESC LIMIT 1`,
-    [tutorAssignmentId, tutorId],
+    [tutorAssignmentId, tutorId, String(assignment.td_id || "")],
   );
   const signoff = result.rows[0] || null;
   const readiness = await getSandboxCapabilityReadiness({ tutorAssignmentId, tutorId });
   const blockers: string[] = [];
   if (assignment.operational_mode !== "sandbox") blockers.push("The Specialist is not in Sandbox.");
-  if (signoff?.decision !== "passed") blockers.push("Assigned TD Practicals-readiness approval is missing.");
+  if (!assignment.td_id) blockers.push("The Specialist is missing an assigned TD.");
+  if (signoff?.decision !== "passed") blockers.push("Latest version-2 assigned-TD Practicals-readiness approval is missing.");
   if (signoff?.checklist?.capability_snapshot?.practicalsReady !== true) blockers.push("TD sign-off lacks positive Sandbox capability evidence.");
   if (!readiness.practicalsReady) blockers.push("Current Sandbox capability evidence is not ready.");
   return { ready: blockers.length === 0, blockers, signoffId: signoff?.id || null };
