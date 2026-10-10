@@ -916,7 +916,7 @@ function buildTopics(
       .reverse()
       .map((h, index) => {
         const label = formatRelativeObservationLabel(index, h.kind);
-        return `${label} (${formatSessionDateTimeLabel(h.date)}): ${h.stability} stability`;
+        return `${label} (${formatSessionDateTimeLabel(h.date)}): ${displayTopicStability(h.stability)} stability${topicStabilityConfirmationLabel(h.stability, h.phase) ? " · Confirmation checkpoint" : ""}`;
       });
 
     rows.push({
@@ -1749,7 +1749,7 @@ export default function StudentTopicConditioningDialog({
                     );
                     const isExpanded = expandedTopics.has(row.topic);
                     const phaseLabel = row.hasObservedState ? row.phase : "Unknown";
-                    const stabilityLabel = row.hasObservedState ? row.stability : "Unknown";
+                    const stabilityLabel = row.hasObservedState ? displayTopicStability(row.stability) : "Unknown";
                     return (
                       <div
                         key={`topic-card-${row.topic}`}
@@ -1768,6 +1768,9 @@ export default function StudentTopicConditioningDialog({
                             <p className="text-base font-semibold break-words">{row.topic}</p>
                             <p className="text-sm text-muted-foreground">Phase: <span className="font-medium text-foreground">{phaseLabel}</span></p>
                             <p className="text-sm text-muted-foreground">Stability: <span className="font-medium text-foreground">{stabilityLabel}</span></p>
+                            {row.hasObservedState && topicStabilityConfirmationLabel(row.stability, row.phase) ? (
+                              <p className="text-xs text-muted-foreground">{topicStabilityConfirmationLabel(row.stability, row.phase)}</p>
+                            ) : null}
                           </button>
                           <Button
                             type="button"
@@ -2841,7 +2844,7 @@ export default function StudentTopicConditioningDialog({
                           {topic.topic} ({topic.requiresTargetedRediagnosis
                             ? `Re-Diagnosis Required - ${topic.targetedRediagnosisStartPhase || topic.phase}`
                             : topic.hasObservedState
-                              ? `${topic.phase} - ${topic.stability}`
+                              ? `${topic.phase} - ${displayTopicStability(topic.stability)}${topicStabilityConfirmationLabel(topic.stability, topic.phase) ? " (confirmation required)" : ""}`
                               : "Unobserved - Diagnosis First"})
                         </label>
                       </div>
@@ -2892,13 +2895,16 @@ export default function StudentTopicConditioningDialog({
                                   Targeted re-diagnosis required · starting signal {targetedRediagnosisStartPhase}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  Current state is held at {phase} · {stability} until evidence-native re-diagnosis establishes the trustworthy entry state.
+                                  Current state is held at {phase} · {displayTopicStability(stability)} until evidence-native re-diagnosis establishes the trustworthy entry state.
                                 </p>
                               </>
                             ) : !hasObservedState ? (
                               <p className="text-xs text-muted-foreground">Unobserved topic · diagnosis-first placement</p>
                             ) : (
-                              <p className="text-xs text-muted-foreground">{phase} · {stability}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {phase} · {displayTopicStability(stability)}
+                                {topicStabilityConfirmationLabel(stability, phase) ? " · Confirmation required" : ""}
+                              </p>
                             )}
                             <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
                               {requiresTargetedRediagnosis ? "Re-Diagnosis Prep" : prepPlan.drillType}
