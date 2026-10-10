@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { db, pool } from "./db";
-import { isEmergencyDbMode } from "./emergencyMode";
+import { isEmergencyDbMode, isTheHubDatabaseRuntime } from "./emergencyMode";
 import {
   User, UpsertUser,
   Pod, InsertPod,
@@ -749,6 +749,61 @@ export class SupabaseStorage implements IStorage {
       }
       return attribution;
     };
+
+    if (!isTheHubDatabaseRuntime()) {
+      const { data: existing, error: existingError } = await supabase
+        .from("users")
+        .select("production_link_code, tracking_source, tracking_campaign")
+        .eq("id", userId)
+        .maybeSingle();
+      if (existingError) throw new Error(`Failed to read user attribution: ${existingError.message}`);
+      if (!existing) throw new Error("User not found while claiming Production Link attribution");
+      if (existing.production_link_code && existing.production_link_code !== productionLinkCode) {
+        throw new Error("Existing Production Link attribution cannot be reassigned");
+      }
+      if (existing.production_link_code) {
+        return updateCachedUser({
+          productionLinkCode: existing.production_link_code,
+          trackingSource: existing.tracking_source || null,
+          trackingCampaign: existing.tracking_campaign || null,
+        });
+      }
+
+      const { data, error } = await supabase
+        .from("users")
+        .update({
+          production_link_code: productionLinkCode,
+          tracking_source: trackingSource,
+          tracking_campaign: trackingCampaign,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId)
+        .is("production_link_code", null)
+        .select("production_link_code, tracking_source, tracking_campaign")
+        .maybeSingle();
+      if (error) throw new Error(`Failed to persist user attribution: ${error.message}`);
+      if (!data) {
+        const { data: current, error: currentError } = await supabase
+          .from("users")
+          .select("production_link_code, tracking_source, tracking_campaign")
+          .eq("id", userId)
+          .single();
+        if (currentError) throw new Error(`Failed to read claimed user attribution: ${currentError.message}`);
+        if (current.production_link_code !== productionLinkCode) {
+          throw new Error("Existing Production Link attribution cannot be reassigned");
+        }
+        return updateCachedUser({
+          productionLinkCode: current.production_link_code,
+          trackingSource: current.tracking_source || null,
+          trackingCampaign: current.tracking_campaign || null,
+        });
+      }
+      return updateCachedUser({
+        productionLinkCode: data.production_link_code,
+        trackingSource: data.tracking_source || null,
+        trackingCampaign: data.tracking_campaign || null,
+      });
+    }
 
     const client = await pool.connect();
     try {
