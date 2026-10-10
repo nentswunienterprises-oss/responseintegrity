@@ -1463,6 +1463,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
     [scheduledSessionId, input.tutorId, input.studentId],
   );
   if (String(existing.rows[0]?.status || "") === "completed") return;
+
   throw new Error("Completed re-diagnosis could not retire its scheduled training session.");
 }
 
