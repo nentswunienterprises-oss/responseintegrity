@@ -1,5 +1,5 @@
 import { PHASES, type TopicPhase, type TopicStability } from "./topicConditioningEngine";
-import type { ProgressionAuthority } from "./capabilityProgressionAuthority";
+import { normalizeCapabilityProgressionState, type CapabilityStability, type ProgressionAuthority } from "./capabilityProgressionAuthority";
 import {
   getDrillSchemaDefinition,
   getDrillSchemaDefinitionByVersion,
@@ -137,11 +137,13 @@ export type SandboxSessionEvaluation = {
   systemOutcomeMatched: boolean;
   canonicalNext: {
     phase: TopicPhase;
-    stability: TopicStability;
+    stability: CapabilityStability;
+    progressionAuthority: ProgressionAuthority;
   };
   specialistNext: {
     phase: TopicPhase;
-    stability: TopicStability;
+    stability: CapabilityStability;
+    progressionAuthority: ProgressionAuthority;
   };
   capabilityEvidence: SandboxCapabilityOccurrence[];
   studentStateAuthoritative: false;
@@ -877,11 +879,18 @@ export function evaluateSandboxCompletedSession(input: {
     reason,
   });
 
+  // Compare independent state fields, not the legacy "High Maintenance" projection.
+  // The repeatability checkpoint is a meaningful longitudinal change, but
+  // holding that checkpoint in a later session is not a second state change.
+  const canonicalPreviousState = normalizeCapabilityProgressionState({
+    phase: input.phase,
+    stability: input.canonicalPreviousStability,
+    progression: input.canonicalPreviousProgressionAuthority,
+  });
   const canonicalStateChanged =
-    canonicalRoute.nextPhase !== input.phase ||
-    canonicalRoute.nextStability !== input.canonicalPreviousStability ||
-    (input.canonicalPreviousProgressionAuthority != null &&
-      canonicalRoute.nextProgressionAuthority !== input.canonicalPreviousProgressionAuthority);
+    canonicalRoute.nextPhase !== canonicalPreviousState.phase ||
+    canonicalRoute.nextCapabilityStability !== canonicalPreviousState.stability ||
+    canonicalRoute.nextProgressionAuthority !== canonicalPreviousState.progression;
 
   const continuityClass: ResponseEvidenceClass =
     !systemOutcomeMatched
@@ -898,11 +907,13 @@ export function evaluateSandboxCompletedSession(input: {
     systemOutcomeMatched,
     canonicalNext: {
       phase: canonicalRoute.nextPhase,
-      stability: canonicalRoute.nextStability,
+      stability: canonicalRoute.nextCapabilityStability,
+      progressionAuthority: canonicalRoute.nextProgressionAuthority,
     },
     specialistNext: {
       phase: specialistRoute.nextPhase,
-      stability: specialistRoute.nextStability,
+      stability: specialistRoute.nextCapabilityStability,
+      progressionAuthority: specialistRoute.nextProgressionAuthority,
     },
     capabilityEvidence: [
       occurrence(
