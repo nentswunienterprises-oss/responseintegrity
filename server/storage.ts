@@ -923,7 +923,20 @@ export class SupabaseStorage implements IStorage {
       certification_status: assignment.certificationStatus,
       operational_mode: assignment.operationalMode || "training",
     };
-    const { data } = await supabase.from("tutor_assignments").insert(dbAssignment).select().single();
+    const assignmentResult = await pool.query(
+      `INSERT INTO public.tutor_assignments
+        (tutor_id, pod_id, student_count, certification_status, operational_mode)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [
+        dbAssignment.tutor_id,
+        dbAssignment.pod_id,
+        dbAssignment.student_count,
+        dbAssignment.certification_status,
+        dbAssignment.operational_mode,
+      ],
+    );
+    const data = assignmentResult.rows[0];
     if (!data) throw new Error("Failed to create tutor assignment");
     // Transform snake_case to camelCase
     return {
@@ -939,92 +952,27 @@ export class SupabaseStorage implements IStorage {
 
   async getTutorAssignment(tutorId: string): Promise<(TutorAssignment & { pod: Pod }) | undefined> {
     console.log("🔍 Looking for tutor assignment for tutorId:", tutorId);
-    if (isEmergencyDbMode()) {
-      const assignmentResult = await pool.query(
-        `SELECT id, tutor_id, pod_id, student_count, certification_status, operational_mode, created_at
-           FROM public.tutor_assignments
-          WHERE tutor_id = $1
-          LIMIT 1`,
-        [tutorId],
-      );
-      const assignment = assignmentResult.rows[0];
-      if (!assignment) return undefined;
+    const assignmentResult = await pool.query(
+      `SELECT id, tutor_id, pod_id, student_count, certification_status, operational_mode, created_at
+         FROM public.tutor_assignments
+        WHERE tutor_id = $1
+        LIMIT 1`,
+      [tutorId],
+    );
+    const assignment = assignmentResult.rows[0];
+    if (!assignment) return undefined;
 
-      const podResult = await pool.query(
-        `SELECT id, pod_name, pod_type, vehicle, phase, td_id, status, start_date, end_date, deleted_at, created_at
-           FROM public.pods
-          WHERE id = $1
-          LIMIT 1`,
-        [assignment.pod_id],
-      );
-      const pod = podResult.rows[0];
-      if (!pod) return undefined;
+    const podResult = await pool.query(
+      `SELECT id, pod_name, pod_type, vehicle, phase, td_id, status, start_date, end_date, deleted_at, created_at
+         FROM public.pods
+        WHERE id = $1
+        LIMIT 1`,
+      [assignment.pod_id],
+    );
+    const pod = podResult.rows[0];
+    if (!pod) return undefined;
 
-      return {
-        id: assignment.id,
-        tutorId: assignment.tutor_id,
-        podId: assignment.pod_id,
-        studentCount: assignment.student_count,
-        certificationStatus: assignment.certification_status,
-        operationalMode: assignment.operational_mode,
-        createdAt: assignment.created_at,
-        pod: {
-          id: pod.id,
-          podName: pod.pod_name,
-          podType: pod.pod_type,
-          vehicle: pod.vehicle,
-          phase: pod.phase,
-          tdId: pod.td_id,
-          status: pod.status,
-          startDate: pod.start_date,
-          endDate: pod.end_date,
-          deletedAt: pod.deleted_at,
-          createdAt: pod.created_at,
-        },
-      };
-    }
-    const { data, error } = await supabase.from("tutor_assignments").select("*").eq("tutor_id", tutorId).maybeSingle();
-    if (error) {
-      console.log("ℹ️ No assignment found (expected for single()):", error.message);
-    }
-    if (!data) {
-      console.log("❌ No assignment data returned");
-      return undefined;
-    }
-    console.log("✅ Found assignment:", JSON.stringify(data, null, 2));
-    const pod = await this.getPod(data.pod_id);
-    if (!pod) {
-      console.log("❌ Pod not found for pod_id:", data.pod_id);
-      return undefined;
-    }
-    // Transform snake_case to camelCase
     return {
-      id: data.id,
-      tutorId: data.tutor_id,
-      podId: data.pod_id,
-      studentCount: data.student_count,
-      certificationStatus: data.certification_status,
-      operationalMode: data.operational_mode,
-      createdAt: data.created_at,
-      pod,
-    };
-  }
-
-  async getTutorAssignmentsByPod(podId: string): Promise<TutorAssignment[]> {
-    if (isEmergencyDbMode()) {
-      const result = await pool.query(
-        `SELECT id, tutor_id, pod_id, student_count, certification_status, operational_mode, created_at
-           FROM public.tutor_assignments
-          WHERE pod_id = $1
-          ORDER BY created_at ASC`,
-        [podId],
-      );
-      return result.rows.map((assignment: any) => transformSnakeToCamel(assignment) as TutorAssignment);
-    }
-    const { data } = await supabase.from("tutor_assignments").select("*").eq("pod_id", podId);
-    if (!data) return [];
-    // Transform snake_case to camelCase
-    return data.map((assignment: any) => ({
       id: assignment.id,
       tutorId: assignment.tutor_id,
       podId: assignment.pod_id,
@@ -1032,22 +980,49 @@ export class SupabaseStorage implements IStorage {
       certificationStatus: assignment.certification_status,
       operationalMode: assignment.operational_mode,
       createdAt: assignment.created_at,
-    }));
+      pod: {
+        id: pod.id,
+        podName: pod.pod_name,
+        podType: pod.pod_type,
+        vehicle: pod.vehicle,
+        phase: pod.phase,
+        tdId: pod.td_id,
+        status: pod.status,
+        startDate: pod.start_date,
+        endDate: pod.end_date,
+        deletedAt: pod.deleted_at,
+        createdAt: pod.created_at,
+      },
+    };
+  }
+
+  async getTutorAssignmentsByPod(podId: string): Promise<TutorAssignment[]> {
+    const result = await pool.query(
+      `SELECT id, tutor_id, pod_id, student_count, certification_status, operational_mode, created_at
+         FROM public.tutor_assignments
+        WHERE pod_id = $1
+        ORDER BY created_at ASC`,
+      [podId],
+    );
+    return result.rows.map((assignment: any) => transformSnakeToCamel(assignment) as TutorAssignment);
   }
 
   async updateCertificationStatus(id: string, status: string): Promise<void> {
-    await supabase.from("tutor_assignments").update({ certification_status: status }).eq("id", id);
+    await pool.query(
+      `UPDATE public.tutor_assignments SET certification_status = $2 WHERE id = $1`,
+      [id, status],
+    );
   }
 
   async updateTutorOperationalMode(id: string, operationalMode: TutorTrainingMode): Promise<void> {
-    await supabase.from("tutor_assignments").update({ operational_mode: operationalMode }).eq("id", id);
+    await pool.query(
+      `UPDATE public.tutor_assignments SET operational_mode = $2 WHERE id = $1`,
+      [id, operationalMode],
+    );
   }
 
   async deleteTutorAssignment(id: string): Promise<void> {
-    const { error } = await supabase.from("tutor_assignments").delete().eq("id", id);
-    if (error) {
-      throw new Error(`Failed to delete tutor assignment ${id}: ${error.message}`);
-    }
+    await pool.query(`DELETE FROM public.tutor_assignments WHERE id = $1`, [id]);
   }
 
   // Students
@@ -1102,94 +1077,82 @@ export class SupabaseStorage implements IStorage {
       parent_id: parentId,
       parent_enrollment_id: parentEnrollmentId,
     };
-    const { data, error: insertError } = await supabase.from("students").insert(dbStudent).select().single();
-    if (insertError) {
-      console.error("[createStudent] Supabase insert error:", insertError, dbStudent);
-      throw new Error("Failed to create student: " + insertError.message);
+    try {
+      const result = await pool.query(
+        `INSERT INTO public.students
+          (name, grade, tutor_id, session_progress, concept_mastery, parent_contact, parent_id, parent_enrollment_id)
+         VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)
+         RETURNING *`,
+        [
+          dbStudent.name,
+          dbStudent.grade,
+          dbStudent.tutor_id,
+          dbStudent.session_progress,
+          JSON.stringify(dbStudent.concept_mastery || {}),
+          dbStudent.parent_contact,
+          dbStudent.parent_id,
+          dbStudent.parent_enrollment_id,
+        ],
+      );
+      if (!result.rows[0]) throw new Error("No data returned");
+      return transformSnakeToCamel(result.rows[0]);
+    } catch (error) {
+      console.error("[createStudent] PostgreSQL insert error:", error, dbStudent);
+      throw new Error(
+        "Failed to create student: " + (error instanceof Error ? error.message : String(error)),
+      );
     }
-    if (!data) {
-      console.error("[createStudent] Supabase insert returned no data:", dbStudent);
-      throw new Error("Failed to create student: No data returned");
-    }
-    return transformSnakeToCamel(data);
   }
 
   async getStudent(id: string): Promise<Student | undefined> {
-    if (isEmergencyDbMode()) {
-      const result = await pool.query("SELECT * FROM public.students WHERE id = $1 LIMIT 1", [id]);
-      return result.rows[0] ? transformSnakeToCamel(result.rows[0]) as Student : undefined;
-    }
-    const { data } = await supabase.from("students").select("*").eq("id", id).maybeSingle();
-    if (!data) return undefined;
-    return transformSnakeToCamel(data);
+    const result = await pool.query("SELECT * FROM public.students WHERE id = $1 LIMIT 1", [id]);
+    return result.rows[0] ? transformSnakeToCamel(result.rows[0]) as Student : undefined;
   }
 
   async getStudentsByTutor(tutorId: string): Promise<Student[]> {
-    if (isEmergencyDbMode()) {
-      const result = await pool.query(
-        "SELECT * FROM public.students WHERE tutor_id = $1 ORDER BY created_at ASC",
-        [tutorId],
-      );
-      return result.rows
-        .filter((student: any) => student.id && String(student.id).trim() !== "")
-        .map((student: any) => transformSnakeToCamel(student) as Student);
-    }
-    const { data } = await supabase.from("students").select("*").eq("tutor_id", tutorId);
-    if (!data) return [];
-    return (data ?? [])
-      .filter(student => student.id && student.id.trim() !== "")
-      .map(student => transformSnakeToCamel(student));
+    const result = await pool.query(
+      "SELECT * FROM public.students WHERE tutor_id = $1 ORDER BY created_at ASC",
+      [tutorId],
+    );
+    return result.rows
+      .filter((student: any) => student.id && String(student.id).trim() !== "")
+      .map((student: any) => transformSnakeToCamel(student) as Student);
   }
 
   async updateStudentProgress(id: string, sessionCount: number, confidenceDelta: number): Promise<void> {
     const student = await this.getStudent(id);
     if (!student) return;
-    await supabase.from("students").update({ session_progress: sessionCount, updated_at: new Date() }).eq("id", id);
+    await pool.query(
+      `UPDATE public.students SET session_progress = $2, updated_at = NOW() WHERE id = $1`,
+      [id, sessionCount],
+    );
   }
 
   async updateStudent(id: string, data: Partial<Student>): Promise<Student | undefined> {
-    // Convert camelCase keys to snake_case for database
     const dbData: any = {};
     for (const [key, value] of Object.entries(data)) {
-      if (key === 'id' || key === 'createdAt' || key === 'updatedAt') continue; // Skip readonly fields
+      if (key === "id" || key === "createdAt" || key === "updatedAt") continue;
       const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
       dbData[snakeKey] = value;
     }
-    dbData.updated_at = new Date().toISOString();
 
-    if (isEmergencyDbMode()) {
-      const allowedColumns = new Set([
-        "name", "grade", "session_progress", "concept_mastery", "confidence_score",
-        "parent_contact", "personal_profile", "emotional_insights", "academic_diagnosis",
-        "identity_sheet", "identity_sheet_completed_at", "tutor_id", "parent_id", "parent_enrollment_id",
-      ]);
-      const entries = Object.entries(dbData).filter(([key]) => allowedColumns.has(key));
-      if (entries.length === 0) return this.getStudent(id);
-      const assignments = entries.map(([key], index) => `"${key}" = $${index + 1}`).join(", ");
-      const values = entries.map(([, value]) => value);
-      values.push(id);
-      const result = await pool.query(
-        `UPDATE public.students SET ${assignments}, updated_at = NOW()
-          WHERE id = $${values.length}
-          RETURNING *`,
-        values,
-      );
-      return result.rows[0] ? transformSnakeToCamel(result.rows[0]) as Student : undefined;
-    }
-
-    const { data: updated, error } = await supabase
-      .from("students")
-      .update(dbData)
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error updating student:", error);
-      return undefined;
-    }
-
-    return transformSnakeToCamel(updated);
+    const allowedColumns = new Set([
+      "name", "grade", "session_progress", "concept_mastery", "confidence_score",
+      "parent_contact", "personal_profile", "emotional_insights", "academic_diagnosis",
+      "identity_sheet", "identity_sheet_completed_at", "tutor_id", "parent_id", "parent_enrollment_id",
+    ]);
+    const entries = Object.entries(dbData).filter(([key]) => allowedColumns.has(key));
+    if (entries.length === 0) return this.getStudent(id);
+    const assignments = entries.map(([key], index) => `"${key}" = $${index + 1}`).join(", ");
+    const values = entries.map(([, value]) => value);
+    values.push(id);
+    const result = await pool.query(
+      `UPDATE public.students SET ${assignments}, updated_at = NOW()
+        WHERE id = $${values.length}
+        RETURNING *`,
+      values,
+    );
+    return result.rows[0] ? transformSnakeToCamel(result.rows[0]) as Student : undefined;
   }
 
   // Session
@@ -1260,12 +1223,12 @@ export class SupabaseStorage implements IStorage {
 
   async getSessionsByPod(podId: string): Promise<Session[]> {
     // Get all tutors in this pod, then get all their sessions
-    const { data: assignments } = await supabase
-      .from("tutor_assignments")
-      .select("tutor_id")
-      .eq("pod_id", podId);
-    
-    if (!assignments || assignments.length === 0) {
+    const assignmentsResult = await pool.query(
+      `SELECT tutor_id FROM public.tutor_assignments WHERE pod_id = $1`,
+      [podId],
+    );
+    const assignments = assignmentsResult.rows;
+    if (assignments.length === 0) {
       return [];
     }
 
