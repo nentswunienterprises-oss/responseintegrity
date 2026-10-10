@@ -318,6 +318,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     if (lowerLabel.includes("traffic")) return <Users className="w-5 h-5" />;
     if (lowerLabel.includes("brain")) return <Lightbulb className="w-5 h-5" />;
     if (lowerLabel.includes("dispute")) return <Shield className="w-5 h-5" />;
+    if (lowerLabel.includes("issue")) return <FileCheck className="w-5 h-5" />;
     return <Home className="w-5 h-5" />;
   };
 
@@ -341,6 +342,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { label: "Pods", path: "/executive/coo/pods", icon: <FolderKanban className="w-5 h-5" /> },
     { label: "Brain", path: "/executive/coo/brain", icon: <Lightbulb className="w-5 h-5" /> },
     { label: "Broadcast", path: "/executive/coo/broadcast", icon: <MessageSquare className="w-5 h-5" /> },
+    { label: "Issue Inbox", path: "/executive/coo/issues", icon: <FileCheck className="w-5 h-5" /> },
   ];
 
   const studentNav: NavItem[] = [
