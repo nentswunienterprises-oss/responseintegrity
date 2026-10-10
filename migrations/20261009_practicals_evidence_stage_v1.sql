@@ -68,6 +68,8 @@ CREATE TABLE IF NOT EXISTS public.tutor_sandbox_mock_assessments (
 CREATE INDEX IF NOT EXISTS idx_tutor_sandbox_mock_assignment ON public.tutor_sandbox_mock_assessments(tutor_assignment_id, assessed_at DESC);
 ALTER TABLE public.tutor_sandbox_mock_assessments ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.tutor_sandbox_mock_assessments FROM PUBLIC, anon, authenticated;
+-- Existing sandboxReadiness uses a server-owned Supabase client for this table.
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.tutor_sandbox_mock_assessments TO service_role;
 
 -- Declarative completion evidence; not Trial permission. TD approval is deliberately not automatic.
 CREATE TABLE IF NOT EXISTS public.specialist_practical_completion_decisions (
