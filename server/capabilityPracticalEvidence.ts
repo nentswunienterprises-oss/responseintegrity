@@ -1,5 +1,6 @@
 import { pool } from "./db";
 import { getSandboxCapabilityReadiness } from "./sandboxEnvironment";
+import { derivePracticalCompletionGate } from "@shared/practicalCompletionGate";
 import { assertCompletedExecuteChallenge, getExecuteChallengeForTd } from "./practicalExecuteChallenge";
 import {
   CAPABILITY_PRACTICAL_PROOFS,
@@ -558,7 +559,6 @@ export async function getPracticalCompletionStatus(tutorAssignmentId: string, tu
     return { key: proof.key, version: proof.version, evidenceId: current?.id || null,
       status: current?.outcome || (current ? "submitted" : "not_submitted") };
   });
-  const allApproved = proofs.every((p) => p.status === "approved");
   const decisionRows = await pool.query(
     `SELECT id, decision, proof_evidence_ids, evidence_note, decided_at, td_user_id
        FROM public.specialist_practical_completion_decisions
@@ -567,10 +567,12 @@ export async function getPracticalCompletionStatus(tutorAssignmentId: string, tu
     [tutorAssignmentId,tutorId],
   );
   const tdDecision = decisionRows.rows[0] || null;
-  const complete = entry.ready && allApproved && tdDecision?.decision === "approved"
-    && proofs.every(p => tdDecision.proof_evidence_ids?.[p.key] === p.evidenceId);
-  return { entry, proofs, allApproved, tdDecision, complete, readyForTDCompletionReview: entry.ready && allApproved,
-    readyForTrial: complete };
+  const gate = derivePracticalCompletionGate({
+    entryReady: entry.ready,
+    proofs,
+    tdDecision,
+  });
+  return { entry, proofs, tdDecision, ...gate };
 }
 
 
