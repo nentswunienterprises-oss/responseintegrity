@@ -11,6 +11,10 @@ const sandboxTopicAuthoritySource = readFileSync(
   new URL("./sandboxTopicAuthority.ts", import.meta.url),
   "utf8",
 );
+const sandboxTopicMigrationSource = readFileSync(
+  new URL("../docs/migration-proposals/20261010_sandbox_topic_state_lanes.sql", import.meta.url),
+  "utf8",
+);
 const liveRunnerSource = readFileSync(
   new URL("../client/src/components/tutor/IntroSessionDrillRunner.tsx", import.meta.url),
   "utf8",
@@ -125,6 +129,10 @@ test("selected topic is authoritative for the Sandbox drill and cannot be silent
   assert.match(sandboxAuthoritySource, /specialist_topic_states/);
   assert.match(sandboxAuthoritySource, /AND topic_key = \$2/);
   assert.match(sandboxTopicAuthoritySource, /requiresTargetedRediagnosis === true/);
+  assert.match(sandboxAuthoritySource, /if \(row\.topic_key && row\.topic_key !== sandboxTopicKey\(topic\)\) return null/);
+  assert.match(sandboxTopicMigrationSource, /history\.entry->>'drillId' = e\.id/);
+  assert.match(sandboxTopicMigrationSource, /active_topic_key/);
+  assert.match(sandboxTopicMigrationSource, /canonical_topic_states/);
 });
 
 test("Sandbox mode uses the existing live-runner route rather than a separate runner flow", () => {
