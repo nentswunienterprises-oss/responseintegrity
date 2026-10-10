@@ -103,10 +103,14 @@ async function loadTrialPlacementOverview(
     throw new Error(`Failed to load Trial reports: ${reportError.message}`);
   }
 
+  if (Number(placement.required_session_count) !== TRIAL_REQUIRED_SESSIONS_PER_FAMILY) {
+    throw new Error("Trial placement has an invalid session requirement; exactly nine qualifying sessions per family are mandatory.");
+  }
+
   const progress = deriveTrialPlacementProgress({
     placementStartedAt: placement.started_at,
     qualificationEndsAt,
-    requiredSessionCount: Number(placement.required_session_count || TRIAL_REQUIRED_SESSIONS_PER_FAMILY),
+    requiredSessionCount: TRIAL_REQUIRED_SESSIONS_PER_FAMILY,
     sessions: (sessions || []).map((session: any) => ({
       id: String(session.id),
       status: session.status,
