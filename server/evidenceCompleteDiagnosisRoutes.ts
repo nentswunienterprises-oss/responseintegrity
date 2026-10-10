@@ -409,48 +409,22 @@ async function loadScheduledSession(input: {
   requestedKind: "intro" | "training" | "handover";
 }): Promise<ScheduledSession | null> {
   const { tutorId, studentId, scheduledSessionId, requestedKind } = input;
-
-  if (isEmergencyDbMode()) {
-    const values: unknown[] = [tutorId, studentId];
-    let sql = `SELECT id, tutor_id, student_id, type, status, scheduled_time
-                 FROM public.scheduled_sessions
-                WHERE tutor_id = $1 AND student_id = $2`;
-    if (scheduledSessionId) {
-      values.push(scheduledSessionId);
-      sql += ` AND id = $${values.length}`;
-    } else {
-      values.push(requestedKind);
-      sql += ` AND type = $${values.length} ORDER BY scheduled_time DESC, created_at DESC LIMIT 20`;
-    }
-    const result = await pool.query(sql, values);
-    if (scheduledSessionId) return (result.rows[0] as ScheduledSession | undefined) || null;
-    return (result.rows.find((row: any) =>
-      isLaunchableDiagnosisSessionStatus(row.status, requestedKind)
-    ) as ScheduledSession | undefined) || null;
-  }
-
-  let query = supabase
-    .from("scheduled_sessions")
-    .select("id, tutor_id, student_id, type, status, scheduled_time")
-    .eq("tutor_id", tutorId)
-    .eq("student_id", studentId);
-
+  const values: unknown[] = [tutorId, studentId];
+  let sql = `SELECT id, tutor_id, student_id, type, status, scheduled_time
+               FROM public.scheduled_sessions
+              WHERE tutor_id = $1 AND student_id = $2`;
   if (scheduledSessionId) {
-    query = query.eq("id", scheduledSessionId);
-    const { data, error } = await query.maybeSingle();
-    if (error) throw new Error(`Failed to validate scheduled session: ${error.message}`);
-    return (data as ScheduledSession | null) || null;
+    values.push(scheduledSessionId);
+    sql += ` AND id = ${values.length}`;
+  } else {
+    values.push(requestedKind);
+    sql += ` AND type = ${values.length} ORDER BY scheduled_time DESC, created_at DESC LIMIT 20`;
   }
-
-  const { data, error } = await query
-    .eq("type", requestedKind)
-    .order("scheduled_time", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(20);
-  if (error) throw new Error(`Failed to validate scheduled session: ${error.message}`);
-
-  const rows = (data || []) as ScheduledSession[];
-  return rows.find((row) => isLaunchableDiagnosisSessionStatus(row.status, requestedKind)) || null;
+  const result = await pool.query(sql, values);
+  if (scheduledSessionId) return (result.rows[0] as ScheduledSession | undefined) || null;
+  return (result.rows.find((row: any) =>
+    isLaunchableDiagnosisSessionStatus(row.status, requestedKind)
+  ) as ScheduledSession | undefined) || null;
 }
 
 async function resolveSessionContext(input: {
@@ -603,6 +577,892 @@ async function completeScheduledTrainingSessionAfterDiagnosis(input: {
   }
   if (String(existingSession?.status || "") === "completed") return;
 
+  throw new Error("Completed re-diagnosis could not retire its scheduled training session.");
+}
+
+const canonicalJson = canonicalizeEvidenceJson;
+
+const assertHistoryPrefix = (
+  existingHistory: DiagnosisProbeResult[],
+  submittedHistory: DiagnosisProbeResult[],
+) => {
+  if (submittedHistory.length < existingHistory.length) {
+    return "Submitted diagnosis history is stale and cannot remove recorded evidence.";
+  }
+
+  for (let index = 0; index < existingHistory.length; index += 1) {
+    if (canonicalJson(existingHistory[index]) !== canonicalJson(submittedHistory[index])) {
+      return `Recorded diagnosis evidence at probe ${index + 1} is immutable and cannot be rewritten.`;
+    }
+  }
+  return null;
+};
+
+const LEGACY_FIELD_BY_DIMENSION: Record<DiagnosisDimensionId, string> = {
+  "clarity.vocabulary": "vocabulary",
+  "clarity.method": "method",
+  "clarity.reason": "reason",
+  "clarity.immediate_apply": "immediateApply",
+  "execution.start": "startBehavior",
+  "execution.step_discipline": "stepExecution",
+  "execution.repeatability": "repeatability",
+  "execution.independence": "independence",
+  "difficulty.initial_response": "initialResponse",
+  "difficulty.first_step_control": "firstStepControl",
+  "difficulty.tolerance": "discomfortTolerance",
+  "difficulty.rescue_dependence": "rescueDependence",
+  "time.start": "startUnderTime",
+  "time.structure": "structureUnderTime",
+  "time.pace": "paceControl",
+  "time.completion_integrity": "completionIntegrity",
+};
+
+const buildCompatibilitySets = (history: DiagnosisProbeResult[]) =>
+  history.map((result, index) => {
+    const definition = DIAGNOSIS_PROBES[result.probeId];
+    return {
+      setName: definition.label,
+      setId: result.probeId,
+      setOrder: index + 1,
+      drillSchemaId: EVIDENCE_COMPLETE_DIAGNOSIS_SCHEMA_ID,
+      drillSchemaVersion: EVIDENCE_COMPLETE_DIAGNOSIS_SCHEMA_VERSION,
+      drillDefinitionHash: EVIDENCE_COMPLETE_DIAGNOSIS_DEFINITION_HASH,
+      constraintProfile: {
+        ...definition.constraints,
+        evidenceQuestion: definition.evidenceQuestion,
+        supportEvent: result.supportEvent || "none",
+      },
+      observations: [
+        Object.fromEntries(
+          result.observations.flatMap((observation) => {
+            const behavior = getDiagnosisObservationOption(
+              observation.dimensionId,
+              observation.behaviorId,
+            );
+            if (!behavior) return [];
+            const legacyLevel = behaviorClassToLegacyLevel(behavior.behaviorClass);
+            if (!legacyLevel) return [];
+            return [[
+              `${LEGACY_FIELD_BY_DIMENSION[observation.dimensionId]}_level`,
+              legacyLevel,
+            ]];
+          }),
+        ),
+      ],
+    };
+  });
+
+async function ensureIntroDrill(input: {
+  runId: string;
+  studentId: string;
+  tutorId: string;
+  topic: string;
+  startingPhase: TopicPhase;
+  scheduledSessionId: string | null;
+  sessionKind: "intro" | "training" | "handover";
+  replay: Extract<ReturnType<typeof replayEvidenceCompleteDiagnosis>, { ok: true }>;
+  timingAuthorityContract?: PersistedTpsTimerContract | null;
+}) {
+  const { decision, state } = input.replay;
+  if (!decision.complete || !decision.placementPhase || !decision.stability) {
+    throw new Error("Cannot finalize an incomplete diagnosis");
+  }
+
+  const nextActionConfig = NEXT_ACTION_ENGINE[decision.placementPhase][decision.stability];
+  const nextAction = nextActionConfig?.primaryAction || "Begin conditioning from the diagnosed entry state.";
+  const constraint = nextActionConfig?.rules?.[0] || null;
+  const sets = buildCompatibilitySets(state.probeHistory);
+  const responseSnapshot = {
+    schemaVersion: "evidence-native-v2",
+    sourceDrillId: input.runId,
+    topic: input.topic,
+    mode: input.sessionKind === "handover" ? "handover_rediagnosis" : "diagnosis",
+    sessionContextKind: input.sessionKind,
+    sessionContainer: diagnosisSemanticsForSessionKind(input.sessionKind).sessionContainer,
+    activityKind: diagnosisSemanticsForSessionKind(input.sessionKind).activityKind,
+    startingPhase: input.startingPhase,
+    placementPhase: decision.placementPhase,
+    placementStability: decision.stability,
+    confidence: decision.confidence,
+    stopReason: decision.reason,
+    timingAuthority: input.timingAuthorityContract
+      ? {
+          contractId: input.timingAuthorityContract.contractId,
+          baselineSeconds: input.timingAuthorityContract.baselineSeconds,
+          source: input.timingAuthorityContract.baselineSource,
+        }
+      : null,
+    opportunities: state.probeHistory.map((result, index) => ({
+      order: index + 1,
+      probeId: result.probeId,
+      purpose: getDiagnosisProbeOpportunityPurpose(
+        result.probeId,
+        state.probeHistory.slice(0, index + 1).filter((row) => row.probeId === result.probeId).length,
+      ),
+      supportEvent: result.supportEvent || "none",
+      observations: result.observations,
+    })),
+  };
+
+  const summary = {
+    startingPhase: input.startingPhase,
+    phase: decision.placementPhase,
+    stability: decision.stability,
+    resultingPhase: decision.placementPhase,
+    resultingStability: decision.stability,
+    diagnosisScore: null,
+    ...(input.sessionKind === "handover"
+      ? {
+          verificationOutcome: "targeted_re_diagnosis_completed" as const,
+          verificationOutcomeLabel: "Targeted re-diagnosis completed",
+          reDiagnosisRequired: false,
+          handoverMode: "targeted_re_diagnosis",
+        }
+      : {}),
+    decisionAuthority: "behavioral_evidence",
+    placementEvidence: decision.placementEvidence,
+    nextAction,
+    constraint,
+    diagnosisEngine: "evidence_native_v2",
+    confidence: decision.confidence,
+    reason: decision.reason,
+    pathLength: state.probeHistory.length,
+    cleanProbeCount: decision.cleanProbeCount,
+    contaminatedProbeCount: decision.contaminatedProbeCount,
+    phaseStates: decision.phaseStates,
+    timingAuthority: input.timingAuthorityContract
+      ? {
+          contractId: input.timingAuthorityContract.contractId,
+          baselineSeconds: input.timingAuthorityContract.baselineSeconds,
+          source: input.timingAuthorityContract.baselineSource,
+        }
+      : null,
+  };
+
+  const drillPayload = JSON.stringify({
+    introTopic: input.topic,
+    phase: decision.placementPhase,
+    startingPhase: input.startingPhase,
+    drillType: input.sessionKind === "handover" ? "handover_verification" : "diagnosis",
+    handoverMode: input.sessionKind === "handover" ? "targeted_re_diagnosis" : undefined,
+    diagnosisMode: "evidence_native",
+    diagnosisEngine: "evidence_native_v2",
+    scheduledSessionId: input.scheduledSessionId,
+    sessionContextKind: input.sessionKind,
+    sessionContainer: diagnosisSemanticsForSessionKind(input.sessionKind).sessionContainer,
+    activityKind: diagnosisSemanticsForSessionKind(input.sessionKind).activityKind,
+    sets,
+    probeHistory: state.probeHistory,
+    evidence: state.evidence,
+    summary,
+    responseSnapshot,
+  });
+  const observedAt = new Date().toISOString();
+
+  if (isEmergencyDbMode()) {
+    await pool.query(
+      `INSERT INTO public.intro_session_drills
+        (id, student_id, tutor_id, drill, scheduled_session_id, submitted_at)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (id) DO NOTHING`,
+      [input.runId, input.studentId, input.tutorId, drillPayload, input.scheduledSessionId, observedAt],
+    );
+  } else {
+    const { error } = await supabase
+      .from("intro_session_drills")
+      .upsert({
+        id: input.runId,
+        student_id: input.studentId,
+        tutor_id: input.tutorId,
+        drill: drillPayload,
+        scheduled_session_id: input.scheduledSessionId,
+        submitted_at: observedAt,
+      }, { onConflict: "id", ignoreDuplicates: true });
+    if (error) throw new Error(`Failed to store evidence diagnosis drill: ${error.message}`);
+  }
+
+  const ledgerRows = buildEvidenceCompleteDiagnosisLedgerRows({
+    sourceDrillId: input.runId,
+    studentId: input.studentId,
+    tutorId: input.tutorId,
+    topic: input.topic,
+    scheduledSessionId: input.scheduledSessionId,
+    sessionGroupId: input.scheduledSessionId || input.runId,
+    sessionContext:
+      input.sessionKind === "handover"
+        ? "handover_verification"
+        : input.sessionKind === "training"
+          ? "active_training"
+          : "intro",
+    observedAt,
+    state,
+    decision,
+  });
+
+  if (isEmergencyDbMode()) {
+    for (const row of ledgerRows) {
+      const columns = Object.keys(row);
+      const values = Object.values(row).map((value) =>
+        value && typeof value === "object" ? JSON.stringify(value) : value
+      );
+      const placeholders = values.map((_, index) => `$${index + 1}`).join(",");
+      await pool.query(
+        `INSERT INTO public.response_integrity_evidence_ledger
+          (${columns.join(",")})
+         VALUES (${placeholders})
+         ON CONFLICT (evidence_id) DO NOTHING`,
+        values,
+      );
+    }
+  } else {
+    const { error } = await supabase
+      .from("response_integrity_evidence_ledger")
+      .upsert(ledgerRows, { onConflict: "evidence_id", ignoreDuplicates: true });
+    if (error) throw new Error(`Failed to persist evidence diagnosis ledger: ${error.message}`);
+  }
+
+  const freshStudent = await storage.getStudent(input.studentId);
+  if (!freshStudent || String(freshStudent.tutorId || "") !== input.tutorId) {
+    throw new Error("Student ownership changed before diagnosis finalization");
+  }
+
+  const conceptMastery: any =
+    freshStudent.conceptMastery && typeof freshStudent.conceptMastery === "object"
+      ? { ...(freshStudent.conceptMastery as any) }
+      : {};
+  const topicConditioning: any =
+    conceptMastery.topicConditioning && typeof conceptMastery.topicConditioning === "object"
+      ? { ...conceptMastery.topicConditioning }
+      : {};
+  const topics: Record<string, any> =
+    topicConditioning.topics && typeof topicConditioning.topics === "object"
+      ? { ...topicConditioning.topics }
+      : {};
+  const existingKey =
+    Object.keys(topics).find((key) => key.trim().toLowerCase() === input.topic.toLowerCase()) ||
+    input.topic;
+  const existingTopic =
+    topics[existingKey] && typeof topics[existingKey] === "object" ? { ...topics[existingKey] } : {};
+  const existingHistory = Array.isArray(existingTopic.history) ? [...existingTopic.history] : [];
+  const hasRun = existingHistory.some((entry: any) => String(entry?.drillId || "") === input.runId);
+
+  if (!hasRun) {
+    existingHistory.push({
+      date: observedAt,
+      phase: decision.placementPhase,
+      stability: decision.stability,
+      nextAction,
+      observationNotes: `Evidence-complete diagnosis. ${decision.reason}`,
+      structuredObservation: {
+        drillType: input.sessionKind === "handover" ? "handover_verification" : "diagnosis",
+        handoverMode: input.sessionKind === "handover" ? "targeted_re_diagnosis" : undefined,
+        diagnosisMode: "evidence_native",
+        diagnosisEngine: "evidence_native_v2",
+        decisionAuthority: "behavioral_evidence",
+        sessionContainer: diagnosisSemanticsForSessionKind(input.sessionKind).sessionContainer,
+        activityKind: diagnosisSemanticsForSessionKind(input.sessionKind).activityKind,
+        startingPhase: input.startingPhase,
+        placementPhase: decision.placementPhase,
+        placementEvidence: decision.placementEvidence,
+        confidence: decision.confidence,
+        pathLength: state.probeHistory.length,
+        cleanProbeCount: decision.cleanProbeCount,
+        contaminatedProbeCount: decision.contaminatedProbeCount,
+        stopReason: decision.reason,
+      },
+      drillId: input.runId,
+    });
+  }
+
+  topics[existingKey] = {
+    ...existingTopic,
+    topic: input.topic,
+    phase: decision.placementPhase,
+    stability: decision.stability,
+    lastUpdated: observedAt,
+    nextAction,
+    observationNotes: `Evidence-complete diagnosis. ${decision.reason}`,
+    diagnosisEngine: "evidence_native_v2",
+    diagnosisDecisionAuthority: "behavioral_evidence",
+    diagnosisPlacementEvidence: decision.placementEvidence,
+    diagnosisConfidence: decision.confidence,
+    tpsTimerContractId:
+      input.timingAuthorityContract?.contractId ||
+      existingTopic.tpsTimerContractId ||
+      null,
+    tpsTimerBaselineSeconds:
+      input.timingAuthorityContract?.baselineSeconds ||
+      existingTopic.tpsTimerBaselineSeconds ||
+      null,
+    requiresTargetedRediagnosis: false,
+    targetedRediagnosisStartPhase: null,
+    prerequisiteContradictionStatus: null,
+    prerequisiteContradictionReason: null,
+    history: existingHistory.slice(-60),
+  };
+  topicConditioning.topic = input.topic;
+  topicConditioning.entry_phase = decision.placementPhase;
+  topicConditioning.stability = decision.stability;
+  topicConditioning.lastUpdatedAt = observedAt;
+  topicConditioning.topics = topics;
+  conceptMastery.topicConditioning = topicConditioning;
+
+  const existingProfile: any =
+    freshStudent.personalProfile && typeof freshStudent.personalProfile === "object"
+      ? { ...(freshStudent.personalProfile as any) }
+      : {};
+  const workflow =
+    existingProfile.workflow && typeof existingProfile.workflow === "object"
+      ? { ...existingProfile.workflow }
+      : {};
+  if (input.sessionKind === "intro" && !workflow.introCompletedAt) {
+    workflow.introCompletedAt = observedAt;
+  }
+
+  await storage.updateStudent(input.studentId, {
+    conceptMastery,
+    personalProfile: { ...existingProfile, workflow },
+  } as any);
+
+  // Topic diagnosis completion must not complete the scheduled intro shell.
+  // One intro session may diagnose several topics; closing the session after the first
+  // completed topic would block the remaining topic-scoped diagnosis runs.
+
+
+  return { summary, responseSnapshot, observedAt };
+}
+
+const boundTimingBaselineSeconds = (run: DiagnosisRunRow | null) => {
+  const value = Number(run?.timing_authority_baseline_seconds);
+  return Number.isFinite(value) && value > 0 ? Math.max(1, Math.round(value)) : null;
+};
+
+const resolveBoundTimingAuthority = async ({
+  run,
+  studentId,
+  topic,
+  startingPhase,
+}: {
+  run: DiagnosisRunRow | null;
+  studentId: string;
+  topic: string;
+  startingPhase: TopicPhase;
+}): Promise<PersistedTpsTimerContract | null> => {
+  const boundContractId = String(run?.timing_authority_contract_id || "").trim();
+  if (boundContractId) {
+    const bound = await loadTpsTimerContractById(boundContractId);
+    if (!bound) {
+      throw new Error("The Timer Contract bound to this diagnosis run is missing.");
+    }
+    if (
+      String(bound.studentId) !== String(studentId) ||
+      bound.topic.trim().toLowerCase() !== topic.trim().toLowerCase()
+    ) {
+      throw new Error("The Timer Contract bound to this diagnosis run does not match the student/topic.");
+    }
+    return bound;
+  }
+
+  if (run) return null;
+  if (startingPhase !== "Controlled Discomfort" && startingPhase !== "Time Pressure Stability") {
+    return null;
+  }
+  return loadLatestTpsTimerContract({ studentId, topic });
+};
+
+const responseForLegacyCompletedRun = (run: DiagnosisRunRow) => {
+  const history = parseJsonValue<DiagnosisProbeResult[]>(run.probe_history, []);
+  const storedDecision = parseJsonValue<Record<string, any>>(run.decision, {});
+  const placementPhase = tryParsePhase(storedDecision.placementPhase);
+  const stability = String(storedDecision.stability || "").trim();
+  return {
+    success: true,
+    runId: run.id,
+    finalized: true,
+    sourceDrillId: run.source_drill_id || run.id,
+    startingPhase: run.starting_phase,
+    probeHistory: history,
+    decision: {
+      ...storedDecision,
+      complete: true,
+      placementPhase: placementPhase || storedDecision.placementPhase || run.starting_phase,
+      stability: stability || null,
+      timingBaseline: {
+        requiredSampleCount: 3,
+        sampleCount: 0,
+        ready: false,
+        baselineSeconds: null,
+        source: "none",
+      },
+    },
+    nextProbe: null,
+    opportunityNumber: null,
+    opportunityPurpose: null,
+    timingAuthority: {
+      mode: "none",
+      requiredSampleCount: 3,
+      sampleCount: 0,
+      baselineReady: false,
+      baselineSeconds: null,
+      prescribedSeconds: null,
+      contractId: null,
+      legacyHistoricalRun: true,
+    },
+  };
+};
+
+const responseForReplay = (
+  runId: string,
+  replay: Extract<ReturnType<typeof replayEvidenceCompleteDiagnosis>, { ok: true }>,
+  finalized: boolean,
+  sourceDrillId?: string | null,
+  timingAuthorityContractId?: string | null,
+) => {
+  const nextProbeId = replay.decision.nextProbeId;
+  const probeOccurrenceNumber = nextProbeId
+    ? replay.state.probeHistory.filter((row) => row.probeId === nextProbeId).length + 1
+    : null;
+  const opportunityNumber = nextProbeId
+    ? replay.state.probeHistory.length + 1
+    : null;
+  const currentProbeTimingMode = nextProbeId
+    ? isDiagnosisTimedProbe(nextProbeId)
+      ? "timed"
+      : isDiagnosisBaselineTimingOpportunity(nextProbeId)
+        ? "passive_baseline"
+        : "none"
+    : "none";
+
+  return {
+    success: true,
+    runId,
+    finalized,
+    sourceDrillId: sourceDrillId || null,
+    startingPhase: replay.state.recommendedStartingPhase,
+    probeHistory: replay.state.probeHistory,
+    decision: replay.decision,
+    nextProbe: replay.nextProbe,
+    opportunityNumber,
+    probeOccurrenceNumber,
+    opportunityPurpose:
+      nextProbeId && probeOccurrenceNumber
+        ? getDiagnosisProbeOpportunityPurpose(nextProbeId, probeOccurrenceNumber)
+        : null,
+    timingAuthority: {
+      mode: currentProbeTimingMode,
+      requiredSampleCount: replay.decision.timingBaseline.requiredSampleCount,
+      sampleCount: replay.decision.timingBaseline.sampleCount,
+      baselineReady: replay.decision.timingBaseline.ready,
+      baselineSeconds: replay.decision.timingBaseline.baselineSeconds,
+      prescribedSeconds:
+        currentProbeTimingMode === "timed"
+          ? replay.decision.timingBaseline.baselineSeconds
+          : null,
+      contractId: timingAuthorityContractId || null,
+      legacyHistoricalRun: false,
+    },
+  };
+};
+
+export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
+  app.get(
+    "/api/tutor/evidence-complete-diagnosis/:runId",
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const tutorId = requireTutor(req, res);
+        if (!tutorId) return;
+        const runId = String(req.params.runId || "").trim();
+        if (!isUuid(runId)) return res.status(400).json({ message: "Invalid diagnosis run ID" });
+
+        const run = await loadDiagnosisRun(runId);
+        if (!run) return res.status(404).json({ message: "Diagnosis run not found" });
+        if (String(run.tutor_id) !== tutorId) {
+          return res.status(403).json({ message: "Diagnosis run does not belong to this specialist" });
+        }
+
+        if (run.status === "completed" && run.timing_policy_version !== 1) {
+          return res.json(responseForLegacyCompletedRun(run));
+        }
+
+        const history = parseJsonValue<DiagnosisProbeResult[]>(run.probe_history, []);
+        const boundContract = await resolveBoundTimingAuthority({
+          run,
+          studentId: run.student_id,
+          topic: run.topic,
+          startingPhase: run.starting_phase,
+        });
+        const replay = replayEvidenceCompleteDiagnosis(
+          run.starting_phase,
+          history,
+          boundContract?.baselineSeconds ?? boundTimingBaselineSeconds(run),
+        );
+        if (replay.ok === false) {
+          return res.status(409).json({ message: `Stored diagnosis evidence is invalid: ${replay.error}` });
+        }
+
+        return res.json(responseForReplay(
+          run.id,
+          replay,
+          run.status === "completed",
+          run.source_drill_id,
+          boundContract?.contractId || run.timing_authority_contract_id || null,
+        ));
+      } catch (error) {
+        console.error("[EVIDENCE_DIAGNOSIS] load failed", error);
+        return res.status(500).json({ message: "Failed to load diagnosis run" });
+      }
+    },
+  );
+
+  app.post(
+    "/api/tutor/evidence-complete-diagnosis",
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const tutorId = requireTutor(req, res);
+        if (!tutorId) return;
+
+        const runId = String(req.body?.diagnosisRunId || "").trim();
+        const studentId = String(req.body?.studentId || "").trim();
+        const topic = String(req.body?.topic || "").trim();
+        const startingPhase = tryParsePhase(req.body?.startingPhase);
+        const scheduledSessionId = String(req.body?.scheduledSessionId || "").trim() || null;
+        const requestedContext = String(req.body?.sessionContextKind || "").trim().toLowerCase();
+        const requestedKind =
+          requestedContext === "handover"
+            ? "handover" as const
+            : requestedContext === "training"
+              ? "training" as const
+              : "intro" as const;
+
+        if (!isUuid(runId)) return res.status(400).json({ message: "A valid diagnosisRunId is required" });
+        if (!studentId) return res.status(400).json({ message: "studentId is required" });
+        if (!topic || topic.length > 200) return res.status(400).json({ message: "A valid diagnosis topic is required" });
+        if (!startingPhase) return res.status(400).json({ message: "A valid starting phase is required" });
+
+        let student = await storage.getStudent(studentId);
+        if (
+          student &&
+          String(student.tutorId || "") !== tutorId &&
+          requestedKind === "handover"
+        ) {
+          const repaired = await repairStudentTutorLinkFromHandoverAuthority({
+            student,
+            tutorId,
+            studentId,
+            scheduledSessionId,
+          });
+          if (repaired) {
+            student = await storage.getStudent(studentId);
+          }
+        }
+        if (!student || String(student.tutorId || "") !== tutorId) {
+          return res.status(403).json({ message: "Student does not belong to this specialist" });
+        }
+        if (!(await assignmentIsAccepted(student, tutorId))) {
+          return res.status(403).json({ message: "Accept this assignment before running diagnosis" });
+        }
+
+        const existingRun = await loadDiagnosisRun(runId);
+        if (existingRun) {
+          const identityMismatch =
+            String(existingRun.student_id) !== studentId ||
+            String(existingRun.tutor_id) !== tutorId ||
+            String(existingRun.topic).trim().toLowerCase() !== topic.toLowerCase() ||
+            existingRun.starting_phase !== startingPhase;
+          if (identityMismatch) {
+            return res.status(409).json({ message: "Diagnosis run identity cannot be reassigned" });
+          }
+          if (
+            scheduledSessionId &&
+            existingRun.scheduled_session_id &&
+            String(existingRun.scheduled_session_id) !== scheduledSessionId
+          ) {
+            return res.status(409).json({ message: "Diagnosis run session lineage cannot be reassigned" });
+          }
+          const submittedContext = String(req.body?.sessionContextKind || "").trim().toLowerCase();
+          if (
+            submittedContext &&
+            ((existingRun.session_context === "active_training" && submittedContext !== "training") ||
+              (existingRun.session_context === "handover_verification" && submittedContext !== "handover") ||
+              (existingRun.session_context === "intro" && submittedContext !== "intro"))
+          ) {
+            return res.status(409).json({ message: "Diagnosis run session context cannot be reassigned" });
+          }
+
+          if (existingRun.status === "completed") {
+            if (
+              isScheduledTrainingRediagnosisRun(existingRun) &&
+              existingRun.scheduled_session_id
+            ) {
+              await completeScheduledTrainingSessionAfterDiagnosis({
+                scheduledSessionId: String(existingRun.scheduled_session_id),
+                tutorId,
+                studentId,
+                completedAt: existingRun.completed_at || null,
+              });
+            }
+            if (existingRun.timing_policy_version !== 1) {
+              return res.json(responseForLegacyCompletedRun(existingRun));
+            }
+            const storedHistory = parseJsonValue<DiagnosisProbeResult[]>(existingRun.probe_history, []);
+            const completedBoundContract = await resolveBoundTimingAuthority({
+              run: existingRun,
+              studentId,
+              topic,
+              startingPhase,
+            });
+            const storedReplay = replayEvidenceCompleteDiagnosis(
+              existingRun.starting_phase,
+              storedHistory,
+              completedBoundContract?.baselineSeconds ??
+                boundTimingBaselineSeconds(existingRun),
+            );
+            if (storedReplay.ok === false) {
+              return res.status(409).json({ message: "Completed diagnosis evidence is internally inconsistent" });
+            }
+            return res.json(responseForReplay(
+              runId,
+              storedReplay,
+              true,
+              existingRun.source_drill_id || runId,
+              completedBoundContract?.contractId ||
+                existingRun.timing_authority_contract_id ||
+                null,
+            ));
+          }
+        }
+
+        const preexistingTimingContract = await resolveBoundTimingAuthority({
+          run: existingRun,
+          studentId,
+          topic,
+          startingPhase,
+        });
+        const replay = replayEvidenceCompleteDiagnosis(
+          startingPhase,
+          req.body?.probeHistory || [],
+          preexistingTimingContract?.baselineSeconds ??
+            boundTimingBaselineSeconds(existingRun),
+        );
+        if (replay.ok === false) {
+          return res.status(400).json({
+            message: replay.error,
+            failedAtProbeIndex: replay.failedAtProbeIndex ?? null,
+          });
+        }
+
+        const passiveTimingLineageError =
+          await validateDiagnosisPassiveTimingAttemptLineage({
+            studentId,
+            topic,
+            runId,
+            probeHistory: replay.state.probeHistory as Array<Record<string, any>>,
+          });
+        if (passiveTimingLineageError) {
+          return res.status(409).json({
+            code: "TPS_PASSIVE_TIMING_LINEAGE_INVALID",
+            message: passiveTimingLineageError,
+          });
+        }
+
+        if (existingRun) {
+          const storedHistory = parseJsonValue<DiagnosisProbeResult[]>(existingRun.probe_history, []);
+          const prefixError = assertHistoryPrefix(storedHistory, replay.state.probeHistory);
+          if (prefixError) return res.status(409).json({ message: prefixError });
+        }
+
+        let effectiveTimingContract = preexistingTimingContract;
+        if (
+          !effectiveTimingContract &&
+          replay.decision.timingBaseline.ready &&
+          replay.decision.timingBaseline.source === "diagnosis_run"
+        ) {
+          const diagnosisContract = deriveDiagnosisTpsTimerContract({
+            state: replay.state,
+            studentId,
+            topic,
+            sourceEpochKey: `diagnosis-v1:${runId}`,
+            baselineGroupId: `diagnosis:${runId}`,
+          });
+          if (!diagnosisContract) {
+            return res.status(409).json({
+              message:
+                "Diagnosis timing evidence reports ready but the Timer Contract could not be derived. Do not run a timed probe.",
+            });
+          }
+          effectiveTimingContract = await persistTpsTimerContract({
+            contract: diagnosisContract,
+            tutorId,
+          });
+        }
+
+        const effectiveTimingContractId =
+          effectiveTimingContract?.contractId ||
+          existingRun?.timing_authority_contract_id ||
+          null;
+        const effectiveTimingBaselineSeconds =
+          effectiveTimingContract?.baselineSeconds ??
+          boundTimingBaselineSeconds(existingRun);
+
+        const effectiveScheduledSessionId =
+          String(existingRun?.scheduled_session_id || scheduledSessionId || "").trim() || null;
+        const effectiveRequestedKind =
+          existingRun?.session_container === "handover_session" ||
+          existingRun?.session_context === "handover_verification"
+            ? "handover" as const
+            : existingRun?.session_container === "scheduled_training_session" ||
+                existingRun?.session_context === "active_training"
+              ? "training" as const
+              : existingRun?.session_container === "intro_session" ||
+                  existingRun?.session_context === "intro"
+                ? "intro" as const
+                : requestedKind;
+
+        const sessionResult = await resolveSessionContext({
+          tutorId,
+          studentId,
+          scheduledSessionId: effectiveScheduledSessionId,
+          requestedKind: effectiveRequestedKind,
+        });
+        if (sessionResult.error) {
+          return res.status(400).json({ message: sessionResult.error });
+        }
+
+        const runStatus = replay.decision.complete
+          ? "in_progress"
+          : replay.decision.nextProbeId
+            ? "in_progress"
+            : "blocked";
+
+        await saveDiagnosisRun({
+          runId,
+          studentId,
+          tutorId,
+          topic,
+          startingPhase,
+          scheduledSessionId: sessionResult.scheduledSessionId,
+          sessionContext: sessionResult.sessionContext,
+          status: runStatus,
+          probeHistory: replay.state.probeHistory,
+          decision: replay.decision as unknown as Record<string, unknown>,
+          timingPolicyVersion: 1,
+          timingAuthorityContractId: effectiveTimingContractId,
+          timingAuthorityBaselineSeconds: effectiveTimingBaselineSeconds,
+        });
+
+        if (!replay.decision.complete) {
+          return res.json(
+            responseForReplay(
+              runId,
+              replay,
+              false,
+              null,
+              effectiveTimingContractId,
+            ),
+          );
+        }
+
+        const finalized = await ensureIntroDrill({
+          runId,
+          studentId,
+          tutorId,
+          topic,
+          startingPhase,
+          scheduledSessionId: sessionResult.scheduledSessionId,
+          sessionKind: sessionResult.sessionKind,
+          replay,
+          timingAuthorityContract: effectiveTimingContract,
+        });
+
+        await saveDiagnosisRun({
+          runId,
+          studentId,
+          tutorId,
+          topic,
+          startingPhase,
+          scheduledSessionId: sessionResult.scheduledSessionId,
+          sessionContext: sessionResult.sessionContext,
+          status: "completed",
+          probeHistory: replay.state.probeHistory,
+          decision: replay.decision as unknown as Record<string, unknown>,
+          sourceDrillId: runId,
+          completedAt: finalized.observedAt,
+          timingPolicyVersion: 1,
+          timingAuthorityContractId: effectiveTimingContractId,
+          timingAuthorityBaselineSeconds: effectiveTimingBaselineSeconds,
+        });
+
+        if (
+          sessionResult.sessionContainer === "scheduled_training_session" &&
+          sessionResult.activityKind === "targeted_rediagnosis"
+        ) {
+          await completeScheduledTrainingSessionAfterDiagnosis({
+            scheduledSessionId: sessionResult.scheduledSessionId,
+            tutorId,
+            studentId,
+            completedAt: finalized.observedAt,
+          });
+        }
+
+        return res.json({
+          ...responseForReplay(
+            runId,
+            replay,
+            true,
+            runId,
+            effectiveTimingContractId,
+          ),
+          summary: finalized.summary,
+          responseSnapshot: finalized.responseSnapshot,
+        });
+      } catch (error) {
+        console.error("[EVIDENCE_DIAGNOSIS] submission failed", error);
+        return res.status(500).json({
+          message: error instanceof Error ? error.message : "Failed to process diagnosis evidence",
+        });
+      }
+    },
+  );
+}async function retireCompletedRediagnosisSession(input: {
+  scheduledSessionId?: string | null;
+  tutorId: string;
+  studentId: string;
+  completedAt?: string | null;
+}) {
+  const scheduledSessionId = String(input.scheduledSessionId || "").trim();
+  if (!scheduledSessionId) return;
+
+  const completedAt = input.completedAt || new Date().toISOString();
+  const updated = await pool.query(
+    `UPDATE public.scheduled_sessions
+        SET status = 'completed',
+            attendance_status = 'both_joined',
+            recording_status = 'manual_not_tracked',
+            transcript_status = 'manual_not_tracked',
+            updated_at = $4
+      WHERE id::text = $1::text
+        AND tutor_id::text = $2::text
+        AND student_id::text = $3::text
+        AND type = 'training'
+        AND status IN ('confirmed', 'scheduled', 'ready', 'live')
+    RETURNING id, status`,
+    [scheduledSessionId, input.tutorId, input.studentId, completedAt],
+  );
+  if (updated.rows[0]) return;
+
+  const existing = await pool.query(
+    `SELECT status
+       FROM public.scheduled_sessions
+      WHERE id::text = $1::text
+        AND tutor_id::text = $2::text
+        AND student_id::text = $3::text
+        AND type = 'training'
+      LIMIT 1`,
+    [scheduledSessionId, input.tutorId, input.studentId],
+  );
+  if (String(existing.rows[0]?.status || "") === "completed") return;
   throw new Error("Completed re-diagnosis could not retire its scheduled training session.");
 }
 
