@@ -50,6 +50,28 @@ test("issue intake is server-owned, role-scoped, and does not leak People report
   assert.doesNotMatch(migration, /GRANT .* TO (anon|authenticated)/);
 });
 
+test("COO sees all issues but People-case status changes remain scoped to HR and CEO", () => {
+  const getStart = routes.indexOf('app.get("/api/issues/inbox"');
+  const patchStart = routes.indexOf('app.patch("/api/issues/:id/status"');
+  assert.ok(getStart >= 0 && patchStart > getStart);
+  const viewRoute = routes.slice(getStart, patchStart);
+  const changeRoute = routes.slice(patchStart);
+
+  assert.match(viewRoute, /issueTeamsVisibleToRole\(user\.role\)/);
+  assert.match(viewRoute, /\[visibleTeams\]/);
+  assert.match(viewRoute, /canManage: issueTeamsForRole\(user\.role\)\.includes\(issue\.ownerTeam\)/);
+  assert.doesNotMatch(viewRoute, /const allowedTeams = issueTeamsForRole\(user\.role\)/);
+
+  assert.match(changeRoute, /const allowedTeams = issueTeamsForRole\(user\.role\)/);
+  assert.match(changeRoute, /WHERE id = \$1 AND owner_team = ANY\(\$2::varchar\[\]\)/);
+  assert.match(changeRoute, /FOR UPDATE/);
+  assert.doesNotMatch(changeRoute, /issueTeamsVisibleToRole/);
+
+  assert.match(inbox, /issue\.status !== "resolved" && issue\.canManage/);
+  assert.match(inbox, /issue\.status !== "resolved" && !issue\.canManage/);
+  assert.match(inbox, /Visibility only\./);
+});
+
 test("the issue inbox is registered and reachable by only the relevant executive roles", () => {
   assert.match(serverEntry, /registerIssueReportingRoutes\(app\)/);
   assert.match(vercelEntry, /registerIssueReportingRoutes\(app\)/);
