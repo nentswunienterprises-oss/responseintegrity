@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "./storage";
+import { pool } from "./db";
 import { TUTOR_BATTLE_TEST_PHASES_EXACT } from "./battleTestingBanks";
 import { cleanupLegacyLiveEnrollmentsForNonLiveTutor } from "./tutorAssignmentProtection";
 import {
@@ -342,17 +343,20 @@ function isLegacyApplicantModePersistenceError(error: { message?: string } | nul
 
 // Check if all required tutor documents are uploaded and verified
 export async function checkTutorDocumentationComplete(tutorId: string): Promise<boolean> {
-  const { data, error } = await supabase
-    .from("tutor_applications")
-    .select("doc_1_submission_verified, doc_2_submission_verified, doc_3_submission_verified, doc_4_submission_verified, doc_5_submission_verified, doc_6_submission_verified, documents_status")
-    .eq("user_id", tutorId);
-
-  if (error || !data?.length) {
+  try {
+    const result = await pool.query(
+      `SELECT doc_1_submission_verified, doc_2_submission_verified, doc_3_submission_verified,
+              doc_4_submission_verified, doc_5_submission_verified, doc_6_submission_verified,
+              documents_status
+         FROM public.tutor_applications
+        WHERE user_id::text = $1::text`,
+      [tutorId],
+    );
+    if (!result.rows.length) return false;
+    return result.rows.some((row) => hasCompleteTutorDocumentation(row));
+  } catch {
     return false;
   }
-
-  // Any completed tutor application should unlock applicant mode.
-  return data.some((row) => hasCompleteTutorDocumentation(row));
 }
 
 async function loadTutorDocumentationCompleteMap(tutorIds: string[]) {
@@ -367,14 +371,18 @@ async function loadTutorDocumentationCompleteMap(tutorIds: string[]) {
     return completionMap;
   }
 
-  const { data, error } = await supabase
-    .from("tutor_applications")
-    .select(
-      "user_id, doc_1_submission_verified, doc_2_submission_verified, doc_3_submission_verified, doc_4_submission_verified, doc_5_submission_verified, doc_6_submission_verified, documents_status"
-    )
-    .in("user_id", uniqueTutorIds);
-
-  if (error || !data) {
+  let data: any[] = [];
+  try {
+    const result = await pool.query(
+      `SELECT user_id, doc_1_submission_verified, doc_2_submission_verified,
+              doc_3_submission_verified, doc_4_submission_verified,
+              doc_5_submission_verified, doc_6_submission_verified, documents_status
+         FROM public.tutor_applications
+        WHERE user_id::text = ANY($1::text[])`,
+      [uniqueTutorIds],
+    );
+    data = result.rows;
+  } catch {
     return completionMap;
   }
 
@@ -542,12 +550,17 @@ async function syncTutorCertificationState(
     recovery_required_until: recoveryRequiredUntil,
   });
 
-  const { error: assignmentModeError } = await supabase
-    .from("tutor_assignments")
-    .update({ operational_mode: mode })
-    .eq("id", tutorAssignmentId);
-  if (assignmentModeError) {
-    throw new Error(`Failed to sync tutor assignment operational mode: ${assignmentModeError.message}`);
+  try {
+    await pool.query(
+      `UPDATE public.tutor_assignments SET operational_mode = $2 WHERE id = $1`,
+      [tutorAssignmentId, mode],
+    );
+  } catch (assignmentModeError) {
+    throw new Error(
+      `Failed to sync tutor assignment operational mode: ${
+        assignmentModeError instanceof Error ? assignmentModeError.message : String(assignmentModeError)
+      }`,
+    );
   }
 
   await upsertTutorPortableCertificationSnapshot(tutorAssignmentId, tutorId, persistedMode);
@@ -742,13 +755,17 @@ export async function hydrateTutorAssignmentFromPortableSnapshot(tutorAssignment
     updated_at: syncedAt,
   });
 
-  const { error: assignmentModeError } = await supabase
-    .from("tutor_assignments")
-    .update({ operational_mode: mode })
-    .eq("id", tutorAssignmentId);
-
-  if (assignmentModeError) {
-    throw new Error(`Failed to restore tutor assignment operational mode: ${assignmentModeError.message}`);
+  try {
+    await pool.query(
+      `UPDATE public.tutor_assignments SET operational_mode = $2 WHERE id = $1`,
+      [tutorAssignmentId, mode],
+    );
+  } catch (assignmentModeError) {
+    throw new Error(
+      `Failed to restore tutor assignment operational mode: ${
+        assignmentModeError instanceof Error ? assignmentModeError.message : String(assignmentModeError)
+      }`,
+    );
   }
 
   return true;
