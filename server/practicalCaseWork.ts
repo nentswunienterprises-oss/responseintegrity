@@ -57,6 +57,12 @@ function repRegistry(step:PracticalWorkStep){
    phase:step.phase,setId:set.setId,setName:set.setName,repNumber:step.repNumber,fields};
 }
 function publicStep(step:PracticalWorkStep,number:number){
+ if(step.kind==="begin_rep"){
+   // Never deliver future student response or intervention truth before the
+   // server has recorded the live start. The client cannot inspect it early.
+   const {studentBehavior:_hiddenResponse,observedSupport:_hiddenCondition,...visible}=step;
+   return {number,...visible};
+ }
  if(step.kind==="configure"){
   const schema=getDrillSchemaDefinition("training",step.phase!);
   return {number,...step,registry:{schemaId:schema.schemaId,schemaVersion:schema.schemaVersion,
