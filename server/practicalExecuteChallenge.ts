@@ -1,4 +1,6 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { getBenchmarkRunStatus } from "./practicalBenchmarkRuns";
+import { getCapabilityPracticalProofDefinition } from "@shared/capabilityPracticalEvidence";
 import { pool } from "./db";
 import {
   EXECUTE_CHALLENGE_VERSION, EXECUTE_CHALLENGE_TURNS,
@@ -17,14 +19,22 @@ async function assertEntry(tutorAssignmentId: string, tutorId: string) {
   if (!gate.ready) throw fail(403, gate.blockers.join(" "));
 }
 
+async function assertLiveBenchmarkCase(tutorAssignmentId:string,tutorId:string) {
+  const run=await getBenchmarkRunStatus({
+    tutorAssignmentId,tutorId,proofKey:"execute",
+  });
+  if(!run.started || run.completed || run.currentCase?.caseKey!=="execute.controlled_discomfort")
+    throw fail(409,"The live Execute challenge is allowed only during the second issued benchmark case, on the same continuous recording.");
+}
+
 async function nextAttempt(tutorAssignmentId: string, tutorId: string) {
   const r = await pool.query(
     `SELECT e.attempt_number, r.outcome FROM public.specialist_capability_practical_evidence e
      LEFT JOIN public.specialist_capability_practical_reviews r ON r.evidence_id = e.id
      WHERE e.tutor_assignment_id = $1 AND e.tutor_id = $2
-       AND e.proof_key = 'execute' AND e.proof_version = 2
+       AND e.proof_key = 'execute' AND e.proof_version = $3
      ORDER BY e.attempt_number DESC LIMIT 1`,
-    [tutorAssignmentId, tutorId],
+    [tutorAssignmentId, tutorId, getCapabilityPracticalProofDefinition("execute")!.version],
   );
   const latest = r.rows[0];
   if (latest && latest.outcome !== "repeat_required") {
@@ -112,6 +122,7 @@ export async function getExecuteChallengeStatus(input: { tutorAssignmentId: stri
 
 export async function startExecuteChallenge(input: { tutorAssignmentId: string; tutorId: string }) {
   await assertEntry(input.tutorAssignmentId, input.tutorId);
+  await assertLiveBenchmarkCase(input.tutorAssignmentId,input.tutorId);
   const eligibility = await nextAttempt(input.tutorAssignmentId,input.tutorId);
   if (!eligibility.allowed) throw fail(409, eligibility.reason || "Execute attempt is not available.");
   const already = await loadChallenge(input.tutorAssignmentId,input.tutorId,eligibility.attemptNumber);
@@ -133,7 +144,14 @@ export async function startExecuteChallenge(input: { tutorAssignmentId: string; 
   );
   const source=privateBank.rows[0];
   if(!source)throw fail(409,"The approved private Sandbox outcome bank is unavailable for Practicals.");
-  const plan=createExecutePlan(randomBytes(32).toString("hex"),{
+  // Shared benchmark: same initial condition and branch bank across Specialists
+  // for a given private-bank version. The actual second student behaviour still
+  // branches on the Specialist's recorded intervention. The plan remains secret
+  // until each turn is revealed during the continuous recording.
+  const commonSeed=createHash("sha256")
+    .update(`practicals-v1:execute.controlled_discomfort:${source.bank_key}:${source.bank_version}`)
+    .digest("hex");
+  const plan=createExecutePlan(commonSeed,{
     bankKey:String(source.bank_key),bankVersion:Number(source.bank_version),
     behaviors:source.behaviors||[],
   });
@@ -172,6 +190,7 @@ export async function recordExecuteTurn(input: {
   turnNumber:number; response:ExecuteResponse;
 }) {
   await assertEntry(input.tutorAssignmentId,input.tutorId);
+  await assertLiveBenchmarkCase(input.tutorAssignmentId,input.tutorId);
   const response = validateExecuteResponse(input.response);
   const client=await pool.connect();
   try {
