@@ -261,7 +261,7 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       VALUES($1,$2,'prepare',2,1,'https://example.org/synthetic-uncut-video','screen_video',
         '{}'::jsonb,'[]'::jsonb,true,$3,$4,true,true,true) RETURNING id`,
       [assignmentId,tutorId,run,duration]);
-    await assert.rejects(insertV2(null,900),/three issued benchmark cases/);
+    await assert.rejects(insertV2(null,900),/three executed benchmark cases/);
     await assert.rejects(insertV2(runId,0),/three executed benchmark cases/);
     // A complete longer-than-old-window recording is allowed, but integrity
     // and TD duration agreement are still mandatory.
