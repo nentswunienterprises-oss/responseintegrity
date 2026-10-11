@@ -101,8 +101,7 @@ RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $$
 DECLARE
   required_video boolean;
   minimum_seconds integer;
-  maximum_seconds integer;
-BEGIN
+  maximum_seconds integer; BEGIN
   required_video := (NEW.proof_key IN ('prepare','evidence') AND NEW.proof_version>=2)
     OR (NEW.proof_key='execute' AND NEW.proof_version>=3);
   IF NOT required_video THEN RETURN NEW; END IF;
@@ -143,8 +142,7 @@ DECLARE
   proof varchar;
   version integer;
   run_id varchar;
-  first_flag boolean;
-BEGIN
+  first_flag boolean; BEGIN
   SELECT e.proof_key,e.proof_version,e.benchmark_run_id
   INTO proof,version,run_id
   FROM public.specialist_capability_practical_evidence e WHERE e.id=NEW.evidence_id;
@@ -170,13 +168,13 @@ BEGIN
   IF NEW.outcome='approved' AND (
        (SELECT count(*) FROM jsonb_array_elements(NEW.benchmark_case_reviews) c
          WHERE c->>'judgment' <> 'clear')>0
-       OR NEW.recording_verification->>'recordingContinuous' <> 'true'
-       OR NEW.recording_verification->>'recordingBeginsBeforeReveal' <> 'true'
-       OR NEW.recording_verification->>'allThreeCasesVisible' <> 'true'
-       OR NEW.recording_verification->>'environmentAndToolsVisible' <> 'true'
-       OR NEW.recording_verification->>'specialistScreenFaceVoiceObservable' <> 'true'
-       OR NEW.recording_verification->>'flaggedCutOrManipulation' <> 'false'
-       OR NEW.recording_verification->>'flaggedTechnicalInterruption' <> 'false')
+       OR NEW.recording_verification->>'recordingContinuous' IS DISTINCT FROM 'true'
+       OR NEW.recording_verification->>'recordingBeginsBeforeReveal' IS DISTINCT FROM 'true'
+       OR NEW.recording_verification->>'allThreeCasesVisible' IS DISTINCT FROM 'true'
+       OR NEW.recording_verification->>'environmentAndToolsVisible' IS DISTINCT FROM 'true'
+       OR NEW.recording_verification->>'specialistScreenFaceVoiceObservable' IS DISTINCT FROM 'true'
+       OR NEW.recording_verification->>'flaggedCutOrManipulation' IS DISTINCT FROM 'false'
+       OR NEW.recording_verification->>'flaggedTechnicalInterruption' IS DISTINCT FROM 'false')
     THEN RAISE EXCEPTION 'An incomplete or interrupted benchmark recording cannot be approved'; END IF;
   RETURN NEW;
 END; $$;
