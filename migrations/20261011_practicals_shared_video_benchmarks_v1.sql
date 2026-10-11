@@ -39,6 +39,63 @@ ALTER TABLE public.specialist_practical_benchmark_case_reveals ENABLE ROW LEVEL 
 REVOKE ALL ON public.specialist_practical_benchmark_case_reveals FROM PUBLIC,anon,authenticated;
 CREATE INDEX idx_practical_benchmark_case_run ON public.specialist_practical_benchmark_case_reveals(run_id,case_sequence);
 
+
+-- Every case step is an actual server-owned operation in an isolated Practicals
+-- workspace, never a production student/Sandbox/Trial state mutation.
+CREATE TABLE public.specialist_practical_case_actions (
+  id varchar PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  run_id varchar NOT NULL REFERENCES public.specialist_practical_benchmark_runs(id),
+  case_sequence integer NOT NULL CHECK (case_sequence BETWEEN 1 AND 3),
+  step_number integer NOT NULL CHECK (step_number > 0),
+  operation_key varchar NOT NULL CHECK (operation_key IN ('configure','respond','begin_rep','rep','adaptive','decide')),
+  recorded_payload jsonb NOT NULL,
+  system_snapshot jsonb NOT NULL,
+  risk_flags jsonb NOT NULL DEFAULT '[]'::jsonb,
+  recorded_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (run_id,case_sequence) REFERENCES public.specialist_practical_benchmark_case_reveals(run_id,case_sequence),
+  UNIQUE(run_id,case_sequence,step_number)
+);
+ALTER TABLE public.specialist_practical_case_actions ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.specialist_practical_case_actions FROM PUBLIC,anon,authenticated;
+CREATE INDEX idx_practical_case_actions_trace
+  ON public.specialist_practical_case_actions(run_id,case_sequence,step_number);
+
+CREATE OR REPLACE FUNCTION private.guard_practical_case_action_append()
+RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog AS $
+DECLARE
+  active_index integer;
+  run_status varchar;
+  issued jsonb;
+  preceding integer;
+BEGIN
+  IF TG_OP IN ('UPDATE','DELETE') THEN
+    RAISE EXCEPTION 'Practicals operations are immutable';
+  END IF;
+  SELECT r.active_case_index,r.status INTO active_index,run_status
+    FROM public.specialist_practical_benchmark_runs r WHERE r.id=NEW.run_id FOR UPDATE;
+  SELECT c.case_snapshot INTO issued
+    FROM public.specialist_practical_benchmark_case_reveals c
+    WHERE c.run_id=NEW.run_id AND c.case_sequence=NEW.case_sequence;
+  SELECT COUNT(*) INTO preceding FROM public.specialist_practical_case_actions a
+    WHERE a.run_id=NEW.run_id AND a.case_sequence=NEW.case_sequence;
+  IF active_index IS NULL OR run_status<>'active'
+     OR active_index<>NEW.case_sequence
+     OR issued IS NULL
+     OR jsonb_typeof(issued->'workflowSteps') IS DISTINCT FROM 'array'
+     OR NEW.step_number<>preceding+1
+     OR NEW.step_number>jsonb_array_length(issued->'workflowSteps')
+     OR NEW.operation_key IS DISTINCT FROM
+          issued->'workflowSteps'->(NEW.step_number-1)->>'kind'
+     OR NEW.system_snapshot IS DISTINCT FROM
+          issued->'workflowSteps'->(NEW.step_number-1)
+  THEN RAISE EXCEPTION 'Practicals operation is missing, out of sequence, or mismatched to its issued case'; END IF;
+  RETURN NEW;
+END; $;
+REVOKE ALL ON FUNCTION private.guard_practical_case_action_append() FROM PUBLIC,anon,authenticated;
+CREATE TRIGGER trg_practical_case_actions_guard
+  BEFORE INSERT OR UPDATE OR DELETE ON public.specialist_practical_case_actions
+  FOR EACH ROW EXECUTE FUNCTION private.guard_practical_case_action_append();
+
 -- Current protocol revisions become mandatory. Old proof records remain
 -- historical, but cannot stand in for the new issued benchmark/video.
 ALTER TABLE public.specialist_capability_practical_evidence
@@ -87,6 +144,15 @@ RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $$ BEGIN
      OR (NEW.active_case_index<4 AND (NEW.status <> 'active' OR NEW.completed_at IS NOT NULL))
      OR (SELECT count(*) FROM public.specialist_practical_benchmark_case_reveals e
            WHERE e.run_id=OLD.id) <> LEAST(NEW.active_case_index,3)
+     OR NOT EXISTS (
+        SELECT 1 FROM public.specialist_practical_benchmark_case_reveals issued
+        WHERE issued.run_id=OLD.id AND issued.case_sequence=OLD.active_case_index
+          AND jsonb_typeof(issued.case_snapshot->'workflowSteps')='array'
+          AND jsonb_array_length(issued.case_snapshot->'workflowSteps')>0
+          AND (SELECT COUNT(*) FROM public.specialist_practical_case_actions a
+                WHERE a.run_id=OLD.id AND a.case_sequence=OLD.active_case_index)
+              = jsonb_array_length(issued.case_snapshot->'workflowSteps')
+     )
   THEN RAISE EXCEPTION 'Benchmark must reveal every case once, in order, without a reset'; END IF;
   RETURN NEW;
 END; $$;
@@ -99,18 +165,13 @@ CREATE TRIGGER trg_practical_benchmark_run_guard
 CREATE OR REPLACE FUNCTION private.validate_practical_benchmark_submission()
 RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $$
 DECLARE
-  required_video boolean;
-  minimum_seconds integer;
-  maximum_seconds integer; BEGIN
+  required_video boolean; BEGIN
   required_video := (NEW.proof_key IN ('prepare','evidence') AND NEW.proof_version>=2)
     OR (NEW.proof_key='execute' AND NEW.proof_version>=3);
   IF NOT required_video THEN RETURN NEW; END IF;
-  minimum_seconds := CASE WHEN NEW.proof_key='execute' THEN 720 ELSE 600 END;
-  maximum_seconds := CASE WHEN NEW.proof_key='execute' THEN 1320 ELSE 1080 END;
-
   IF NEW.benchmark_run_id IS NULL
     OR NEW.recording_duration_seconds IS NULL
-    OR NEW.recording_duration_seconds NOT BETWEEN minimum_seconds AND maximum_seconds
+    OR NEW.recording_duration_seconds <= 0
     OR NEW.recording_started_before_reveal_attested IS DISTINCT FROM true
     OR NEW.continuous_unedited_attested IS DISTINCT FROM true
     OR NEW.setup_tools_demonstrated_attested IS DISTINCT FROM true
@@ -127,7 +188,7 @@ DECLARE
         AND r.active_case_index=4
         AND (SELECT count(*) FROM public.specialist_practical_benchmark_case_reveals e
              WHERE e.run_id=r.id AND e.case_version=r.bank_version)=3)
-  THEN RAISE EXCEPTION 'Submission requires the three issued benchmark cases and continuous, range-compliant recording'; END IF;
+  THEN RAISE EXCEPTION 'Submission requires three executed benchmark cases and a complete continuous recording'; END IF;
   RETURN NEW;
 END; $$;
 REVOKE ALL ON FUNCTION private.validate_practical_benchmark_submission() FROM PUBLIC,anon,authenticated;
@@ -172,10 +233,8 @@ DECLARE
     IF coalesce(NEW.recording_verification->>'observedDurationSeconds','') !~ '^[0-9]+$'
       THEN RAISE EXCEPTION 'TD must verify numerical full-video duration'; END IF;
     observed_seconds:=(NEW.recording_verification->>'observedDurationSeconds')::integer;
-    IF abs(observed_seconds-declared_seconds)>10
-       OR observed_seconds NOT BETWEEN (CASE WHEN proof='execute' THEN 720 ELSE 600 END)
-          AND (CASE WHEN proof='execute' THEN 1320 ELSE 1080 END)
-      THEN RAISE EXCEPTION 'TD-observed recording duration disagrees with the original or is outside the fixed range'; END IF;
+    IF observed_seconds <= 0 OR abs(observed_seconds-declared_seconds)>10
+      THEN RAISE EXCEPTION 'TD-observed duration must be positive and agree with the full original recording'; END IF;
   END IF;
   IF NEW.outcome='approved' AND (
        (SELECT count(*) FROM jsonb_array_elements(NEW.benchmark_case_reviews) c
