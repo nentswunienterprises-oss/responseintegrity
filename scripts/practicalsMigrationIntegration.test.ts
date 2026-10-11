@@ -249,6 +249,8 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       [latestEvidenceId,reviewerId,outcome,JSON.stringify(cases),JSON.stringify(verification)]);
     await assert.rejects(insertReview(caseReviews.slice(0,2),video),/all three exact benchmark cases/);
     await assert.rejects(insertReview(caseReviews,{...video,recordingContinuous:false}),/incomplete or interrupted/);
+    await assert.rejects(insertReview(caseReviews,{...video,observedDurationSeconds:875}),/duration disagrees/);
+    await assert.rejects(insertReview(caseReviews,{...video,observedDurationSeconds:700}),/duration disagrees/);
     await assert.rejects(insertReview(caseReviews,{...video,flaggedCutOrManipulation:true}),/integrity review/);
     const accepted=await insertReview(caseReviews,video);
     assert.ok(accepted.rows[0]?.id);
