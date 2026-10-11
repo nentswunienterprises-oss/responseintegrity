@@ -496,6 +496,20 @@ export async function reviewPracticalCapabilityEvidence(input: {
   if(durationMismatch)verificationBlockers.push("The TD-observed video duration disagrees with the Specialist's declared original duration.");
   if(input.videoVerification.flaggedCutOrManipulation && derived.outcome!=="integrity_review")
     throw httpError(409,"Suspected video tampering requires an integrity-critical Fail and integrity review.");
+  const operationalRisks=benchmark.history.flatMap(item=>
+    (item.operationHistory||[]).flatMap(operation=>operation.riskFlags||[]));
+  const criticalOperationalRisks=new Set([
+    "unobserved_claimed_independent","assisted_claimed_independent",
+    "unobserved_rep_claimed_observed","interrupted_timer_claimed_valid",
+    "observed_support_omitted","invalid_independence_claim",
+  ]);
+  if(operationalRisks.some(risk=>criticalOperationalRisks.has(risk)) &&
+     derived.outcome!=="integrity_review")
+    throw httpError(409,
+      "The recorded operating events contain an objective evidence-integrity contradiction. Record the corresponding integrity-critical failure and review.");
+  if(derived.outcome==="approved" && operationalRisks.length>0)
+    throw httpError(409,
+      "The saved examination operations contradict at least one issued system condition. An approved result cannot conceal that discrepancy.");
   if(derived.outcome==="approved" && (
     verificationBlockers.length>0 ||
     input.benchmarkCaseReviews.some(c=>c.judgment!=="clear")
