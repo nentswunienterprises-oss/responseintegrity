@@ -97,7 +97,10 @@ test("Boundaries: server chooses case, stores private plan, enforces three-turn 
  const migration=readFileSync("migrations/20261009_practicals_evidence_stage_v1.sql","utf8");
  const practicals=readFileSync("server/capabilityPracticalEvidence.ts","utf8");
  const routes=readFileSync("server/routes/capabilityPracticalEvidence.ts","utf8");
- assert.match(path,/randomBytes\(32\)/);
+ assert.match(path,/createHash\("sha256"\)/);
+ assert.match(path,/practicals-v1:execute.controlled_discomfort/);
+ assert.match(path,/assertLiveBenchmarkCase/);
+ assert.match(path,/getBenchmarkRunStatus/);
  assert.match(path,/FOR UPDATE OF c/);
  assert.match(path,/getPracticalEntryStatus/);
  assert.match(path,/private\.specialist_practical_execute_challenge_truth/);
