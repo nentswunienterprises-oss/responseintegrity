@@ -443,7 +443,7 @@ export const CAPABILITY_PRACTICAL_PROOFS: CapabilityPracticalProofDefinition[] =
     version: 2,
     title: "Practical 1 - Prepare",
     purpose: "Show that you can inspect a provided sandbox case and prepare an RI session from the system rather than from improvisation.",
-    requiredArtifactTypes: ["screen_voice", "screen_video"],
+    requiredArtifactTypes: ["screen_video"],
     mustShow: [
       "Begin the uninterrupted screen + face + microphone recording before the shared Prepare benchmark is revealed.",
       "Show the real delivery workspace, working surface, microphone, screen visibility and required session tools without revealing unnecessary household details.",
@@ -474,7 +474,7 @@ export const CAPABILITY_PRACTICAL_PROOFS: CapabilityPracticalProofDefinition[] =
     version: 3,
     title: "Practical 2 - Execute",
     purpose: "Demonstrate correct RI response to a system-assigned, unpredictable three-turn simulated student challenge; preserve the permanent event record and explain the session conduct in the linked recording.",
-    requiredArtifactTypes: ["screen_video", "video"],
+    requiredArtifactTypes: ["screen_video"],
     mustShow: [
       "Begin the uninterrupted screen + face + microphone recording before the first of three shared Execute situations appears.",
       "Demonstrate the real delivery setup and the required tools on recording.",
@@ -508,7 +508,7 @@ export const CAPABILITY_PRACTICAL_PROOFS: CapabilityPracticalProofDefinition[] =
     version: 2,
     title: "Practical 3 - Evidence",
     purpose: "Show that you can inspect messy sandbox session evidence and preserve the difference between observation, inference, contamination and authorised escalation.",
-    requiredArtifactTypes: ["screen_voice", "screen_video"],
+    requiredArtifactTypes: ["screen_video"],
     mustShow: [
       "Begin the uninterrupted screen + face + microphone recording before the shared Evidence benchmark is revealed.",
       "Demonstrate the tools and work view needed to review evidence responsibly.",
