@@ -6,6 +6,8 @@ on:
       - 'shared/practicalBenchmarkPolicy*'
       - 'server/practicalBenchmarkBank*'
       - 'server/practicalBenchmarkRuns.ts'
+      - 'server/practicalCasePlans*'
+      - 'server/practicalCaseWork.ts'
       - 'shared/capabilityPracticalEvidence.ts'
       - 'shared/practicalEntryGate*'
       - 'server/sandboxEnvironment.ts'
@@ -62,6 +64,8 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts
+      - name: TypeScript contract
+        run: npm run check
       - name: Versioned adaptive Execute contract and security boundaries
         run: npm run test:practicals
       - name: PostgreSQL schema and immutable evidence integration
