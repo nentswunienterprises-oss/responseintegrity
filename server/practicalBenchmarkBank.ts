@@ -1,3 +1,4 @@
+import { getPracticalCasePlan, type PracticalWorkStep } from "./practicalCasePlans";
 import {
   PRACTICAL_BENCHMARK_VERSION,
   PRACTICAL_BENCHMARK_CASE_COUNT,
@@ -25,9 +26,10 @@ export type IssuedPracticalBenchmarkCase = Readonly<{
   systemDirection: string;
   liveDemonstration: string;
   fictionalOnly: true;
+  workflowSteps: readonly PracticalWorkStep[];
 }>;
 
-type DraftCase = Omit<IssuedPracticalBenchmarkCase,"caseVersion"|"sequence"|"fictionalOnly">;
+type DraftCase = Omit<IssuedPracticalBenchmarkCase,"caseVersion"|"sequence"|"fictionalOnly"|"workflowSteps">;
 const cases:Record<PracticalBenchmarkProof,readonly DraftCase[]> = {
   prepare:[
     {
@@ -121,7 +123,7 @@ export function getPracticalBenchmarkCase(
 ): IssuedPracticalBenchmarkCase|null {
   const found=cases[proof]?.[oneBasedSequence-1];
   if(!found)return null;
-  return {...found,caseVersion:PRACTICAL_BENCHMARK_VERSION,sequence:oneBasedSequence,fictionalOnly:true};
+  return {...found,caseVersion:PRACTICAL_BENCHMARK_VERSION,sequence:oneBasedSequence,fictionalOnly:true,workflowSteps:getPracticalCasePlan(found.caseKey)};
 }
 
 /** TD-only projection after issue: current and earlier cases, never unrevealed future tasks. */
