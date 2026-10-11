@@ -4,6 +4,7 @@ import { isAuthenticated } from "../supabaseAuth";
 import { pool } from "../db";
 import { getExecuteChallengeStatus,startExecuteChallenge,recordExecuteTurn } from "../practicalExecuteChallenge";
 import { getBenchmarkRunStatus,startBenchmarkRun,advanceBenchmarkRun } from "../practicalBenchmarkRuns";
+import { getPracticalCaseWork,recordPracticalCaseAction } from "../practicalCaseWork";
 import {
   buildPublicPracticalDefinitions,
   getPracticalReviewQueue,
@@ -192,6 +193,29 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
       await requireEntry(input.tutorAssignmentId,String(user.id));
       return res.status(201).json(await advanceBenchmarkRun({...input,runId,tutorId:String(user.id)}));
     }catch(error){return respondError(res,error,"Failed to advance Practicals cases.");}
+  });
+
+  const workSchema=benchmarkInput.extend({stepNumber:z.number().int().positive(),
+    payload:z.record(z.string(),z.unknown())}).strict();
+  app.get("/api/tutor/capability-practicals/benchmark/:runId/work",isAuthenticated,async(req,res)=>{
+    try{
+      const user=requireSpecialist(req,res);if(!user)return;
+      const input=benchmarkInput.parse({tutorAssignmentId:req.query.tutorAssignmentId,proofKey:req.query.proofKey});
+      const runId=z.string().uuid().parse(req.params.runId);
+      await requireEntry(input.tutorAssignmentId,String(user.id));
+      return res.json(await getPracticalCaseWork({...input,runId,tutorId:String(user.id)}));
+    }catch(error){return respondError(res,error,"Failed to load the issued Practicals workbench.");}
+  });
+  app.post("/api/tutor/capability-practicals/benchmark/:runId/work",isAuthenticated,async(req,res)=>{
+    try{
+      const user=requireSpecialist(req,res);if(!user)return;
+      const input=workSchema.parse(req.body);
+      const runId=z.string().uuid().parse(req.params.runId);
+      await requireEntry(input.tutorAssignmentId,String(user.id));
+      return res.status(201).json(await recordPracticalCaseAction({
+        ...input,runId,tutorId:String(user.id),
+      }));
+    }catch(error){return respondError(res,error,"Failed to save the live Practicals operation.");}
   });
 
   // A Specialist cannot choose the case, response sequence, or a new attempt to cherry-pick an easier outcome.

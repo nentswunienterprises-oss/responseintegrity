@@ -5,7 +5,6 @@ import { evaluatePracticalEntryGate } from "@shared/practicalEntryGate";
 import { assertCompletedExecuteChallenge, getExecuteChallengeForTd } from "./practicalExecuteChallenge";
 import { requireCompletedBenchmark,getBenchmarkRunForTd } from "./practicalBenchmarkRuns";
 import {
-  PRACTICAL_RECORDING_WINDOWS,
   validatePracticalRecordingDeclaration,
   validateCaseReviews,
   validatePracticalVideoVerification,
@@ -96,7 +95,6 @@ export function buildPublicPracticalDefinitions() {
     mustShow: proof.mustShow,
     declarationPrompts: proof.declarationPrompts,
     realStudentDataAllowed: false,
-    recordingWindow: PRACTICAL_RECORDING_WINDOWS[proof.key],
     sharedBenchmarkCaseCount: 3,
   }));
 }

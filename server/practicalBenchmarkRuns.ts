@@ -60,13 +60,31 @@ async function view(run:RunRow) {
      FROM public.specialist_practical_benchmark_case_reveals
      WHERE run_id=$1 ORDER BY case_sequence`,[run.id],
   );
-  const cases=result.rows.map(row=>({
-    ...row.case_snapshot,
-    caseKey:String(row.case_key),
-    sequence:Number(row.case_sequence),
-    caseVersion:Number(row.case_version),
-    revealedAt:row.revealed_at,
-  }));
+  const actions=await pool.query(
+    `SELECT case_sequence,step_number,operation_key,recorded_payload,system_snapshot,
+            risk_flags,recorded_at
+       FROM public.specialist_practical_case_actions
+      WHERE run_id=$1 ORDER BY case_sequence,step_number`,[run.id]);
+  const cases=result.rows.map(row=>{
+    // A revealed case may contain future within-case scripted responses. Never
+    // send the private workflow plan to a Specialist ahead of each live step.
+    const {workflowSteps:_privateSteps,...publicSnapshot}=row.case_snapshot;
+    const trace=actions.rows.filter(a=>Number(a.case_sequence)===Number(row.case_sequence));
+    return {
+      ...publicSnapshot,
+      caseKey:String(row.case_key),
+      sequence:Number(row.case_sequence),
+      caseVersion:Number(row.case_version),
+      revealedAt:row.revealed_at,
+      completedOperations:trace.length,
+      requiredOperations:Array.isArray(_privateSteps)?_privateSteps.length:0,
+      operationHistory:trace.map(a=>({
+        stepNumber:Number(a.step_number),operationKey:a.operation_key,
+        recordedPayload:a.recorded_payload,systemSnapshot:a.system_snapshot,
+        riskFlags:a.risk_flags,recordedAt:a.recorded_at,
+      })),
+    };
+  });
   return {
     started:true as const,runId:run.id,proofKey:run.proof_key,
     proofVersion:Number(run.proof_version),bankVersion:Number(run.bank_version),
@@ -205,15 +223,23 @@ export async function requireCompletedBenchmark(input:RunInput & {
       recorded.rows.some((r,index)=>r.case_key!==canonical[index] || Number(r.case_version)!==PRACTICAL_BENCHMARK_VERSION))
     throw fail(409,"The full shared three-case benchmark record is missing or mismatched.");
 
+  const actions=await pool.query(
+    `SELECT e.case_sequence,
+       jsonb_array_length(e.case_snapshot->'workflowSteps') AS required,
+       (SELECT COUNT(*)::int FROM public.specialist_practical_case_actions a
+        WHERE a.run_id=e.run_id AND a.case_sequence=e.case_sequence) AS recorded
+      FROM public.specialist_practical_benchmark_case_reveals e
+      WHERE e.run_id=$1 ORDER BY e.case_sequence`,[run.id]);
+  if(actions.rows.length!==3||actions.rows.some(a=>!Number(a.required)||Number(a.recorded)!==Number(a.required)))
+    throw fail(409,"Every assigned Practical must contain a complete, durable RI-OS execution trail before video submission.");
   const startedMs=new Date(run.started_at).getTime();
   const completedMs=new Date(run.completed_at||"").getTime();
   const elapsedSeconds=Math.ceil((completedMs-startedMs)/1000);
-  // The externally recorded video must include the entire issued-assessment
-  // interval. 180 seconds is the maximum preflight/outro overhead; it cannot
-  // disguise lengthy unobserved gaps or convert edited footage into a pass.
+  // The original recording must cover the full server-issued sequence.
+  // Additional setup or justified explanation time is not itself a failure.
   if(!Number.isFinite(elapsedSeconds)||elapsedSeconds<=0
-     || input.recordingDurationSeconds<elapsedSeconds
-     || input.recordingDurationSeconds>elapsedSeconds+180)
+     || !Number.isSafeInteger(input.recordingDurationSeconds)
+     || input.recordingDurationSeconds<elapsedSeconds)
     throw fail(409,"The declared continuous recording duration does not cover the system-issued assessment interval.");
   return {runId:run.id,caseKeys:canonical,elapsedSeconds};
 }
