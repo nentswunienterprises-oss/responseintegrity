@@ -5,7 +5,6 @@ import { AlertCircle, ArrowLeft, CheckCircle2, ExternalLink, RefreshCcw, ShieldA
 import { useAuth } from "@/hooks/useAuth";
 import type { ExecuteResponse } from "@shared/practicalExecuteChallenge";
 import {
-  PRACTICAL_RECORDING_WINDOWS,
   validateCaseReviews,
   validatePracticalVideoVerification,
   type PracticalCaseReview,
@@ -42,7 +41,10 @@ type ReviewQueueItem = {
     reference:string;bankVersion:number;proofVersion:number;attemptNumber:number;
     startedAt:string;completedAt:string|null;completed:boolean;
     history:Array<{caseKey:string;caseVersion:number;sequence:number;phase:string;title:string;
-      assessedCapability:string;situation:string;systemDirection:string;liveDemonstration:string;revealedAt:string;}>;
+      assessedCapability:string;situation:string;systemDirection:string;liveDemonstration:string;revealedAt:string;
+      completedOperations:number;requiredOperations:number;
+      operationHistory:Array<{stepNumber:number;operationKey:string;recordedPayload:Record<string,unknown>;
+        systemSnapshot:{label:string;prompt:string;kind:string};recordedAt:string;riskFlags:string[]}>;}>;
   }|null;
   executeChallenge: {challengeId:string;completed:boolean;version:number;privateBankLineage?:{bankKey:string;bankVersion:number}|null;history:Array<{number:number;recordedAt?:string|null;situation:{kind:string;studentBehavior:string;evidenceQuestion:string};response:ExecuteResponse;riskFlags?:string[]}>} | null;
   submittedAt: string;
@@ -402,6 +404,17 @@ export default function CapabilityPracticalReview() {
                           <p className="text-sm"><strong>Issued condition:</strong> {item.situation}</p>
                           <p className="text-sm"><strong>System boundary:</strong> {item.systemDirection}</p>
                           <p className="text-sm"><strong>Expected demonstration:</strong> {item.liveDemonstration}</p>
+                          <div className="rounded-md border bg-muted/10 p-3 space-y-2">
+                            <p className="text-sm font-medium">Durable RI-OS action trail: {item.completedOperations}/{item.requiredOperations}</p>
+                            {item.operationHistory.map(e=><div key={e.stepNumber} className="rounded border p-2 text-xs space-y-1">
+                              <p className="font-semibold">Operation {e.stepNumber}: {e.systemSnapshot.label} · {new Date(e.recordedAt).toLocaleTimeString("en-ZA")}</p>
+                              <p><strong>Action:</strong> {e.operationKey.replaceAll("_"," ")}</p>
+                              <pre className="whitespace-pre-wrap break-words">{JSON.stringify(e.recordedPayload,null,2)}</pre>
+                              {e.riskFlags?.length>0&&<p className="text-destructive">Review: {e.riskFlags.join(", ").replaceAll("_"," ")}</p>}
+                            </div>)}
+                            {item.completedOperations!==item.requiredOperations&&
+                              <p role="alert" className="text-destructive">Incomplete executable case. TD approval is prohibited.</p>}
+                          </div>
                           <div className="flex gap-2 flex-wrap">{(["clear","partial","fail"] as const).map(judgment=>
                             <Button type="button" key={judgment} variant={draft.judgment===judgment?"default":"outline"}
                               onClick={()=>setCaseDrafts(p=>({...p,[item.caseKey]:{
@@ -426,9 +439,9 @@ export default function CapabilityPracticalReview() {
                   <div className="space-y-3 border-t pt-5">
                     <h2 className="font-semibold">Original recording integrity and delivery setup</h2>
                     <p className="text-sm">TD must inspect the complete original-length video, including preparation before the first case reveal. Judge functional working conditions and needed tools, not the Specialist's home, décor or wealth.</p>
-                    <p className="text-xs text-muted-foreground">Specialist declared {selected.recordingDurationSeconds}s. Fixed range {PRACTICAL_RECORDING_WINDOWS[selected.proofKey].minSeconds/60}–{PRACTICAL_RECORDING_WINDOWS[selected.proofKey].maxSeconds/60} minutes.</p>
+                    <p className="text-xs text-muted-foreground">Specialist declared {selected.recordingDurationSeconds}s. Match the entire video to issued case actions and timestamps. Duration is for calibration, not a fixed pass/fail threshold.</p>
                     <div className="flex flex-wrap gap-3">
-                      <label className="block text-sm">Observed minutes<input type="number" min="0" max="40" value={durationMinutes} onChange={e=>setDurationMinutes(e.target.value)} className="mt-1 block w-32 rounded-md border bg-background p-2"/></label>
+                      <label className="block text-sm">Observed minutes<input type="number" min="0" value={durationMinutes} onChange={e=>setDurationMinutes(e.target.value)} className="mt-1 block w-32 rounded-md border bg-background p-2"/></label>
                       <label className="block text-sm">Observed seconds<input type="number" min="0" max="59" value={durationSeconds} onChange={e=>setDurationSeconds(e.target.value)} className="mt-1 block w-32 rounded-md border bg-background p-2"/></label>
                     </div>
                     {([

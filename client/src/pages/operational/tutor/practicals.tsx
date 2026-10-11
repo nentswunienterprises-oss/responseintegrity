@@ -10,7 +10,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import PracticalBenchmarkRun from "@/components/practicals/PracticalBenchmarkRun";
 import {
-  PRACTICAL_RECORDING_WINDOWS,
   validatePracticalRecordingDeclaration,
   type PracticalBenchmarkProof,
 } from "@shared/practicalBenchmarkPolicy";
@@ -108,9 +107,9 @@ export default function SpecialistPracticals() {
       
             {(status==="not_submitted"||status==="repeat_required")&&<div className="space-y-3"><h2 className="font-medium">Submit your demonstration</h2>
         <p className="text-sm">Submit the complete ORIGINAL screen, webcam and microphone video, with all three system-issued cases, in one continuous take.</p>
-        <p className="text-sm font-medium">Allowed video length: {PRACTICAL_RECORDING_WINDOWS[proof.key as PracticalBenchmarkProof].minSeconds/60}–{PRACTICAL_RECORDING_WINDOWS[proof.key as PracticalBenchmarkProof].maxSeconds/60} minutes.</p>
+        <p className="text-sm font-medium">Submit the complete uninterrupted video. Record its measured duration for TD verification and calibration; there is no fixed minute-based pass/fail band.</p>
         <div className="flex flex-wrap gap-3">
-          <label className="text-sm">Full minutes<Input className="mt-1 w-28" inputMode="numeric" type="number" min={0} max={30} value={minutes} onChange={e=>setMinutes(e.target.value)}/></label>
+          <label className="text-sm">Full minutes<Input className="mt-1 w-28" inputMode="numeric" type="number" min={0} value={minutes} onChange={e=>setMinutes(e.target.value)}/></label>
           <label className="text-sm">Remaining seconds<Input className="mt-1 w-28" inputMode="numeric" type="number" min={0} max={59} value={seconds} onChange={e=>setSeconds(e.target.value)}/></label>
         </div>
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={startedBeforeReveal} onChange={e=>setStartedBeforeReveal(e.target.checked)}/>The recording started before the first benchmark case appeared.</label>

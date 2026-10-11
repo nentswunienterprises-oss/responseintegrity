@@ -6,10 +6,9 @@ import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import ResponsiveExecuteChallenge from "./ResponsiveExecuteChallenge";
+import PracticalCaseWorkbench from "./PracticalCaseWorkbench";
 import {
   PRACTICAL_BENCHMARK_CASE_COUNT,
-  PRACTICAL_RECORDING_WINDOWS,
   PRACTICAL_VIDEO_REQUIREMENTS,
   type PracticalBenchmarkProof,
 } from "@shared/practicalBenchmarkPolicy";
@@ -18,6 +17,7 @@ type IssuedCase = {
   caseKey:string;caseVersion:number;sequence:number;phase:string;
   assessedCapability:string;title:string;situation:string;systemDirection:string;
   liveDemonstration:string;revealedAt:string;
+  completedOperations:number;requiredOperations:number;
 };
 export type BenchmarkRun = {
   started:boolean;allowed?:boolean;reason?:string|null;completed:boolean;
@@ -64,9 +64,9 @@ export default function PracticalBenchmarkRun({
   });
   const completedId=q.data?.completed?q.data.runId||null:null;
   useEffect(()=>onComplete(completedId),[onComplete,completedId]);
-  const window=PRACTICAL_RECORDING_WINDOWS[proofKey];
   const current=q.data?.currentCase;
-  const canAdvance=Boolean(current&&!q.data?.completed);
+  const canAdvance=Boolean(current&&!q.data?.completed&&
+    current.requiredOperations>0&&current.completedOperations===current.requiredOperations);
   return <Card className="rounded-none">
     <CardHeader>
       <CardTitle>System-issued common cases</CardTitle>
@@ -75,7 +75,7 @@ export default function PracticalBenchmarkRun({
         Record one uninterrupted screen + webcam + microphone video of all three. The case sequence cannot be selected, skipped or restarted.
       </p>
       <p className="text-sm font-medium">
-        Required video length: {window.minSeconds/60}–{window.maxSeconds/60} minutes.
+        Preserve the complete video and actual issued case operations. Duration is measured for verification and calibration, not a fixed pass/fail window.
       </p>
     </CardHeader>
     <CardContent className="space-y-4">
@@ -125,20 +125,21 @@ export default function PracticalBenchmarkRun({
           <p className="text-sm"><strong>System state:</strong> {item.situation}</p>
           <p className="text-sm"><strong>System direction:</strong> {item.systemDirection}</p>
           <p className="text-sm"><strong>Demonstrate live:</strong> {item.liveDemonstration}</p>
-          {proofKey==="execute"&&item.caseKey==="execute.controlled_discomfort"&&q.data.currentCase?.caseKey===item.caseKey&&!q.data?.completed&&
-            <ResponsiveExecuteChallenge assignmentId={assignmentId} enabled={enabled}
-              onComplete={onExecuteComplete}/>}
+          <p className="text-xs text-muted-foreground">Recorded operations: {item.completedOperations} of {item.requiredOperations}</p>
         </div>)}
+        {current&&!q.data.completed&&q.data.runId&&
+          <PracticalCaseWorkbench runId={q.data.runId} caseSequence={current.sequence}
+            proofKey={proofKey} assignmentId={assignmentId} onExecuteComplete={onExecuteComplete}/>}
         {q.data.completed?<div className="rounded-lg border p-3">
           <p className="font-semibold">System benchmark complete</p>
           <p className="text-sm">Stop the continuous recording now and preserve the original, full-length file. Submit the private recording link, measured duration and declarations below. The TD will check it against all three issued cases.</p>
-        </div>:canAdvance&&<>
+        </div>:<>
           <p className="text-sm text-muted-foreground">
             Complete your visible response to this case before advancing. The next case will be revealed only after you choose to proceed. Keep recording running.
           </p>
-          <Button disabled={advance.isPending}
+          <Button disabled={!canAdvance||advance.isPending}
             onClick={()=>advance.mutate(current!.sequence===3?"finish":"next")}>
-            {advance.isPending?"Saving...":current!.sequence===3?"Finish assessment (keep recording until confirmed)":"Save case and reveal next"}
+            {advance.isPending?"Saving...":current!.sequence===3?"Finish assessment (keep recording until confirmed)":"Advance after recorded operations"}
           </Button>
         </>}
       </>}

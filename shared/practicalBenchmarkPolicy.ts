@@ -14,11 +14,8 @@ export const PRACTICAL_BENCHMARK_CASE_COUNT = 3;
 export type PracticalBenchmarkProof = "prepare" | "execute" | "evidence";
 export type PracticalCaseJudgment = "clear" | "partial" | "fail";
 
-export const PRACTICAL_RECORDING_WINDOWS = {
-  prepare: { minSeconds: 10 * 60, maxSeconds: 18 * 60 },
-  execute: { minSeconds: 12 * 60, maxSeconds: 22 * 60 },
-  evidence: { minSeconds: 10 * 60, maxSeconds: 18 * 60 },
-} as const;
+// Initial engineering time guesses are non-binding. Durations are recorded for
+// calibration; observable work and integrity govern approval.
 
 /** Specialists are evaluated on professional readiness, not their home or possessions. */
 export const PRACTICAL_VIDEO_REQUIREMENTS = [
@@ -43,11 +40,8 @@ export function validatePracticalRecordingDeclaration(
   input: PracticalRecordingDeclaration,
 ): string[] {
   const blockers:string[]=[];
-  const window=PRACTICAL_RECORDING_WINDOWS[proof];
-  if (!Number.isInteger(input.durationSeconds)
-      || input.durationSeconds < window.minSeconds
-      || input.durationSeconds > window.maxSeconds) {
-    blockers.push(`The ${proof} recording must be between ${window.minSeconds / 60} and ${window.maxSeconds / 60} minutes.`);
+  if (!Number.isSafeInteger(input.durationSeconds) || input.durationSeconds <= 0) {
+    blockers.push("The original recording must have a positive measured whole-second duration.");
   }
   if (input.recordingStartedBeforeReveal !== true) {
     blockers.push("The recording must begin before the first case is revealed.");
@@ -103,11 +97,9 @@ export function validatePracticalVideoVerification(
   verification:PracticalVideoVerification,
 ): string[] {
   const blockers:string[]=[];
-  const window=PRACTICAL_RECORDING_WINDOWS[proof];
-  if(!Number.isInteger(verification.observedDurationSeconds)
-    || verification.observedDurationSeconds<window.minSeconds
-    || verification.observedDurationSeconds>window.maxSeconds)
-    blockers.push("The TD-observed recording duration is outside the fixed range.");
+  if(!Number.isSafeInteger(verification.observedDurationSeconds)
+    || verification.observedDurationSeconds<=0)
+    blockers.push("TD must verify the positive measured duration of the full original recording.");
   if(!verification.recordingContinuous || !verification.recordingBeginsBeforeReveal)
     blockers.push("The TD could not verify an uninterrupted recording from before case reveal.");
   if(!verification.allThreeCasesVisible) blockers.push("All three system-assigned situations must be observed.");
