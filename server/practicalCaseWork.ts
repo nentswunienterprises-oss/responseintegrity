@@ -117,7 +117,7 @@ function validateAction(step:PracticalWorkStep,payload:Record<string,unknown>,pr
     risks.push("observed_support_omitted");
   if((intervention!=="none"||status!=="observed")&&claim==="independent")
     risks.push("invalid_independence_claim");
-  const began=prior.findLast(x=>x.operationKey==="begin_rep" && Number(x.systemSnapshot?.repNumber)===step.repNumber);
+  const began=[...prior].reverse().find(x=>x.operationKey==="begin_rep" && Number(x.systemSnapshot?.repNumber)===step.repNumber);
   const serverElapsedSeconds=began?Math.max(0,Math.ceil((Date.now()-new Date(began.recordedAt).getTime())/1000)):null;
   result={observationSelections:raw,intervention,evidenceStatus:status,independenceClaim:claim,
     timingStatus:timing,studentFacingResponse:prose(payload.studentFacingResponse,"Rep-facing conduct"),
@@ -197,10 +197,10 @@ export async function recordPracticalCaseAction(input:Identity&{stepNumber:numbe
   let result:Record<string,unknown>,risks:string[];
   if(step.kind==="adaptive"){
     const c=await client.query(
-      `SELECT id FROM public.specialist_practical_execute_challenges
-        WHERE tutor_assignment_id=$1 AND tutor_id=$2 AND attempt_number=$3
-          AND status='complete' AND active_turn=4
-          AND (SELECT COUNT(*) FROM public.specialist_practical_execute_turns t WHERE t.challenge_id=id)=3`,
+      `SELECT c.id FROM public.specialist_practical_execute_challenges c
+        WHERE c.tutor_assignment_id=$1 AND c.tutor_id=$2 AND c.attempt_number=$3
+          AND c.status='complete' AND c.active_turn=4
+          AND (SELECT COUNT(*) FROM public.specialist_practical_execute_turns t WHERE t.challenge_id=c.id)=3`,
       [input.tutorAssignmentId,input.tutorId,w.run.attempt_number],
     );
     if(!c.rows.length)throw fail(409,"Complete all three genuine adaptive Execute turns before saving the examination operation.");
