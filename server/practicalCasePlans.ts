@@ -7,7 +7,7 @@ import type { TopicPhase } from "@shared/topicConditioningEngine";
  * This is not a writable student or training session.
  */
 export type PracticalWorkStep = Readonly<{
-  kind: "configure" | "respond" | "rep" | "adaptive" | "decide";
+  kind: "configure" | "respond" | "begin_rep" | "rep" | "adaptive" | "decide";
   label: string;
   prompt: string;
   phase?: TopicPhase;
@@ -91,6 +91,14 @@ const workflows: Record<string, readonly PracticalWorkStep[]> = {
 export function getPracticalCasePlan(caseKey:string):readonly PracticalWorkStep[] {
   const plan=workflows[caseKey];
   if(!plan || plan.length<2)throw new Error("Practicals case has no governed execution plan: "+caseKey);
-  return plan;
+  // Real preparation/execution opportunities begin in a distinct server
+  // event so the timing lineage cannot be supplied retroactively by a form.
+  if(caseKey.startsWith("evidence."))return plan;
+  return plan.flatMap(s=>s.kind==="rep"
+    ? [step("begin_rep","Start observed rep "+s.repNumber,
+        "Begin the assigned simulated rep with its live work surface and recording in view.",
+        {phase:s.phase,setId:s.setId,repNumber:s.repNumber,studentBehavior:s.studentBehavior,
+         observedSupport:s.observedSupport}),s]
+    : [s]);
 }
 export function getPracticalCaseKeysWithPlans(){return Object.keys(workflows)}
