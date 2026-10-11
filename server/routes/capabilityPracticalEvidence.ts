@@ -5,6 +5,9 @@ import { pool } from "../db";
 import { getExecuteChallengeStatus,startExecuteChallenge,recordExecuteTurn } from "../practicalExecuteChallenge";
 import { getBenchmarkRunStatus,startBenchmarkRun,advanceBenchmarkRun } from "../practicalBenchmarkRuns";
 import { getPracticalCaseWork,recordPracticalCaseAction } from "../practicalCaseWork";
+import type { ExecuteResponse } from "@shared/practicalExecuteChallenge";
+import type { PracticalRecordingDeclaration, PracticalCaseReview, PracticalVideoVerification, PracticalBenchmarkProof } from "@shared/practicalBenchmarkPolicy";
+import type { CapabilityPracticalCriterionReviewInput } from "@shared/capabilityPracticalEvidence";
 import {
   buildPublicPracticalDefinitions,
   getPracticalReviewQueue,
@@ -141,7 +144,7 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
           noRealStudentDataConfirmed: payload.noRealStudentDataConfirmed,
           executeChallengeId: payload.executeChallengeId || null,
           benchmarkRunId: payload.benchmarkRunId,
-          recording: payload.recording,
+          recording: payload.recording as PracticalRecordingDeclaration,
         });
 
         return res.status(201).json(result);
@@ -152,6 +155,7 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
   );
 
 
+  type ConfirmedBenchmark={tutorAssignmentId:string;proofKey:PracticalBenchmarkProof};
   const proofKeySchema=z.enum(["prepare","execute","evidence"]);
   const benchmarkInput=z.object({
     tutorAssignmentId:z.string().trim().min(1),
@@ -167,7 +171,7 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
       const input=benchmarkInput.parse({
         tutorAssignmentId:req.query.tutorAssignmentId,
         proofKey:req.query.proofKey,
-      });
+      }) as ConfirmedBenchmark;
       await requireEntry(input.tutorAssignmentId,String(user.id));
       return res.json(await getBenchmarkRunStatus({...input,tutorId:String(user.id)}));
     }catch(error){return respondError(res,error,"Failed to load system-issued Practicals case.");}
@@ -178,7 +182,7 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
       const input=benchmarkInput.extend({
         preflightConfirmed:z.literal(true),
         recordingStartedBeforeReveal:z.literal(true),
-      }).parse(req.body);
+      }).parse(req.body) as ConfirmedBenchmark & {preflightConfirmed:true;recordingStartedBeforeReveal:true};
       await requireEntry(input.tutorAssignmentId,String(user.id));
       return res.status(201).json(await startBenchmarkRun({...input,tutorId:String(user.id)}));
     }catch(error){return respondError(res,error,"Failed to issue Practicals cases.");}
@@ -188,7 +192,7 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
       const user=requireSpecialist(req,res);if(!user)return;
       const input=benchmarkInput.extend({
         action:z.enum(["next","finish"]),
-      }).parse(req.body);
+      }).parse(req.body) as ConfirmedBenchmark & {action:"next"|"finish"};
       const runId=z.string().uuid().parse(req.params.runId);
       await requireEntry(input.tutorAssignmentId,String(user.id));
       return res.status(201).json(await advanceBenchmarkRun({...input,runId,tutorId:String(user.id)}));
@@ -200,7 +204,7 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
   app.get("/api/tutor/capability-practicals/benchmark/:runId/work",isAuthenticated,async(req,res)=>{
     try{
       const user=requireSpecialist(req,res);if(!user)return;
-      const input=benchmarkInput.parse({tutorAssignmentId:req.query.tutorAssignmentId,proofKey:req.query.proofKey});
+      const input=benchmarkInput.parse({tutorAssignmentId:req.query.tutorAssignmentId,proofKey:req.query.proofKey}) as ConfirmedBenchmark;
       const runId=z.string().uuid().parse(req.params.runId);
       await requireEntry(input.tutorAssignmentId,String(user.id));
       return res.json(await getPracticalCaseWork({...input,runId,tutorId:String(user.id)}));
@@ -209,7 +213,7 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
   app.post("/api/tutor/capability-practicals/benchmark/:runId/work",isAuthenticated,async(req,res)=>{
     try{
       const user=requireSpecialist(req,res);if(!user)return;
-      const input=workSchema.parse(req.body);
+      const input=workSchema.parse(req.body) as ConfirmedBenchmark & {stepNumber:number;payload:Record<string,unknown>};
       const runId=z.string().uuid().parse(req.params.runId);
       await requireEntry(input.tutorAssignmentId,String(user.id));
       return res.status(201).json(await recordPracticalCaseAction({
@@ -253,7 +257,7 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
       const challengeId=z.string().uuid().parse(req.params.challengeId);
       return res.status(201).json(await recordExecuteTurn({
         tutorAssignmentId:body.tutorAssignmentId,tutorId:String(user.id),challengeId,
-        turnNumber:body.turnNumber,response:body.response,
+        turnNumber:body.turnNumber,response:body.response as ExecuteResponse,
       }));
     } catch(error){return respondError(res,error,"Failed to record Execute turn.");}
   });
@@ -290,11 +294,11 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
           reviewerId: String(user.id),
           reviewerRole: String(user.role),
           rubricVersion: payload.rubricVersion,
-          criterionJudgments: payload.criterionJudgments,
+          criterionJudgments: payload.criterionJudgments as CapabilityPracticalCriterionReviewInput[],
           feedback: payload.feedback,
           executeTraceVideoVerified: payload.executeTraceVideoVerified===true,
-          benchmarkCaseReviews: payload.benchmarkCaseReviews,
-          videoVerification: payload.videoVerification,
+          benchmarkCaseReviews: payload.benchmarkCaseReviews as PracticalCaseReview[],
+          videoVerification: payload.videoVerification as PracticalVideoVerification,
         });
 
         return res.status(201).json(result);
