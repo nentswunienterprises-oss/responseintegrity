@@ -61,13 +61,12 @@ CREATE INDEX idx_practical_case_actions_trace
   ON public.specialist_practical_case_actions(run_id,case_sequence,step_number);
 
 CREATE OR REPLACE FUNCTION private.guard_practical_case_action_append()
-RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog AS $
+RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog AS $$
 DECLARE
   active_index integer;
   run_status varchar;
   issued jsonb;
-  preceding integer;
-BEGIN
+  previous_count integer; BEGIN
   IF TG_OP IN ('UPDATE','DELETE') THEN
     RAISE EXCEPTION 'Practicals operations are immutable';
   END IF;
@@ -76,13 +75,13 @@ BEGIN
   SELECT c.case_snapshot INTO issued
     FROM public.specialist_practical_benchmark_case_reveals c
     WHERE c.run_id=NEW.run_id AND c.case_sequence=NEW.case_sequence;
-  SELECT COUNT(*) INTO preceding FROM public.specialist_practical_case_actions a
+  SELECT COUNT(*) INTO previous_count FROM public.specialist_practical_case_actions a
     WHERE a.run_id=NEW.run_id AND a.case_sequence=NEW.case_sequence;
   IF active_index IS NULL OR run_status<>'active'
      OR active_index<>NEW.case_sequence
      OR issued IS NULL
      OR jsonb_typeof(issued->'workflowSteps') IS DISTINCT FROM 'array'
-     OR NEW.step_number<>preceding+1
+     OR NEW.step_number<>previous_count+1
      OR NEW.step_number>jsonb_array_length(issued->'workflowSteps')
      OR NEW.operation_key IS DISTINCT FROM
           issued->'workflowSteps'->(NEW.step_number-1)->>'kind'
@@ -90,7 +89,7 @@ BEGIN
           issued->'workflowSteps'->(NEW.step_number-1)
   THEN RAISE EXCEPTION 'Practicals operation is missing, out of sequence, or mismatched to its issued case'; END IF;
   RETURN NEW;
-END; $;
+END; $$;
 REVOKE ALL ON FUNCTION private.guard_practical_case_action_append() FROM PUBLIC,anon,authenticated;
 CREATE TRIGGER trg_practical_case_actions_guard
   BEFORE INSERT OR UPDATE OR DELETE ON public.specialist_practical_case_actions
