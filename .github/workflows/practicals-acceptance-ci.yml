@@ -26,6 +26,7 @@ on:
       - 'config/production-migration-authority.json'
       - '.github/workflows/practicals-acceptance-ci.yml'
       - 'scripts/practicalsMigrationIntegration.test.ts'
+      - 'scripts/checkPracticalsTypes.cjs'
       - 'scripts/practicalsProductionUnauthenticated.test.ts'
       - 'package.json'
   push:
@@ -65,7 +66,7 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - name: TypeScript contract
-        run: npm run check
+        run: node scripts/checkPracticalsTypes.cjs
       - name: Versioned adaptive Execute contract and security boundaries
         run: npm run test:practicals
       - name: PostgreSQL schema and immutable evidence integration
