@@ -126,6 +126,11 @@
       "path": "migrations/20261010_trial_35_day_first_session.sql",
       "description": "Restore the missing governed Trial window and COO-extension columns, freeze a 35-day window from the first completed Trial session rather than family placement, and require explicit documented extensions without qualifying any Specialist.",
       "risk": "additive"
+    },
+    {
+      "path": "migrations/20261011_practicals_shared_video_benchmarks_v1.sql",
+      "description": "Add server-issued common three-case Practicals benchmarks, immutable reveal history and video-duration, continuity, setup and TD case-comparison evidence without permitting live Specialist progression.",
+      "risk": "additive"
     }
   ]
 }
