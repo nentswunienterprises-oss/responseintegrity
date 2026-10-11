@@ -125,7 +125,7 @@ export default function PracticalBenchmarkRun({
           <p className="text-sm"><strong>System state:</strong> {item.situation}</p>
           <p className="text-sm"><strong>System direction:</strong> {item.systemDirection}</p>
           <p className="text-sm"><strong>Demonstrate live:</strong> {item.liveDemonstration}</p>
-          {proofKey==="execute"&&item.caseKey==="execute.controlled_discomfort"&&!q.data?.completed&&
+          {proofKey==="execute"&&item.caseKey==="execute.controlled_discomfort"&&q.data.currentCase?.caseKey===item.caseKey&&!q.data?.completed&&
             <ResponsiveExecuteChallenge assignmentId={assignmentId} enabled={enabled}
               onComplete={onExecuteComplete}/>}
         </div>)}
