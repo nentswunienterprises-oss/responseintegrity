@@ -1,5 +1,5 @@
 # Practicals: common-case, video-observed operating examination
-Approved by Founder: 11 October 2026. Implementation candidate; not live qualification authority until governed release and authenticated proof.
+Founder approved the governing principles on 11 October 2026: video as primary performance evidence, multiple fixed comparable system-issued situations, observable real-delivery setup/tools, and uninterrupted time-bounded recording. The initial **three cases per Practical** and numerical duration bands below are implementation baselines chosen for validation, NOT separately Founder-approved final quotas. Calibrate their workload and sufficiency on actual TD review evidence before freezing a production assessment bank. Not live qualification authority until governed release and authenticated proof.
 
 ## What is being assessed
 Practicals proves actual Specialist **preparation, delivery conduct and evidence judgement**, rather than an essay, polished demonstration or isolated correct answer. The primary evidence is the **original, full-length video**: Specialist face, voice, shared application and relevant work surface must be sufficiently observable. The system assigns the conditions, and the TD judges the observed performance.
