@@ -3,6 +3,7 @@ import { z } from "zod";
 import { isAuthenticated } from "../supabaseAuth";
 import { pool } from "../db";
 import { getExecuteChallengeStatus,startExecuteChallenge,recordExecuteTurn } from "../practicalExecuteChallenge";
+import { getBenchmarkRunStatus,startBenchmarkRun,advanceBenchmarkRun } from "../practicalBenchmarkRuns";
 import {
   buildPublicPracticalDefinitions,
   getPracticalReviewQueue,
@@ -22,7 +23,14 @@ const practicalSubmissionSchema = z.object({
   declaration: z.record(z.string(), z.unknown()),
   noRealStudentDataConfirmed: z.literal(true),
   executeChallengeId: z.string().uuid().optional(),
-});
+  benchmarkRunId: z.string().uuid(),
+  recording: z.object({
+    durationSeconds: z.number().int().positive(),
+    recordingStartedBeforeReveal: z.literal(true),
+    continuousUneditedRecording: z.literal(true),
+    setupToolsDemonstrated: z.literal(true),
+  }).strict(),
+}).strict();
 
 const practicalReviewSchema = z.object({
   rubricVersion: z.number().int().positive(),
@@ -33,6 +41,18 @@ const practicalReviewSchema = z.object({
   })).min(1),
   feedback: z.string().trim().max(4000).optional().nullable(),
   executeTraceVideoVerified: z.boolean().optional(),
+  benchmarkCaseReviews: z.array(z.object({
+    caseKey: z.string().min(1),
+    judgment: z.enum(["clear","partial","fail"]),
+    observedEvidence: z.string().trim().min(30).max(2000),
+  }).strict()).length(3),
+  videoVerification: z.object({
+    observedDurationSeconds:z.number().int().positive(),
+    recordingContinuous:z.boolean(),recordingBeginsBeforeReveal:z.boolean(),
+    allThreeCasesVisible:z.boolean(),environmentAndToolsVisible:z.boolean(),
+    specialistScreenFaceVoiceObservable:z.boolean(),
+    flaggedCutOrManipulation:z.boolean(),flaggedTechnicalInterruption:z.boolean(),
+  }).strict(),
 }).strict();
 
 function requireSpecialist(req: Request, res: Response) {
@@ -119,6 +139,8 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
           declaration: payload.declaration,
           noRealStudentDataConfirmed: payload.noRealStudentDataConfirmed,
           executeChallengeId: payload.executeChallengeId || null,
+          benchmarkRunId: payload.benchmarkRunId,
+          recording: payload.recording,
         });
 
         return res.status(201).json(result);
@@ -128,6 +150,49 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
     },
   );
 
+
+  const proofKeySchema=z.enum(["prepare","execute","evidence"]);
+  const benchmarkInput=z.object({
+    tutorAssignmentId:z.string().trim().min(1),
+    proofKey:proofKeySchema,
+  }).strict();
+  const requireEntry=async(tutorAssignmentId:string,tutorId:string)=>{
+    const entry=await getPracticalEntryStatus(tutorAssignmentId,tutorId);
+    if(!entry.ready)throw Object.assign(new Error(entry.blockers.join(" ")),{status:403});
+  };
+  app.get("/api/tutor/capability-practicals/benchmark",isAuthenticated,async(req,res)=>{
+    try {
+      const user=requireSpecialist(req,res);if(!user)return;
+      const input=benchmarkInput.parse({
+        tutorAssignmentId:req.query.tutorAssignmentId,
+        proofKey:req.query.proofKey,
+      });
+      await requireEntry(input.tutorAssignmentId,String(user.id));
+      return res.json(await getBenchmarkRunStatus({...input,tutorId:String(user.id)}));
+    }catch(error){return respondError(res,error,"Failed to load system-issued Practicals case.");}
+  });
+  app.post("/api/tutor/capability-practicals/benchmark/start",isAuthenticated,async(req,res)=>{
+    try {
+      const user=requireSpecialist(req,res);if(!user)return;
+      const input=benchmarkInput.extend({
+        preflightConfirmed:z.literal(true),
+        recordingStartedBeforeReveal:z.literal(true),
+      }).parse(req.body);
+      await requireEntry(input.tutorAssignmentId,String(user.id));
+      return res.status(201).json(await startBenchmarkRun({...input,tutorId:String(user.id)}));
+    }catch(error){return respondError(res,error,"Failed to issue Practicals cases.");}
+  });
+  app.post("/api/tutor/capability-practicals/benchmark/:runId/advance",isAuthenticated,async(req,res)=>{
+    try {
+      const user=requireSpecialist(req,res);if(!user)return;
+      const input=benchmarkInput.extend({
+        action:z.enum(["next","finish"]),
+      }).parse(req.body);
+      const runId=z.string().uuid().parse(req.params.runId);
+      await requireEntry(input.tutorAssignmentId,String(user.id));
+      return res.status(201).json(await advanceBenchmarkRun({...input,runId,tutorId:String(user.id)}));
+    }catch(error){return respondError(res,error,"Failed to advance Practicals cases.");}
+  });
 
   // A Specialist cannot choose the case, response sequence, or a new attempt to cherry-pick an easier outcome.
   app.get("/api/tutor/capability-practicals/execute-challenge",isAuthenticated,async (req,res)=>{
@@ -204,6 +269,8 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
           criterionJudgments: payload.criterionJudgments,
           feedback: payload.feedback,
           executeTraceVideoVerified: payload.executeTraceVideoVerified===true,
+          benchmarkCaseReviews: payload.benchmarkCaseReviews,
+          videoVerification: payload.videoVerification,
         });
 
         return res.status(201).json(result);
