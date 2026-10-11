@@ -26,7 +26,7 @@ export default function SpecialistPracticals() {
   const queryClient=useQueryClient();
   const [selected,setSelected]=useState<string>("prepare");
   const [url,setUrl]=useState("");
-  const [artifactType,setArtifactType]=useState("screen_voice");
+  const [artifactType,setArtifactType]=useState("screen_video");
   const [declarations,setDeclarations]=useState<Record<string,string>>({});
   const [onlySandbox,setOnlySandbox]=useState(false);
   const [executeChallengeId,setExecuteChallengeId]=useState<string|null>(null);
