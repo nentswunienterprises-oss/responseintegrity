@@ -142,9 +142,11 @@ DECLARE
   proof varchar;
   version integer;
   linked_benchmark_run_id varchar;
+  declared_seconds integer;
+  observed_seconds integer;
   first_flag boolean; BEGIN
-  SELECT e.proof_key,e.proof_version,e.benchmark_run_id
-  INTO proof,version,linked_benchmark_run_id
+  SELECT e.proof_key,e.proof_version,e.benchmark_run_id,e.recording_duration_seconds
+  INTO proof,version,linked_benchmark_run_id,declared_seconds
   FROM public.specialist_capability_practical_evidence e WHERE e.id=NEW.evidence_id;
   IF NOT ((proof IN ('prepare','evidence') AND version>=2)
        OR (proof='execute' AND version>=3)) THEN RETURN NEW; END IF;
@@ -165,6 +167,33 @@ DECLARE
   first_flag := coalesce((NEW.recording_verification->>'flaggedCutOrManipulation')::boolean,false);
   IF first_flag AND NEW.outcome<>'integrity_review'
     THEN RAISE EXCEPTION 'Suspected recording manipulation requires integrity review'; END IF;
+  IF NEW.outcome='approved' THEN
+    IF coalesce(NEW.recording_verification->>'observedDurationSeconds','') !~ '^[0-9]+
+         WHERE c->>'judgment' <> 'clear')>0
+       OR NEW.recording_verification->>'recordingContinuous' IS DISTINCT FROM 'true'
+       OR NEW.recording_verification->>'recordingBeginsBeforeReveal' IS DISTINCT FROM 'true'
+       OR NEW.recording_verification->>'allThreeCasesVisible' IS DISTINCT FROM 'true'
+       OR NEW.recording_verification->>'environmentAndToolsVisible' IS DISTINCT FROM 'true'
+       OR NEW.recording_verification->>'specialistScreenFaceVoiceObservable' IS DISTINCT FROM 'true'
+       OR NEW.recording_verification->>'flaggedCutOrManipulation' IS DISTINCT FROM 'false'
+       OR NEW.recording_verification->>'flaggedTechnicalInterruption' IS DISTINCT FROM 'false')
+    THEN RAISE EXCEPTION 'An incomplete or interrupted benchmark recording cannot be approved'; END IF;
+  RETURN NEW;
+END; $$;
+REVOKE ALL ON FUNCTION private.validate_practical_benchmark_review() FROM PUBLIC,anon,authenticated;
+DROP TRIGGER IF EXISTS trg_practical_benchmark_review ON public.specialist_capability_practical_reviews;
+CREATE TRIGGER trg_practical_benchmark_review
+  BEFORE INSERT ON public.specialist_capability_practical_reviews
+  FOR EACH ROW EXECUTE FUNCTION private.validate_practical_benchmark_review();
+
+
+      THEN RAISE EXCEPTION 'TD must verify numerical full-video duration'; END IF;
+    observed_seconds:=(NEW.recording_verification->>'observedDurationSeconds')::integer;
+    IF abs(observed_seconds-declared_seconds)>10
+       OR observed_seconds NOT BETWEEN (CASE WHEN proof='execute' THEN 720 ELSE 600 END)
+         AND (CASE WHEN proof='execute' THEN 1320 ELSE 1080 END)
+      THEN RAISE EXCEPTION 'TD-observed recording duration disagrees with the original or is outside the fixed range'; END IF;
+  END IF;
   IF NEW.outcome='approved' AND (
        (SELECT count(*) FROM jsonb_array_elements(NEW.benchmark_case_reviews) c
          WHERE c->>'judgment' <> 'clear')>0
