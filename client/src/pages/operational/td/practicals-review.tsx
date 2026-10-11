@@ -404,7 +404,7 @@ export default function CapabilityPracticalReview() {
                           <p className="text-sm"><strong>Expected demonstration:</strong> {item.liveDemonstration}</p>
                           <div className="flex gap-2 flex-wrap">{(["clear","partial","fail"] as const).map(judgment=>
                             <Button type="button" key={judgment} variant={draft.judgment===judgment?"default":"outline"}
-                              onClick={()=>setCaseDrafts(p=>({...p,[item.caseKey], [item.caseKey]:{
+                              onClick={()=>setCaseDrafts(p=>({...p,[item.caseKey]:{
                                 judgment,observedEvidence:p[item.caseKey]?.observedEvidence||"",
                               }}))}>
                               {judgment==="clear"?"Clear":judgment==="partial"?"Partial":"Fail"}
