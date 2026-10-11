@@ -68,6 +68,7 @@ async function loadTrialPlacementOverview(
         WHERE tutor_id = $1
           AND student_id = $2
           AND status = 'completed'
+          AND type = 'training'
           AND scheduled_time >= $3
         ORDER BY scheduled_time ASC`,
       [placement.tutor_id, placement.student_id, placement.started_at],
@@ -110,10 +111,14 @@ async function loadTrialPlacementOverview(
     throw new Error(`Failed to load Trial reports: ${reportError.message}`);
   }
 
+  if (Number(placement.required_session_count) !== TRIAL_REQUIRED_SESSIONS_PER_FAMILY) {
+    throw new Error("Trial placement has an invalid session requirement; exactly nine qualifying sessions per family are mandatory.");
+  }
+
   const progress = deriveTrialPlacementProgress({
     placementStartedAt: placement.started_at,
     qualificationEndsAt,
-    requiredSessionCount: Number(placement.required_session_count || TRIAL_REQUIRED_SESSIONS_PER_FAMILY),
+    requiredSessionCount: TRIAL_REQUIRED_SESSIONS_PER_FAMILY,
     sessions: (sessions || []).map((session: any) => ({
       id: String(session.id),
       status: session.status,
@@ -177,15 +182,9 @@ async function loadTrialCaseOverview(caseRow: any): Promise<TrialCaseOverview> {
   }
   const reviewByPlacementId = new Map(reviews.map((review: any) => [String(review.placement_id), review]));
 
-  const derivedWindowStartedAt = caseRow.window_started_at || (
-    (placementRows || []).length === 2
-      ? [...(placementRows || [])]
-          .map((placement: any) => String(placement.started_at || ""))
-          .filter(Boolean)
-          .sort((left, right) => new Date(left).getTime() - new Date(right).getTime())
-          .pop() || null
-      : null
-  );
+  // The delivery clock starts with the first completed Trial training session,
+  // never merely when the case opens or its second family is placed.
+  const derivedWindowStartedAt = caseRow.window_started_at || null;
   const preliminaryWindow = deriveTrialWindow({
     windowStartedAt: derivedWindowStartedAt,
     windowEndsAt: caseRow.window_ends_at,
@@ -354,7 +353,7 @@ export async function extendTrialCase(input: {
   const overview = await getTrialCaseById(input.caseId);
   if (!overview) throw new Error("Trial case not found");
   if (!overview.window.startedAt || !overview.window.standardEndsAt) {
-    throw new Error("The 14-day Trial window starts only after both families are placed.");
+    throw new Error("The 35-day Trial window starts on the first completed Trial session.");
   }
   if (overview.window.extensionEndsAt) throw new Error("This Trial case already has a documented extension.");
 
@@ -366,7 +365,7 @@ export async function extendTrialCase(input: {
   const pathwayStandardTime = new Date(pathway.standardEndsAt).getTime();
   const pathwayEffectiveTime = new Date(pathway.timeline.effectiveEndsAt).getTime();
   if (!Number.isFinite(extensionTime) || extensionTime <= standardEndTime) {
-    throw new Error("The Trial extension must end after the standard 14-day window.");
+    throw new Error("The Trial extension must end after the standard 35-day window.");
   }
   if (extensionTime > pathwayStandardTime && !pathway.timeline.extensionApproved) {
     throw new Error("Approve the documented 75-to-90-day pathway extension before Trial can run beyond day 75.");
