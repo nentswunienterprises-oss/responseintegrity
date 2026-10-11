@@ -235,6 +235,15 @@ DECLARE
     IF observed_seconds <= 0 OR abs(observed_seconds-declared_seconds)>10
       THEN RAISE EXCEPTION 'TD-observed duration must be positive and agree with the full original recording'; END IF;
   END IF;
+  -- No TD signoff may override immutable mismatches in actual operations.
+  IF NEW.outcome='approved' AND EXISTS (
+    SELECT 1 FROM public.specialist_practical_case_actions a
+    WHERE a.run_id=linked_benchmark_run_id
+      AND jsonb_typeof(a.risk_flags)='array'
+      AND jsonb_array_length(a.risk_flags)>0
+  ) THEN
+    RAISE EXCEPTION 'Practicals approval cannot override saved operating contradictions';
+  END IF;
   IF NEW.outcome='approved' AND (
        (SELECT count(*) FROM jsonb_array_elements(NEW.benchmark_case_reviews) c
          WHERE c->>'judgment' <> 'clear')>0
