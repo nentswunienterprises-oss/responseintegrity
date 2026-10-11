@@ -54,7 +54,7 @@ async function findRun(input:RunInput,attemptNumber:number) {
      getCapabilityPracticalProofDefinition(input.proofKey)!.version,attemptNumber]);
   return (r.rows[0]||null) as RunRow|null;
 }
-async function view(run:RunRow) {
+async function view(run:RunRow,includeTdFlags=false) {
   const result=await pool.query(
     `SELECT case_sequence,case_key,case_version,case_snapshot,revealed_at
      FROM public.specialist_practical_benchmark_case_reveals
@@ -81,7 +81,7 @@ async function view(run:RunRow) {
       operationHistory:trace.map(a=>({
         stepNumber:Number(a.step_number),operationKey:a.operation_key,
         recordedPayload:a.recorded_payload,systemSnapshot:a.system_snapshot,
-        riskFlags:a.risk_flags,recordedAt:a.recorded_at,
+        ...(includeTdFlags?{riskFlags:a.risk_flags}:{}),recordedAt:a.recorded_at,
       })),
     };
   });
@@ -250,5 +250,5 @@ export async function getBenchmarkRunForTd(runId:string,tutorAssignmentId:string
     [runId,tutorAssignmentId,tutorId],
   );
   if(!r.rows.length)throw fail(404,"This system-issued benchmark does not exist.");
-  return view(r.rows[0] as RunRow);
+  return view(r.rows[0] as RunRow,true);
 }

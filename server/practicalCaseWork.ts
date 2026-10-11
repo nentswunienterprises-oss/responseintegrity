@@ -14,6 +14,13 @@ const independenceOptions=["independent","assisted","not_established"] as const;
 const timingOptions=["not_applicable","valid","interrupted","unverified"] as const;
 const nextActions=["continue","pause_for_evidence","evidence_recovery","escalate","system_confirmation"] as const;
 function fail(status:number,message:string){return Object.assign(new Error(message),{status})}
+function canonical(value:unknown):unknown{
+ if(Array.isArray(value))return value.map(canonical);
+ if(value&&typeof value==="object")return Object.fromEntries(
+   Object.entries(value as Record<string,unknown>).sort(([a],[b])=>a.localeCompare(b))
+     .map(([key,entry])=>[key,canonical(entry)]));
+ return value;
+}
 function select(value:unknown, options:readonly string[], label:string){
  if(typeof value!=="string" || !options.includes(value))throw fail(400,"Invalid "+label+" for the issued workflow.");
  return value;
@@ -160,7 +167,7 @@ async function fetchWork(input:Identity,client:{query:(sql:string,args?:unknown[
  if(!reveal)throw fail(409,"Current case was not issued by the system.");
  const steps=getPracticalCasePlan(String(reveal.case_key));
  if(Number(reveal.case_version)!==1 ||
-   JSON.stringify(steps)!==JSON.stringify(reveal.case_snapshot.workflowSteps))
+   JSON.stringify(canonical(steps))!==JSON.stringify(canonical(reveal.case_snapshot.workflowSteps)))
    throw fail(409,"Current case workflow snapshot does not match the issued bank.");
  const records=await client.query(
   `SELECT step_number AS "stepNumber",operation_key AS "operationKey",recorded_payload AS "recordedPayload",
@@ -179,7 +186,8 @@ function projectWork(w:Awaited<ReturnType<typeof fetchWork>>){
   stepCount:w.steps.length,completed:w.events.length===w.steps.length,
   completedSteps:w.events.length,
   currentStep:current?publicStep(current,w.events.length+1):null,
-  events:w.events,
+  // Integrity/risk flags are examiner-only, not coaching hints.
+  events:w.events.map(({riskFlags:_privateRisk,...event})=>event),
  };
 }
 export async function getPracticalCaseWork(input:Identity){
