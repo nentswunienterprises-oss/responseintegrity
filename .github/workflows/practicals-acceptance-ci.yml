@@ -3,17 +3,24 @@ on:
   pull_request:
     paths:
       - 'shared/practicalExecuteChallenge*'
+      - 'shared/practicalBenchmarkPolicy*'
+      - 'server/practicalBenchmarkBank*'
+      - 'server/practicalBenchmarkRuns.ts'
       - 'shared/capabilityPracticalEvidence.ts'
       - 'shared/practicalEntryGate*'
       - 'server/sandboxEnvironment.ts'
       - 'client/src/components/sandbox/SandboxReadinessAssessmentCard.tsx'
       - 'server/practicalExecuteChallenge.ts'
+      - 'server/practicalBenchmarkBank*'
+      - 'server/practicalBenchmarkRuns.ts'
+      - 'shared/practicalBenchmarkPolicy*'
       - 'server/capabilityPracticalEvidence.ts'
       - 'server/routes/capabilityPracticalEvidence.ts'
       - 'client/src/components/practicals/**'
       - 'client/src/pages/operational/tutor/practicals.tsx'
       - 'client/src/pages/operational/td/practicals-review.tsx'
       - 'migrations/20261009_practicals_evidence_stage_v1.sql'
+      - 'migrations/20261011_practicals_shared_video_benchmarks_v1.sql'
       - 'config/production-migration-authority.json'
       - '.github/workflows/practicals-acceptance-ci.yml'
       - 'scripts/practicalsMigrationIntegration.test.ts'
@@ -27,6 +34,7 @@ on:
       - 'server/capabilityPracticalEvidence.ts'
       - 'client/src/components/practicals/**'
       - 'migrations/20261009_practicals_evidence_stage_v1.sql'
+      - 'migrations/20261011_practicals_shared_video_benchmarks_v1.sql'
       - 'package.json'
 permissions:
   contents: read
