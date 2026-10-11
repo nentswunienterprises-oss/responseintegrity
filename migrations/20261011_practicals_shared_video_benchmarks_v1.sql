@@ -141,10 +141,10 @@ RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $$
 DECLARE
   proof varchar;
   version integer;
-  run_id varchar;
+  linked_benchmark_run_id varchar;
   first_flag boolean; BEGIN
   SELECT e.proof_key,e.proof_version,e.benchmark_run_id
-  INTO proof,version,run_id
+  INTO proof,version,linked_benchmark_run_id
   FROM public.specialist_capability_practical_evidence e WHERE e.id=NEW.evidence_id;
   IF NOT ((proof IN ('prepare','evidence') AND version>=2)
        OR (proof='execute' AND version>=3)) THEN RETURN NEW; END IF;
@@ -159,7 +159,7 @@ DECLARE
           OR length(trim(coalesce(c->>'observedEvidence',''))) < 30
           OR NOT EXISTS (
             SELECT 1 FROM public.specialist_practical_benchmark_case_reveals e
-            WHERE e.run_id=run_id AND e.case_key=c->>'caseKey'))
+            WHERE e.run_id=linked_benchmark_run_id AND e.case_key=c->>'caseKey'))
   THEN RAISE EXCEPTION 'TD must record observed video conduct for all three exact benchmark cases'; END IF;
 
   first_flag := coalesce((NEW.recording_verification->>'flaggedCutOrManipulation')::boolean,false);
