@@ -14,6 +14,47 @@ export const PRACTICAL_BENCHMARK_CASE_COUNT = 3;
 export type PracticalBenchmarkProof = "prepare" | "execute" | "evidence";
 export type PracticalCaseJudgment = "clear" | "partial" | "fail";
 
+/**
+ * One attempt authority for issuance, adaptive Execute and final submission.
+ * A recording recovery has no evidence row, so submission counts alone are
+ * never a safe attempt-number source.
+ */
+export type PracticalEvidenceAttempt={attempt_number:number;outcome:string|null};
+export type PracticalRunAttempt={
+  attempt_number:number;status:string;
+  recovery_request_id:string|null;recovery_decision:string|null;
+};
+export type PracticalAttemptDecision={
+  allowed:boolean;reason:string|null;attemptNumber:number;
+};
+export function resolvePracticalAttempt(
+  evidence:PracticalEvidenceAttempt|null,
+  run:PracticalRunAttempt|null,
+):PracticalAttemptDecision {
+  if(evidence&&evidence.outcome!=="repeat_required"){
+    const reason=evidence.outcome==="approved"
+      ?"This Practical was already approved."
+      :evidence.outcome==="integrity_review"
+      ?"Integrity review must be resolved by its authorised reviewer."
+      :"This Practical is already awaiting its TD review.";
+    return {allowed:false,reason,attemptNumber:0};
+  }
+  const minAttempt=Number(evidence?.attempt_number||0)+1;
+  if(!run||Number(run.attempt_number)<minAttempt)
+    return {allowed:true,reason:null,attemptNumber:minAttempt};
+  if(run.status==="abandoned"){
+    if(run.recovery_decision!=="approve_repeat")
+      return {allowed:false,reason:"An abandoned recording has no authorised TD recovery.",attemptNumber:0};
+    return {allowed:true,reason:null,attemptNumber:Number(run.attempt_number)+1};
+  }
+  if(run.recovery_request_id&&run.recovery_decision==="integrity_review")
+    return {allowed:false,reason:"The recording incident is under integrity review.",attemptNumber:0};
+  if(run.status!=="active"&&run.status!=="complete")
+    return {allowed:false,reason:"An unrecognised recording state cannot qualify.",attemptNumber:0};
+  return {allowed:true,reason:null,attemptNumber:Number(run.attempt_number)};
+}
+
+
 /** Specialists never receive sealed scenario truth or examiner-only integrity flags. */
 export function projectSpecialistPracticalActionEvent(input:{
   stepNumber:number;operationKey:string;
