@@ -13,6 +13,8 @@ CREATE TABLE public.specialist_practical_benchmark_runs (
   attempt_number integer NOT NULL CHECK (attempt_number>0),
   preflight_attested boolean NOT NULL CHECK (preflight_attested=true),
   recording_started_before_reveal_attested boolean NOT NULL CHECK (recording_started_before_reveal_attested=true),
+  consent_to_recording_attested boolean NOT NULL CHECK (consent_to_recording_attested=true),
+  privacy_scope_attested boolean NOT NULL CHECK (privacy_scope_attested=true),
   status varchar NOT NULL DEFAULT 'active' CHECK (status IN ('active','complete','abandoned')),
   active_case_index integer NOT NULL DEFAULT 1 CHECK (active_case_index BETWEEN 1 AND 4),
   started_at timestamptz NOT NULL DEFAULT now(),
@@ -188,6 +190,8 @@ RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $$ BEGIN
      AND NEW.attempt_number=OLD.attempt_number
      AND NEW.preflight_attested=OLD.preflight_attested
      AND NEW.recording_started_before_reveal_attested=OLD.recording_started_before_reveal_attested
+     AND NEW.consent_to_recording_attested=OLD.consent_to_recording_attested
+     AND NEW.privacy_scope_attested=OLD.privacy_scope_attested
      AND NEW.started_at=OLD.started_at
      AND EXISTS (
        SELECT 1
@@ -209,6 +213,8 @@ RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $$ BEGIN
      OR NEW.attempt_number IS DISTINCT FROM OLD.attempt_number
      OR NEW.preflight_attested IS DISTINCT FROM OLD.preflight_attested
      OR NEW.recording_started_before_reveal_attested IS DISTINCT FROM OLD.recording_started_before_reveal_attested
+     OR NEW.consent_to_recording_attested IS DISTINCT FROM OLD.consent_to_recording_attested
+     OR NEW.privacy_scope_attested IS DISTINCT FROM OLD.privacy_scope_attested
      OR NEW.started_at IS DISTINCT FROM OLD.started_at
      OR NEW.active_case_index <> OLD.active_case_index+1
      OR (NEW.active_case_index=4 AND (NEW.status <> 'complete' OR NEW.completed_at IS NULL))
