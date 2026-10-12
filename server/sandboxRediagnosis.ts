@@ -395,6 +395,7 @@ async function plan(input: {
   const history = await getSandboxEnvironmentHistory(input);
   const selected = selectSandboxDiagnosisOutcome({
     seed: truth.trajectory_seed,
+    profileSeed: truth.trajectory_seed,
     outcomes: outcomes.map((item) => item.definition),
     context: {
       startingPhase: run.target_phase,
@@ -616,6 +617,7 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
   ].join(":");
   const selected = selectSandboxDiagnosisOutcome({
     seed,
+    profileSeed: truth.trajectory_seed,
     outcomes: outcomes.map((item) => item.definition),
     context: {
       startingPhase: input.startingPhase,
