@@ -224,3 +224,36 @@ test("Sandbox Diagnosis and Handover replay the same trajectory profile without 
     assert.ok(outcomes.some((candidate) => candidate.key === first.key));
   }
 });
+
+
+test("Sandbox Diagnosis/Handover preserve legacy V1 outcome selection and use one V2 profile identity", () => {
+  const outcomes = [
+    outcomeFor("stack.timed_challenge", "timer-composed", "supported"),
+    outcomeFor("stack.timed_challenge", "timer-unstable", "conditional"),
+    outcomeFor("stack.timed_challenge", "timer-collapse", "breakdown"),
+    outcomeFor("stack.timed_challenge", "timer-unseen", "not_observed"),
+  ];
+  // Entry phase Clarity, actual tested probe Time Pressure Stability.
+  const context = {
+    startingPhase: "Clarity" as const,
+    probeId: "stack.timed_challenge" as const,
+    sequenceNumber: 4,
+  };
+  const seed = "identity-v1-4:handover:constant-session";
+  const legacy = selectSandboxDiagnosisOutcome({
+    seed, profileSeed: "identity-v1-4", outcomes, context,
+  });
+  assert.equal(legacy.key, selectSandboxDiagnosisOutcome({
+    seed, profileSeed: "identity-v1-3", outcomes,
+    context: { ...context, behaviorModelVersion: 1 },
+  }).key, "legacy V1 outcome selection must ignore a newly added profile identity");
+  const versioned = { ...context, behaviorModelVersion: 2 as const };
+  const first = selectSandboxDiagnosisOutcome({
+    seed, profileSeed: "identity-v1-4", outcomes, context: versioned,
+  });
+  const replay = selectSandboxDiagnosisOutcome({
+    seed, profileSeed: "identity-v1-4", outcomes, context: versioned,
+  });
+  assert.equal(first.key, replay.key);
+  assert.ok(outcomes.some((outcome) => outcome.key === first.key));
+});
