@@ -84,7 +84,8 @@ async function view(run:RunRow,includeTdFlags=false) {
     const trace=actions.rows.filter(a=>Number(a.case_sequence)===Number(row.case_sequence));
     return {
       ...publicSnapshot,
-      ...(includeTdFlags?{privateWorkflowSteps:_privateSteps}:{}),
+      ...(includeTdFlags?{privateWorkflowSteps:_privateSteps,
+        examinerStandard:row.case_snapshot.examinerStandard||null}:{}),
       caseKey:String(row.case_key),
       sequence:Number(row.case_sequence),
       caseVersion:Number(row.case_version),
