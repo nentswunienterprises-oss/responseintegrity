@@ -96,7 +96,10 @@ async function view(run:RunRow,includeTdFlags=false) {
           stepNumber:Number(a.step_number),operationKey:String(a.operation_key),
           recordedPayload:a.recorded_payload,recordedAt:a.recorded_at,
         });
-        return includeTdFlags?{...own,systemSnapshot:a.system_snapshot,riskFlags:a.risk_flags}:own;
+        const projected:typeof own&{systemSnapshot?:unknown;riskFlags?:string[]}=
+          includeTdFlags?{...own,systemSnapshot:a.system_snapshot,
+            riskFlags:Array.isArray(a.risk_flags)?a.risk_flags:[]}:own;
+        return projected;
       }),
     };
   });
