@@ -111,6 +111,7 @@ type SandboxTruthRow = {
   canonical_route: "normal_training" | "targeted_rediagnosis";
   canonical_targeted_rediagnosis_phase: TopicPhase | null;
   trajectory_seed: string;
+  behavior_model_version: 1 | 2;
   previous_trajectory_class: SandboxTrajectoryClass | null;
   continuity_tags: string[];
   recent_outcome_keys: string[];
@@ -658,6 +659,7 @@ async function ensureTrajectory(input: {
            truth.canonical_route,
            truth.canonical_targeted_rediagnosis_phase,
            truth.trajectory_seed,
+           truth.behavior_model_version,
            truth.previous_trajectory_class,
            truth.continuity_tags,
            truth.recent_outcome_keys,
@@ -697,6 +699,7 @@ async function ensureTrajectory(input: {
           ? String(row.canonical_targeted_rediagnosis_phase) as TopicPhase
           : null,
       trajectory_seed: String(row.trajectory_seed),
+      behavior_model_version: Number(row.behavior_model_version) as 1 | 2,
       previous_trajectory_class: row.previous_trajectory_class
         ? String(row.previous_trajectory_class) as SandboxTrajectoryClass
         : null,
@@ -775,10 +778,11 @@ async function ensureTrajectory(input: {
          canonical_progression_authority,
          canonical_route,
          trajectory_seed,
+         behavior_model_version,
          continuity_tags,
          recent_outcome_keys,
          prior_tracks_diverged
-       ) VALUES ($1,'Clarity','Low','building','normal_training',$2,'[]'::jsonb,'[]'::jsonb,false)`,
+       ) VALUES ($1,'Clarity','Low','building','normal_training',$2,2,'[]'::jsonb,'[]'::jsonb,false)`,
       [trajectory.id, trajectorySeed],
     );
     await client.query("COMMIT");
@@ -792,6 +796,7 @@ async function ensureTrajectory(input: {
         canonical_route: "normal_training",
         canonical_targeted_rediagnosis_phase: null,
         trajectory_seed: trajectorySeed,
+        behavior_model_version: 2,
         previous_trajectory_class: null,
         continuity_tags: [],
         recent_outcome_keys: [],
@@ -1371,6 +1376,7 @@ async function planNextRep(input: {
       repNumber: position.repNumber,
       sequenceNumber: input.bundle.trajectory.completed_rep_count + 1,
       previousTrajectoryClass: input.bundle.truth.previous_trajectory_class,
+      behaviorModelVersion: input.bundle.truth.behavior_model_version,
       continuityTags: input.bundle.truth.continuity_tags,
       earliestUnsupportedCapability:
         readiness.policyAvailable ? readiness.earliestUnsupportedCapability : null,
