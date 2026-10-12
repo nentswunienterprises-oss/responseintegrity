@@ -4,6 +4,7 @@ import type { TopicPhase } from "@shared/topicConditioningEngine";
 import type { PracticalBenchmarkProof } from "@shared/practicalBenchmarkPolicy";
 import { getCapabilityPracticalProofDefinition } from "@shared/capabilityPracticalEvidence";
 import { getPracticalCasePlan, type PracticalWorkStep } from "./practicalCasePlans";
+import { normalizePracticalDimensionObservations } from "@shared/practicalRepObservation";
 
 type Identity = {tutorAssignmentId:string;tutorId:string;proofKey:PracticalBenchmarkProof;runId:string};
 type RecordedAction = {stepNumber:number;operationKey:string;recordedPayload:any;systemSnapshot:any;recordedAt:string;riskFlags:string[]};
@@ -71,7 +72,10 @@ function publicStep(step:PracticalWorkStep,number:number){
       pressureLevel:x.constraints.pressureLevel,
     }))}};
  }
- return {number,...step,...(step.kind==="rep"?{registry:repRegistry(step)}:{})};
+ // An exam cannot give away the correct intervention classification before
+ // the Specialist independently reads the simulated student condition.
+ const {observedSupport:_canonicalPrivate,...visible}=step;
+ return {number,...visible,...(step.kind==="rep"?{registry:repRegistry(step)}:{})};
 }
 function validateAction(step:PracticalWorkStep,payload:Record<string,unknown>,prior:RecordedAction[]){
  const risks:string[]=[];
@@ -111,13 +115,11 @@ function validateAction(step:PracticalWorkStep,payload:Record<string,unknown>,pr
     decisionReason:prose(payload.decisionReason,"Intervention reason")};
  }else if(step.kind==="rep"){
   const registry=repRegistry(step);
-  const selections=payload.observationSelections;
-  if(!selections || typeof selections!=="object" || Array.isArray(selections))throw fail(400,"Complete the actual training rep observation fields.");
-  const raw=selections as Record<string,unknown>;
-  if(Object.keys(raw).length!==registry.fields.length)throw fail(400,"Every exact issued training observation field must be recorded.");
-  for(const field of registry.fields){
-    if(typeof raw[field.fieldKey]!=="string" || !field.options.some(o=>o.optionId===raw[field.fieldKey]))
-      throw fail(400,"Observation does not match the issued training registry: "+field.fieldKey);
+  let raw:ReturnType<typeof normalizePracticalDimensionObservations>;
+  try{
+    raw=normalizePracticalDimensionObservations(registry.fields,payload.observationSelections);
+  }catch(error){
+    throw fail(400,error instanceof Error?error.message:"Invalid RI-OS rep evidence.");
   }
   const intervention=select(payload.intervention,interventionOptions,"rep intervention");
   const status=select(payload.evidenceStatus,evidenceOptions,"rep evidence status");
@@ -130,6 +132,11 @@ function validateAction(step:PracticalWorkStep,payload:Record<string,unknown>,pr
     risks.push("observed_support_omitted");
   if((intervention!=="none"||status!=="observed")&&claim==="independent")
     risks.push("invalid_independence_claim");
+  const dimensionStatuses=Object.values(raw).map(x=>x.evidenceStatus);
+  if(dimensionStatuses.some(x=>x!=="observed")&&status==="observed")
+    risks.push("evidence_status_overstated");
+  if(dimensionStatuses.some(x=>x!=="observed")&&claim==="independent")
+    risks.push("unobserved_dimension_claimed_independent");
   const began=[...prior].reverse().find(x=>x.operationKey==="begin_rep" && Number(x.systemSnapshot?.repNumber)===step.repNumber);
   const serverElapsedSeconds=began?Math.max(0,Math.ceil((Date.now()-new Date(began.recordedAt).getTime())/1000)):null;
   result={observationSelections:raw,intervention,evidenceStatus:status,independenceClaim:claim,
