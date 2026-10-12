@@ -3,8 +3,8 @@ import { createHash } from "node:crypto";
 import { request } from "playwright";
 
 // Exact pinned Preview. Never fall back to a branch alias or Production.
-const base = "https://tt-confidence-pclvfyd7k-relief-works-technologies.vercel.app";
-const expectedSha = "fc8b8633bf6b23f3b3b89ed00d89c1eafdb8408f";
+const base = "https://tt-confidence-eznyld6um-relief-works-technologies.vercel.app";
+const expectedSha = "edb891c8e6629d4241702a37c2618b5771d470e0";
 const expectedDb = "jftlxeacphvbnhbsbpxc";
 const assignment = "836a839f-2f29-45c7-b8c2-aa501c95e1b0";
 const email = String(process.env.RI_PROOF_EMAIL || "").trim();
