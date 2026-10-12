@@ -26,6 +26,7 @@ import {
 } from "./responseIntegrityDrillRegistry";
 import type { TopicPhase } from "./topicConditioningEngine";
 import { SANDBOX_BEHAVIOR_PROFILE_MODEL_VERSION, isSandboxBehaviorTransitionPlausible, resolveSandboxBehaviorProfile, sandboxBehaviorObservableSignatureMultiplier, sandboxBehaviorProfileMultiplier, sandboxBehaviorTransitionMultiplier } from "./sandboxBehaviorProfiles";
+import { SANDBOX_BEHAVIOR_NARRATIVE_VERSION, renderSandboxBehaviorNarrativeV2 } from "./sandboxBehaviorNarrativesV2";
 import {
   getLegacyStatefulSandboxV1ScenarioTruthAudit,
 } from "./statefulSandboxV1ScenarioTruthAudit";
@@ -882,5 +883,98 @@ test("all four Training phases evaluate V4 rep-specific Sandbox observations wit
     });
     assert.equal(evaluated.systemOutcomeMatched,true,
       currentPhase+" produced divergent authority from identical evidence");
+  }
+});
+
+
+test("V2 narratives have 264 distinct evidence-faithful visible outcomes while V1 remains identical", () => {
+  assert.equal(SANDBOX_BEHAVIOR_NARRATIVE_VERSION, 2);
+  const seen = new Map<string, string>();
+  const counts: Record<string, number> = {};
+  for (const trainingPhase of [
+    "Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability",
+  ] as TopicPhase[]) {
+    const source = getDrillSchemaDefinitionByVersion("training", trainingPhase, 1);
+    const current = getDrillSchemaDefinition("training", trainingPhase);
+    assert.ok(source);
+    let phaseCount = 0;
+    for (const set of current.sets.filter(set => !set.modelingOnly)) {
+      const oldSet = source!.sets.find(candidate => candidate.setId === set.setId);
+      assert.ok(oldSet, "Missing legacy set for "+set.setId);
+      for (let rep = 1; rep <= set.reps; rep++) {
+        const versions: string[] = [];
+        for (let pattern = 1; pattern <= 8; pattern++) {
+          const key = set.setId + ".rep_" + rep + ".pattern_" + pattern;
+          const canonicalObservations = Object.fromEntries(
+            oldSet!.fields.map(baseField => {
+              const field = getFieldDefinitionForRep(oldSet!,rep-1,baseField.fieldKey) || baseField;
+              return [field.fieldKey,{
+                optionId:getRepPurposeId(oldSet!,rep-1)+"."+field.dimensionId+".option_1",
+                evidenceStatus:"observed" as const,
+              }];
+            }),
+          );
+          const authored:SandboxOutcomeDefinition = {
+            key,version:1,phase:trainingPhase,setId:set.setId,repNumber:rep,
+            studentBehavior:"Original historical narrative text stays immutable.",
+            canonicalObservations,trajectoryClass:"supported",weight:1,
+          };
+          const legacy = projectSandboxOutcomeToCurrentTrainingContract(authored,1,1);
+          const v2 = projectSandboxOutcomeToCurrentTrainingContract(authored,1,2);
+          assert.notEqual(legacy.studentBehavior,v2.studentBehavior,key+" did not change");
+          assert.equal(v2.studentBehavior,
+            renderSandboxBehaviorNarrativeV2({
+              phase:trainingPhase,setId:set.setId,outcomeKey:key,repNumber:rep,
+            }));
+          // Nothing other than the visible student's prose is permitted to change.
+          assert.deepEqual(
+            {...legacy,studentBehavior:"<not compared>"},
+            {...v2,studentBehavior:"<not compared>"},
+            key+" mutated canonical evidence, class or selection rules",
+          );
+          const text = v2.studentBehavior;
+          assert.ok(text.length >= 100 && text.length < 850,key+" has an unsuitable length");
+          assert.ok(!/\b(?:outcome[_ ]key|pattern_\d|rep_\d|evidence class|not_observed|confounded|near_stable|high maintenance)\b/i.test(text),
+            key+" exposed implementation or scoring language");
+          const previous = seen.get(text);
+          assert.equal(previous,undefined,key+" duplicates the exact visible text of "+previous);
+          seen.set(text,key);
+          versions.push(text);
+          phaseCount++;
+        }
+        assert.equal(new Set(versions).size,8,set.setId+" rep "+rep+" lacks variety");
+      }
+    }
+    counts[trainingPhase]=phaseCount;
+  }
+  assert.deepEqual(counts,{
+    Clarity:48,
+    "Structured Execution":72,
+    "Controlled Discomfort":72,
+    "Time Pressure Stability":72,
+  });
+  assert.equal(seen.size,264);
+  assert.equal(renderSandboxBehaviorNarrativeV2({
+    phase:"Clarity",setId:"clarity.identification",
+    outcomeKey:"clarity.identification.rep_1.pattern_99",repNumber:1,
+  }),null,"Unknown outcome patterns must fail closed");
+});
+
+test("V2 rep-to-rep conduct changes even when the same pattern repeats", () => {
+  for(const [phase,setId] of [
+    ["Clarity","clarity.identification"],
+    ["Structured Execution","structured_execution.independent_execution"],
+    ["Controlled Discomfort","controlled_discomfort.controlled_entry"],
+    ["Time Pressure Stability","time_pressure.structure_under_timer"],
+  ] as Array<[TopicPhase,string]>){
+    for(const pattern of [1,2,3,4,5,6,7,8]){
+      const versions=[1,2,3].map(repNumber=>
+        renderSandboxBehaviorNarrativeV2({
+          phase,setId,outcomeKey:setId+".rep_"+repNumber+".pattern_"+pattern,repNumber,
+        }),
+      );
+      assert.ok(versions.every(Boolean));
+      assert.equal(new Set(versions).size,3,phase+" pattern "+pattern+" repeats verbatim across reps");
+    }
   }
 });
