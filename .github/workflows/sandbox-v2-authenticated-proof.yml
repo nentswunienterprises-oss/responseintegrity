@@ -111,6 +111,33 @@ jobs:
               observations: form.rep.fields.length,
             }));
 
+            // Cross-mode read-only proof: the same private V2 identity must
+            // generate deterministic diagnostic and handover evidence.
+            for (const probe of [
+              {scope: 'diagnosis', startingPhase: 'Clarity', probeId: 'clarity.recognition'},
+              {scope: 'handover', startingPhase: 'Controlled Discomfort', probeId: null},
+            ]) {
+              const query = new URLSearchParams({
+                tutorAssignmentId: assignment,
+                studentId: student,
+                scope: probe.scope,
+                sourceContextId: 'sandbox-v2-crossmode-smoke',
+                topic,
+                startingPhase: probe.startingPhase,
+                sequenceNumber: '1',
+              });
+              if (probe.probeId) query.set('probeId', probe.probeId);
+              const first = await getJson('/api/tutor/sandbox-live-evidence?' + query);
+              const again = await getJson('/api/tutor/sandbox-live-evidence?' + query);
+              assert.ok(first.formId && first.studentBehavior, probe.scope + ' student response missing');
+              assert.equal(first.formId, again.formId, probe.scope + ' form identity changed');
+              assert.equal(first.studentBehavior, again.studentBehavior, probe.scope + ' replay changed conduct');
+              const serialized = JSON.stringify(first);
+              assert.ok(!serialized.includes('trajectory_seed'), 'Hidden trajectory seed leaked in '+probe.scope);
+              assert.ok(!serialized.includes('canonicalObservations'), 'Hidden observations leaked in '+probe.scope);
+              console.log('V2_CROSS_MODE_REPLAY_PASS=' + probe.scope);
+            }
+
             const url = base + '/operational/specialist/sandbox?' + new URLSearchParams({
               studentId: student, scheduledSessionId: session, topic, sandboxSession: '1',
             });
