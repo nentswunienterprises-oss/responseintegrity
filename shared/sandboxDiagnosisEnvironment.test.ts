@@ -202,3 +202,25 @@ test("Sandbox targeted diagnosis authority detects Specialist placement divergen
     "breakdown",
   );
 });
+
+test("Sandbox Diagnosis and Handover replay the same trajectory profile without changing evidence validity", () => {
+  const seed = "cross-mode-student-seed";
+  const outcomes = [
+    outcomeFor("clarity.recognition", "strong", "supported"),
+    outcomeFor("clarity.recognition", "uncertain", "conditional"),
+    outcomeFor("clarity.recognition", "unseen", "not_observed"),
+    outcomeFor("clarity.recognition", "confounded", "confounded"),
+  ];
+  const context = {
+    startingPhase: "Clarity" as const,
+    probeId: "clarity.recognition" as const,
+    sequenceNumber: 2,
+  };
+  for (const scope of ["diagnosis", "handover"]) {
+    const key = [seed, scope, "fixed-context"].join(":");
+    const first = selectSandboxDiagnosisOutcome({ seed: key, outcomes, context });
+    const second = selectSandboxDiagnosisOutcome({ seed: key, outcomes, context });
+    assert.equal(first.key, second.key);
+    assert.ok(outcomes.some((candidate) => candidate.key === first.key));
+  }
+});
