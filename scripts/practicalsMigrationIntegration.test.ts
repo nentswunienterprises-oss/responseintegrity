@@ -233,7 +233,7 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
     await assert.rejects(db.query(`DELETE FROM public.specialist_practical_recording_recovery_requests
       WHERE id=$1`,[recoveryId]),/immutable/);
     await assert.rejects(db.query(`UPDATE public.specialist_practical_benchmark_runs
-       SET active_case_index=2 WHERE id=$1`,[incidentRunId]),/incident must be resolved/);
+       SET active_case_index=2 WHERE id=$1`,[incidentRunId]),/recording incident permanently closes/);
     await db.query(`INSERT INTO public.specialist_practical_recording_recovery_decisions
       (request_id,reviewer_id,decision,rationale)
       VALUES($1,$2,'approve_repeat',$3)`,
