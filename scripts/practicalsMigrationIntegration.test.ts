@@ -229,7 +229,7 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
     await assert.rejects(db.query(`INSERT INTO public.specialist_practical_case_actions
       (run_id,case_sequence,step_number,operation_key,recorded_payload,system_snapshot)
       VALUES($1,1,1,'rep','{}'::jsonb,$2::jsonb)`,
-      [incidentRunId,JSON.stringify(incidentCase.workflowSteps[0])]),/held for the assigned TD/);
+      [incidentRunId,JSON.stringify(incidentCase.workflowSteps[0])]),/recording.*assigned TD/);
     await assert.rejects(db.query(`DELETE FROM public.specialist_practical_recording_recovery_requests
       WHERE id=$1`,[recoveryId]),/immutable/);
     await assert.rejects(db.query(`UPDATE public.specialist_practical_benchmark_runs
@@ -246,7 +246,7 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
     await assert.rejects(db.query(`INSERT INTO public.specialist_practical_case_actions
       (run_id,case_sequence,step_number,operation_key,recorded_payload,system_snapshot)
       VALUES($1,1,1,'rep','{}'::jsonb,$2::jsonb)`,
-      [incidentRunId,JSON.stringify(incidentCase.workflowSteps[0])]),/held for the assigned TD/);
+      [incidentRunId,JSON.stringify(incidentCase.workflowSteps[0])]),/recording.*assigned TD/);
     await assert.rejects(db.query(`DELETE FROM public.specialist_practical_recording_recovery_decisions
       WHERE request_id=$1`,[recoveryId]),/immutable/);
     const nextRun=await db.query(`INSERT INTO public.specialist_practical_benchmark_runs
