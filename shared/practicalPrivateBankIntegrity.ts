@@ -25,8 +25,9 @@ function isSuitableSet(id:string|undefined,phase:string|undefined){
 /**
  * Every sealed case must contain the minimum real operating cycle. No case can
  * be made artificially easier with 'configure+decide' or free-text narration.
- * Each rep is started in its own persisted timestamped operation before any
- * canonical synthetic student work is revealed.
+ * Live Prepare/Execute reps begin through a separate timestamped operation.
+ * Evidence reviews instead classify previously recorded fictional reps, never
+ * fabricate a new rep start for historical work.
  */
 export function assertPracticalCaseExecutable(steps:readonly PracticalSecretStep[],
   proof:PracticalBenchmarkProof,phase:string,sequence:number){
@@ -34,9 +35,9 @@ export function assertPracticalCaseExecutable(steps:readonly PracticalSecretStep
   if(steps.length<4||steps.length>30||steps[steps.length-1].kind!=="decide")invalid();
   if(proof!=="evidence"&&steps[0].kind!=="configure")invalid();
   if(proof==="execute"&&!steps.some(s=>s.kind==="respond"||s.kind==="adaptive"))invalid();
-  if(proof==="evidence" && steps.some(s=>s.kind==="configure"||s.kind==="adaptive"))invalid();
+  if(proof==="evidence" && steps.some(s=>s.kind==="configure"||s.kind==="adaptive"||s.kind==="begin_rep"))invalid();
   const observations=steps.filter(s=>s.kind==="rep");
-  if(observations.length<(proof==="evidence"?2:1))invalid();
+  if(observations.length<(proof==="evidence"?3:1))invalid();
   const unique=new Set<number>();
   for(let i=0;i<steps.length;i++){
     const item=steps[i];
@@ -52,9 +53,9 @@ export function assertPracticalCaseExecutable(steps:readonly PracticalSecretStep
          ||(item.phase!==phase && !(proof==="prepare"&&sequence===3&&item.phase==="Structured Execution"))
          ||!observedSupports.has(String(item.observedSupport))
          ||!item.studentBehavior||item.studentBehavior.trim().length<20
-         ||!previous||previous.kind!=="begin_rep"
-         ||previous.repNumber!==item.repNumber
-         ||previous.phase!==item.phase||previous.setId!==item.setId
+         ||(proof!=="evidence"&&(!previous||previous.kind!=="begin_rep"
+           ||previous.repNumber!==item.repNumber
+           ||previous.phase!==item.phase||previous.setId!==item.setId))
          ||unique.has(item.repNumber))invalid();
       unique.add(item.repNumber);
     }
