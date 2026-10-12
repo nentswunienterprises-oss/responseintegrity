@@ -43,6 +43,7 @@ import {
 import { trainingRawObservationRequiresPrerequisiteSentinel } from "@shared/trainingEvidenceEvaluator";
 import type { TopicPhase, TopicStability } from "@shared/topicConditioningEngine";
 import { normalizeCapabilityProgressionState, type ProgressionAuthority } from "@shared/capabilityProgressionAuthority";
+import { SANDBOX_BEHAVIOR_NARRATIVE_VERSION } from "@shared/sandboxBehaviorNarrativesV2";
 import {
   sandboxTopicKey,
   resolveSandboxTopicSeed,
@@ -1392,6 +1393,9 @@ async function planNextRep(input: {
   if (!selectedRecord) throw new Error("Selected Sandbox outcome could not be resolved.");
 
   const eventSequence = input.bundle.trajectory.completed_rep_count + 1;
+  // Revisions to simulated student conduct must not reuse the form identity
+  // of a previously displayed response. Legacy V1 identities stay byte-for-byte
+  // unchanged; V2 forces a fresh form after a reviewed narrative revision.
   const eventFormId = digest(
     [
       "sandbox-rep-form-v2",
@@ -1399,6 +1403,8 @@ async function planNextRep(input: {
       input.bundle.trajectory.session_number,
       eventSequence,
       selectedRecord.publicRef,
+      ...(input.bundle.truth.behavior_model_version === 2
+        ? ["narrative-v" + SANDBOX_BEHAVIOR_NARRATIVE_VERSION] : []),
     ].join(":"),
   ).slice(0, 32);
 
