@@ -5,6 +5,7 @@ on:
       - 'shared/practicalExecuteChallenge*'
       - 'shared/practicalBenchmarkPolicy*'
       - 'shared/practicalRepObservation*'
+      - 'shared/practicalPrivateBankIntegrity*'
       - 'server/practicalBenchmarkBank*'
       - 'server/practicalBenchmarkRuns.ts'
       - 'server/privatePracticalBenchmarkBank.ts'
