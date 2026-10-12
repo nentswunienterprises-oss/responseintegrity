@@ -245,6 +245,15 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       VALUES($1,$2,$3,'evidence',2,2,1,true,true,true,true)`,
       [incidentRunId,assignmentId,tutorId]);
     const incidentCase=fixtureCase("evidence",1);
+    // Forging a published/changed case snapshot cannot pass the database gate,
+    // even for a role that can create a run in the isolated fixture.
+    await assert.rejects(db.query(`INSERT INTO public.specialist_practical_benchmark_case_reveals
+      (run_id,case_sequence,case_key,case_version,case_snapshot)
+      VALUES($1,1,$2,2,$3::jsonb)`,[
+        incidentRunId,incidentCase.caseKey,
+        JSON.stringify({...incidentCase,situation:"Forged public simulation substituted for sealed source."}),
+      ]),/sealed private bank/);
+
     await db.query(`INSERT INTO public.specialist_practical_benchmark_case_reveals
       (run_id,case_sequence,case_key,case_version,case_snapshot)
       VALUES($1,1,$2,2,$3::jsonb)`,
