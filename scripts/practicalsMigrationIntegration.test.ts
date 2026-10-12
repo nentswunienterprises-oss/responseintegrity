@@ -208,8 +208,9 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
     const incidentRunId=randomUUID();
     await db.query(`INSERT INTO public.specialist_practical_benchmark_runs
       (id,tutor_assignment_id,tutor_id,proof_key,proof_version,bank_version,
-       attempt_number,preflight_attested,recording_started_before_reveal_attested)
-      VALUES($1,$2,$3,'evidence',2,1,1,true,true)`,
+       attempt_number,preflight_attested,recording_started_before_reveal_attested,
+       consent_to_recording_attested,privacy_scope_attested)
+      VALUES($1,$2,$3,'evidence',2,1,1,true,true,true,true)`,
       [incidentRunId,assignmentId,tutorId]);
     const incidentCase={caseKey:"evidence.assistance",caseVersion:1,sequence:1,
       workflowSteps:[{kind:"rep",label:"Recorded synthetic rep",prompt:"CI only"}]};
@@ -246,15 +247,17 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       WHERE request_id=$1`,[recoveryId]),/immutable/);
     const nextRun=await db.query(`INSERT INTO public.specialist_practical_benchmark_runs
       (tutor_assignment_id,tutor_id,proof_key,proof_version,bank_version,attempt_number,
-       preflight_attested,recording_started_before_reveal_attested)
-      VALUES($1,$2,'evidence',2,1,2,true,true) RETURNING id`,[assignmentId,tutorId]);
+       preflight_attested,recording_started_before_reveal_attested,
+       consent_to_recording_attested,privacy_scope_attested)
+      VALUES($1,$2,'evidence',2,1,2,true,true,true,true) RETURNING id`,[assignmentId,tutorId]);
     assert.ok(nextRun.rows[0].id,"One separately issued attempt follows the immutable TD recovery");
 
     const runId=randomUUID();
     await db.query(`INSERT INTO public.specialist_practical_benchmark_runs
       (id,tutor_assignment_id,tutor_id,proof_key,proof_version,bank_version,
-       attempt_number,preflight_attested,recording_started_before_reveal_attested)
-      VALUES($1,$2,$3,'prepare',2,1,1,true,true)`,[runId,assignmentId,tutorId]);
+       attempt_number,preflight_attested,recording_started_before_reveal_attested,
+       consent_to_recording_attested,privacy_scope_attested)
+      VALUES($1,$2,$3,'prepare',2,1,1,true,true,true,true)`,[runId,assignmentId,tutorId]);
     const fixtureSteps=(i:number)=>[
       {kind:"configure",label:"Synthetic setup "+i,prompt:"Only a controlled PostgreSQL fixture"},
       {kind:"rep",label:"Synthetic real rep "+i,prompt:"Only immutable fake evidence"},
