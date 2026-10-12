@@ -11,6 +11,7 @@ import {
   type PracticalVideoVerification,
 } from "@shared/practicalBenchmarkPolicy";
 import { apiRequest } from "@/lib/queryClient";
+import PracticalRecordingRecoveryQueue from "@/components/practicals/PracticalRecordingRecoveryQueue";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -289,6 +290,8 @@ export default function CapabilityPracticalReview() {
             Compare the permanent, system-assigned Execute transcript with the recording. Judge observable execution against the frozen rubric; the system derives the outcome.
           </p>
         </div>
+
+        <PracticalRecordingRecoveryQueue />
 
         {queueQuery.error && (
           <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>Practical evidence queue could not be loaded.</AlertDescription></Alert>
