@@ -502,6 +502,7 @@ export async function reviewPracticalCapabilityEvidence(input: {
     "unobserved_claimed_independent","assisted_claimed_independent",
     "unobserved_rep_claimed_observed","interrupted_timer_claimed_valid",
     "observed_support_omitted","invalid_independence_claim",
+    "evidence_status_overstated","unobserved_dimension_claimed_independent",
   ]);
   if(operationalRisks.some(risk=>criticalOperationalRisks.has(risk)) &&
      derived.outcome!=="integrity_review")
