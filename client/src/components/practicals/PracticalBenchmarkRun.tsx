@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import PracticalCaseWorkbench from "./PracticalCaseWorkbench";
+import { PracticalRecordingRecoveryControls } from "./PracticalRecordingRecoveryControls";
 import {
   PRACTICAL_BENCHMARK_CASE_COUNT,
   PRACTICAL_VIDEO_REQUIREMENTS,
@@ -127,6 +128,9 @@ export default function PracticalBenchmarkRun({
           <p className="text-sm"><strong>Demonstrate live:</strong> {item.liveDemonstration}</p>
           <p className="text-xs text-muted-foreground">Recorded operations: {item.completedOperations} of {item.requiredOperations}</p>
         </div>)}
+        {q.data.runId&&!q.data.completed&&
+          <PracticalRecordingRecoveryControls
+            runId={q.data.runId} assignmentId={assignmentId} proofKey={proofKey}/>}
         {current&&!q.data.completed&&q.data.runId&&
           <PracticalCaseWorkbench runId={q.data.runId} caseSequence={current.sequence}
             proofKey={proofKey} assignmentId={assignmentId} onExecuteComplete={onExecuteComplete}/>}
