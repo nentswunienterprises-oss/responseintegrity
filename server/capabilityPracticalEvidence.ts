@@ -513,7 +513,7 @@ export async function reviewPracticalCapabilityEvidence(input: {
       "The saved examination operations contradict at least one issued system condition. An approved result cannot conceal that discrepancy.");
   if(derived.outcome==="approved" && (
     verificationBlockers.length>0 ||
-    input.benchmarkCaseReviews.some(c=>c.judgment!=="clear")
+    input.benchmarkCaseReviews.some(c=>c.judgment!=="clear"||c.videoTraceMatched!==true)
   ))throw httpError(409,
     "Cannot approve a recording with gaps, edits, missing setup, duration contradictions or a non-Clear issued case. Mark the corresponding observable criterion and document the failure.");
   if (access.row.proof_key === "execute") {
