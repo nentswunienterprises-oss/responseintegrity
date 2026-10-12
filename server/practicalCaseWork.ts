@@ -199,8 +199,11 @@ function projectWork(w:Awaited<ReturnType<typeof fetchWork>>){
   stepCount:w.steps.length,completed:w.events.length===w.steps.length,
   completedSteps:w.events.length,
   currentStep:current?publicStep(current,w.events.length+1):null,
-  // Integrity/risk flags are examiner-only, not coaching hints.
-  events:w.events.map(({riskFlags:_privateRisk,...event})=>event),
+  // Return only the Specialist's own saved operations. The private issued
+  // snapshots include unrevealed student behaviours and examiner-only truth.
+  events:w.events.map(({stepNumber,operationKey,recordedPayload,recordedAt})=>({
+    stepNumber,operationKey,recordedPayload,recordedAt,
+  })),
  };
 }
 export async function getPracticalCaseWork(input:Identity){

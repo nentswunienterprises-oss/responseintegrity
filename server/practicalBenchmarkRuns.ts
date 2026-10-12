@@ -106,8 +106,9 @@ async function view(run:RunRow,includeTdFlags=false) {
       requiredOperations:Array.isArray(_privateSteps)?_privateSteps.length:0,
       operationHistory:trace.map(a=>({
         stepNumber:Number(a.step_number),operationKey:a.operation_key,
-        recordedPayload:a.recorded_payload,systemSnapshot:a.system_snapshot,
-        ...(includeTdFlags?{riskFlags:a.risk_flags}:{}),recordedAt:a.recorded_at,
+        recordedPayload:a.recorded_payload,
+        ...(includeTdFlags?{systemSnapshot:a.system_snapshot,riskFlags:a.risk_flags}:{}),
+        recordedAt:a.recorded_at,
       })),
     };
   });
