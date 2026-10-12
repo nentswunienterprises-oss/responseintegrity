@@ -126,9 +126,13 @@ jobs:
                 scheduledSessionId:booking(first.entry.index),
                 topic:first.entry.topic,sandboxSession:"1"});
             await page.goto(route,{waitUntil:"domcontentloaded",timeout:90000});
+            await page.waitForLoadState("networkidle",{timeout:10000}).catch(()=>{});
+            console.log("V2_BROWSER_DIAGNOSTIC_LOCATION="+new URL(page.url()).pathname);
+            console.log("V2_BROWSER_DIAGNOSTIC_TITLE="+(await page.title()).slice(0,120));
+            console.log("V2_BROWSER_DIAGNOSTIC_BODY="+(await page.locator("body").innerText()).slice(0,650));
             // The real Specialist UI starts with a preparation boundary:
             // simulated student conduct becomes visible only after Begin Rep.
-            await page.getByRole("button",{name:"Begin Rep 1"}).click({timeout:45000});
+            await page.getByRole("button",{name:"Begin Rep 1"}).click({timeout:9000});
             await page.getByText(first.entry.scene,{exact:false}).first().waitFor({
               state:"visible",timeout:45000,
             });
