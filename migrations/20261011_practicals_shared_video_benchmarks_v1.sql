@@ -13,7 +13,7 @@ CREATE TABLE public.specialist_practical_benchmark_runs (
   attempt_number integer NOT NULL CHECK (attempt_number>0),
   preflight_attested boolean NOT NULL CHECK (preflight_attested=true),
   recording_started_before_reveal_attested boolean NOT NULL CHECK (recording_started_before_reveal_attested=true),
-  status varchar NOT NULL DEFAULT 'active' CHECK (status IN ('active','complete')),
+  status varchar NOT NULL DEFAULT 'active' CHECK (status IN ('active','complete','abandoned')),
   active_case_index integer NOT NULL DEFAULT 1 CHECK (active_case_index BETWEEN 1 AND 4),
   started_at timestamptz NOT NULL DEFAULT now(),
   completed_at timestamptz,
@@ -95,6 +95,40 @@ CREATE TRIGGER trg_practical_case_actions_guard
   BEFORE INSERT OR UPDATE OR DELETE ON public.specialist_practical_case_actions
   FOR EACH ROW EXECUTE FUNCTION private.guard_practical_case_action_append();
 
+
+-- A broken original recording is never overwritten or silently restarted.
+-- A new attempt requires a recorded decision by the assigned TD.
+CREATE TABLE public.specialist_practical_recording_recovery_requests (
+  id varchar PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  run_id varchar NOT NULL UNIQUE REFERENCES public.specialist_practical_benchmark_runs(id),
+  reason varchar NOT NULL CHECK (reason IN
+    ('recording_interrupted','recording_unusable','accessibility_failure')),
+  incident_note text NOT NULL CHECK (length(btrim(incident_note)) BETWEEN 30 AND 3000),
+  requested_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.specialist_practical_recording_recovery_requests ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.specialist_practical_recording_recovery_requests FROM PUBLIC,anon,authenticated;
+
+CREATE TABLE public.specialist_practical_recording_recovery_decisions (
+  id varchar PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  request_id varchar NOT NULL UNIQUE REFERENCES public.specialist_practical_recording_recovery_requests(id),
+  reviewer_id varchar NOT NULL REFERENCES public.users(id),
+  decision varchar NOT NULL CHECK (decision IN ('approve_repeat','deny','integrity_review')),
+  rationale text NOT NULL CHECK (length(btrim(rationale)) BETWEEN 30 AND 3000),
+  decided_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.specialist_practical_recording_recovery_decisions ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.specialist_practical_recording_recovery_decisions FROM PUBLIC,anon,authenticated;
+
+CREATE TRIGGER trg_practical_recovery_request_immutable
+  BEFORE UPDATE OR DELETE ON public.specialist_practical_recording_recovery_requests
+  FOR EACH ROW EXECUTE FUNCTION private.reject_practical_execute_mutation();
+CREATE TRIGGER trg_practical_recovery_decision_immutable
+  BEFORE UPDATE OR DELETE ON public.specialist_practical_recording_recovery_decisions
+  FOR EACH ROW EXECUTE FUNCTION private.reject_practical_execute_mutation();
+CREATE INDEX idx_practical_recovery_reviewer
+  ON public.specialist_practical_recording_recovery_requests(run_id,requested_at);
+
 -- Current protocol revisions become mandatory. Old proof records remain
 -- historical, but cannot stand in for the new issued benchmark/video.
 ALTER TABLE public.specialist_capability_practical_evidence
@@ -127,6 +161,31 @@ CREATE TRIGGER trg_practical_benchmark_reveal_immutable
 CREATE OR REPLACE FUNCTION private.guard_practical_benchmark_run_progress()
 RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $$ BEGIN
   IF TG_OP='DELETE' THEN RAISE EXCEPTION 'Practicals benchmark cannot be erased or restarted'; END IF;
+  -- Only the assigned TD's immutable, approved recovery permits retirement.
+  -- The attempt's case index, original actions and timestamps are retained.
+  IF OLD.status='active' AND NEW.status='abandoned'
+     AND NEW.active_case_index=OLD.active_case_index
+     AND NEW.completed_at IS NOT NULL
+     AND NEW.id=OLD.id
+     AND NEW.tutor_assignment_id=OLD.tutor_assignment_id
+     AND NEW.tutor_id=OLD.tutor_id
+     AND NEW.proof_key=OLD.proof_key
+     AND NEW.proof_version=OLD.proof_version
+     AND NEW.bank_version=OLD.bank_version
+     AND NEW.attempt_number=OLD.attempt_number
+     AND NEW.preflight_attested=OLD.preflight_attested
+     AND NEW.recording_started_before_reveal_attested=OLD.recording_started_before_reveal_attested
+     AND NEW.started_at=OLD.started_at
+     AND EXISTS (
+       SELECT 1
+       FROM public.specialist_practical_recording_recovery_requests req
+       JOIN public.specialist_practical_recording_recovery_decisions dec
+         ON dec.request_id=req.id AND dec.decision='approve_repeat'
+       JOIN public.tutor_assignments ta ON ta.id=OLD.tutor_assignment_id
+       JOIN public.pods p ON p.id=ta.pod_id
+       WHERE req.run_id=OLD.id AND p.td_id=dec.reviewer_id
+     )
+  THEN RETURN NEW; END IF;
   IF OLD.status <> 'active' OR NEW.status NOT IN ('active','complete')
      OR NEW.id IS DISTINCT FROM OLD.id
      OR NEW.tutor_assignment_id IS DISTINCT FROM OLD.tutor_assignment_id
