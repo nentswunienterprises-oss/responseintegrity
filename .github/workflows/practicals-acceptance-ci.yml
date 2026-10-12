@@ -7,6 +7,7 @@ on:
       - 'shared/practicalRepObservation*'
       - 'server/practicalBenchmarkBank*'
       - 'server/practicalBenchmarkRuns.ts'
+      - 'server/privatePracticalBenchmarkBank.ts'
       - 'server/practicalCasePlans*'
       - 'server/practicalCaseWork.ts'
       - 'server/practicalRecordingRecovery.ts'
