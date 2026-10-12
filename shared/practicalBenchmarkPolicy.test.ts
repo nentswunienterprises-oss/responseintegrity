@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   PRACTICAL_BENCHMARK_CASE_COUNT,
   projectSpecialistPracticalActionEvent,
+  projectPracticalSetupForSpecialist,
   resolvePracticalAttempt,
   validatePracticalRecordingDeclaration,
   validateCaseReviews,
@@ -104,4 +105,15 @@ test("already submitted, approved or integrity-held Practical cannot silently is
  }
  assert.equal(resolvePracticalAttempt({attempt_number:1,outcome:"repeat_required"},
    {attempt_number:1,status:"complete",recovery_request_id:null,recovery_decision:null}).attemptNumber,2);
+});
+
+test("candidate setup never reveals the canonical assigned drill, even before a save",()=>{
+ const sealed={kind:"configure",phase:"Clarity",setId:"clarity.identification",
+   prompt:"Select the correct drill from the issued training registry."};
+ const candidate=projectPracticalSetupForSpecialist(sealed);
+ assert.equal("setId" in candidate,false);
+ assert.equal(candidate.kind,"configure");
+ assert.equal(candidate.phase,"Clarity");
+ assert.equal(candidate.prompt,sealed.prompt);
+ assert.equal(sealed.setId,"clarity.identification");
 });
