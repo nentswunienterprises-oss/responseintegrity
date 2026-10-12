@@ -1,7 +1,7 @@
 import { pool } from "./db";
 import { getDrillSchemaDefinition, getEvidenceSelectionIdentity, getFieldDefinitionsForRep } from "@shared/responseIntegrityDrillRegistry";
 import type { TopicPhase } from "@shared/topicConditioningEngine";
-import type { PracticalBenchmarkProof } from "@shared/practicalBenchmarkPolicy";
+import { projectSpecialistPracticalActionEvent, type PracticalBenchmarkProof } from "@shared/practicalBenchmarkPolicy";
 import { getCapabilityPracticalProofDefinition } from "@shared/capabilityPracticalEvidence";
 import { getPracticalCasePlan, type PracticalWorkStep } from "./practicalCasePlans";
 import { normalizePracticalDimensionObservations } from "@shared/practicalRepObservation";
@@ -201,9 +201,7 @@ function projectWork(w:Awaited<ReturnType<typeof fetchWork>>){
   currentStep:current?publicStep(current,w.events.length+1):null,
   // Return only the Specialist's own saved operations. The private issued
   // snapshots include unrevealed student behaviours and examiner-only truth.
-  events:w.events.map(({stepNumber,operationKey,recordedPayload,recordedAt})=>({
-    stepNumber,operationKey,recordedPayload,recordedAt,
-  })),
+  events:w.events.map(event=>projectSpecialistPracticalActionEvent(event)),
  };
 }
 export async function getPracticalCaseWork(input:Identity){

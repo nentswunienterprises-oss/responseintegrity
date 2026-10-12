@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   PRACTICAL_BENCHMARK_CASE_COUNT,
+  projectSpecialistPracticalActionEvent,
   validatePracticalRecordingDeclaration,
   validateCaseReviews,
   validatePracticalVideoVerification,
@@ -53,4 +54,18 @@ test("TD cannot approve interrupted, edited, off-camera or invalid-length origin
     {noRealStudentDataOrBystanders:false},
     {observedDurationSeconds:0},{observedDurationSeconds:-1},{observedDurationSeconds:900.5}
   ]) assert.ok(validatePracticalVideoVerification("execute",{...clean,...mutation}).length>0);
+});
+
+test("Specialist operation history excludes examiner truth and risk flags",()=>{
+ const raw={
+   stepNumber:1,operationKey:"begin_rep",recordedPayload:{studentFacingResponse:"Candidate own conduct"},
+   recordedAt:"2026-10-12T04:00:00Z",
+   systemSnapshot:{observedSupport:"unobserved",studentBehavior:"Private future response"},
+   riskFlags:["canonical_integrity_breach"],
+ };
+ const publicView=projectSpecialistPracticalActionEvent(raw);
+ assert.equal("systemSnapshot" in publicView,false);
+ assert.equal("riskFlags" in publicView,false);
+ assert.deepEqual(Object.keys(publicView).sort(),["operationKey","recordedAt","recordedPayload","stepNumber"].sort());
+ assert.equal(publicView.recordedPayload.studentFacingResponse,raw.recordedPayload.studentFacingResponse);
 });

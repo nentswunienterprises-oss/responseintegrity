@@ -4,6 +4,7 @@ import { getPracticalBenchmarkCase, getPracticalBenchmarkCaseKeys } from "./prac
 import {
   PRACTICAL_BENCHMARK_VERSION,
   PRACTICAL_BENCHMARK_CASE_COUNT,
+  projectSpecialistPracticalActionEvent,
   type PracticalBenchmarkProof,
 } from "@shared/practicalBenchmarkPolicy";
 import { getCapabilityPracticalProofDefinition } from "@shared/capabilityPracticalEvidence";
@@ -16,7 +17,7 @@ type RunInput = {tutorAssignmentId:string;tutorId:string;proofKey:PracticalBench
 type RunRow = {
   id:string;tutor_assignment_id:string;tutor_id:string;proof_key:string;
   proof_version:number;attempt_number:number;bank_version:number;
-  status:"active"|"complete";active_case_index:number;
+  status:"active"|"complete"|"abandoned";active_case_index:number;
   started_at:Date|string;completed_at:Date|string|null;
 };
 const sqlRun=`SELECT id,tutor_assignment_id,tutor_id,proof_key,proof_version,
@@ -104,12 +105,13 @@ async function view(run:RunRow,includeTdFlags=false) {
       revealedAt:row.revealed_at,
       completedOperations:trace.length,
       requiredOperations:Array.isArray(_privateSteps)?_privateSteps.length:0,
-      operationHistory:trace.map(a=>({
-        stepNumber:Number(a.step_number),operationKey:a.operation_key,
-        recordedPayload:a.recorded_payload,
-        ...(includeTdFlags?{systemSnapshot:a.system_snapshot,riskFlags:a.risk_flags}:{}),
-        recordedAt:a.recorded_at,
-      })),
+      operationHistory:trace.map(a=>{
+        const own=projectSpecialistPracticalActionEvent({
+          stepNumber:Number(a.step_number),operationKey:String(a.operation_key),
+          recordedPayload:a.recorded_payload,recordedAt:a.recorded_at,
+        });
+        return includeTdFlags?{...own,systemSnapshot:a.system_snapshot,riskFlags:a.risk_flags}:own;
+      }),
     };
   });
   return {

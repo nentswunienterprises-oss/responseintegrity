@@ -14,6 +14,20 @@ export const PRACTICAL_BENCHMARK_CASE_COUNT = 3;
 export type PracticalBenchmarkProof = "prepare" | "execute" | "evidence";
 export type PracticalCaseJudgment = "clear" | "partial" | "fail";
 
+/** Specialists never receive sealed scenario truth or examiner-only integrity flags. */
+export function projectSpecialistPracticalActionEvent(input:{
+  stepNumber:number;operationKey:string;
+  recordedPayload:Record<string,unknown>;recordedAt:string;
+  systemSnapshot?:unknown;riskFlags?:unknown;
+}) {
+  return {
+    stepNumber:input.stepNumber,
+    operationKey:input.operationKey,
+    recordedPayload:input.recordedPayload,
+    recordedAt:input.recordedAt,
+  };
+}
+
 // Initial engineering time guesses are non-binding. Durations are recorded for
 // calibration; observable work and integrity govern approval.
 
