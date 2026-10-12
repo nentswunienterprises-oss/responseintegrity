@@ -142,8 +142,8 @@ function PracticalWorkStepForm({step,onSave,pending,onExecuteComplete,assignment
      {(step.registry?.fields||[]).map(f=>{
        const current=observations[f.fieldKey];
        return <LiveObservationField key={f.fieldKey}
-         question={liveObservationQuestion(step.phase||"",f.dimensionId.replaceAll("."," "))}
-         label={liveObservationLabel(step.phase||"",f.dimensionId.replaceAll("."," "))}
+         question={liveObservationQuestion(f.dimensionId,f.dimensionId.replaceAll("."," "))}
+         label={liveObservationLabel(f.dimensionId,f.dimensionId.replaceAll("."," "))}
          options={f.options.map(o=>({id:o.optionId,label:o.label}))}
          selected={current?.evidenceStatus==="observed"?current.optionId:null}
          onSelect={optionId=>setObservations(x=>({...x,[f.fieldKey]:{optionId,evidenceStatus:"observed"}}))}
