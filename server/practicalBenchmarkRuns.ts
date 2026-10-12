@@ -138,8 +138,12 @@ export async function getBenchmarkRunStatus(input:RunInput) {
   return view(run);
 }
 
-export async function startBenchmarkRun(input:RunInput & {preflightConfirmed:boolean;recordingStartedBeforeReveal:boolean}) {
-  if(input.preflightConfirmed!==true || input.recordingStartedBeforeReveal!==true)
+export async function startBenchmarkRun(input:RunInput & {
+  preflightConfirmed:boolean;recordingStartedBeforeReveal:boolean;
+  consentToRecording:boolean;privacyScopeConfirmed:boolean;
+}) {
+  if(input.preflightConfirmed!==true || input.recordingStartedBeforeReveal!==true ||
+     input.consentToRecording!==true || input.privacyScopeConfirmed!==true)
     throw fail(400,"A visible tools/environment preflight and a recording started before case reveal are required.");
   const eligibility=await eligibleAttempt(input);
   if(!eligibility.allowed)throw fail(409,eligibility.reason||"No Practical attempt available.");
@@ -154,8 +158,9 @@ export async function startBenchmarkRun(input:RunInput & {preflightConfirmed:boo
     const insert=await client.query(
       `INSERT INTO public.specialist_practical_benchmark_runs
         (id,tutor_assignment_id,tutor_id,proof_key,proof_version,bank_version,
-         attempt_number,preflight_attested,recording_started_before_reveal_attested)
-       VALUES($1,$2,$3,$4,$5,$6,$7,true,true)
+         attempt_number,preflight_attested,recording_started_before_reveal_attested,
+         consent_to_recording_attested,privacy_scope_attested)
+       VALUES($1,$2,$3,$4,$5,$6,$7,true,true,true,true)
        ON CONFLICT (tutor_assignment_id,proof_key,proof_version,attempt_number)
        DO NOTHING RETURNING id`,
       [randomUUID(),input.tutorAssignmentId,input.tutorId,input.proofKey,
