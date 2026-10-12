@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {getPracticalBenchmarkCase,getPracticalBenchmarkCaseKeys,PUBLIC_PRACTICAL_PROTOTYPE_VERSION} from "./practicalBenchmarkBank";
 import {PRACTICAL_BENCHMARK_VERSION} from "@shared/practicalBenchmarkPolicy";
 
-test("every Specialist sees the exact same THREE fixed, versioned cases per assessment",()=>{
+test("historical public v1 prototype has three comparable CI-only cases per proof",()=>{
   for(const proof of ["prepare","execute","evidence"] as const) {
     const cases=[1,2,3].map(index=>getPracticalBenchmarkCase(proof,index));
     assert.ok(cases.every(Boolean));
