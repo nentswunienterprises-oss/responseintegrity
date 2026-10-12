@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { pool } from "./db";
-import { getPracticalBenchmarkCase, getPracticalBenchmarkCaseKeys } from "./practicalBenchmarkBank";
+import { loadPrivatePracticalBank } from "./privatePracticalBenchmarkBank";
 import {
   PRACTICAL_BENCHMARK_VERSION,
   PRACTICAL_BENCHMARK_CASE_COUNT,
@@ -119,8 +119,17 @@ export async function getBenchmarkRunStatus(input:RunInput) {
     requiredCases:PRACTICAL_BENCHMARK_CASE_COUNT,
   };
   const run=await findRun(input,eligibility.attemptNumber);
-  if(!run)return {started:false as const,allowed:true,reason:null,completed:false,
-    requiredCases:PRACTICAL_BENCHMARK_CASE_COUNT,attemptNumber:eligibility.attemptNumber};
+  if(!run){
+    try{
+      await loadPrivatePracticalBank(input.proofKey);
+      return {started:false as const,allowed:true,reason:null,completed:false,
+        requiredCases:PRACTICAL_BENCHMARK_CASE_COUNT,attemptNumber:eligibility.attemptNumber};
+    }catch{
+      return {started:false as const,allowed:false,completed:false,
+        reason:"The confidential Practicals bank is not provisioned. Public sample cases cannot qualify a Specialist.",
+        requiredCases:PRACTICAL_BENCHMARK_CASE_COUNT};
+    }
+  }
   return view(run);
 }
 
@@ -136,8 +145,9 @@ export async function startBenchmarkRun(input:RunInput & {
   const existing=await findRun(input,eligibility.attemptNumber);
   if(existing)return view(existing);
 
-  const first=getPracticalBenchmarkCase(input.proofKey,1);
-  if(!first)throw fail(500,"The shared case bank is unavailable.");
+  const privateCases=await loadPrivatePracticalBank(input.proofKey);
+  const first=privateCases[0];
+  if(!first)throw fail(409,"A genuinely private, complete Practicals bank is required.");
   const client=await pool.connect();
   try {
     await client.query("BEGIN");
@@ -173,6 +183,7 @@ export async function advanceBenchmarkRun(input:RunInput & {
 }) {
   const eligibility=await eligibleAttempt(input);
   if(!eligibility.allowed)throw fail(409,eligibility.reason||"No Practical attempt available.");
+  const privateCases=await loadPrivatePracticalBank(input.proofKey);
   const client=await pool.connect();
   try {
     await client.query("BEGIN");
@@ -187,7 +198,7 @@ export async function advanceBenchmarkRun(input:RunInput & {
     const current=Number(run.active_case_index);
     if(input.action==="next"){
       if(current>=PRACTICAL_BENCHMARK_CASE_COUNT)throw fail(409,"Every case is already revealed. Finish the current recording.");
-      const next=getPracticalBenchmarkCase(input.proofKey,current+1);
+      const next=privateCases[current];
       if(!next)throw fail(409,"The expected shared case is unavailable.");
       // For Execute, its existing adaptive challenge must be completed during
       // case 2 before the Specialist can reveal case 3.
@@ -236,7 +247,7 @@ export async function requireCompletedBenchmark(input:RunInput & {
     `SELECT case_key,case_version FROM public.specialist_practical_benchmark_case_reveals
      WHERE run_id=$1 ORDER BY case_sequence`,[run.id],
   );
-  const canonical=getPracticalBenchmarkCaseKeys(input.proofKey);
+  const canonical=(await loadPrivatePracticalBank(input.proofKey)).map(item=>item.caseKey);
   if(recorded.rows.length!==PRACTICAL_BENCHMARK_CASE_COUNT ||
       recorded.rows.some((r,index)=>r.case_key!==canonical[index] || Number(r.case_version)!==PRACTICAL_BENCHMARK_VERSION))
     throw fail(409,"The full shared three-case benchmark record is missing or mismatched.");
