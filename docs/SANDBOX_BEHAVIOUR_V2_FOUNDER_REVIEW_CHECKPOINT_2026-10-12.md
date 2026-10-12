@@ -45,3 +45,22 @@ This is a **deterministic algorithm rehearsal** of the Proof bank, not a complet
 - Record readback and negative-access evidence. Only then request Founder acceptance. Do not promote to main or Production without that evidence.
 
 Tracking: [Issue #184](https://github.com/nentswunienterprises-oss/responseintegrity/issues/184).
+
+## Authenticated Preview acceptance update — 12 October 2026
+
+The earlier outstanding item to provision a new V2 student is **now proven**, not pending. A single immutable Preview deployment (`fc8b8633bf6b23f3b3b89ed00d89c1eafdb8408f`) was verified against Capability Proof through `/api/proof-environment`.
+
+The first authenticated Chromium/Playwright acceptance ([GitHub run 38249228013](https://github.com/nentswunienterprises-oss/responseintegrity/actions/runs/38249228013)) passed after a scoped, temporary exception for the exact Vercel deployment. It authenticated the existing Proof Specialist, fetched a real confirmed Sandbox lesson, provisioned a V2 trajectory through the normal application GET, and verified a Controlled Discomfort / High rep-1 form and visible Specialist-facing student response. Replay preserved the same form ID, student conduct and trajectory ID.
+
+The expanded independent browser acceptance ([GitHub run 38251558960](https://github.com/nentswunienterprises-oss/responseintegrity/actions/runs/38251558960)) passed all of the above **and** replayed Diagnosis and Handover against that same V2 synthetic student with stable form identities and student behaviour. Its tested responses did not expose the private trajectory seed or canonical observation keys.
+
+Proof database readback immediately afterward:
+- Existing V1 trajectories: **4**, all preserved.
+- Newly provisioned V2 trajectories: **1** (`fractions`, Controlled Discomfort / High).
+- Existing recorded rep events: **55**, unchanged.
+- V2 recorded rep events: **0**; no Specialist submission was fabricated and no package/session was consumed.
+- `anon` and `authenticated` have no SELECT on `private.specialist_sandbox_trajectory_truth`.
+
+The temporary exact-deployment public override was **revoked** after the passing tests. The project-wide Vercel Authentication policy was not disabled, and main / Production were not changed.
+
+**Remaining before full Issue #184 closure:** a representative longitudinal in-app exercise across all six profiles, with actual successive rep submissions, changed conditions and repeated sessions; observe six distinct visible behaviour patterns, capability/evidence integrity, recovery after a recorded breakdown and topic A→B→A in the authenticated application. CI rehearsal and read-only form replay do not by themselves prove the student's learning and recovery throughout a multi-session journey.
