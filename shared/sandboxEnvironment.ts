@@ -88,6 +88,8 @@ export type SandboxOutcomeSelectionContext = {
   continuityTags?: string[];
   earliestUnsupportedCapability?: SandboxCapabilityLayer | null;
   recentOutcomeKeys?: string[];
+  /** Legacy trajectories remain V1; new trajectories opt into V2. */
+  behaviorModelVersion?: 1 | 2;
 };
 
 export type SandboxSubmittedObservation = {
@@ -548,13 +550,13 @@ export function selectSandboxOutcome(input: {
 
   // Eligibility first: a clean outcome cannot silently erase an immediately
   // preceding breakdown, even if the profile otherwise favours clean work.
-  const plausible = compatible.filter((definition) =>
+  const plausible = (input.context.behaviorModelVersion === 2 ? compatible.filter((definition) =>
     isSandboxBehaviorTransitionPlausible({
       trajectoryClass: definition.trajectoryClass,
       previousTrajectoryClass: input.context.previousTrajectoryClass,
       continuityTags: input.context.continuityTags,
     }),
-  );
+  ) : compatible);
   if (!plausible.length) {
     throw new Error(
       `Sandbox Outcome Matrix has no plausible behavioural continuation for ${input.context.prescribedPhase} / ${input.context.setId} / rep ${input.context.repNumber}.`,
@@ -596,14 +598,14 @@ export function selectSandboxOutcome(input: {
             phase: definition.phase,
             trajectoryClass: definition.trajectoryClass,
           }) *
-          sandboxBehaviorTransitionMultiplier({
+          (input.context.behaviorModelVersion === 2 ? sandboxBehaviorTransitionMultiplier({
             seed: input.seed,
             phase: definition.phase,
             trajectoryClass: definition.trajectoryClass,
             previousTrajectoryClass: input.context.previousTrajectoryClass,
             continuityTags: input.context.continuityTags,
             outcomeKey: definition.key,
-          }),
+          }) : 1),
       );
     return scoreFor(a) - scoreFor(b) || a.key.localeCompare(b.key);
   })[0];
