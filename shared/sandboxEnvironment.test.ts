@@ -816,3 +816,71 @@ test("complete Structured Execution Sandbox session respects rep-specific V4 fie
   });
   assert.equal(result.systemOutcomeMatched,true);
 });
+
+
+test("all four Training phases evaluate V4 rep-specific Sandbox observations without inventing fields", () => {
+  for (const currentPhase of [
+    "Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability",
+  ] as TopicPhase[]) {
+    const schema = getDrillSchemaDefinition("training", currentPhase);
+    let sequence=0;
+    const turns:SandboxCompletedTurn[] = schema.sets
+      .filter(set=>!set.modelingOnly)
+      .flatMap(set=>Array.from({length:set.reps},(_,repIndex)=>{
+        const canonicalObservations=Object.fromEntries(
+          getFieldDefinitionsForRep(set,repIndex).map(field=>{
+            const identity=getEvidenceSelectionIdentity({
+              mode:"training",phase:currentPhase,setName:set.setName,
+              repIndex,fieldKey:field.fieldKey,
+              optionIndex:field.optionLevels.length-1,
+            });
+            assert.ok(identity);
+            return [field.fieldKey,{
+              optionId:identity.optionId,evidenceStatus:"observed" as const,
+            }];
+          }),
+        );
+        const outcome:SandboxOutcomeDefinition={
+          key:`all-phases.${currentPhase}.${set.setId}.${repIndex}`,
+          version:1,phase:currentPhase,setId:set.setId,repNumber:repIndex+1,
+          studentBehavior:"The simulated response is directly observable.",
+          canonicalObservations,trajectoryClass:"supported",weight:1,
+        };
+        return {
+          sequenceNumber:++sequence,sessionNumber:1,phase:currentPhase,
+          setId:set.setId,repNumber:repIndex+1,
+          outcome,actualInterventionEvent:"none" as const,
+          recordedInterventionEvent:"none" as const,conditionConformed:true,
+          specialistObservations:canonicalObservations,
+        };
+      }));
+    const canonical=materializeSandboxTrainingEvidence({
+      phase:currentPhase,turns,source:"canonical",
+    });
+    const specialist=materializeSandboxTrainingEvidence({
+      phase:currentPhase,turns,source:"specialist",
+    });
+    assert.equal(canonical.length,schema.sets.length);
+    assert.deepEqual(canonical,specialist);
+    for(const set of canonical){
+      const definition=schema.sets.find(item=>item.setId===set.setId);
+      assert.ok(definition);
+      if(definition.modelingOnly)continue;
+      for(let repIndex=0;repIndex<set.observations.length;repIndex++){
+        const required=getFieldDefinitionsForRep(definition,repIndex).map(field=>field.fieldKey);
+        for(const field of definition.fields){
+          assert.equal(field.fieldKey in set.observations[repIndex],
+            required.includes(field.fieldKey),
+            `Unexpected field ${field.fieldKey} at ${set.setId} rep ${repIndex+1}`);
+        }
+      }
+    }
+    const evaluated=evaluateSandboxCompletedSession({
+      phase:currentPhase,canonicalPreviousStability:"Low",
+      specialistPreviousStability:"Low",turns,
+      priorCompletedSessions:0,priorTracksDiverged:false,
+    });
+    assert.equal(evaluated.systemOutcomeMatched,true,
+      currentPhase+" produced divergent authority from identical evidence");
+  }
+});
