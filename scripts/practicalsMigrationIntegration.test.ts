@@ -324,7 +324,7 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
 
     const caseReviews=[1,2,3].map(i=>({
       caseKey:"prepare.case"+i,judgment:"clear",
-      observedEvidence:"The unedited synthetic test video shows directly observable Specialist setup and response to this case.",
+      observedEvidence:"The unedited synthetic test video shows directly observable Specialist setup and response to this case.",videoTraceMatched:true,
     }));
     const video={
       observedDurationSeconds:3600,recordingContinuous:true,
@@ -338,6 +338,10 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       VALUES($1,$2,'td',$3,$4::jsonb,$5::jsonb) RETURNING id`,
       [latestEvidenceId,reviewerId,outcome,JSON.stringify(cases),JSON.stringify(verification)]);
     await assert.rejects(insertReview(caseReviews.slice(0,2),video),/all three exact benchmark cases/);
+    await assert.rejects(
+      insertReview(caseReviews.map((c,i)=>i===1?{...c,videoTraceMatched:false}:c),video),
+      /match each case to the original video/
+    );
     await assert.rejects(insertReview(caseReviews,{...video,recordingContinuous:false}),/incomplete or interrupted/);
     await assert.rejects(insertReview(caseReviews,{...video,observedDurationSeconds:3575}),/duration/);
     await assert.rejects(insertReview(caseReviews,{...video,observedDurationSeconds:700}),/duration must be positive and agree/);
