@@ -3,13 +3,33 @@
 -- One fixed three-case benchmark per proof, per attempt; videos are primary
 -- performance evidence. Exact case lineage and TD judgments are append-only.
 
+-- The public source-controlled prototype is no longer a qualifying bank.
+-- Only privately authored, append-only v2+ cases may be issued for real exams.
+-- No assessable prompts, hidden truths, or correct answers belong in this DDL.
+CREATE TABLE private.specialist_practical_benchmark_private_cases (
+  bank_version integer NOT NULL CHECK (bank_version >= 2),
+  proof_key varchar NOT NULL CHECK (proof_key IN ('prepare','execute','evidence')),
+  case_sequence integer NOT NULL CHECK (case_sequence BETWEEN 1 AND 3),
+  case_key varchar NOT NULL,
+  case_version integer NOT NULL CHECK (case_version = bank_version),
+  case_snapshot jsonb NOT NULL CHECK (jsonb_typeof(case_snapshot) = 'object'),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (bank_version,proof_key,case_sequence),
+  UNIQUE (bank_version,proof_key,case_key)
+);
+ALTER TABLE private.specialist_practical_benchmark_private_cases ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON private.specialist_practical_benchmark_private_cases FROM PUBLIC,anon,authenticated;
+CREATE TRIGGER trg_private_practical_bank_immutable
+  BEFORE UPDATE OR DELETE ON private.specialist_practical_benchmark_private_cases
+  FOR EACH ROW EXECUTE FUNCTION private.reject_practical_execute_mutation();
+
 CREATE TABLE public.specialist_practical_benchmark_runs (
   id varchar PRIMARY KEY DEFAULT gen_random_uuid()::text,
   tutor_assignment_id varchar NOT NULL REFERENCES public.tutor_assignments(id),
   tutor_id varchar NOT NULL REFERENCES public.users(id),
   proof_key varchar NOT NULL CHECK (proof_key IN ('prepare','execute','evidence')),
   proof_version integer NOT NULL CHECK (proof_version>0),
-  bank_version integer NOT NULL CHECK (bank_version=1),
+  bank_version integer NOT NULL CHECK (bank_version=2),
   attempt_number integer NOT NULL CHECK (attempt_number>0),
   preflight_attested boolean NOT NULL CHECK (preflight_attested=true),
   recording_started_before_reveal_attested boolean NOT NULL CHECK (recording_started_before_reveal_attested=true),
@@ -260,7 +280,7 @@ DECLARE
         AND r.proof_key=NEW.proof_key
         AND r.proof_version=NEW.proof_version
         AND r.attempt_number=NEW.attempt_number
-        AND r.bank_version=1
+        AND r.bank_version=2
         AND r.status='complete'
         AND r.active_case_index=4
         AND (SELECT count(*) FROM public.specialist_practical_benchmark_case_reveals e
