@@ -32,7 +32,7 @@ import {
   type ResponseEvidenceDimensionState,
 } from "./responseEvidenceModel";
 import type { TrainingDimensionId } from "./trainingEvidenceContract";
-import { sandboxBehaviorProfileMultiplier } from "./sandboxBehaviorProfiles";
+import { isSandboxBehaviorTransitionPlausible, sandboxBehaviorProfileMultiplier, sandboxBehaviorTransitionMultiplier } from "./sandboxBehaviorProfiles";
 import {
   getLegacyStatefulSandboxV1RequiredStructureStepPlanAudit,
   getLegacyStatefulSandboxV1ScenarioTruthAudit,
@@ -546,9 +546,24 @@ export function selectSandboxOutcome(input: {
     );
   }
 
+  // Eligibility first: a clean outcome cannot silently erase an immediately
+  // preceding breakdown, even if the profile otherwise favours clean work.
+  const plausible = compatible.filter((definition) =>
+    isSandboxBehaviorTransitionPlausible({
+      trajectoryClass: definition.trajectoryClass,
+      previousTrajectoryClass: input.context.previousTrajectoryClass,
+      continuityTags: input.context.continuityTags,
+    }),
+  );
+  if (!plausible.length) {
+    throw new Error(
+      `Sandbox Outcome Matrix has no plausible behavioural continuation for ${input.context.prescribedPhase} / ${input.context.setId} / rep ${input.context.repNumber}.`,
+    );
+  }
+
   const recent = new Set(input.context.recentOutcomeKeys || []);
-  const nonRepeated = compatible.filter((definition) => !recent.has(definition.key));
-  const repetitionEligible = nonRepeated.length ? nonRepeated : compatible;
+  const nonRepeated = plausible.filter((definition) => !recent.has(definition.key));
+  const repetitionEligible = nonRepeated.length ? nonRepeated : plausible;
   const target = input.context.earliestUnsupportedCapability || null;
   const targeted = target
     ? repetitionEligible.filter((definition) =>
@@ -580,6 +595,14 @@ export function selectSandboxOutcome(input: {
             seed: input.seed,
             phase: definition.phase,
             trajectoryClass: definition.trajectoryClass,
+          }) *
+          sandboxBehaviorTransitionMultiplier({
+            seed: input.seed,
+            phase: definition.phase,
+            trajectoryClass: definition.trajectoryClass,
+            previousTrajectoryClass: input.context.previousTrajectoryClass,
+            continuityTags: input.context.continuityTags,
+            outcomeKey: definition.key,
           }),
       );
     return scoreFor(a) - scoreFor(b) || a.key.localeCompare(b.key);
