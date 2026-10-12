@@ -203,6 +203,38 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
         ["public."+relation]);
       assert.deepEqual(permissions.rows[0],{anon_read:false,authenticated_insert:false});
     }
+    // CI-only cases are synthetic; no real exam prompts or answer truth
+    // enter public source control. Sealed private bank rows are append-only.
+    const fixtureSteps=(i:number)=>[
+      {kind:"configure",label:"Synthetic setup "+i,prompt:"Only a controlled PostgreSQL fixture"},
+      {kind:"rep",label:"Synthetic real rep "+i,prompt:"Only immutable fake evidence"},
+    ];
+    const fixtureCase=(proof:"prepare"|"evidence",i:number)=>({
+      caseKey:proof+".ci_case"+i,caseVersion:2,sequence:i,
+      phase:"Clarity",assessedCapability:"Synthetic qualification contract",
+      title:"Synthetic CI work sample "+i,
+      situation:"Entirely synthetic CI case with no real student or examiner secret.",
+      systemDirection:"Demonstrate the synthetic, governed operation sequence.",
+      liveDemonstration:"Perform and record each synthetic operating action while recording.",
+      fictionalOnly:true,workflowSteps:fixtureSteps(i),
+    });
+    for(const proof of ["prepare","evidence"] as const){
+      for(let i=1;i<=3;i++){
+        const c=fixtureCase(proof,i);
+        await db.query(`INSERT INTO private.specialist_practical_benchmark_private_cases
+          (bank_version,proof_key,case_sequence,case_key,case_version,case_snapshot)
+          VALUES (2,$1,$2,$3,2,$4::jsonb)`,
+          [proof,i,c.caseKey,JSON.stringify(c)]);
+      }
+    }
+    const bankRights=await db.query(`SELECT
+      has_table_privilege('anon','private.specialist_practical_benchmark_private_cases','SELECT') AS anon_read,
+      has_table_privilege('authenticated','private.specialist_practical_benchmark_private_cases','INSERT') AS user_write`);
+    assert.deepEqual(bankRights.rows[0],{anon_read:false,user_write:false});
+    await assert.rejects(db.query(`UPDATE private.specialist_practical_benchmark_private_cases
+      SET case_snapshot='{}'::jsonb WHERE proof_key='prepare' AND case_sequence=1`),/immutable/);
+    await assert.rejects(db.query(`DELETE FROM private.specialist_practical_benchmark_private_cases
+      WHERE proof_key='prepare' AND case_sequence=1`),/immutable/);
     // Recording failure is a distinct, immutable operating exception.
     // A new assessment is never self-issued merely because the old video broke.
     const incidentRunId=randomUUID();
@@ -210,14 +242,13 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       (id,tutor_assignment_id,tutor_id,proof_key,proof_version,bank_version,
        attempt_number,preflight_attested,recording_started_before_reveal_attested,
        consent_to_recording_attested,privacy_scope_attested)
-      VALUES($1,$2,$3,'evidence',2,1,1,true,true,true,true)`,
+      VALUES($1,$2,$3,'evidence',2,2,1,true,true,true,true)`,
       [incidentRunId,assignmentId,tutorId]);
-    const incidentCase={caseKey:"evidence.assistance",caseVersion:1,sequence:1,
-      workflowSteps:[{kind:"rep",label:"Recorded synthetic rep",prompt:"CI only"}]};
+    const incidentCase=fixtureCase("evidence",1);
     await db.query(`INSERT INTO public.specialist_practical_benchmark_case_reveals
       (run_id,case_sequence,case_key,case_version,case_snapshot)
-      VALUES($1,1,'evidence.assistance',1,$2::jsonb)`,
-      [incidentRunId,JSON.stringify(incidentCase)]);
+      VALUES($1,1,$2,2,$3::jsonb)`,
+      [incidentRunId,incidentCase.caseKey,JSON.stringify(incidentCase)]);
     await assert.rejects(db.query(`
       UPDATE public.specialist_practical_benchmark_runs SET status='abandoned',
       completed_at=now() WHERE id=$1`,[incidentRunId]),/Benchmark must reveal/);
@@ -253,7 +284,7 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       (tutor_assignment_id,tutor_id,proof_key,proof_version,bank_version,attempt_number,
        preflight_attested,recording_started_before_reveal_attested,
        consent_to_recording_attested,privacy_scope_attested)
-      VALUES($1,$2,'evidence',2,1,2,true,true,true,true) RETURNING id`,[assignmentId,tutorId]);
+      VALUES($1,$2,'evidence',2,2,2,true,true,true,true) RETURNING id`,[assignmentId,tutorId]);
     assert.ok(nextRun.rows[0].id,"One separately issued attempt follows the immutable TD recovery");
 
     const runId=randomUUID();
@@ -261,17 +292,12 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       (id,tutor_assignment_id,tutor_id,proof_key,proof_version,bank_version,
        attempt_number,preflight_attested,recording_started_before_reveal_attested,
        consent_to_recording_attested,privacy_scope_attested)
-      VALUES($1,$2,$3,'prepare',2,1,1,true,true,true,true)`,[runId,assignmentId,tutorId]);
-    const fixtureSteps=(i:number)=>[
-      {kind:"configure",label:"Synthetic setup "+i,prompt:"Only a controlled PostgreSQL fixture"},
-      {kind:"rep",label:"Synthetic real rep "+i,prompt:"Only immutable fake evidence"},
-    ];
+      VALUES($1,$2,$3,'prepare',2,2,1,true,true,true,true)`,[runId,assignmentId,tutorId]);
     const reveal=async(i:number)=>db.query(`
       INSERT INTO public.specialist_practical_benchmark_case_reveals
         (run_id,case_sequence,case_key,case_version,case_snapshot)
-      VALUES($1,$2,$3,1,$4::jsonb)`,
-      [runId,i,"prepare.case"+i,
-       JSON.stringify({sequence:i,title:"Synthetic fixed case "+i,workflowSteps:fixtureSteps(i)})]);
+      VALUES($1,$2,$3,2,$4::jsonb)`,
+      [runId,i,fixtureCase("prepare",i).caseKey,JSON.stringify(fixtureCase("prepare",i))]);
     const operation=(i:number,n:number)=>db.query(`
       INSERT INTO public.specialist_practical_case_actions
         (run_id,case_sequence,step_number,operation_key,recorded_payload,system_snapshot)
@@ -330,7 +356,7 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
     const latestEvidenceId=newEvidence.rows[0].id;
 
     const caseReviews=[1,2,3].map(i=>({
-      caseKey:"prepare.case"+i,judgment:"clear",
+      caseKey:fixtureCase("prepare",i).caseKey,judgment:"clear",
       observedEvidence:"The unedited synthetic test video shows directly observable Specialist setup and response to this case.",videoTraceMatched:true,
     }));
     const video={
