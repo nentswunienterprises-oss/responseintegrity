@@ -133,8 +133,17 @@ jobs:
                 String(error instanceof Error?error.message:error).slice(0,250));
             }
             page.on("response",response=>{
-              if(new URL(response.url()).pathname==="/api/tutor/pod"){
+              const path=new URL(response.url()).pathname;
+              if(path==="/api/tutor/pod"){
                 console.log("V2_BROWSER_POD_FETCH_HTTP="+response.status());
+              }
+              if(path==="/api/tutor/sandbox-environment"){
+                console.log("V2_BROWSER_SANDBOX_FETCH_HTTP="+response.status());
+              }
+            });
+            page.on("request",request=>{
+              if(new URL(request.url()).pathname==="/api/tutor/sandbox-environment"){
+                console.log("V2_BROWSER_SANDBOX_FETCH_STARTED=YES");
               }
             });
             page.on("requestfailed",req=>{
@@ -171,9 +180,20 @@ jobs:
             console.log("V2_BROWSER_DIAGNOSTIC_LOCATION="+new URL(page.url()).pathname);
             console.log("V2_BROWSER_DIAGNOSTIC_TITLE="+(await page.title()).slice(0,120));
             console.log("V2_BROWSER_DIAGNOSTIC_BODY="+(await page.locator("body").innerText()).slice(0,650));
+            const queryStates=await page.evaluate(()=>{
+              const queryClient=window.__queryClient;
+              if(!queryClient)return [{query:"query-client-not-exposed"}];
+              return queryClient.getQueryCache().findAll()
+                .filter(q=>String(q.queryKey[0]||"").includes("sandbox")||
+                           String(q.queryKey[0]||"").includes("/api/tutor/pod"))
+                .map(q=>({query:String(q.queryKey[0]),status:q.state.status,
+                  fetchStatus:q.state.fetchStatus,
+                  error:q.state.error?String(q.state.error).slice(0,160):null}));
+            });
+            console.log("V2_BROWSER_DIAGNOSTIC_QUERY_STATES="+JSON.stringify(queryStates));
             // The real Specialist UI starts with a preparation boundary:
             // simulated student conduct becomes visible only after Begin Rep.
-            await page.getByRole("button",{name:"Begin Rep 1"}).click({timeout:60000});
+            await page.getByRole("button",{name:"Begin Rep 1"}).click({timeout:18000});
             await page.getByText(browserScene,{exact:false}).first().waitFor({
               state:"visible",timeout:45000,
             });
