@@ -5,6 +5,7 @@ import {
   PRACTICAL_BENCHMARK_VERSION,
   PRACTICAL_BENCHMARK_CASE_COUNT,
   projectSpecialistPracticalActionEvent,
+  projectSpecialistPracticalCase,
   resolvePracticalAttempt,
   type PracticalBenchmarkProof,
 } from "@shared/practicalBenchmarkPolicy";
@@ -78,10 +79,12 @@ async function view(run:RunRow,includeTdFlags=false) {
   const cases=result.rows.map(row=>{
     // A revealed case may contain future within-case scripted responses. Never
     // send the private workflow plan to a Specialist ahead of each live step.
-    const {workflowSteps:_privateSteps,...publicSnapshot}=row.case_snapshot;
+    const publicSnapshot=projectSpecialistPracticalCase(row.case_snapshot);
+    const _privateSteps=row.case_snapshot.workflowSteps;
     const trace=actions.rows.filter(a=>Number(a.case_sequence)===Number(row.case_sequence));
     return {
       ...publicSnapshot,
+      ...(includeTdFlags?{privateWorkflowSteps:_privateSteps}:{}),
       caseKey:String(row.case_key),
       sequence:Number(row.case_sequence),
       caseVersion:Number(row.case_version),
