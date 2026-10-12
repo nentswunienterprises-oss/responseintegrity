@@ -1446,7 +1446,7 @@ export async function prepareSandboxEnvironment(input: {
       sandboxTopicKey(initialBundle.trajectory.active_topic_key) !== sandboxTopicKey(input.topic)) {
     throw httpError(409, "This completed Sandbox booking belongs to an earlier topic. Return to the Pod to select the next confirmed lesson.");
   }
-  const bundle = await selectSandboxTopicTrajectory({
+  let bundle = await selectSandboxTopicTrajectory({
     tutorAssignmentId: input.tutorAssignmentId,
     tutorId: input.tutorId,
     studentId: input.studentId,
@@ -1454,6 +1454,44 @@ export async function prepareSandboxEnvironment(input: {
     bundle: initialBundle,
     topic: input.topic,
   });
+
+  // A failed finalization must never strand a complete set of accepted reps.
+  // V2 only: reconcile from the persisted event truth, without creating,
+  // deleting, or changing any previous observations. The normal finalizer
+  // carries the same evidence-native evaluation and booking authority.
+  if (bundle.truth.behavior_model_version === 2) {
+    const recorded = await currentSessionEventCount(bundle);
+    const plannedCount = flattenedRepPlan(bundle.truth.canonical_phase).length;
+    if (recorded === plannedCount) {
+      if (bundle.trajectory.completed_rep_count !== recorded) {
+        throw httpError(409,"Sandbox recorded rep count is inconsistent; preserve evidence for repair.");
+      }
+      const recordedLast = await pool.query(
+        "SELECT completed_at FROM public.specialist_sandbox_rep_events WHERE trajectory_id=$1 AND session_number=$2 ORDER BY event_sequence DESC LIMIT 1",
+        [bundle.trajectory.id,bundle.trajectory.session_number],
+      );
+      if (!recordedLast.rows[0]) {
+        throw httpError(409,"Completed Sandbox rep evidence cannot be read safely.");
+      }
+      await finalizeSandboxRecordedSession({
+        tutorAssignmentId:input.tutorAssignmentId,
+        tutorId:input.tutorId,
+        studentId:input.studentId,
+        scheduledSessionId:input.scheduledSessionId,
+        topic:input.topic,
+        phase:bundle.truth.canonical_phase,
+        completedAt:String(recordedLast.rows[0].completed_at),
+        bank,
+        bundle,
+      });
+      bundle=await ensureTrajectory({
+        tutorAssignmentId:input.tutorAssignmentId,
+        tutorId:input.tutorId,
+        studentId:input.studentId,
+        bank,
+      });
+    }
+  }
 
   const readiness = await readinessFor({
     tutorAssignmentId: input.tutorAssignmentId,
