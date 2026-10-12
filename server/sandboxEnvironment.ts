@@ -1237,6 +1237,7 @@ async function loadRepOutcomes(input: {
   phase: TopicPhase;
   setId: string;
   repNumber: number;
+  behaviorModelVersion: 1 | 2;
 }): Promise<PrivateOutcomeRecord[]> {
   const result = await pool.query(
     `SELECT public_ref, definition
@@ -1277,6 +1278,7 @@ async function loadRepOutcomes(input: {
     const definition = projectSandboxOutcomeToCurrentTrainingContract(
       storedDefinition,
       sourceTrainingSchemaVersion,
+      input.behaviorModelVersion,
     );
     validateSandboxOutcomeDefinition(definition);
     return {
@@ -1359,6 +1361,7 @@ async function planNextRep(input: {
     phase,
     setId: position.set.setId,
     repNumber: position.repNumber,
+    behaviorModelVersion: input.bundle.truth.behavior_model_version,
   });
   const readiness = await readinessFor({
     tutorAssignmentId: input.tutorAssignmentId,
