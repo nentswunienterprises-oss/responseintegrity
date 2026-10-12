@@ -53,6 +53,7 @@ const practicalReviewSchema = z.object({
     caseKey: z.string().min(1),
     judgment: z.enum(["clear","partial","fail"]),
     observedEvidence: z.string().trim().min(30).max(2000),
+    videoTraceMatched: z.boolean(),
   }).strict()).length(3),
   videoVerification: z.object({
     observedDurationSeconds:z.number().int().positive(),
