@@ -60,7 +60,7 @@ CREATE TABLE public.specialist_practical_benchmark_case_reveals (
 -- Even a privileged API insert cannot substitute publicly published fixtures
 -- or reveal a case outside the immutable private bank's next sequence.
 CREATE OR REPLACE FUNCTION private.guard_practical_private_case_issue()
-RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog AS $
+RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog AS $private_case_issue$
 DECLARE
   issuer record;
   expected_next integer; BEGIN
@@ -84,7 +84,7 @@ DECLARE
      )
   THEN RAISE EXCEPTION 'Benchmark case must be issued, in order, from the sealed private bank'; END IF;
   RETURN NEW;
-END; $;
+END; $private_case_issue$;
 REVOKE ALL ON FUNCTION private.guard_practical_private_case_issue() FROM PUBLIC,anon,authenticated;
 CREATE TRIGGER trg_practical_private_case_issue
   BEFORE INSERT ON public.specialist_practical_benchmark_case_reveals
