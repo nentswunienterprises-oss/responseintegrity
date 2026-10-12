@@ -23,7 +23,7 @@ async function assertLiveBenchmarkCase(tutorAssignmentId:string,tutorId:string) 
   const run=await getBenchmarkRunStatus({
     tutorAssignmentId,tutorId,proofKey:"execute",
   });
-  if(run.started && run.recovery && run.recovery.decision!=="deny")
+  if(run.started && run.recovery)
     throw fail(409,"A recorded video incident holds Execute until the assigned TD resolves it.");
   if(!run.started || run.completed || run.currentCase?.caseKey!=="execute.controlled_discomfort")
     throw fail(409,"The live Execute challenge is allowed only during the second issued benchmark case, on the same continuous recording.");
@@ -192,6 +192,9 @@ export async function recordExecuteTurn(input: {
     );
     const c=selected.rows[0];
     if (!c) throw fail(403,"This challenge does not belong to the authenticated Specialist assignment.");
+    const currentAttempt=await nextAttempt(input.tutorAssignmentId,input.tutorId);
+    if(!currentAttempt.allowed || Number(c.attempt_number)!==Number(currentAttempt.attemptNumber))
+      throw fail(409,"Cannot resume a challenge from an abandoned or superseded original recording.");
     if (c.status !== "active" || Number(c.active_turn) !== input.turnNumber)
       throw fail(409,"Execute turn is stale, already recorded, or out of sequence.");
     if (c.challenge_version !== EXECUTE_CHALLENGE_VERSION)

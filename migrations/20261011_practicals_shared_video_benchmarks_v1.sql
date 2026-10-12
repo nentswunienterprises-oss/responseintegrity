@@ -84,8 +84,7 @@ DECLARE
     LEFT JOIN public.specialist_practical_recording_recovery_decisions dec
       ON dec.request_id=req.id
     WHERE req.run_id=NEW.run_id
-      AND (dec.id IS NULL OR dec.decision='integrity_review')
-  ) THEN RAISE EXCEPTION 'An interrupted recording is held for the assigned TD'; END IF;
+  ) THEN RAISE EXCEPTION 'An interrupted recording permanently holds this original attempt for the assigned TD'; END IF;
   IF active_index IS NULL OR run_status<>'active'
      OR active_index<>NEW.case_sequence
      OR issued IS NULL
@@ -174,8 +173,9 @@ RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $$ BEGIN
     SELECT 1 FROM public.specialist_practical_recording_recovery_requests req
     LEFT JOIN public.specialist_practical_recording_recovery_decisions dec
       ON dec.request_id=req.id
-    WHERE req.run_id=OLD.id AND (dec.id IS NULL OR dec.decision='integrity_review')
-  ) THEN RAISE EXCEPTION 'Recording incident must be resolved before any case progression'; END IF;
+    WHERE req.run_id=OLD.id
+  ) AND NEW.status <> 'abandoned'
+    THEN RAISE EXCEPTION 'A recording incident permanently closes the original case sequence'; END IF;
   -- Only the assigned TD's immutable, approved recovery permits retirement.
   -- The attempt's case index, original actions and timestamps are retained.
   IF OLD.status='active' AND NEW.status='abandoned'

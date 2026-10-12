@@ -69,7 +69,7 @@ export default function PracticalBenchmarkRun({
   const completedId=q.data?.completed?q.data.runId||null:null;
   useEffect(()=>onComplete(completedId),[onComplete,completedId]);
   const current=q.data?.currentCase;
-  const recordingHeld=Boolean(q.data?.recovery&&q.data.recovery.decision!=="deny");
+  const recordingHeld=Boolean(q.data?.recovery);
   const canAdvance=Boolean(!recordingHeld&&current&&!q.data?.completed&&
     current.requiredOperations>0&&current.completedOperations===current.requiredOperations);
   return <Card className="rounded-none">

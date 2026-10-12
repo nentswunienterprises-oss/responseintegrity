@@ -243,6 +243,10 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       SET status='abandoned',completed_at=now() WHERE id=$1`,[incidentRunId]);
     await assert.rejects(db.query(`UPDATE public.specialist_practical_benchmark_runs
       SET status='active',completed_at=NULL WHERE id=$1`,[incidentRunId]),/Benchmark must reveal/);
+    await assert.rejects(db.query(`INSERT INTO public.specialist_practical_case_actions
+      (run_id,case_sequence,step_number,operation_key,recorded_payload,system_snapshot)
+      VALUES($1,1,1,'rep','{}'::jsonb,$2::jsonb)`,
+      [incidentRunId,JSON.stringify(incidentCase.workflowSteps[0])]),/held for the assigned TD/);
     await assert.rejects(db.query(`DELETE FROM public.specialist_practical_recording_recovery_decisions
       WHERE request_id=$1`,[recoveryId]),/immutable/);
     const nextRun=await db.query(`INSERT INTO public.specialist_practical_benchmark_runs
