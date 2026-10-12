@@ -28,7 +28,7 @@ test("a complete video needs positive whole-second duration and real continuity 
 });
 test("TD must record a comparable, complete judgment for every exact fixed case",()=>{
   const keys=["prepare.clarity_state","prepare.se_drill","prepare.tps_preflight"];
-  const reviews=keys.map(caseKey=>({caseKey,judgment:"clear" as const,observedEvidence:"The recording shows specific, directly observable conduct with the issued case."}));
+  const reviews=keys.map(caseKey=>({caseKey,judgment:"clear" as const,observedEvidence:"The recording shows specific, directly observable conduct with the issued case.",videoTraceMatched:true}));
   assert.deepEqual(validateCaseReviews(keys,reviews),[]);
   assert.ok(validateCaseReviews(keys,reviews.slice(0,2)).length>0);
   assert.ok(validateCaseReviews(keys,[...reviews.slice(0,2),reviews[0]]).length>0);
