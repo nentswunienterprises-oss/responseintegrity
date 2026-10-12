@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { getBenchmarkRunStatus } from "./practicalBenchmarkRuns";
+import { getBenchmarkRunStatus, eligibleAttempt } from "./practicalBenchmarkRuns";
 import { getCapabilityPracticalProofDefinition } from "@shared/capabilityPracticalEvidence";
 import { pool } from "./db";
 import {
@@ -28,23 +28,9 @@ async function assertLiveBenchmarkCase(tutorAssignmentId:string,tutorId:string) 
 }
 
 async function nextAttempt(tutorAssignmentId: string, tutorId: string) {
-  const r = await pool.query(
-    `SELECT e.attempt_number, r.outcome FROM public.specialist_capability_practical_evidence e
-     LEFT JOIN public.specialist_capability_practical_reviews r ON r.evidence_id = e.id
-     WHERE e.tutor_assignment_id = $1 AND e.tutor_id = $2
-       AND e.proof_key = 'execute' AND e.proof_version = $3
-     ORDER BY e.attempt_number DESC LIMIT 1`,
-    [tutorAssignmentId, tutorId, getCapabilityPracticalProofDefinition("execute")!.version],
-  );
-  const latest = r.rows[0];
-  if (latest && latest.outcome !== "repeat_required") {
-    return { allowed: false, reason: latest.outcome === "approved"
-      ? "Execute is already approved."
-      : latest.outcome === "integrity_review"
-        ? "Execute remains under integrity review."
-        : "Execute is awaiting TD review.", attemptNumber: Number(latest.attempt_number) };
-  }
-  return { allowed: true, reason: null, attemptNumber: Number(latest?.attempt_number || 0) + 1 };
+  // Exactly the same attempt authority as the issued recording. A TD-approved
+  // replacement cannot reuse an abandoned three-turn Execute challenge.
+  return eligibleAttempt({tutorAssignmentId,tutorId,proofKey:"execute"});
 }
 
 async function loadChallenge(tutorAssignmentId: string, tutorId: string, attemptNumber: number) {
