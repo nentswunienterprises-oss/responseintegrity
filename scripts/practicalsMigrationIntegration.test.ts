@@ -21,9 +21,15 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       CREATE ROLE service_role NOLOGIN;
       CREATE SCHEMA private;
       CREATE TABLE public.users(id varchar PRIMARY KEY);
+      CREATE TABLE public.pods(
+        id varchar PRIMARY KEY,
+        td_id varchar REFERENCES public.users(id),
+        pod_name varchar
+      );
       CREATE TABLE public.tutor_assignments(
         id varchar PRIMARY KEY,
-        tutor_id varchar NOT NULL REFERENCES public.users(id)
+        tutor_id varchar NOT NULL REFERENCES public.users(id),
+        pod_id varchar REFERENCES public.pods(id)
       );`);
     const sql=readFileSync("migrations/20261009_practicals_evidence_stage_v1.sql","utf8");
     await db.query(sql);
@@ -54,9 +60,10 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       anon_select:false,authenticated_insert:false,server_insert:true,anon_private_truth:false,
     });
 
-    const tutorId=randomUUID(), reviewerId=randomUUID(),assignmentId=randomUUID(),challengeId=randomUUID();
+    const tutorId=randomUUID(), reviewerId=randomUUID(),assignmentId=randomUUID(),challengeId=randomUUID(),podId=randomUUID();
     await db.query("INSERT INTO public.users(id) VALUES ($1),($2)",[tutorId,reviewerId]);
-    await db.query("INSERT INTO public.tutor_assignments(id,tutor_id) VALUES ($1,$2)",[assignmentId,tutorId]);
+    await db.query("INSERT INTO public.pods(id,td_id,pod_name) VALUES($1,$2,'CI assigned TD')",[podId,reviewerId]);
+    await db.query("INSERT INTO public.tutor_assignments(id,tutor_id,pod_id) VALUES ($1,$2,$3)",[assignmentId,tutorId,podId]);
     await db.query(`INSERT INTO public.specialist_practical_execute_challenges
       (id,tutor_assignment_id,tutor_id,challenge_version,attempt_number,status,active_turn)
       VALUES ($1,$2,$3,1,1,'active',1)`,[challengeId,assignmentId,tutorId]);
@@ -184,7 +191,7 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
     // stage-completion authority. All fixtures remain in isolated CI PostgreSQL.
     const videoSql=readFileSync("migrations/20261011_practicals_shared_video_benchmarks_v1.sql","utf8");
     await db.query(videoSql);
-    for(const relation of ["specialist_practical_benchmark_runs","specialist_practical_benchmark_case_reveals","specialist_practical_case_actions"]){
+    for(const relation of ["specialist_practical_benchmark_runs","specialist_practical_benchmark_case_reveals","specialist_practical_case_actions","specialist_practical_recording_recovery_requests","specialist_practical_recording_recovery_decisions"]){
       const {rows}=await db.query(
         `SELECT c.relrowsecurity FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
          WHERE n.nspname='public' AND c.relname=$1`,[relation]);
@@ -196,6 +203,53 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
         ["public."+relation]);
       assert.deepEqual(permissions.rows[0],{anon_read:false,authenticated_insert:false});
     }
+    // Recording failure is a distinct, immutable operating exception.
+    // A new assessment is never self-issued merely because the old video broke.
+    const incidentRunId=randomUUID();
+    await db.query(`INSERT INTO public.specialist_practical_benchmark_runs
+      (id,tutor_assignment_id,tutor_id,proof_key,proof_version,bank_version,
+       attempt_number,preflight_attested,recording_started_before_reveal_attested)
+      VALUES($1,$2,$3,'evidence',2,1,1,true,true)`,
+      [incidentRunId,assignmentId,tutorId]);
+    const incidentCase={caseKey:"evidence.assistance",caseVersion:1,sequence:1,
+      workflowSteps:[{kind:"rep",label:"Recorded synthetic rep",prompt:"CI only"}]};
+    await db.query(`INSERT INTO public.specialist_practical_benchmark_case_reveals
+      (run_id,case_sequence,case_key,case_version,case_snapshot)
+      VALUES($1,1,'evidence.assistance',1,$2::jsonb)`,
+      [incidentRunId,JSON.stringify(incidentCase)]);
+    await assert.rejects(db.query(`
+      UPDATE public.specialist_practical_benchmark_runs SET status='abandoned',
+      completed_at=now() WHERE id=$1`,[incidentRunId]),/Benchmark must reveal/);
+    const recovery=await db.query(`INSERT INTO public.specialist_practical_recording_recovery_requests
+      (run_id,reason,incident_note)
+      VALUES($1,'recording_interrupted',$2) RETURNING id`,
+      [incidentRunId,"Original camera recording stopped before the issued assessment concluded."]);
+    const recoveryId=recovery.rows[0].id;
+    await assert.rejects(db.query(`INSERT INTO public.specialist_practical_case_actions
+      (run_id,case_sequence,step_number,operation_key,recorded_payload,system_snapshot)
+      VALUES($1,1,1,'rep','{}'::jsonb,$2::jsonb)`,
+      [incidentRunId,JSON.stringify(incidentCase.workflowSteps[0])]),/held for the assigned TD/);
+    await assert.rejects(db.query(`DELETE FROM public.specialist_practical_recording_recovery_requests
+      WHERE id=$1`,[recoveryId]),/immutable/);
+    await assert.rejects(db.query(`UPDATE public.specialist_practical_benchmark_runs
+       SET active_case_index=2 WHERE id=$1`,[incidentRunId]),/incident must be resolved/);
+    await db.query(`INSERT INTO public.specialist_practical_recording_recovery_decisions
+      (request_id,reviewer_id,decision,rationale)
+      VALUES($1,$2,'approve_repeat',$3)`,
+      [recoveryId,reviewerId,
+       "The assigned TD reviewed the documented interruption and authorizes a new full, uninterrupted attempt."]);
+    await db.query(`UPDATE public.specialist_practical_benchmark_runs
+      SET status='abandoned',completed_at=now() WHERE id=$1`,[incidentRunId]);
+    await assert.rejects(db.query(`UPDATE public.specialist_practical_benchmark_runs
+      SET status='active',completed_at=NULL WHERE id=$1`,[incidentRunId]),/Benchmark must reveal/);
+    await assert.rejects(db.query(`DELETE FROM public.specialist_practical_recording_recovery_decisions
+      WHERE request_id=$1`,[recoveryId]),/immutable/);
+    const nextRun=await db.query(`INSERT INTO public.specialist_practical_benchmark_runs
+      (tutor_assignment_id,tutor_id,proof_key,proof_version,bank_version,attempt_number,
+       preflight_attested,recording_started_before_reveal_attested)
+      VALUES($1,$2,'evidence',2,1,2,true,true) RETURNING id`,[assignmentId,tutorId]);
+    assert.ok(nextRun.rows[0].id,"One separately issued attempt follows the immutable TD recovery");
+
     const runId=randomUUID();
     await db.query(`INSERT INTO public.specialist_practical_benchmark_runs
       (id,tutor_assignment_id,tutor_id,proof_key,proof_version,bank_version,
