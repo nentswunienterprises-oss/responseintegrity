@@ -43,6 +43,7 @@ type ReviewQueueItem = {
     startedAt:string;completedAt:string|null;completed:boolean;
     history:Array<{caseKey:string;caseVersion:number;sequence:number;phase:string;title:string;
       assessedCapability:string;situation:string;systemDirection:string;liveDemonstration:string;revealedAt:string;
+      examinerStandard?:null|{coreJudgment:string;evidenceRule:string;criticalFail:string[]};
       completedOperations:number;requiredOperations:number;
       operationHistory:Array<{stepNumber:number;operationKey:string;recordedPayload:Record<string,unknown>;
         systemSnapshot:{label:string;prompt:string;kind:string};recordedAt:string;riskFlags:string[]}>;}>;
