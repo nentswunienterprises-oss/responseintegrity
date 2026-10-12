@@ -70,7 +70,7 @@ export function TrialProgressCard({
           <div className="rounded-xl border border-amber-200/80 bg-background/90 p-3">
             <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Trial window</p>
             <p className="mt-1 text-sm font-semibold text-foreground">
-              {trialCase.window.startedAt ? "14 calendar days" : "Starts after family 2 is placed"}
+              {trialCase.window.startedAt ? "35 calendar days" : "Starts with first completed Trial session"}
             </p>
           </div>
           <div className="rounded-xl border border-amber-200/80 bg-background/90 p-3">
@@ -79,7 +79,7 @@ export function TrialProgressCard({
           </div>
           <div className="rounded-xl border border-amber-200/80 bg-background/90 p-3">
             <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Intensive cadence</p>
-            <p className="mt-1 text-sm font-semibold text-foreground">Target 4-5 sessions/week/family</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">2-4 sessions/week/family</p>
           </div>
         </div>
 
@@ -87,7 +87,7 @@ export function TrialProgressCard({
           <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
             {trialCase.window.extensionEndsAt
               ? "The documented extension has expired. Evidence recorded outside the approved window cannot qualify."
-              : "The 14-day window has ended. A documented COO extension is required before further sessions can qualify."}
+              : "The 35-day window has ended. A documented COO extension is required before further sessions can qualify."}
           </div>
         ) : trialCase.window.extensionEndsAt ? (
           <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">

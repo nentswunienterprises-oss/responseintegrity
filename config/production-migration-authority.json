@@ -121,6 +121,11 @@
       "path": "migrations/20261010_revoke_anon_sensitive_tables.sql",
       "description": "Revoke PUBLIC and anon privileges from eight high-sensitivity legacy public relations after verified server-side credential readiness, reducing unauthenticated Data API exposure without changing authenticated or service-role access.",
       "risk": "destructive"
+    },
+    {
+      "path": "migrations/20261010_trial_35_day_first_session.sql",
+      "description": "Restore the missing governed Trial window and COO-extension columns, freeze a 35-day window from the first completed Trial session rather than family placement, and require explicit documented extensions without qualifying any Specialist.",
+      "risk": "additive"
     }
   ]
 }
