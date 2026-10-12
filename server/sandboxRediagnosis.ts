@@ -708,8 +708,12 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
     probeId: prepared.probeId as DiagnosisProbeId,
   });
   const { trajectory, truth } = await loadTrajectory(input);
+  // Preparation and submission must select the *same* versioned outcome.
+  // Re-evaluating a V2 Profile through V1 weighting can silently score the
+  // Specialist against a student response they were never shown.
   const selected = selectSandboxDiagnosisOutcome({
     seed: [truth.trajectory_seed, input.scope, input.sourceContextId].join(":"),
+    profileSeed: truth.trajectory_seed,
     outcomes: outcomes.map((item) => item.definition),
     context: {
       startingPhase: input.startingPhase,
@@ -717,15 +721,22 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
       sequenceNumber: input.sequenceNumber,
       earliestUnsupportedCapability: null,
       recentOutcomeKeys: [],
+      behaviorModelVersion: truth.behavior_model_version,
     },
   });
 
+  // Handover observes only its own phase, and only dimensions actually
+  // created by the prescribed probe. In particular, an immediate execution
+  // probe does NOT establish repeatability from a missing second opportunity.
+  const prescribedDimensions =
+    DIAGNOSIS_PROBES[prepared.probeId as DiagnosisProbeId].dimensions;
   const expectedDimensionIds =
     input.scope === "diagnosis"
-      ? DIAGNOSIS_PROBES[prepared.probeId as DiagnosisProbeId].dimensions
-      : Object.values(DIAGNOSIS_OBSERVATION_MATRIX)
-          .filter((dimension) => dimension.phase === input.startingPhase)
-          .map((dimension) => dimension.id);
+      ? prescribedDimensions
+      : prescribedDimensions.filter(
+          (dimensionId) =>
+            DIAGNOSIS_OBSERVATION_MATRIX[dimensionId].phase === input.startingPhase,
+        );
 
   const submitted = new Map(
     input.observations.map((item) => [
