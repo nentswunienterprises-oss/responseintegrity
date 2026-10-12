@@ -334,6 +334,9 @@ DECLARE
        OR NEW.recording_verification->>'allThreeCasesVisible' IS DISTINCT FROM 'true'
        OR NEW.recording_verification->>'environmentAndToolsVisible' IS DISTINCT FROM 'true'
        OR NEW.recording_verification->>'specialistScreenFaceVoiceObservable' IS DISTINCT FROM 'true'
+       OR NEW.recording_verification->>'recordingConsentVerified' IS DISTINCT FROM 'true'
+       OR NEW.recording_verification->>'recordingAccessRestricted' IS DISTINCT FROM 'true'
+       OR NEW.recording_verification->>'noRealStudentDataOrBystanders' IS DISTINCT FROM 'true'
        OR NEW.recording_verification->>'flaggedCutOrManipulation' IS DISTINCT FROM 'false'
        OR NEW.recording_verification->>'flaggedTechnicalInterruption' IS DISTINCT FROM 'false')
     THEN RAISE EXCEPTION 'An incomplete or interrupted benchmark recording cannot be approved'; END IF;
