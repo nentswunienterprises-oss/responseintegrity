@@ -63,8 +63,7 @@ CREATE OR REPLACE FUNCTION private.guard_practical_private_case_issue()
 RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog AS $
 DECLARE
   issuer record;
-  expected_next integer;
-BEGIN
+  expected_next integer; BEGIN
   SELECT r.proof_key,r.bank_version,r.status,r.active_case_index
     INTO issuer FROM public.specialist_practical_benchmark_runs r
     WHERE r.id=NEW.run_id FOR UPDATE;
