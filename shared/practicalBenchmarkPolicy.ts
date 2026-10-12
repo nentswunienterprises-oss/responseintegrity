@@ -63,6 +63,36 @@ export function projectPracticalSetupForSpecialist<T extends {setId?:string}>(st
   return visible;
 }
 
+/** An explicit allowlist is mandatory even when the bank itself is private. */
+export function projectSpecialistPracticalCase(snapshot:{
+  phase:string;assessedCapability:string;title:string;situation:string;
+  systemDirection:string;liveDemonstration:string;fictionalOnly:true;
+  workflowSteps?:unknown;canonicalTruth?:unknown;
+}){
+ return {
+  phase:snapshot.phase,assessedCapability:snapshot.assessedCapability,
+  title:snapshot.title,situation:snapshot.situation,
+  systemDirection:snapshot.systemDirection,liveDemonstration:snapshot.liveDemonstration,
+  fictionalOnly:snapshot.fictionalOnly,
+ };
+}
+
+export function projectSpecialistPracticalStep(step:{
+  kind:string;label:string;prompt:string;phase?:string;setId?:string;
+  repNumber?:number;studentBehavior?:string;observedSupport?:string;
+  canonicalTruth?:unknown;futureBehavior?:unknown;
+}){
+ const visible={kind:step.kind,label:step.label,prompt:step.prompt,
+   ...(step.phase?{phase:step.phase}:{})};
+ if(step.kind==="configure"||step.kind==="adaptive"||step.kind==="decide")
+   return visible;
+ if(step.kind==="begin_rep")return {...visible,setId:step.setId,repNumber:step.repNumber};
+ if(step.kind==="rep")return {...visible,setId:step.setId,repNumber:step.repNumber,
+   studentBehavior:step.studentBehavior};
+ if(step.kind==="respond")return {...visible,studentBehavior:step.studentBehavior};
+ return visible;
+}
+
 /** Specialists never receive sealed scenario truth or examiner-only integrity flags. */
 export function projectSpecialistPracticalActionEvent(input:{
   stepNumber:number;operationKey:string;
