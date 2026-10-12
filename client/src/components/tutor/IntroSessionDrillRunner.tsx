@@ -4825,9 +4825,9 @@ function IntroSessionDrillRunnerCore({
               },
             ];
             return (
-              <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">
-                  Prerequisite sentinel required
+              <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-900">
+                  Earlier-skill check after a breakdown
                 </div>
                 <p className="mt-2 text-sm font-semibold text-amber-950">
                   {sentinelDefinition.evidenceQuestion}
@@ -4836,7 +4836,7 @@ function IntroSessionDrillRunnerCore({
                   {sentinelDefinition.specialistInstruction}
                 </p>
                 <p className="mt-2 text-xs leading-5 text-amber-800">
-                  This check does not move the topic backward. It only decides whether the earlier prerequisite can still be trusted or whether the evidence-complete diagnosis engine must re-establish the entry state.
+                  This is an exception check within Training, not a new diagnosis or a timed Training rep. If the earlier skill holds, the breakdown remains in this phase. If it fails or cannot be established cleanly, Training pauses for targeted re-diagnosis.
                 </p>
                 <div className="mt-3 grid gap-2">
                   {options.map((option) => (
@@ -4844,15 +4844,16 @@ function IntroSessionDrillRunnerCore({
                       type="button"
                       key={option.id}
                       onClick={() => handleTrainingPrerequisiteSentinel(option.id)}
+                      aria-pressed={selected === option.id}
                       className={[
-                        "rounded-lg border p-3 text-left",
+                        "w-full rounded-lg border p-3 text-left text-amber-950 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700",
                         selected === option.id
-                          ? "border-amber-600 bg-white ring-1 ring-amber-600"
-                          : "border-amber-200 bg-white/70 hover:bg-white",
+                          ? "border-amber-700 bg-amber-100 ring-1 ring-amber-700"
+                          : "border-amber-300 bg-white hover:bg-amber-100",
                       ].join(" ")}
                     >
-                      <span className="block text-sm font-medium text-foreground">{option.label}</span>
-                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">{option.detail}</span>
+                      <span className="block text-sm font-medium text-amber-950">{option.label}</span>
+                      <span className="mt-1 block text-xs leading-5 text-amber-800">{option.detail}</span>
                     </button>
                   ))}
                 </div>
