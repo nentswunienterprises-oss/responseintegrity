@@ -169,6 +169,44 @@ jobs:
               assert.ok(cohort.trajectoryId && cohort.rep?.studentBehavior);
             }
             console.log('V2_CONTROLLED_18_STUDENT_COHORT_PROVISIONED=PASS');
+
+            // These six IDs are deliberately isolated synthetic fixtures.
+            // Each is a distinct private V2 profile, resolved only by Proof-side
+            // verification; this diagnostic mapping must never enter the app UI.
+            const representatives = [
+              {id:'e1c42879-3698-ce03-bbf5-269ece421bc3', index:4, topic:'QA Clarity'},
+              {id:'f94d1bbe-76ae-11d5-34ee-2990fe4d0aa5', index:9, topic:'QA Execution'},
+              {id:'657994af-a9c4-a7ae-dd13-54cdd462f2ab', index:2, topic:'QA Pressure'},
+              {id:'a8ce613e-7f91-48d1-5097-2e34923dbacf', index:10, topic:'QA Discomfort'},
+              {id:'136c163f-914f-ec0c-0aae-14a50001dc32', index:1, topic:'QA Execution'},
+              {id:'4e4ceb6e-3d37-2f31-5728-241cd663cc73', index:3, topic:'QA Clarity'},
+            ];
+            for(const entry of representatives){
+              const bookingHex=crypto.createHash('md5').update('ri-v2-longitudinal-booking-'+entry.index+'-1').digest('hex');
+              const bookingId=[bookingHex.slice(0,8),bookingHex.slice(8,12),bookingHex.slice(12,16),bookingHex.slice(16,20),bookingHex.slice(20)].join('-');
+              const params=new URLSearchParams({tutorAssignmentId:assignment,studentId:entry.id,
+                scheduledSessionId:bookingId,topic:entry.topic,sessionNumber:'1'});
+              let completed=0;
+              for(let repIndex=0;repIndex<3;repIndex++){
+                const form=await getJson('/api/tutor/sandbox-environment?'+params);
+                assert.equal(form.status,'rep_ready');
+                assert.equal(form.eventSequence,repIndex+1,'QA fixture previously submitted; do not repeat');
+                const observations=Object.fromEntries(form.rep.fields.map(f=>[
+                  f.fieldKey,{optionId:f.options[0].optionId,evidenceStatus:'observed'}
+                ]));
+                const response=await page.request.post(base+'/api/tutor/sandbox-environment/rep',{
+                  data:{tutorAssignmentId:assignment,studentId:entry.id,bankVersion:form.bankVersion,
+                    trajectoryId:form.trajectoryId,eventSequence:form.eventSequence,
+                    eventFormId:form.eventFormId,scheduledSessionId:bookingId,topic:entry.topic,
+                    submission:{interventionEvent:'none',observations}},
+                  timeout:60000,
+                });
+                assert.ok(response.ok(),'QA rep rejected '+response.status()+' '+(await response.text()).slice(0,300));
+                completed++;
+              }
+              console.log('V2_PROFILE_REP_SUBMISSIONS=PASS '+entry.index+' reps='+completed);
+            }
+            console.log('V2_SIX_PROFILE_SUBMISSION_GATE=PASS');
           } finally {
             await browser.close();
           }
