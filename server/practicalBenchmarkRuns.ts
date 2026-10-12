@@ -22,7 +22,7 @@ const sqlRun=`SELECT id,tutor_assignment_id,tutor_id,proof_key,proof_version,
   attempt_number,bank_version,status,active_case_index,started_at,completed_at
   FROM public.specialist_practical_benchmark_runs`;
 
-async function eligibleAttempt(input:RunInput) {
+export async function eligibleAttempt(input:RunInput) {
   const definition=getCapabilityPracticalProofDefinition(input.proofKey);
   if(!definition) throw fail(404,"Unknown Practicals benchmark.");
   const evidence=await pool.query(
@@ -43,7 +43,28 @@ async function eligibleAttempt(input:RunInput) {
       : "This Practical is already awaiting its TD review.";
     return {allowed:false,reason,attemptNumber:0,version:definition.version};
   }
-  return {allowed:true,reason:null,attemptNumber:Number(latest?.attempt_number||0)+1,version:definition.version};
+  const minAttempt=Number(latest?.attempt_number||0)+1;
+  const runs=await pool.query(
+    `SELECT r.attempt_number,r.status,req.id AS recovery_request_id,
+       dec.decision AS recovery_decision
+     FROM public.specialist_practical_benchmark_runs r
+     LEFT JOIN public.specialist_practical_recording_recovery_requests req ON req.run_id=r.id
+     LEFT JOIN public.specialist_practical_recording_recovery_decisions dec ON dec.request_id=req.id
+     WHERE r.tutor_assignment_id=$1 AND r.tutor_id=$2
+       AND r.proof_key=$3 AND r.proof_version=$4
+     ORDER BY r.attempt_number DESC LIMIT 1`,
+     [input.tutorAssignmentId,input.tutorId,input.proofKey,definition.version]);
+  const run=runs.rows[0];
+  if(!run||Number(run.attempt_number)<minAttempt)
+    return {allowed:true,reason:null,attemptNumber:minAttempt,version:definition.version};
+  if(run.status==="abandoned"){
+    if(run.recovery_decision!=="approve_repeat")
+      return {allowed:false,reason:"An abandoned recording has no authorised TD recovery.",attemptNumber:0,version:definition.version};
+    return {allowed:true,reason:null,attemptNumber:Number(run.attempt_number)+1,version:definition.version};
+  }
+  if(run.recovery_request_id&&run.recovery_decision==="integrity_review")
+    return {allowed:false,reason:"The recording incident is under integrity review.",attemptNumber:0,version:definition.version};
+  return {allowed:true,reason:null,attemptNumber:Number(run.attempt_number),version:definition.version};
 }
 
 async function findRun(input:RunInput,attemptNumber:number) {
