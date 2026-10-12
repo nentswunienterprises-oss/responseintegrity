@@ -55,6 +55,12 @@ export function resolvePracticalAttempt(
 }
 
 
+/** Candidate setup shows available drill choices, never the sealed correct ID. */
+export function projectPracticalSetupForSpecialist<T extends {setId?:string}>(step:T){
+  const {setId:_examinerOnly,...visible}=step;
+  return visible;
+}
+
 /** Specialists never receive sealed scenario truth or examiner-only integrity flags. */
 export function projectSpecialistPracticalActionEvent(input:{
   stepNumber:number;operationKey:string;
