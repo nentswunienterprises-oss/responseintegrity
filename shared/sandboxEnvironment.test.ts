@@ -5,6 +5,7 @@ import {
   compareSandboxTurn,
   evaluateSandboxCapabilityReadiness,
   evaluateSandboxCompletedSession,
+  materializeSandboxTrainingEvidence,
   nextSandboxContinuityState,
   projectSandboxOutcomeToCurrentTrainingContract,
   selectSandboxOutcome,
@@ -19,6 +20,7 @@ import {
   getDrillSchemaDefinitionByVersion,
   getEvidenceSelectionIdentity,
   getFieldDefinitionForRep,
+  getFieldDefinitionsForRep,
   getRepPurposeId,
   resolveEvidenceSelection,
 } from "./responseIntegrityDrillRegistry";
@@ -765,4 +767,52 @@ test("Sandbox V2 profiles bias observable signatures and recovery without fabric
   )) > sandboxBehaviorTransitionMultiplier(candidate(
     "identity-v1-0", "Clarity", "supported", "clarity.identification.rep_1.pattern_1", "supported",
   )), "uneven performance should not merely be a lower average score");
+});
+
+
+test("complete Structured Execution Sandbox session respects rep-specific V4 field eligibility", () => {
+  const phase = "Structured Execution" as const;
+  const schema = getDrillSchemaDefinition("training", phase);
+  let seq = 0;
+  const turns: SandboxCompletedTurn[] = schema.sets
+    .filter(set => !set.modelingOnly)
+    .flatMap(set => Array.from({length:set.reps},(_,repIndex) => {
+      const canonicalObservations = Object.fromEntries(
+        getFieldDefinitionsForRep(set,repIndex).map(field => {
+          const optionIndex = field.optionLevels.length - 1;
+          const identity = getEvidenceSelectionIdentity({
+            mode:"training",phase,setName:set.setName,repIndex,
+            fieldKey:field.fieldKey,optionIndex,
+          });
+          assert.ok(identity, "Missing registered V4 option ID");
+          return [field.fieldKey, {optionId:identity.optionId,evidenceStatus:"observed" as const}];
+        }),
+      );
+      const outcome: SandboxOutcomeDefinition = {
+        key:`sandbox-v4-regression.${set.setId}.${repIndex + 1}`,
+        version:1, phase,setId:set.setId,repNumber:repIndex+1,
+        studentBehavior:"The student executes the independently observed response.",
+        canonicalObservations, trajectoryClass:"supported",weight:1,
+      };
+      return {
+        sequenceNumber:++seq, sessionNumber:1, phase,setId:set.setId,
+        repNumber:repIndex+1,outcome,actualInterventionEvent:"none" as const,
+        recordedInterventionEvent:"none" as const,conditionConformed:true,
+        specialistObservations:canonicalObservations,
+      };
+    }));
+  const submitted=materializeSandboxTrainingEvidence({phase,turns,source:"canonical"});
+  assert.equal(turns.length,9);
+  assert.equal(submitted.length,3);
+  const firstSet=submitted.find(set => set.setId === "structured_execution.required_structure");
+  assert.ok(firstSet);
+  assert.equal("repeatability" in firstSet.observations[0],false,
+    "Rep 1 cannot require unobserved repeatability");
+  assert.ok("repeatability" in firstSet.observations[1],
+    "Rep 2 must retain decision-eligible repeatability evidence");
+  const result=evaluateSandboxCompletedSession({
+    phase,canonicalPreviousStability:"Low",specialistPreviousStability:"Low",
+    turns,priorCompletedSessions:0,priorTracksDiverged:false,
+  });
+  assert.equal(result.systemOutcomeMatched,true);
 });
