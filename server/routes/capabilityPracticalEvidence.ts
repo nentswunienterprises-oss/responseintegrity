@@ -5,6 +5,10 @@ import { pool } from "../db";
 import { getExecuteChallengeStatus,startExecuteChallenge,recordExecuteTurn } from "../practicalExecuteChallenge";
 import { getBenchmarkRunStatus,startBenchmarkRun,advanceBenchmarkRun } from "../practicalBenchmarkRuns";
 import { getPracticalCaseWork,recordPracticalCaseAction } from "../practicalCaseWork";
+import {
+  getSpecialistRecordingRecovery,requestPracticalRecordingRecovery,
+  getAssignedTdRecordingRecoveryQueue,decidePracticalRecordingRecovery,
+} from "../practicalRecordingRecovery";
 import type { ExecuteResponse } from "@shared/practicalExecuteChallenge";
 import type { PracticalRecordingDeclaration, PracticalCaseReview, PracticalVideoVerification, PracticalBenchmarkProof } from "@shared/practicalBenchmarkPolicy";
 import type { CapabilityPracticalCriterionReviewInput } from "@shared/capabilityPracticalEvidence";
@@ -220,6 +224,57 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
         ...input,runId,tutorId:String(user.id),
       }));
     }catch(error){return respondError(res,error,"Failed to save the live Practicals operation.");}
+  });
+
+  // A broken or unusable original recording is never replaced by the
+  // Specialist. Only an assigned TD can sign an immutable repeat authorization.
+  const recoveryReason=z.enum(["recording_interrupted","recording_unusable","accessibility_failure"]);
+  app.get("/api/tutor/capability-practicals/recording-recovery",isAuthenticated,async(req,res)=>{
+    try{
+      const user=requireSpecialist(req,res);if(!user)return;
+      const input=benchmarkInput.parse({tutorAssignmentId:req.query.tutorAssignmentId,
+        proofKey:req.query.proofKey}) as {tutorAssignmentId:string;proofKey:PracticalBenchmarkProof};
+      return res.json(await getSpecialistRecordingRecovery({...input,tutorId:String(user.id)}));
+    }catch(error){return respondError(res,error,"Could not read the recording recovery state.");}
+  });
+  app.post("/api/tutor/capability-practicals/benchmark/:runId/recovery",isAuthenticated,async(req,res)=>{
+    try{
+      const user=requireSpecialist(req,res);if(!user)return;
+      const body=benchmarkInput.extend({
+        reason:recoveryReason,incidentNote:z.string().trim().min(30).max(3000),
+      }).strict().parse(req.body) as {
+        tutorAssignmentId:string;proofKey:PracticalBenchmarkProof;
+        reason:"recording_interrupted"|"recording_unusable"|"accessibility_failure";
+        incidentNote:string;
+      };
+      const runId=z.string().uuid().parse(req.params.runId);
+      return res.status(201).json(await requestPracticalRecordingRecovery({
+        ...body,runId,tutorId:String(user.id),
+      }));
+    }catch(error){return respondError(res,error,"Unable to request a TD-authorised recording repeat.");}
+  });
+  app.get("/api/capability-review/practicals/recording-recoveries/pending",isAuthenticated,async(req,res)=>{
+    try{
+      const reviewer=requireReviewer(req,res);if(!reviewer)return;
+      return res.json({queue:await getAssignedTdRecordingRecoveryQueue({
+        reviewerId:String(reviewer.id),reviewerRole:String(reviewer.role),
+      })});
+    }catch(error){return respondError(res,error,"Unable to load assigned recording incidents.");}
+  });
+  app.post("/api/capability-review/practicals/recording-recoveries/:requestId/decision",isAuthenticated,async(req,res)=>{
+    try{
+      const reviewer=requireReviewer(req,res);if(!reviewer)return;
+      const body=z.object({
+        decision:z.enum(["approve_repeat","deny","integrity_review"]),
+        rationale:z.string().trim().min(30).max(3000),
+      }).strict().parse(req.body) as {
+        decision:"approve_repeat"|"deny"|"integrity_review";rationale:string;
+      };
+      const requestId=z.string().uuid().parse(req.params.requestId);
+      return res.status(201).json(await decidePracticalRecordingRecovery({
+        ...body,requestId,reviewerId:String(reviewer.id),reviewerRole:String(reviewer.role),
+      }));
+    }catch(error){return respondError(res,error,"Recording recovery decision could not be recorded.");}
   });
 
   // A Specialist cannot choose the case, response sequence, or a new attempt to cherry-pick an easier outcome.
