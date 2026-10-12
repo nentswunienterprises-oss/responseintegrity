@@ -413,6 +413,12 @@ export default function CapabilityPracticalReview() {
                           <p className="text-sm"><strong>Issued condition:</strong> {item.situation}</p>
                           <p className="text-sm"><strong>System boundary:</strong> {item.systemDirection}</p>
                           <p className="text-sm"><strong>Expected demonstration:</strong> {item.liveDemonstration}</p>
+                          {item.examinerStandard&&<div className="rounded-md border p-3 space-y-1 text-sm">
+                            <p className="font-semibold">TD-only case standard</p>
+                            <p>{item.examinerStandard.coreJudgment}</p>
+                            <p className="text-xs text-muted-foreground">{item.examinerStandard.evidenceRule}</p>
+                            <p className="text-xs text-muted-foreground">Critical failures: {(item.examinerStandard.criticalFail||[]).join("; ")}</p>
+                          </div>}
                           <div className="rounded-md border bg-muted/10 p-3 space-y-2">
                             <p className="text-sm font-medium">Durable RI-OS action trail: {item.completedOperations}/{item.requiredOperations}</p>
                             {item.operationHistory.map(e=><div key={e.stepNumber} className="rounded border p-2 text-xs space-y-1">
