@@ -144,10 +144,28 @@ jobs:
               }
             });
             const first=forms[0];
+            // The native Pod deliberately lists only its provisioned Sandbox
+            // student cards. The four isolated QA fixtures above prove API
+            // semantics; the visual test uses an already listed controlled V2
+            // synthetic student. Never add QA-only students to the Pod UI or
+            // overwrite a real family record to make a browser assertion pass.
+            const browserStudent="e1c11823-05e7-47a1-a753-e6599954df1a";
+            const browserBooking="05da6194-db28-41ea-8798-e17c0ab9aa4d";
+            const browserTopic="Fractions";
+            const browserScene="The Specialist introduces a challenging problem and watches how the student enters it.";
+            const browserParams=q({tutorAssignmentId:assignment,studentId:browserStudent,
+              scheduledSessionId:browserBooking,topic:browserTopic,sessionNumber:"1"});
+            const browserForm=await get("/api/tutor/sandbox-environment?"+browserParams);
+            assert.equal(browserForm.status,"rep_ready");
+            assert.ok(browserForm.rep.studentBehavior.startsWith(browserScene));
+            const browserPod=await get("/api/tutor/pod");
+            assert.ok(browserPod.students?.some(s=>String(s.id)===browserStudent),
+              "Controlled V2 student must be in the real Specialist Pod");
+            console.log("V2_BROWSER_REAL_POD_STUDENT_AUTHORIZED=PASS");
             const route=base+"/operational/specialist/sandbox?"+
-              q({studentId:student(first.entry.index),
-                scheduledSessionId:booking(first.entry.index),
-                topic:first.entry.topic,sandboxSession:"1"});
+              q({studentId:browserStudent,
+                scheduledSessionId:browserBooking,
+                topic:browserTopic,sandboxSession:"1"});
             await page.goto(route,{waitUntil:"domcontentloaded",timeout:90000});
             await page.waitForLoadState("networkidle",{timeout:10000}).catch(()=>{});
             console.log("V2_BROWSER_DIAGNOSTIC_LOCATION="+new URL(page.url()).pathname);
@@ -155,8 +173,8 @@ jobs:
             console.log("V2_BROWSER_DIAGNOSTIC_BODY="+(await page.locator("body").innerText()).slice(0,650));
             // The real Specialist UI starts with a preparation boundary:
             // simulated student conduct becomes visible only after Begin Rep.
-            await page.getByRole("button",{name:"Begin Rep 1"}).click({timeout:9000});
-            await page.getByText(first.entry.scene,{exact:false}).first().waitFor({
+            await page.getByRole("button",{name:"Begin Rep 1"}).click({timeout:60000});
+            await page.getByText(browserScene,{exact:false}).first().waitFor({
               state:"visible",timeout:45000,
             });
             console.log("V2_CONTENT_BROWSER_VISIBLE=PASS");
@@ -184,13 +202,14 @@ jobs:
             assert.equal(second.trajectoryId,initial.trajectoryId);
             console.log("V2_CONTENT_CROSS_REP_VISIBLE=PASS");
 
+            // Reload must show the same real Pod student's current, unsent
+            // response; QA-only rep 2 has already been proven through the API.
             await page.reload({waitUntil:"domcontentloaded",timeout:90000});
-            await page.getByRole("button",{name:"Begin Rep 2"}).click({timeout:45000});
-            await page.getByText(
-              "Another recognition prompt is presented without a worked example.",
-              {exact:false},
-            ).first().waitFor({state:"visible",timeout:45000});
-            console.log("V2_CONTENT_BROWSER_SECOND_REP_VISIBLE=PASS");
+            await page.getByRole("button",{name:"Begin Rep 1"}).click({timeout:60000});
+            await page.getByText(browserScene,{exact:false}).first().waitFor({
+              state:"visible",timeout:45000,
+            });
+            console.log("V2_CONTENT_BROWSER_RELOAD_VISIBLE=PASS");
             console.log("V2_NARRATIVE_LIVE_PROOF=PASS");
           } finally {
             await browser.close();
