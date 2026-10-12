@@ -59,6 +59,7 @@ export type PracticalCaseReview = {
   caseKey: string;
   judgment: PracticalCaseJudgment;
   observedEvidence: string;
+  videoTraceMatched: boolean;
 };
 
 export function validateCaseReviews(caseKeys: readonly string[], reviews: readonly PracticalCaseReview[]): string[] {
