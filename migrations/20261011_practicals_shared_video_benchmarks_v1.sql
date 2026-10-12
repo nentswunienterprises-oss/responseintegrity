@@ -77,6 +77,13 @@ DECLARE
     WHERE c.run_id=NEW.run_id AND c.case_sequence=NEW.case_sequence;
   SELECT COUNT(*) INTO previous_count FROM public.specialist_practical_case_actions a
     WHERE a.run_id=NEW.run_id AND a.case_sequence=NEW.case_sequence;
+  IF EXISTS (
+    SELECT 1 FROM public.specialist_practical_recording_recovery_requests req
+    LEFT JOIN public.specialist_practical_recording_recovery_decisions dec
+      ON dec.request_id=req.id
+    WHERE req.run_id=NEW.run_id
+      AND (dec.id IS NULL OR dec.decision='integrity_review')
+  ) THEN RAISE EXCEPTION 'An interrupted recording is held for the assigned TD'; END IF;
   IF active_index IS NULL OR run_status<>'active'
      OR active_index<>NEW.case_sequence
      OR issued IS NULL
@@ -161,6 +168,12 @@ CREATE TRIGGER trg_practical_benchmark_reveal_immutable
 CREATE OR REPLACE FUNCTION private.guard_practical_benchmark_run_progress()
 RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $$ BEGIN
   IF TG_OP='DELETE' THEN RAISE EXCEPTION 'Practicals benchmark cannot be erased or restarted'; END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.specialist_practical_recording_recovery_requests req
+    LEFT JOIN public.specialist_practical_recording_recovery_decisions dec
+      ON dec.request_id=req.id
+    WHERE req.run_id=OLD.id AND (dec.id IS NULL OR dec.decision='integrity_review')
+  ) THEN RAISE EXCEPTION 'Recording incident must be resolved before any case progression'; END IF;
   -- Only the assigned TD's immutable, approved recovery permits retirement.
   -- The attempt's case index, original actions and timestamps are retained.
   IF OLD.status='active' AND NEW.status='abandoned'
