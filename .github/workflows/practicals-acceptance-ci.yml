@@ -8,6 +8,7 @@ on:
       - 'server/practicalBenchmarkRuns.ts'
       - 'server/practicalCasePlans*'
       - 'server/practicalCaseWork.ts'
+      - 'server/practicalRecordingRecovery.ts'
       - 'shared/capabilityPracticalEvidence.ts'
       - 'shared/practicalEntryGate*'
       - 'server/sandboxEnvironment.ts'
