@@ -25,6 +25,7 @@ export type BenchmarkRun = {
   runId?:string;proofVersion?:number;bankVersion?:number;attemptNumber?:number;
   reference?:string;history?:IssuedCase[];currentCase?:IssuedCase|null;
   startedAt?:string;completedAt?:string;requiredCases?:number;
+  recovery?:null|{requestId:string;decision:"approve_repeat"|"deny"|"integrity_review"|null;incidentNote:string};
 };
 
 export default function PracticalBenchmarkRun({
@@ -66,7 +67,8 @@ export default function PracticalBenchmarkRun({
   const completedId=q.data?.completed?q.data.runId||null:null;
   useEffect(()=>onComplete(completedId),[onComplete,completedId]);
   const current=q.data?.currentCase;
-  const canAdvance=Boolean(current&&!q.data?.completed&&
+  const recordingHeld=Boolean(q.data?.recovery&&q.data.recovery.decision!=="deny");
+  const canAdvance=Boolean(!recordingHeld&&current&&!q.data?.completed&&
     current.requiredOperations>0&&current.completedOperations===current.requiredOperations);
   return <Card className="rounded-none">
     <CardHeader>
@@ -131,7 +133,11 @@ export default function PracticalBenchmarkRun({
         {q.data.runId&&!q.data.completed&&
           <PracticalRecordingRecoveryControls
             runId={q.data.runId} assignmentId={assignmentId} proofKey={proofKey}/>}
-        {current&&!q.data.completed&&q.data.runId&&
+        {recordingHeld&&<p className="rounded-md border p-3 text-sm font-medium">
+          Recording incident recorded. This assessment is held until the assigned TD
+          makes a recovery decision. Do not continue with a broken original recording.
+        </p>}
+        {!recordingHeld&&current&&!q.data.completed&&q.data.runId&&
           <PracticalCaseWorkbench runId={q.data.runId} caseSequence={current.sequence}
             proofKey={proofKey} assignmentId={assignmentId} onExecuteComplete={onExecuteComplete}/>}
         {q.data.completed?<div className="rounded-lg border p-3">
