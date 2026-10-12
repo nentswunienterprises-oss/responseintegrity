@@ -9,7 +9,9 @@
  * Case IDs + outcomes must remain available to authorized TDs for longitudinal
  * cohort comparisons without revealing family or student data.
  */
-export const PRACTICAL_BENCHMARK_VERSION = 1;
+// v1 prototype cases were exposed in a public repository and are invalid as unseen exams.
+// v2+ must be privately authored and provided through the sealed database only.
+export const PRACTICAL_BENCHMARK_VERSION = 2;
 export const PRACTICAL_BENCHMARK_CASE_COUNT = 3;
 export type PracticalBenchmarkProof = "prepare" | "execute" | "evidence";
 export type PracticalCaseJudgment = "clear" | "partial" | "fail";
