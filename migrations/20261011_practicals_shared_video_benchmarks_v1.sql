@@ -309,6 +309,10 @@ DECLARE
   END IF;
   -- No TD signoff may override immutable mismatches in actual operations.
   IF NEW.outcome='approved' AND EXISTS (
+    SELECT 1 FROM jsonb_array_elements(NEW.benchmark_case_reviews) c
+    WHERE c->>'videoTraceMatched' IS DISTINCT FROM 'true'
+  ) THEN RAISE EXCEPTION 'TD must match each case to the original video'; END IF;
+  IF NEW.outcome='approved' AND EXISTS (
     SELECT 1 FROM public.specialist_practical_case_actions a
     WHERE a.run_id=linked_benchmark_run_id
       AND jsonb_typeof(a.risk_flags)='array'
