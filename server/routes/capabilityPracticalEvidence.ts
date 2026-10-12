@@ -187,7 +187,11 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
       const input=benchmarkInput.extend({
         preflightConfirmed:z.literal(true),
         recordingStartedBeforeReveal:z.literal(true),
-      }).parse(req.body) as ConfirmedBenchmark & {preflightConfirmed:true;recordingStartedBeforeReveal:true};
+        consentToRecording:z.literal(true),privacyScopeConfirmed:z.literal(true),
+      }).parse(req.body) as ConfirmedBenchmark & {
+        preflightConfirmed:true;recordingStartedBeforeReveal:true;
+        consentToRecording:true;privacyScopeConfirmed:true;
+      };
       await requireEntry(input.tutorAssignmentId,String(user.id));
       return res.status(201).json(await startBenchmarkRun({...input,tutorId:String(user.id)}));
     }catch(error){return respondError(res,error,"Failed to issue Practicals cases.");}
