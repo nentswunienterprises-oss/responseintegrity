@@ -23,6 +23,8 @@ async function assertLiveBenchmarkCase(tutorAssignmentId:string,tutorId:string) 
   const run=await getBenchmarkRunStatus({
     tutorAssignmentId,tutorId,proofKey:"execute",
   });
+  if(run.started && run.recovery && run.recovery.decision!=="deny")
+    throw fail(409,"A recorded video incident holds Execute until the assigned TD resolves it.");
   if(!run.started || run.completed || run.currentCase?.caseKey!=="execute.controlled_discomfort")
     throw fail(409,"The live Execute challenge is allowed only during the second issued benchmark case, on the same continuous recording.");
 }
