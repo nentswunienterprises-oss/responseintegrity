@@ -404,14 +404,15 @@ export default function SpecialistSandboxSimulation({
   const requestedStudentId = String(
     studentIdOverride || searchParams.get("studentId") || "",
   ).trim();
-  const selectedSandboxStudent = studentIdOverride
-    ? sandboxStudents.find((student) => String(student.id) === requestedStudentId) || null
-    : sandboxStudents.find((student) => String(student.id) === requestedStudentId) ||
-      sandboxStudents[0] ||
-      null;
-  const studentId = String(
-    studentIdOverride || selectedSandboxStudent?.id || "",
-  );
+  // An explicit deep link is an identity request, not a preference to fall
+  // back to another learner. The Pod card collection may be narrower than the
+  // server-authorized synthetic Sandbox students (e.g. controlled Proof QA).
+  // Keep backend assertSandboxAccess + confirmed-booking authority as the
+  // security boundary; invalid or unassigned IDs must fail closed there.
+  const selectedSandboxStudent =
+    sandboxStudents.find((student) => String(student.id) === requestedStudentId) ||
+    (!requestedStudentId ? sandboxStudents[0] || null : null);
+  const studentId = String(requestedStudentId || selectedSandboxStudent?.id || "");
   const requestedSandboxSessionNumberRaw = Number(
     searchParams.get("sandboxSession") || 0,
   );
