@@ -66,7 +66,11 @@ function publicStep(step:PracticalWorkStep,number:number){
  }
  if(step.kind==="configure"){
   const schema=getDrillSchemaDefinition("training",step.phase!);
-  return {number,...step,registry:{schemaId:schema.schemaId,schemaVersion:schema.schemaVersion,
+  // The Specialist must independently select the permitted drill.
+  // The canonical assigned set ID belongs in the sealed examiner snapshot,
+  // never in the candidate-facing step payload.
+  const {setId:_privateAnswer,...publicSetup}=step;
+  return {number,...publicSetup,registry:{schemaId:schema.schemaId,schemaVersion:schema.schemaVersion,
     phase:step.phase,setOptions:schema.sets.filter(x=>!x.modelingOnly).map(x=>({
       setId:x.setId,label:x.setName,supportLevel:x.constraints.supportLevel,
       pressureLevel:x.constraints.pressureLevel,
