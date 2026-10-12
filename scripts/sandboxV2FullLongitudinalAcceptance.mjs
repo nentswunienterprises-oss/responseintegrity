@@ -184,7 +184,7 @@ async function processTargetedProbe(fixt, current) {
 }
 async function completeSession(fixt,n) {
   const start=await history(fixt.i);
-  assert.equal(start.trajectory.id && typeof start.trajectory.id,"string");
+  assert.equal(typeof start.trajectory.id,"string");
   const existing=start.sessions.find(s=>Number(s.sessionNumber)===n &&
     String(s.topicKey||"")===fixt.topic.toLowerCase());
   if(existing){
