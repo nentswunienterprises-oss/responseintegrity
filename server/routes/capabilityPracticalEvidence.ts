@@ -60,6 +60,8 @@ const practicalReviewSchema = z.object({
     recordingContinuous:z.boolean(),recordingBeginsBeforeReveal:z.boolean(),
     allThreeCasesVisible:z.boolean(),environmentAndToolsVisible:z.boolean(),
     specialistScreenFaceVoiceObservable:z.boolean(),
+    recordingConsentVerified:z.boolean(),recordingAccessRestricted:z.boolean(),
+    noRealStudentDataOrBystanders:z.boolean(),
     flaggedCutOrManipulation:z.boolean(),flaggedTechnicalInterruption:z.boolean(),
   }).strict(),
 }).strict();
