@@ -14,14 +14,14 @@ const ops=(proof:PracticalBenchmarkProof,phase:string,sequence:number):Practical
  const setId=setByPhase[repPhase];
  const steps:PracticalSecretStep[]=proof==="evidence"?[]:[{kind:"configure",phase:repPhase,setId}];
  if(proof==="execute")steps.push(sequence===2?{kind:"adaptive",phase}:{kind:"respond",phase,studentBehavior:"An entirely fictional learner describes the changing prompt."});
- const pair=(repNumber:number):PracticalSecretStep[]=>[
-  {kind:"begin_rep",phase:repPhase,setId,repNumber},
+ const pair=(repNumber:number):PracticalSecretStep[]=>([
+  ...(proof==="evidence"?[]:[{kind:"begin_rep",phase:repPhase,setId,repNumber}]),
   {kind:"rep",phase:repPhase,setId,repNumber,
    studentBehavior:"The simulated learner completes a fully observable fictional response.",
    observedSupport:"none"},
- ];
+ ]);
  steps.push(...pair(1));
- if(proof==="evidence")steps.push(...pair(2));
+ if(proof==="evidence"){steps.push(...pair(2));steps.push(...pair(3));}
  steps.push({kind:"decide"});
  return steps;
 };
@@ -47,4 +47,14 @@ test("reject spoken-only, click-through, missing rep-start, wrong set, and dupli
 test("only the CD Execute case can carry the three-turn adaptive student workflow",()=>{
  assert.throws(()=>assertPracticalCaseExecutable(ops("execute","Clarity",1).map(s=>s.kind==="respond"?{kind:"adaptive"}:s),"execute","Clarity",1));
  assert.throws(()=>assertPracticalCaseExecutable(ops("execute","Controlled Discomfort",2).filter(s=>s.kind!=="adaptive"),"execute","Controlled Discomfort",2));
+});
+
+test("historical evidence review records inherited reps without fabricating new start timestamps",()=>{
+ const correct=ops("evidence","Structured Execution",1);
+ assert.equal(correct.filter(x=>x.kind==="begin_rep").length,0);
+ assert.equal(correct.filter(x=>x.kind==="rep").length,3);
+ assert.doesNotThrow(()=>assertPracticalCaseExecutable(correct,"evidence","Structured Execution",1));
+ assert.throws(()=>assertPracticalCaseExecutable(
+  [{kind:"begin_rep",phase:"Structured Execution",setId:"structured_execution.independent_execution",repNumber:1},...correct],
+  "evidence","Structured Execution",1));
 });
