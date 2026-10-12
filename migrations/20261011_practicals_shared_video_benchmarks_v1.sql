@@ -57,6 +57,40 @@ CREATE TABLE public.specialist_practical_benchmark_case_reveals (
   UNIQUE(run_id,case_sequence),
   UNIQUE(run_id,case_key)
 );
+-- Even a privileged API insert cannot substitute publicly published fixtures
+-- or reveal a case outside the immutable private bank's next sequence.
+CREATE OR REPLACE FUNCTION private.guard_practical_private_case_issue()
+RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog AS $
+DECLARE
+  issuer record;
+  expected_next integer;
+BEGIN
+  SELECT r.proof_key,r.bank_version,r.status,r.active_case_index
+    INTO issuer FROM public.specialist_practical_benchmark_runs r
+    WHERE r.id=NEW.run_id FOR UPDATE;
+  SELECT COALESCE(MAX(case_sequence),0)+1 INTO expected_next
+    FROM public.specialist_practical_benchmark_case_reveals
+    WHERE run_id=NEW.run_id;
+  IF issuer IS NULL OR issuer.status<>'active'
+     OR issuer.bank_version<2
+     OR NEW.case_sequence<>expected_next
+     OR NEW.case_sequence>issuer.active_case_index+1
+     OR (SELECT COUNT(*) FROM private.specialist_practical_benchmark_private_cases b
+         WHERE b.bank_version=issuer.bank_version AND b.proof_key=issuer.proof_key)<>3
+     OR NOT EXISTS (
+       SELECT 1 FROM private.specialist_practical_benchmark_private_cases b
+       WHERE b.bank_version=issuer.bank_version AND b.proof_key=issuer.proof_key
+         AND b.case_sequence=NEW.case_sequence AND b.case_key=NEW.case_key
+         AND b.case_version=NEW.case_version AND b.case_snapshot=NEW.case_snapshot
+     )
+  THEN RAISE EXCEPTION 'Benchmark case must be issued, in order, from the sealed private bank'; END IF;
+  RETURN NEW;
+END; $;
+REVOKE ALL ON FUNCTION private.guard_practical_private_case_issue() FROM PUBLIC,anon,authenticated;
+CREATE TRIGGER trg_practical_private_case_issue
+  BEFORE INSERT ON public.specialist_practical_benchmark_case_reveals
+  FOR EACH ROW EXECUTE FUNCTION private.guard_practical_private_case_issue();
+
 ALTER TABLE public.specialist_practical_benchmark_case_reveals ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.specialist_practical_benchmark_case_reveals FROM PUBLIC,anon,authenticated;
 CREATE INDEX idx_practical_benchmark_case_run ON public.specialist_practical_benchmark_case_reveals(run_id,case_sequence);
