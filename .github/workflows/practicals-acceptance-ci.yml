@@ -4,6 +4,7 @@ on:
     paths:
       - 'shared/practicalExecuteChallenge*'
       - 'shared/practicalBenchmarkPolicy*'
+      - 'shared/practicalRepObservation*'
       - 'server/practicalBenchmarkBank*'
       - 'server/practicalBenchmarkRuns.ts'
       - 'server/practicalCasePlans*'
