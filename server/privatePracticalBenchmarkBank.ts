@@ -18,6 +18,15 @@ export function validatePrivatePracticalBankSnapshot(input:unknown,proof:Practic
   if(!input||typeof input!=="object"||Array.isArray(input))
     throw fail("The sealed private Practicals case snapshot is missing.");
   const value=input as Record<string,any>;
+  // The public prototype's exact nine case IDs may not be reused even if a
+  // private author mistakenly copies its published prompts into Postgres.
+  const publicPrototypeIds=new Set([
+    "prepare.clarity_entry","prepare.structured_execution","prepare.tps_baseline",
+    "execute.clarity_ambiguity","execute.controlled_discomfort","execute.tps_interruption",
+    "evidence.assistance","evidence.not_observed","evidence.phase_exit",
+  ]);
+  if(publicPrototypeIds.has(String(value.caseKey)))
+    throw fail("A public prototype case cannot qualify as an unseen private assessment.");
   if(typeof value.caseKey!=="string"||!value.caseKey.startsWith(proof+".")
       ||!Number.isInteger(value.caseVersion)||value.caseVersion!==bankVersion
       ||value.sequence!==sequence||!phases.has(String(value.phase))
