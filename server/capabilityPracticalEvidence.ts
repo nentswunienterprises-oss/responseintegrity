@@ -3,7 +3,7 @@ import { getSandboxCapabilityReadiness } from "./sandboxEnvironment";
 import { derivePracticalCompletionGate } from "@shared/practicalCompletionGate";
 import { evaluatePracticalEntryGate } from "@shared/practicalEntryGate";
 import { assertCompletedExecuteChallenge, getExecuteChallengeForTd } from "./practicalExecuteChallenge";
-import { requireCompletedBenchmark,getBenchmarkRunForTd } from "./practicalBenchmarkRuns";
+import { eligibleAttempt,requireCompletedBenchmark,getBenchmarkRunForTd } from "./practicalBenchmarkRuns";
 import {
   validatePracticalRecordingDeclaration,
   validateCaseReviews,
@@ -181,7 +181,18 @@ export async function submitPracticalCapabilityEvidence(input: {
     throw httpError(409, "This practical proof is under integrity review and cannot be resubmitted yet.");
   }
 
-  const attemptNumber = Number(latest?.attempt_number || 0) + 1;
+  // Recording-only incidents do not create an evidence submission. An
+  // assigned-TD-approved abandoned recording must still advance the issued
+  // case/Execute attempt number rather than reuse a stale submission count.
+  const issuedAttempt=await eligibleAttempt({
+    tutorAssignmentId:input.tutorAssignmentId,
+    tutorId:input.tutorId,
+    proofKey:definition.key,
+  });
+  if(!issuedAttempt.allowed || issuedAttempt.attemptNumber<1
+      || issuedAttempt.version!==definition.version)
+    throw httpError(409,issuedAttempt.reason||"This Practical attempt is not authorised for submission.");
+  const attemptNumber=issuedAttempt.attemptNumber;
   const executeChallengeId = definition.key === "execute"
     ? await assertCompletedExecuteChallenge({
         tutorAssignmentId: input.tutorAssignmentId,
