@@ -64,3 +64,29 @@ Proof database readback immediately afterward:
 The temporary exact-deployment public override was **revoked** after the passing tests. The project-wide Vercel Authentication policy was not disabled, and main / Production were not changed.
 
 **Remaining before full Issue #184 closure:** a representative longitudinal in-app exercise across all six profiles, with actual successive rep submissions, changed conditions and repeated sessions; observe six distinct visible behaviour patterns, capability/evidence integrity, recovery after a recorded breakdown and topic A→B→A in the authenticated application. CI rehearsal and read-only form replay do not by themselves prove the student's learning and recovery throughout a multi-session journey.
+
+## Full-session live Proof and V4 contract correction — 12 October 2026
+
+**Implementation status: not accepted for Production and not merged.**
+
+The prior six-profile live submission result was expanded into an authenticated **full-session** run on the pinned old Preview `fc8b8633`.
+
+- [GitHub longitudinal run 38256483320](https://github.com/nentswunienterprises-oss/responseintegrity/actions/runs/38256483320): one actual `clarity_fragile` QA session completed with six recorded reps; session evaluation persisted, exact synthetic booking completed, and the same trajectory advanced to Session 2.
+- The following `reassurance_seeker` Structured Execution session reached rep 9, which was appended with its private truth, **but finalization returned HTTP 500**: it demanded `repeatability` for `structured_execution.required_structure` rep 1 although the live V4 form correctly excludes that dimension from its first opportunity. This is a rep-specific schema projection defect, not a reason to manufacture the missing observation.
+- The affected QA session remains evidence-complete but **unfinalized** (9 accepted rep events, 0 session evaluations). Its records were preserved, not deleted, reset or marked complete without authority.
+
+**Branch-only correction:**
+- Materialize Sandbox Training session evidence using `getFieldDefinitionsForRep`, exactly matching the rep's authorized form fields, rather than falling back to all set-level fields.
+- Preflight the complete session evidence in memory before appending the final rep, so a future validator mismatch cannot create a new orphaned event.
+- Add a narrowly scoped V2 recovery path for a persisted complete session: require every rep, match the recorded count, evaluate against the real Training authority, acquire a per-session advisory lock, and derive the session outcome from stored event truth. Never invent a rep or touch V1 trajectories.
+- Regress Structured Execution rep-1 repeatability exclusion and all four phases' V4 complete-session evidence evaluation.
+
+[Sandbox Simulation CI run 38257918059](https://github.com/nentswunienterprises-oss/responseintegrity/actions/runs/38257918059): **PASS** at `ff0b50e40f59ffd8bdcbaa5515388cdd9fff5c6a`. This proves code-level test/build only. The recovery path is **not yet live-proven**.
+
+**Proof database readback:** 18 isolated V2 QA trajectories, 27 synthetic QA rep events, one completed QA session, one QA sandbox completion billing event, and the pre-existing 55 V1 rep events / 4 V1 trajectories preserved. No private trajectory-truth SELECT for `anon` or `authenticated`.
+
+**Observable conduct quality audit:** the 264 active authored outcomes have only **96 distinct `studentBehavior` narrative templates**, every template used in multiple rep positions (maximum 3). Actual first-three-rep outcomes show recognisable pressure collapse, reassurance requests, repeatable Clarity breakdown, and steady independence; however identical sentences can repeat verbatim across multiple opportunities. A separately versioned, evidence-faithful narrative authoring pass is required before declaring six convincingly distinct student personalities.
+
+**Release blocker:** new Preview deployment from the connector was explicitly blocked by platform safety checks, and a read-only Vercel lookup found **no deployment at the corrected SHA**. The earlier immutable `fc8b8633` Preview must not be treated as evidence for the corrected backend. The live acceptance, automatic recovery readback, multi-session delivery and topic A→B→A remain open until a legitimate updated Preview is available. Main/Production remain untouched.
+
+**Additional integrity consideration:** session finalization still consists of several dependent writes. Preflight and a recovery gate reduce known failure modes but do not constitute proof of a fully atomic transaction under every infrastructure failure. Do not claim stronger guarantees than tested.
