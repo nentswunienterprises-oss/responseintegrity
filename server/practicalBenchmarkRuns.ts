@@ -7,6 +7,7 @@ import {
   type PracticalBenchmarkProof,
 } from "@shared/practicalBenchmarkPolicy";
 import { getCapabilityPracticalProofDefinition } from "@shared/capabilityPracticalEvidence";
+import { getSpecialistRecordingRecovery } from "./practicalRecordingRecovery";
 
 function fail(status:number,message:string) {
   return Object.assign(new Error(message),{status});
@@ -76,6 +77,10 @@ async function findRun(input:RunInput,attemptNumber:number) {
   return (r.rows[0]||null) as RunRow|null;
 }
 async function view(run:RunRow,includeTdFlags=false) {
+  const recovery=await getSpecialistRecordingRecovery({
+    tutorAssignmentId:run.tutor_assignment_id,tutorId:run.tutor_id,
+    proofKey:run.proof_key as PracticalBenchmarkProof,
+  });
   const result=await pool.query(
     `SELECT case_sequence,case_key,case_version,case_snapshot,revealed_at
      FROM public.specialist_practical_benchmark_case_reveals
@@ -108,6 +113,7 @@ async function view(run:RunRow,includeTdFlags=false) {
   });
   return {
     started:true as const,runId:run.id,proofKey:run.proof_key,
+    recovery:recovery.runId===run.id?recovery.recovery:null,
     proofVersion:Number(run.proof_version),bankVersion:Number(run.bank_version),
     attemptNumber:Number(run.attempt_number),
     reference:run.id.slice(0,8).toUpperCase(),
