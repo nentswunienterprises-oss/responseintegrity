@@ -34,8 +34,8 @@ export function assertPracticalCaseExecutable(steps:readonly PracticalWorkStep[]
   proof:PracticalBenchmarkProof,phase:string,sequence:number){
   const invalid=()=>{throw fail("A private Practical case lacks a complete, comparable executable operating sequence.");};
   if(steps.length<4||steps.length>30||steps[steps.length-1].kind!=="decide")invalid();
-  if(proof!=="evidence" && (steps[0].kind!=="configure"||
-      !steps.some(s=>s.kind==="respond"||s.kind==="adaptive")))invalid();
+  if(proof!=="evidence"&&steps[0].kind!=="configure")invalid();
+  if(proof==="execute"&&!steps.some(s=>s.kind==="respond"||s.kind==="adaptive"))invalid();
   if(proof==="evidence" && steps.some(s=>s.kind==="configure"||s.kind==="adaptive"))invalid();
   const observations=steps.filter(s=>s.kind==="rep");
   if(observations.length<(proof==="evidence"?2:1))invalid();
