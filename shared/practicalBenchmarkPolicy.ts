@@ -89,6 +89,9 @@ export type PracticalVideoVerification = {
   allThreeCasesVisible: boolean;
   environmentAndToolsVisible: boolean;
   specialistScreenFaceVoiceObservable: boolean;
+  recordingConsentVerified: boolean;
+  recordingAccessRestricted: boolean;
+  noRealStudentDataOrBystanders: boolean;
   flaggedCutOrManipulation: boolean;
   flaggedTechnicalInterruption: boolean;
 };
@@ -108,6 +111,12 @@ export function validatePracticalVideoVerification(
     blockers.push("The Specialist's delivery environment and relevant tools are not sufficiently observable.");
   if(!verification.specialistScreenFaceVoiceObservable)
     blockers.push("The Specialist's screen, face and voice are not sufficiently observable.");
+  if(!verification.recordingConsentVerified)
+    blockers.push("Recording consent must be verified against the issued assessment declaration.");
+  if(!verification.recordingAccessRestricted)
+    blockers.push("The original recording link must be demonstrably private to its authorised reviewer.");
+  if(!verification.noRealStudentDataOrBystanders)
+    blockers.push("Do not approve recordings exposing real student data or unrelated people.");
   if(verification.flaggedCutOrManipulation)
     blockers.push("Suspected cuts, editing or manipulation require integrity review.");
   if(verification.flaggedTechnicalInterruption)
