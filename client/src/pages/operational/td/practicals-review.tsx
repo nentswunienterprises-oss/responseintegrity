@@ -115,7 +115,7 @@ export default function CapabilityPracticalReview() {
   const [criterionDrafts, setCriterionDrafts] = useState<Record<string, CriterionDraft>>({});
   const [feedback, setFeedback] = useState("");
   const [traceMatched,setTraceMatched]=useState(false);
-  const [caseDrafts,setCaseDrafts]=useState<Record<string,{judgment:""|"clear"|"partial"|"fail";observedEvidence:string}>>({});
+  const [caseDrafts,setCaseDrafts]=useState<Record<string,{judgment:""|"clear"|"partial"|"fail";observedEvidence:string;videoTraceMatched:boolean}>>({});
   const [durationMinutes,setDurationMinutes]=useState("");
   const [durationSeconds,setDurationSeconds]=useState("0");
   const [videoChecks,setVideoChecks]=useState({
@@ -160,7 +160,7 @@ export default function CapabilityPracticalReview() {
     setCriterionDrafts(emptyCriterionDrafts(item.reviewRubric));
     setFeedback("");
     setTraceMatched(false);
-    setCaseDrafts(Object.fromEntries((item.benchmark?.history||[]).map(c=>[c.caseKey,{judgment:"",observedEvidence:""}])));
+    setCaseDrafts(Object.fromEntries((item.benchmark?.history||[]).map(c=>[c.caseKey,{judgment:"",observedEvidence:"",videoTraceMatched:false}])));
     setDurationMinutes("");
     setDurationSeconds("0");
     setVideoChecks({
@@ -207,7 +207,7 @@ export default function CapabilityPracticalReview() {
   const caseKeys=selected?.benchmark?.history.map(c=>c.caseKey)||[];
   const benchmarkCaseReviews:PracticalCaseReview[]=caseKeys.flatMap(caseKey=>{
     const draft=caseDrafts[caseKey];
-    return draft?.judgment?[{caseKey,judgment:draft.judgment,observedEvidence:draft.observedEvidence.trim()}]:[];
+    return draft?.judgment?[{caseKey,judgment:draft.judgment,observedEvidence:draft.observedEvidence.trim(),videoTraceMatched:draft.videoTraceMatched}]:[];
   });
   const caseReviewsValid=selected?.benchmark?.completed===true &&
     validateCaseReviews(caseKeys,benchmarkCaseReviews).length===0;
@@ -233,7 +233,7 @@ export default function CapabilityPracticalReview() {
       if(!caseReviewsValid)throw new Error("Review every issued benchmark case and cite its directly observable video evidence.");
       if(!videoTimeValid)throw new Error("Enter the actual full video duration as observed by the TD.");
       if(derivedPreview.outcome==="approved" &&
-        (!videoCanApprove||benchmarkCaseReviews.some(c=>c.judgment!=="clear")))
+        (!videoCanApprove||benchmarkCaseReviews.some(c=>c.judgment!=="clear"||!c.videoTraceMatched)))
         throw new Error("Approval requires all three cases Clear, intact continuous video, no interruptions, demonstrated setup and matching duration. Mark a failed criterion when the evidence does not support approval.");
       if(videoChecks.flaggedCutOrManipulation && derivedPreview.outcome!=="integrity_review")
         throw new Error("Suspected cuts or manipulation require an integrity-critical Fail, not an ordinary repeat.");
@@ -400,7 +400,7 @@ export default function CapabilityPracticalReview() {
                         <AlertDescription>The full three-case system assignment is missing. Do not approve.</AlertDescription>
                       </Alert>:
                       selected.benchmark.history.map(item=>{
-                        const draft=caseDrafts[item.caseKey]||{judgment:"" as const,observedEvidence:""};
+                        const draft=caseDrafts[item.caseKey]||{judgment:"" as const,observedEvidence:"",videoTraceMatched:false};
                         return <div className="space-y-3 rounded-lg border p-4" key={item.caseKey}>
                           <p className="font-semibold">Case {item.sequence} — {item.title}</p>
                           <p className="text-xs text-muted-foreground">{item.caseKey} · Bank v{item.caseVersion} · {item.phase} · {item.assessedCapability}</p>
@@ -421,7 +421,7 @@ export default function CapabilityPracticalReview() {
                           <div className="flex gap-2 flex-wrap">{(["clear","partial","fail"] as const).map(judgment=>
                             <Button type="button" key={judgment} variant={draft.judgment===judgment?"default":"outline"}
                               onClick={()=>setCaseDrafts(p=>({...p,[item.caseKey]:{
-                                judgment,observedEvidence:p[item.caseKey]?.observedEvidence||"",
+                                judgment,observedEvidence:p[item.caseKey]?.observedEvidence||"",videoTraceMatched:p[item.caseKey]?.videoTraceMatched||false,
                               }}))}>
                               {judgment==="clear"?"Clear":judgment==="partial"?"Partial":"Fail"}
                             </Button>)}</div>
@@ -432,8 +432,19 @@ export default function CapabilityPracticalReview() {
                               placeholder="Describe the visible or audible conduct, tools and decisions for this exact case."
                               value={draft.observedEvidence}
                               onChange={event=>setCaseDrafts(p=>({...p,[item.caseKey]:{
-                                judgment:p[item.caseKey]?.judgment||"",observedEvidence:event.target.value,
+                                judgment:p[item.caseKey]?.judgment||"",observedEvidence:event.target.value,videoTraceMatched:p[item.caseKey]?.videoTraceMatched||false,
                               }}))}/>
+                          </label>
+                          <label className="flex items-start gap-2 text-sm">
+                            <input type="checkbox" checked={draft.videoTraceMatched}
+                              onChange={e=>setCaseDrafts(prev=>({...prev,[item.caseKey]:{
+                                judgment:prev[item.caseKey]?.judgment||"",
+                                observedEvidence:prev[item.caseKey]?.observedEvidence||"",
+                                videoTraceMatched:e.target.checked,
+                              }}))}/>
+                            I independently matched this case's persisted workflow actions,
+                            intervention/evidence entries and timestamps to the original,
+                            uninterrupted video interval.
                           </label>
                         </div>;
                       })
