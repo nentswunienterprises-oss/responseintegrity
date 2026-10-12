@@ -6,14 +6,12 @@ import {
 } from "@shared/practicalBenchmarkPolicy";
 
 /**
- * PRIVATE UNTIL REVEAL.
+ * HISTORICAL PUBLIC PROTOTYPE / TEST FIXTURES ONLY — NOT QUALIFYING CASES.
  *
- * All Specialists in a comparable cohort receive the same numbered case
- * situations in the same order. The observations, errors and support actually
- * demonstrated by each Specialist remain individual. Change the whole bank
- * version if a benchmark is exposed; never quietly edit a historical case.
- *
- * This module is server-only; do not import it from the client.
+ * These case descriptions have been exposed in the public repository.
+ * The real assessment must NEVER issue any case from this module.
+ * Server issuance and TD verification use the privately authored Postgres
+ * bank instead. This module remains solely for deterministic unit fixtures.
  */
 export type IssuedPracticalBenchmarkCase = Readonly<{
   caseKey: string;
