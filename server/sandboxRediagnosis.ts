@@ -61,6 +61,7 @@ type TrajectoryTruthRow = {
   canonical_route: "normal_training" | "targeted_rediagnosis";
   canonical_targeted_rediagnosis_phase: TopicPhase | null;
   trajectory_seed: string;
+  behavior_model_version: 1 | 2;
 };
 
 type RediagnosisRunRow = {
@@ -174,7 +175,7 @@ async function loadTrajectory(input: {
   const result = await pool.query(
     `SELECT t.*, truth.canonical_phase, truth.canonical_stability,
             truth.canonical_route, truth.canonical_targeted_rediagnosis_phase,
-            truth.trajectory_seed
+            truth.trajectory_seed, truth.behavior_model_version
        FROM specialist_sandbox_trajectories t
        JOIN private.specialist_sandbox_trajectory_truth truth
          ON truth.trajectory_id = t.id
@@ -199,6 +200,7 @@ async function loadTrajectory(input: {
         ? String(row.canonical_targeted_rediagnosis_phase) as TopicPhase
         : null,
       trajectory_seed: String(row.trajectory_seed),
+      behavior_model_version: Number(row.behavior_model_version) as 1 | 2,
     } satisfies TrajectoryTruthRow,
   };
 }
@@ -406,6 +408,7 @@ async function plan(input: {
           ? history.readiness.earliestUnsupportedCapability
           : null,
       recentOutcomeKeys: diagnosisTruth.recent_outcome_keys,
+      behaviorModelVersion: truth.behavior_model_version,
     },
   });
   const selectedRecord = outcomes.find(
@@ -625,6 +628,7 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
       sequenceNumber: input.sequenceNumber,
       earliestUnsupportedCapability: null,
       recentOutcomeKeys: [],
+      behaviorModelVersion: truth.behavior_model_version,
     },
   });
   const selectedRecord = outcomes.find(
