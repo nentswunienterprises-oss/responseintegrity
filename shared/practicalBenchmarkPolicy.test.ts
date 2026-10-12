@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   PRACTICAL_BENCHMARK_CASE_COUNT,
   projectSpecialistPracticalActionEvent,
+  resolvePracticalAttempt,
   validatePracticalRecordingDeclaration,
   validateCaseReviews,
   validatePracticalVideoVerification,
@@ -68,4 +69,39 @@ test("Specialist operation history excludes examiner truth and risk flags",()=>{
  assert.equal("riskFlags" in publicView,false);
  assert.deepEqual(Object.keys(publicView).sort(),["operationKey","recordedAt","recordedPayload","stepNumber"].sort());
  assert.equal(publicView.recordedPayload.studentFacingResponse,raw.recordedPayload.studentFacingResponse);
+});
+
+test("original evidence submissions do not define the attempt number after an interrupted recording",()=>{
+ const makeRun=(attempt_number:number,status:"active"|"complete"|"abandoned",
+   recovery_decision:string|null=null,recovery_request_id:string|null=null)=>({
+     attempt_number,status,recovery_decision,recovery_request_id,
+   });
+ assert.deepEqual(resolvePracticalAttempt(null,null),
+   {allowed:true,reason:null,attemptNumber:1});
+ assert.deepEqual(resolvePracticalAttempt(null,makeRun(1,"active")),
+   {allowed:true,reason:null,attemptNumber:1});
+ // The unsubmitted, TD-authorized abandoned first recording must issue AND
+ // submit against attempt 2, not attempt 1.
+ assert.deepEqual(resolvePracticalAttempt(null,makeRun(1,"abandoned","approve_repeat","request-1")),
+   {allowed:true,reason:null,attemptNumber:2});
+ assert.deepEqual(resolvePracticalAttempt(null,makeRun(2,"complete")),
+   {allowed:true,reason:null,attemptNumber:2});
+ // Recovered attempt 2 following an ordinary reviewed repeat of attempt 1.
+ assert.deepEqual(resolvePracticalAttempt(
+   {attempt_number:1,outcome:"repeat_required"},
+   makeRun(2,"abandoned","approve_repeat","request-2")),
+   {allowed:true,reason:null,attemptNumber:3});
+ assert.equal(resolvePracticalAttempt(null,makeRun(1,"abandoned",null,"request-1")).allowed,false);
+ assert.equal(resolvePracticalAttempt(null,makeRun(1,"abandoned","deny","request-1")).allowed,false);
+ assert.equal(resolvePracticalAttempt(null,makeRun(1,"active","integrity_review","request-1")).allowed,false);
+});
+test("already submitted, approved or integrity-held Practical cannot silently issue or submit another attempt",()=>{
+ for(const outcome of [null,"approved","integrity_review","submitted"]){
+   const result=resolvePracticalAttempt({attempt_number:1,outcome},
+     {attempt_number:1,status:"complete",recovery_request_id:null,recovery_decision:null});
+   assert.equal(result.allowed,false);
+   assert.equal(result.attemptNumber,0);
+ }
+ assert.equal(resolvePracticalAttempt({attempt_number:1,outcome:"repeat_required"},
+   {attempt_number:1,status:"complete",recovery_request_id:null,recovery_decision:null}).attemptNumber,2);
 });
