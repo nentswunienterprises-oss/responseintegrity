@@ -441,7 +441,7 @@ test("embedded Sandbox live runner is locked to the route student and still rend
   assert.match(sandboxRunnerSource, /operationalModeOverride/);
   assert.match(
     sandboxRunnerSource,
-    /const studentId = String\([\s\S]*studentIdOverride \|\| selectedSandboxStudent\?\.id/,
+    /const studentId = String\(requestedStudentId \|\| selectedSandboxStudent\?\.id \|\| ""\)/,
   );
   assert.match(sandboxRunnerSource, /enabled: requiresPodData/);
   assert.match(sandboxRunnerSource, /LiveSandboxStudentResponse/);
