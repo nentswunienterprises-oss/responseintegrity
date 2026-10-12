@@ -38,7 +38,9 @@ test("TD cannot approve interrupted, edited, off-camera or invalid-length origin
   const clean={
     observedDurationSeconds:900,recordingContinuous:true,recordingBeginsBeforeReveal:true,
     allThreeCasesVisible:true,environmentAndToolsVisible:true,
-    specialistScreenFaceVoiceObservable:true,flaggedCutOrManipulation:false,
+    specialistScreenFaceVoiceObservable:true,
+    recordingConsentVerified:true,recordingAccessRestricted:true,
+    noRealStudentDataOrBystanders:true,flaggedCutOrManipulation:false,
     flaggedTechnicalInterruption:false,
   };
   for(const seconds of [200,900,3600])
@@ -47,6 +49,8 @@ test("TD cannot approve interrupted, edited, off-camera or invalid-length origin
     {recordingContinuous:false},{recordingBeginsBeforeReveal:false},{allThreeCasesVisible:false},
     {environmentAndToolsVisible:false},{specialistScreenFaceVoiceObservable:false},
     {flaggedCutOrManipulation:true},{flaggedTechnicalInterruption:true},
+    {recordingConsentVerified:false},{recordingAccessRestricted:false},
+    {noRealStudentDataOrBystanders:false},
     {observedDurationSeconds:0},{observedDurationSeconds:-1},{observedDurationSeconds:900.5}
   ]) assert.ok(validatePracticalVideoVerification("execute",{...clean,...mutation}).length>0);
 });
