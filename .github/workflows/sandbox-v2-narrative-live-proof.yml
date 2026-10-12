@@ -41,8 +41,8 @@ jobs:
           import { createHash } from "node:crypto";
           import { chromium } from "playwright";
 
-          const base = "https://tt-confidence-72jbedc8u-relief-works-technologies.vercel.app";
-          const expectedSha = "1dd4b611625e6155dfb1ef42d47369f830d447fe";
+          const base = "https://tt-confidence-9ywaf0xqj-relief-works-technologies.vercel.app";
+          const expectedSha = "66bb0bbff4258ee64ed7501d0c5b570a710de55d";
           const expectedDb = "jftlxeacphvbnhbsbpxc";
           const assignment = "836a839f-2f29-45c7-b8c2-aa501c95e1b0";
           const email=String(process.env.RI_PROOF_EMAIL||"").trim();
@@ -144,24 +144,24 @@ jobs:
               }
             });
             const first=forms[0];
-            // The native Pod deliberately lists only its provisioned Sandbox
-            // student cards. The four isolated QA fixtures above prove API
-            // semantics; the visual test uses an already listed controlled V2
-            // synthetic student. Never add QA-only students to the Pod UI or
-            // overwrite a real family record to make a browser assertion pass.
-            const browserStudent="e1c11823-05e7-47a1-a753-e6599954df1a";
-            const browserBooking="05da6194-db28-41ea-8798-e17c0ab9aa4d";
-            const browserTopic="Fractions";
-            const browserScene="The Specialist introduces a challenging problem and watches how the student enters it.";
+            // This explicitly authorized synthetic QA student is deliberately
+            // not among the Pod's summary cards. Deep-link identity must never
+            // silently fall back to another learner. Backend student/booking
+            // authorization remains the only runtime authority.
+            const browserStudent=student(first.entry.index);
+            const browserBooking=booking(first.entry.index);
+            const browserTopic=first.entry.topic;
+            const browserScene=first.entry.scene;
             const browserParams=q({tutorAssignmentId:assignment,studentId:browserStudent,
               scheduledSessionId:browserBooking,topic:browserTopic,sessionNumber:"1"});
             const browserForm=await get("/api/tutor/sandbox-environment?"+browserParams);
             assert.equal(browserForm.status,"rep_ready");
+            assert.equal(browserForm.eventFormId,first.result.eventFormId);
             assert.ok(browserForm.rep.studentBehavior.startsWith(browserScene));
             const browserPod=await get("/api/tutor/pod");
-            assert.ok(browserPod.students?.some(s=>String(s.id)===browserStudent),
-              "Controlled V2 student must be in the real Specialist Pod");
-            console.log("V2_BROWSER_REAL_POD_STUDENT_AUTHORIZED=PASS");
+            assert.ok(!browserPod.students?.some(s=>String(s.id)===browserStudent),
+              "The deep-link fixture unexpectedly entered the Pod cards; the negative test is invalid");
+            console.log("V2_BROWSER_DEEPLINK_STUDENT_AUTHORIZED_BY_SERVER=PASS");
             const route=base+"/operational/specialist/sandbox?"+
               q({studentId:browserStudent,
                 scheduledSessionId:browserBooking,
@@ -202,14 +202,16 @@ jobs:
             assert.equal(second.trajectoryId,initial.trajectoryId);
             console.log("V2_CONTENT_CROSS_REP_VISIBLE=PASS");
 
-            // Reload must show the same real Pod student's current, unsent
-            // response; QA-only rep 2 has already been proven through the API.
+            // Reload the exact same explicitly selected QA student; the
+            // current rep must be the real second opportunity, not another
+            // Pod student or a stale rep-1 response.
             await page.reload({waitUntil:"domcontentloaded",timeout:90000});
-            await page.getByRole("button",{name:"Begin Rep 1"}).click({timeout:60000});
-            await page.getByText(browserScene,{exact:false}).first().waitFor({
-              state:"visible",timeout:45000,
-            });
-            console.log("V2_CONTENT_BROWSER_RELOAD_VISIBLE=PASS");
+            await page.getByRole("button",{name:"Begin Rep 2"}).click({timeout:60000});
+            await page.getByText(
+              "Another recognition prompt is presented without a worked example.",
+              {exact:false},
+            ).first().waitFor({state:"visible",timeout:45000});
+            console.log("V2_CONTENT_BROWSER_SECOND_REP_VISIBLE=PASS");
             console.log("V2_NARRATIVE_LIVE_PROOF=PASS");
           } finally {
             await browser.close();
