@@ -209,7 +209,7 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       {kind:"configure",label:"Synthetic setup "+i,prompt:"Only a controlled PostgreSQL fixture"},
       {kind:"rep",label:"Synthetic real rep "+i,prompt:"Only immutable fake evidence"},
     ];
-    const fixtureCase=(proof:"prepare"|"evidence",i:number)=>({
+    const fixtureCase=(proof:"prepare"|"execute"|"evidence",i:number)=>({
       caseKey:proof+".ci_case"+i,caseVersion:2,sequence:i,
       phase:"Clarity",assessedCapability:"Synthetic qualification contract",
       title:"Synthetic CI work sample "+i,
@@ -218,7 +218,7 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       liveDemonstration:"Perform and record each synthetic operating action while recording.",
       fictionalOnly:true,workflowSteps:fixtureSteps(i),
     });
-    for(const proof of ["prepare","evidence"] as const){
+    for(const proof of ["prepare","execute","evidence"] as const){
       for(let i=1;i<=3;i++){
         const c=fixtureCase(proof,i);
         await db.query(`INSERT INTO private.specialist_practical_benchmark_private_cases
@@ -227,6 +227,10 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
           [proof,i,c.caseKey,JSON.stringify(c)]);
       }
     }
+    const nineCaseCount=await db.query(`SELECT count(*)::int AS n,COUNT(DISTINCT proof_key)::int AS categories
+      FROM private.specialist_practical_benchmark_private_cases WHERE bank_version=2`);
+    assert.deepEqual(nineCaseCount.rows[0],{n:9,categories:3},
+      "All nine synthetic sealed case identities must be present before a real private bank can issue");
     const bankRights=await db.query(`SELECT
       has_table_privilege('anon','private.specialist_practical_benchmark_private_cases','SELECT') AS anon_read,
       has_table_privilege('authenticated','private.specialist_practical_benchmark_private_cases','INSERT') AS user_write`);
