@@ -1,7 +1,7 @@
 import { pool } from "./db";
 import { getDrillSchemaDefinition, getEvidenceSelectionIdentity, getFieldDefinitionsForRep } from "@shared/responseIntegrityDrillRegistry";
 import type { TopicPhase } from "@shared/topicConditioningEngine";
-import { projectSpecialistPracticalActionEvent, type PracticalBenchmarkProof } from "@shared/practicalBenchmarkPolicy";
+import { projectSpecialistPracticalActionEvent, projectPracticalSetupForSpecialist, type PracticalBenchmarkProof } from "@shared/practicalBenchmarkPolicy";
 import { getCapabilityPracticalProofDefinition } from "@shared/capabilityPracticalEvidence";
 import { getPracticalCasePlan, type PracticalWorkStep } from "./practicalCasePlans";
 import { normalizePracticalDimensionObservations } from "@shared/practicalRepObservation";
@@ -69,7 +69,7 @@ function publicStep(step:PracticalWorkStep,number:number){
   // The Specialist must independently select the permitted drill.
   // The canonical assigned set ID belongs in the sealed examiner snapshot,
   // never in the candidate-facing step payload.
-  const {setId:_privateAnswer,...publicSetup}=step;
+  const publicSetup=projectPracticalSetupForSpecialist(step);
   return {number,...publicSetup,registry:{schemaId:schema.schemaId,schemaVersion:schema.schemaVersion,
     phase:step.phase,setOptions:schema.sets.filter(x=>!x.modelingOnly).map(x=>({
       setId:x.setId,label:x.setName,supportLevel:x.constraints.supportLevel,
