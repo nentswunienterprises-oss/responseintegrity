@@ -4,6 +4,8 @@ import {
   PRACTICAL_BENCHMARK_CASE_COUNT,
   projectSpecialistPracticalActionEvent,
   projectPracticalSetupForSpecialist,
+  projectSpecialistPracticalCase,
+  projectSpecialistPracticalStep,
   resolvePracticalAttempt,
   validatePracticalRecordingDeclaration,
   validateCaseReviews,
@@ -116,4 +118,39 @@ test("candidate setup never reveals the canonical assigned drill, even before a 
  assert.equal(candidate.phase,"Clarity");
  assert.equal(candidate.prompt,sealed.prompt);
  assert.equal(sealed.setId,"clarity.identification");
+});
+
+test("private case fields never leak into the Specialist benchmark projection",()=>{
+ const secret={
+   phase:"Clarity",assessedCapability:"Clarity operational proof",
+   title:"A private CI case",situation:"Synthetic case context",
+   systemDirection:"Carry out real steps",liveDemonstration:"Perform the scenario",
+   fictionalOnly:true as const,workflowSteps:[{kind:"rep"}],
+   canonicalTruth:{correctSupport:"none"},futureUnreleasedCase:"never show",
+ };
+ const projected=projectSpecialistPracticalCase(secret);
+ assert.equal("workflowSteps" in projected,false);
+ assert.equal("canonicalTruth" in projected,false);
+ assert.equal("futureUnreleasedCase" in projected,false);
+ assert.equal(projected.title,secret.title);
+});
+test("configure and begin-rep Specialist steps cannot reveal answer keys or future behaviour",()=>{
+ const shared={label:"Issued CI step",prompt:"Perform the simulated action",phase:"Clarity",
+   setId:"clarity.correct_hidden",repNumber:1,
+   studentBehavior:"Unreleased response",observedSupport:"unobserved",
+   canonicalTruth:"secret",futureBehavior:"secret future branch",
+ };
+ const configure=projectSpecialistPracticalStep({...shared,kind:"configure"});
+ const begin=projectSpecialistPracticalStep({...shared,kind:"begin_rep"});
+ for(const projected of [configure,begin]){
+   assert.equal("canonicalTruth" in projected,false);
+   assert.equal("futureBehavior" in projected,false);
+   assert.equal("observedSupport" in projected,false);
+   assert.equal("studentBehavior" in projected,false);
+ }
+ assert.equal("setId" in configure,false);
+ assert.equal(begin.setId,shared.setId);
+ const rep=projectSpecialistPracticalStep({...shared,kind:"rep"});
+ assert.equal(rep.studentBehavior,shared.studentBehavior);
+ assert.equal("observedSupport" in rep,false);
 });
