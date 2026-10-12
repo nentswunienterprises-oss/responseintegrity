@@ -11,6 +11,7 @@ if(parsed.errors.length)throw new Error("Invalid root TypeScript configuration."
 const touched=new Set([
  "server/practicalCasePlans.ts",
  "server/practicalCaseWork.ts",
+ "server/practicalRecordingRecovery.ts",
  "server/practicalBenchmarkBank.ts",
  "server/practicalBenchmarkRuns.ts",
  "server/routes/capabilityPracticalEvidence.ts",
@@ -18,6 +19,8 @@ const touched=new Set([
  "shared/practicalBenchmarkPolicy.ts",
  "client/src/components/practicals/PracticalCaseWorkbench.tsx",
  "client/src/components/practicals/PracticalBenchmarkRun.tsx",
+ "client/src/components/practicals/PracticalRecordingRecoveryControls.tsx",
+ "client/src/components/practicals/PracticalRecordingRecoveryQueue.tsx",
  "client/src/components/practicals/ResponsiveExecuteChallenge.tsx",
  "client/src/pages/operational/tutor/practicals.tsx",
  "client/src/pages/operational/td/practicals-review.tsx",
