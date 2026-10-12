@@ -166,7 +166,7 @@ export default function OperationalSignup() {
     : "Join as Territory Director";
   const description = isTutorRole
     ? lockedMode === "login"
-      ? "Existing tutors continue here. This route is reserved for login only."
+      ? "Existing Specialists continue here. This route is reserved for login only."
       : lockedMode === "signup"
         ? fastTrackEnabled && !urlParams.get("cycle")
           ? fastTrackDescription ?? "This path is available by invitation while the public intake gate remains unchanged."
