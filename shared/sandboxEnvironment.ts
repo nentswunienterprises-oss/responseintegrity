@@ -742,8 +742,11 @@ const evidenceRowForTurn = (
   const observations =
     source === "canonical" ? turn.outcome.canonicalObservations : turn.specialistObservations;
 
-  for (const baseField of set.fields) {
-    const field = getFieldDefinitionForRep(set, repIndex, baseField.fieldKey) || baseField;
+  // Training V4 deliberately varies the observable dimensions by rep.
+  // The session evaluator must use the same eligible field set as the live
+  // rep form; falling back to the base set field would invent an observation
+  // (for example Structured Execution repeatability on opportunity 1).
+  for (const field of getFieldDefinitionsForRep(set, repIndex)) {
     const selected = observations[field.fieldKey];
     if (!selected?.optionId) {
       throw new Error(
