@@ -163,6 +163,8 @@ export function validateSandboxDiagnosisOutcomeDefinition(
 
 export function selectSandboxDiagnosisOutcome(input: {
   seed: string;
+  /** Trajectory-level identity, independent of per-probe Handover/Diagnosis salt. */
+  profileSeed?: string;
   outcomes: SandboxDiagnosisOutcomeDefinition[];
   context: SandboxDiagnosisOutcomeSelectionContext;
 }) {
@@ -203,7 +205,7 @@ export function selectSandboxDiagnosisOutcome(input: {
           definition.version,
         ].join(":"),
       ) / Math.max(0.05, definition.weight * sandboxBehaviorProfileMultiplier({
-        seed: input.seed.split(":")[0],
+        seed: input.profileSeed || input.seed.split(":")[0],
         phase: input.context.startingPhase,
         trajectoryClass: definition.trajectoryClass,
       }));
