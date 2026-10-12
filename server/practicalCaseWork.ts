@@ -1,7 +1,7 @@
 import { pool } from "./db";
 import { getDrillSchemaDefinition, getEvidenceSelectionIdentity, getFieldDefinitionsForRep } from "@shared/responseIntegrityDrillRegistry";
 import type { TopicPhase } from "@shared/topicConditioningEngine";
-import { PRACTICAL_BENCHMARK_VERSION, projectSpecialistPracticalActionEvent, projectPracticalSetupForSpecialist, type PracticalBenchmarkProof } from "@shared/practicalBenchmarkPolicy";
+import { PRACTICAL_BENCHMARK_VERSION, projectSpecialistPracticalActionEvent, projectSpecialistPracticalStep, type PracticalBenchmarkProof } from "@shared/practicalBenchmarkPolicy";
 import { getCapabilityPracticalProofDefinition } from "@shared/capabilityPracticalEvidence";
 import type { PracticalWorkStep } from "./practicalCasePlans";
 import { assertPrivatePracticalCaseSnapshot } from "./privatePracticalBenchmarkBank";
@@ -52,27 +52,15 @@ function repRegistry(step:PracticalWorkStep){
    phase:step.phase,setId:set.setId,setName:set.setName,repNumber:step.repNumber,fields};
 }
 function publicStep(step:PracticalWorkStep,number:number){
- if(step.kind==="begin_rep"){
-   // Never deliver future student response or intervention truth before the
-   // server has recorded the live start. The client cannot inspect it early.
-   const {studentBehavior:_hiddenResponse,observedSupport:_hiddenCondition,...visible}=step;
-   return {number,...visible};
- }
+ const visible=projectSpecialistPracticalStep(step);
  if(step.kind==="configure"){
   const schema=getDrillSchemaDefinition("training",step.phase!);
-  // The Specialist must independently select the permitted drill.
-  // The canonical assigned set ID belongs in the sealed examiner snapshot,
-  // never in the candidate-facing step payload.
-  const publicSetup=projectPracticalSetupForSpecialist(step);
-  return {number,...publicSetup,registry:{schemaId:schema.schemaId,schemaVersion:schema.schemaVersion,
+  return {number,...visible,registry:{schemaId:schema.schemaId,schemaVersion:schema.schemaVersion,
     phase:step.phase,setOptions:schema.sets.filter(x=>!x.modelingOnly).map(x=>({
       setId:x.setId,label:x.setName,supportLevel:x.constraints.supportLevel,
       pressureLevel:x.constraints.pressureLevel,
     }))}};
  }
- // An exam cannot give away the correct intervention classification before
- // the Specialist independently reads the simulated student condition.
- const {observedSupport:_canonicalPrivate,...visible}=step;
  return {number,...visible,...(step.kind==="rep"?{registry:repRegistry(step)}:{})};
 }
 function validateAction(step:PracticalWorkStep,payload:Record<string,unknown>,prior:RecordedAction[]){
