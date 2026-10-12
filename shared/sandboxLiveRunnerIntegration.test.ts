@@ -135,6 +135,23 @@ test("selected topic is authoritative for the Sandbox drill and cannot be silent
   assert.match(sandboxTopicMigrationSource, /canonical_topic_states/);
 });
 
+test("explicit Sandbox student deep links never silently fall back to a different learner", () => {
+  // A Specialist's Pod can be a narrower card projection than the synthetic
+  // students authorized in Capability Proof. Do not silently swap identity.
+  assert.match(sandboxRunnerSource,
+    /const studentId = String\(requestedStudentId \|\| selectedSandboxStudent\?\.id \|\| ""\)/);
+  assert.match(sandboxRunnerSource,
+    /!requestedStudentId \? sandboxStudents\[0\] \|\| null : null/);
+  // The server remains authoritative: a URL alone cannot grant access to a
+  // student who is not assigned or is not in a synthetic Sandbox enrollment.
+  assert.match(sandboxAuthoritySource,
+    /Sandbox student is not assigned to this authenticated Specialist/);
+  assert.match(sandboxAuthoritySource,
+    /Stateful Sandbox may only run against synthetic Sandbox student accounts/);
+  assert.match(sandboxAuthoritySource,
+    /The selected Sandbox training lesson could not be found/);
+});
+
 test("Sandbox mode uses the existing live-runner route rather than a separate runner flow", () => {
   assert.match(
     liveRunnerSource,
