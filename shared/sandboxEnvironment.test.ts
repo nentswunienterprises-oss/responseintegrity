@@ -23,7 +23,7 @@ import {
   resolveEvidenceSelection,
 } from "./responseIntegrityDrillRegistry";
 import type { TopicPhase } from "./topicConditioningEngine";
-import { resolveSandboxBehaviorProfile, sandboxBehaviorProfileMultiplier } from "./sandboxBehaviorProfiles";
+import { SANDBOX_BEHAVIOR_PROFILE_MODEL_VERSION, isSandboxBehaviorTransitionPlausible, resolveSandboxBehaviorProfile, sandboxBehaviorObservableSignatureMultiplier, sandboxBehaviorProfileMultiplier, sandboxBehaviorTransitionMultiplier } from "./sandboxBehaviorProfiles";
 import {
   getLegacyStatefulSandboxV1ScenarioTruthAudit,
 } from "./statefulSandboxV1ScenarioTruthAudit";
@@ -653,4 +653,116 @@ test("a real Specialist capability breakdown requires a stronger clean recovery 
   assert.equal(result.evidenceReady, true);
   assert.equal(result.practicalsReady, false);
   assert.match(result.reason, /candidate capability standard/i);
+});
+
+
+test("versioned Sandbox behavioural continuity preserves legacy assignments and V1 selection", () => {
+  // These V1 seed mappings must not shift when the authored PROFILES array changes.
+  assert.equal(SANDBOX_BEHAVIOR_PROFILE_MODEL_VERSION, 1);
+  assert.equal(resolveSandboxBehaviorProfile("identity-v1-0"), "uneven_performer");
+  assert.equal(resolveSandboxBehaviorProfile("identity-v1-1"), "fast_recovery");
+  assert.equal(resolveSandboxBehaviorProfile("identity-v1-2"), "clarity_fragile");
+  assert.equal(resolveSandboxBehaviorProfile("identity-v1-3"), "quietly_strong");
+  assert.equal(resolveSandboxBehaviorProfile("identity-v1-4"), "pressure_fragile");
+  assert.equal(resolveSandboxBehaviorProfile("identity-v1-5"), "reassurance_seeker");
+
+  const supported = outcomeFor({
+    setId: "clarity.identification", repNumber: 1, key: "legacy-clean",
+    trajectoryClass: "supported",
+  });
+  const ctx = {
+    canonicalPhase: "Clarity" as const,
+    canonicalStability: "Low" as const,
+    prescribedPhase: "Clarity" as const,
+    setId: "clarity.identification",
+    repNumber: 1,
+    sequenceNumber: 5,
+    previousTrajectoryClass: "breakdown" as const,
+    continuityTags: ["recent_breakdown"],
+  };
+  // Already-issued V1 encounters must not acquire a new hidden answer.
+  assert.equal(
+    selectSandboxOutcome({ seed: "identity-v1-0", outcomes: [supported], context: ctx }).key,
+    supported.key,
+  );
+  assert.equal(
+    selectSandboxOutcome({ seed: "identity-v1-0", outcomes: [supported],
+      context: { ...ctx, behaviorModelVersion: 1 } }).key,
+    supported.key,
+  );
+});
+
+test("V2 Sandbox cannot erase a breakdown without an observable intermediate response", () => {
+  const setId = "clarity.identification";
+  const supported = outcomeFor({ setId, repNumber: 1, key: "clean", trajectoryClass: "supported" });
+  const nearStable = outcomeFor({ setId, repNumber: 1, key: "self-correction", trajectoryClass: "near_stable" });
+  const conditional = outcomeFor({ setId, repNumber: 1, key: "still-dependent", trajectoryClass: "conditional" });
+  const confounded = outcomeFor({ setId, repNumber: 1, key: "external-hint", trajectoryClass: "confounded" });
+  const unseen = outcomeFor({ setId, repNumber: 1, key: "not-visible", trajectoryClass: "not_observed" });
+  const base = {
+    canonicalPhase: "Clarity" as const,
+    canonicalStability: "Low" as const,
+    prescribedPhase: "Clarity" as const,
+    setId, repNumber: 1, sequenceNumber: 6,
+    behaviorModelVersion: 2 as const,
+    previousTrajectoryClass: "breakdown" as const,
+    continuityTags: ["recent_breakdown"],
+  };
+  assert.ok(!isSandboxBehaviorTransitionPlausible({
+    previousTrajectoryClass: "breakdown", trajectoryClass: "supported",
+  }));
+  assert.equal(selectSandboxOutcome({
+    seed: "identity-v1-1", outcomes: [supported, nearStable], context: base,
+  }).key, nearStable.key);
+  assert.throws(() => selectSandboxOutcome({
+    seed: "identity-v1-1", outcomes: [supported], context: base,
+  }), /no plausible behavioural continuation/);
+  // Unknown evidence is not recovery from an earlier observed breakdown.
+  assert.equal(selectSandboxOutcome({
+    seed: "identity-v1-1", outcomes: [supported, confounded, unseen],
+    context: { ...base, previousTrajectoryClass: "confounded" },
+  }).trajectoryClass !== "supported", true);
+  // A genuinely observed intermediate recovery may precede a clean response.
+  assert.equal(selectSandboxOutcome({
+    seed: "identity-v1-1", outcomes: [supported],
+    context: { ...base, previousTrajectoryClass: "near_stable" },
+  }).key, supported.key);
+  assert.equal(selectSandboxOutcome({
+    seed: "identity-v1-1", outcomes: [conditional, nearStable],
+    context: base,
+  }).key, selectSandboxOutcome({
+    seed: "identity-v1-1", outcomes: [conditional, nearStable],
+    context: base,
+  }).key);
+});
+
+test("Sandbox V2 profiles bias observable signatures and recovery without fabricating evidence", () => {
+  const candidate = (seed: string, phase: TopicPhase, trajectoryClass: SandboxOutcomeDefinition["trajectoryClass"],
+    outcomeKey: string, previousTrajectoryClass?: SandboxOutcomeDefinition["trajectoryClass"]) => ({
+      seed, phase, trajectoryClass, outcomeKey, previousTrajectoryClass,
+    });
+  assert.ok(sandboxBehaviorObservableSignatureMultiplier(candidate(
+    "identity-v1-5", "Structured Execution", "conditional",
+    "structured_execution.required_structure.rep_1.pattern_3",
+  )) > 1, "the reassurance seeker should favour authored help-seeking conduct");
+  assert.ok(sandboxBehaviorObservableSignatureMultiplier(candidate(
+    "identity-v1-4", "Time Pressure Stability", "breakdown",
+    "time.pressure.rep_1.pattern_5",
+  )) > 1, "pressure fragility must be visible under a timer");
+  assert.equal(sandboxBehaviorObservableSignatureMultiplier(candidate(
+    "identity-v1-4", "Time Pressure Stability", "confounded",
+    "time.pressure.rep_1.pattern_5",
+  )), 1, "a confounder is not an actual student trait observation");
+  assert.ok(sandboxBehaviorTransitionMultiplier(candidate(
+    "identity-v1-1", "Structured Execution", "near_stable",
+    "structured_execution.required_structure.rep_1.pattern_2", "breakdown",
+  )) > sandboxBehaviorTransitionMultiplier(candidate(
+    "identity-v1-1", "Structured Execution", "conditional",
+    "structured_execution.required_structure.rep_1.pattern_3", "breakdown",
+  )), "fast recovery favours a visible self-correction over remaining dependent");
+  assert.ok(sandboxBehaviorTransitionMultiplier(candidate(
+    "identity-v1-0", "Clarity", "conditional", "clarity.identification.rep_1.pattern_3", "supported",
+  )) > sandboxBehaviorTransitionMultiplier(candidate(
+    "identity-v1-0", "Clarity", "supported", "clarity.identification.rep_1.pattern_1", "supported",
+  )), "uneven performance should not merely be a lower average score");
 });
