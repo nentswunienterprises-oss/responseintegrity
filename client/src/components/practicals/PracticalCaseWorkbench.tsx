@@ -6,6 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import ResponsiveExecuteChallenge from "./ResponsiveExecuteChallenge";
+import { LivePhaseContext,LiveRepStage,LiveObservationField,LiveSandboxStudentResponse,liveObservationQuestion,liveObservationLabel } from "@/components/tutor/TrainingLiveDeliveryUi";
+import type { PracticalDimensionObservation } from "@shared/practicalRepObservation";
 import type { PracticalBenchmarkProof } from "@shared/practicalBenchmarkPolicy";
 
 type Step = {
@@ -68,7 +70,7 @@ function PracticalWorkStepForm({step,onSave,pending,onExecuteComplete,assignment
  onExecuteComplete:(id:string|null)=>void;assignmentId:string;
 }){
  const [form,setForm]=useState<Record<string,string>>({});
- const [observations,setObservations]=useState<Record<string,string>>({});
+ const [observations,setObservations]=useState<Record<string,PracticalDimensionObservation>>({});
  const [video,setVideo]=useState({cameraReady:false,microphoneReady:false,workSurfaceReady:false});
  const set=(key:string,value:string)=>setForm(v=>({...v,[key]:value}));
  const get=(key:string)=>form[key]||"";
@@ -86,7 +88,10 @@ function PracticalWorkStepForm({step,onSave,pending,onExecuteComplete,assignment
      long("studentFacingResponse","observedBehavior","decisionReason"))||
    (rep&&choices("intervention","evidenceStatus","independenceClaim","timingStatus")&&
      long("studentFacingResponse","observedBehavior","decisionReason")&&
-     (step.registry?.fields||[]).every(f=>!!observations[f.fieldKey]))||
+     (step.registry?.fields||[]).every(f=>{
+       const selection=observations[f.fieldKey];
+       return Boolean(selection&&(selection.evidenceStatus!=="observed"||!!selection.optionId));
+     }))||
    (decision&&choices("nextAction","evidenceClaim")&&long("decisionReason","evidenceBoundary"));
  const submit=()=>{
    if(!ready)return;
@@ -100,11 +105,12 @@ function PracticalWorkStepForm({step,onSave,pending,onExecuteComplete,assignment
      <p className="text-xs text-muted-foreground">Live operation {step.number}: {kind.replaceAll("_"," ")}</p>
      <h3 className="font-semibold">{step.label}</h3>
      <p className="text-sm">{step.prompt}</p>
-     {step.phase&&<p className="text-xs text-muted-foreground">System-issued phase: {step.phase}</p>}
+     {step.phase&&["Clarity","Structured Execution","Controlled Discomfort","Time Pressure Stability"].includes(step.phase)&&
+       <LivePhaseContext phase={step.phase as "Clarity"|"Structured Execution"|"Controlled Discomfort"|"Time Pressure Stability"}/>}
+     {kind==="begin_rep"&&<LiveRepStage stage="ready" sandbox/>}
+     {kind==="rep"&&<LiveRepStage stage="observe" sandbox/>}
      {step.studentBehavior&&kind!=="begin_rep"&&
-       <p className="rounded-md border bg-muted/20 p-3 text-sm"><strong>Fictional student, revealed now:</strong> {step.studentBehavior}</p>}
-     {step.observedSupport&&kind==="rep"&&
-       <p className="text-sm"><strong>System-observed support/visibility:</strong> {step.observedSupport.replaceAll("_"," ")}</p>}
+       <LiveSandboxStudentResponse>{step.studentBehavior}</LiveSandboxStudentResponse>}
    </div>
    {setup&&<>
      <Field label="Select the actual training drill/set to open" value={get("selectedSetId")}
@@ -132,10 +138,23 @@ function PracticalWorkStepForm({step,onSave,pending,onExecuteComplete,assignment
    </>}
    {rep&&<>
      <p className="text-sm font-medium">Active training registry observation fields · {step.registry?.setName}</p>
-     {(step.registry?.fields||[]).map(f=><Field key={f.fieldKey}
-       label={f.dimensionId.replaceAll("."," · ")} value={observations[f.fieldKey]||""}
-       onChange={v=>setObservations(x=>({...x,[f.fieldKey]:v}))}
-       options={f.options.map(o=>[o.optionId,o.label] as const)}/>)}
+     <p className="text-xs text-muted-foreground">Observe → record evidence. For unobserved or confounded work, record the exception without inventing a response option.</p>
+     {(step.registry?.fields||[]).map(f=>{
+       const current=observations[f.fieldKey];
+       return <LiveObservationField key={f.fieldKey}
+         question={liveObservationQuestion(step.phase||"",f.dimensionId.replaceAll("."," "))}
+         label={liveObservationLabel(step.phase||"",f.dimensionId.replaceAll("."," "))}
+         options={f.options.map(o=>({id:o.optionId,label:o.label}))}
+         selected={current?.evidenceStatus==="observed"?current.optionId:null}
+         onSelect={optionId=>setObservations(x=>({...x,[f.fieldKey]:{optionId,evidenceStatus:"observed"}}))}
+         evidenceStatus={current?.evidenceStatus||"observed"}
+         showEvidenceExceptions={true}
+         allowEvidenceExceptionWithoutOption
+         onEvidenceStatus={evidenceStatus=>setObservations(x=>({...x,[f.fieldKey]:{
+           optionId:evidenceStatus==="observed"?(x[f.fieldKey]?.optionId||null):null,
+           evidenceStatus,
+         }}))}/>
+     })}
      <Field label="Support that actually occurred" value={get("intervention")} onChange={v=>set("intervention",v)} options={INTERVENTIONS}/>
      <Field label="Evidence observability" value={get("evidenceStatus")} onChange={v=>set("evidenceStatus",v)} options={EVIDENCE}/>
      <Field label="Independence claim" value={get("independenceClaim")} onChange={v=>set("independenceClaim",v)} options={INDEPENDENCE}/>
