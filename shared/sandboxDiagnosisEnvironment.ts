@@ -78,6 +78,8 @@ export type SandboxDiagnosisOutcomeSelectionContext = {
   sequenceNumber: number;
   earliestUnsupportedCapability?: SandboxCapabilityLayer | null;
   recentOutcomeKeys?: string[];
+  /** V1 preserves issued diagnostic outcomes; V2 uses the student's profile. */
+  behaviorModelVersion?: 1 | 2;
 };
 
 export type SandboxDiagnosisSubmittedProbe = {
@@ -204,11 +206,15 @@ export function selectSandboxDiagnosisOutcome(input: {
           definition.key,
           definition.version,
         ].join(":"),
-      ) / Math.max(0.05, definition.weight * sandboxBehaviorProfileMultiplier({
-        seed: input.profileSeed || input.seed.split(":")[0],
-        phase: input.context.startingPhase,
-        trajectoryClass: definition.trajectoryClass,
-      }));
+      ) / Math.max(0.05, definition.weight *
+        (input.context.behaviorModelVersion === 2
+          ? sandboxBehaviorProfileMultiplier({
+              seed: input.profileSeed || input.seed.split(":")[0],
+              // Diagnose what this probe observes, not the entry phase.
+              phase: DIAGNOSIS_PROBES[input.context.probeId].primaryPhase,
+              trajectoryClass: definition.trajectoryClass,
+            })
+          : 1));
     return score(a) - score(b) || a.key.localeCompare(b.key);
   })[0];
 }
