@@ -39,6 +39,7 @@ export default function PracticalBenchmarkRun({
   const [preflight,setPreflight]=useState(false);
   const [recordingStarted,setRecordingStarted]=useState(false);
   const [privacyConfirmed,setPrivacyConfirmed]=useState(false);
+  const [consentConfirmed,setConsentConfirmed]=useState(false);
   const key=["practical-common-benchmark",assignmentId,proofKey];
   const q=useQuery<BenchmarkRun>({
     queryKey:key,enabled:!!assignmentId&&enabled,
@@ -50,6 +51,7 @@ export default function PracticalBenchmarkRun({
       "/api/tutor/capability-practicals/benchmark/start",{
         tutorAssignmentId:assignmentId,proofKey,
         preflightConfirmed:true,recordingStartedBeforeReveal:true,
+        consentToRecording:true,privacyScopeConfirmed:true,
       })).json(),
     onSuccess:(result)=>queryClient.setQueryData(key,result),
     onError:(e:Error)=>toast({title:"Case assignment blocked",description:e.message,variant:"destructive"}),
@@ -108,7 +110,14 @@ export default function PracticalBenchmarkRun({
           <Checkbox checked={privacyConfirmed} onCheckedChange={v=>setPrivacyConfirmed(v===true)}/>
           Only fictional student material and essential setup are visible; no household members, private credentials or real student data.
         </label>
-        <Button disabled={!preflight||!recordingStarted||!privacyConfirmed||start.isPending}
+        <label className="flex items-start gap-2 text-sm">
+          <Checkbox checked={consentConfirmed} onCheckedChange={v=>setConsentConfirmed(v===true)}/>
+          I understand and consent to my screen, voice, face and professional conduct
+          being recorded solely to assess the assigned Practicals cases. Only
+          necessary exam material should be captured; I must provide the original
+          recording privately to the assigned TD, not publish it.
+        </label>
+        <Button disabled={!preflight||!recordingStarted||!privacyConfirmed||!consentConfirmed||start.isPending}
           onClick={()=>start.mutate()}>
           {start.isPending?"Issuing...":"Reveal case 1 while recording"}
         </Button>
