@@ -333,6 +333,7 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       observedDurationSeconds:3600,recordingContinuous:true,
       recordingBeginsBeforeReveal:true,allThreeCasesVisible:true,
       environmentAndToolsVisible:true,specialistScreenFaceVoiceObservable:true,
+      recordingConsentVerified:true,recordingAccessRestricted:true,noRealStudentDataOrBystanders:true,
       flaggedCutOrManipulation:false,flaggedTechnicalInterruption:false,
     };
     const insertReview=(cases:any,verification:any,outcome="approved")=>db.query(`
@@ -346,6 +347,8 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       /match each case to the original video/
     );
     await assert.rejects(insertReview(caseReviews,{...video,recordingContinuous:false}),/incomplete or interrupted/);
+    await assert.rejects(insertReview(caseReviews,{...video,recordingConsentVerified:false}),/incomplete or interrupted/);
+    await assert.rejects(insertReview(caseReviews,{...video,recordingAccessRestricted:false}),/incomplete or interrupted/);
     await assert.rejects(insertReview(caseReviews,{...video,observedDurationSeconds:3575}),/duration/);
     await assert.rejects(insertReview(caseReviews,{...video,observedDurationSeconds:700}),/duration must be positive and agree/);
     await assert.rejects(insertReview(caseReviews,{...video,flaggedCutOrManipulation:true}),/integrity review/);
