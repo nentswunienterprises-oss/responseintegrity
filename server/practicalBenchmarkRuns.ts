@@ -5,6 +5,7 @@ import {
   PRACTICAL_BENCHMARK_VERSION,
   PRACTICAL_BENCHMARK_CASE_COUNT,
   projectSpecialistPracticalActionEvent,
+  resolvePracticalAttempt,
   type PracticalBenchmarkProof,
 } from "@shared/practicalBenchmarkPolicy";
 import { getCapabilityPracticalProofDefinition } from "@shared/capabilityPracticalEvidence";
@@ -36,16 +37,7 @@ export async function eligibleAttempt(input:RunInput) {
      ORDER BY e.attempt_number DESC LIMIT 1`,
     [input.tutorAssignmentId,input.tutorId,input.proofKey,definition.version],
   );
-  const latest=evidence.rows[0];
-  if(latest && latest.outcome!=="repeat_required"){
-    const reason=latest.outcome==="approved"
-      ? "This Practical was already approved."
-      : latest.outcome==="integrity_review"
-      ? "Integrity review must be resolved by its authorised reviewer."
-      : "This Practical is already awaiting its TD review.";
-    return {allowed:false,reason,attemptNumber:0,version:definition.version};
-  }
-  const minAttempt=Number(latest?.attempt_number||0)+1;
+  const latest=evidence.rows[0]||null;
   const runs=await pool.query(
     `SELECT r.attempt_number,r.status,req.id AS recovery_request_id,
        dec.decision AS recovery_decision
@@ -56,17 +48,8 @@ export async function eligibleAttempt(input:RunInput) {
        AND r.proof_key=$3 AND r.proof_version=$4
      ORDER BY r.attempt_number DESC LIMIT 1`,
      [input.tutorAssignmentId,input.tutorId,input.proofKey,definition.version]);
-  const run=runs.rows[0];
-  if(!run||Number(run.attempt_number)<minAttempt)
-    return {allowed:true,reason:null,attemptNumber:minAttempt,version:definition.version};
-  if(run.status==="abandoned"){
-    if(run.recovery_decision!=="approve_repeat")
-      return {allowed:false,reason:"An abandoned recording has no authorised TD recovery.",attemptNumber:0,version:definition.version};
-    return {allowed:true,reason:null,attemptNumber:Number(run.attempt_number)+1,version:definition.version};
-  }
-  if(run.recovery_request_id&&run.recovery_decision==="integrity_review")
-    return {allowed:false,reason:"The recording incident is under integrity review.",attemptNumber:0,version:definition.version};
-  return {allowed:true,reason:null,attemptNumber:Number(run.attempt_number),version:definition.version};
+  const decision=resolvePracticalAttempt(latest,runs.rows[0]||null);
+  return {...decision,version:definition.version};
 }
 
 async function findRun(input:RunInput,attemptNumber:number) {
