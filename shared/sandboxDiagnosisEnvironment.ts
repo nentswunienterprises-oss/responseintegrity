@@ -20,6 +20,7 @@ import {
   buildPassiveExecutionTimingEvidence,
   buildTimedExecutionEvidence,
 } from "./tpsTimingContract";
+import { sandboxBehaviorProfileMultiplier } from "./sandboxBehaviorProfiles";
 import type { TopicPhase } from "./topicConditioningEngine";
 import type {
   SandboxCapabilityLayer,
@@ -201,7 +202,11 @@ export function selectSandboxDiagnosisOutcome(input: {
           definition.key,
           definition.version,
         ].join(":"),
-      ) / Math.max(0.05, definition.weight);
+      ) / Math.max(0.05, definition.weight * sandboxBehaviorProfileMultiplier({
+        seed: input.seed.split(":")[0],
+        phase: input.context.startingPhase,
+        trajectoryClass: definition.trajectoryClass,
+      }));
     return score(a) - score(b) || a.key.localeCompare(b.key);
   })[0];
 }
