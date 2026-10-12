@@ -120,6 +120,29 @@ jobs:
             }
             assert.equal(new Set(serializedForms).size,4,"Distinct phase conduct repeated verbatim");
 
+            // Diagnostic: the native Specialist UI resolves its assignment
+            // through /api/tutor/pod, which is independent of the Sandbox API.
+            try {
+              const podResult=await page.request.get(base+"/api/tutor/pod",{timeout:20000});
+              const podBody=podResult.ok()?await podResult.json():null;
+              console.log("V2_BROWSER_POD_HTTP="+podResult.status()+" assignment="+
+                Boolean(podBody?.assignment?.id)+" students="+
+                Number(podBody?.students?.length||0));
+            } catch (error) {
+              console.log("V2_BROWSER_POD_REQUEST_ERROR="+
+                String(error instanceof Error?error.message:error).slice(0,250));
+            }
+            page.on("response",response=>{
+              if(new URL(response.url()).pathname==="/api/tutor/pod"){
+                console.log("V2_BROWSER_POD_FETCH_HTTP="+response.status());
+              }
+            });
+            page.on("requestfailed",req=>{
+              if(new URL(req.url()).pathname==="/api/tutor/pod"){
+                console.log("V2_BROWSER_POD_FETCH_FAILED="+
+                  String(req.failure()?.errorText||"unknown").slice(0,150));
+              }
+            });
             const first=forms[0];
             const route=base+"/operational/specialist/sandbox?"+
               q({studentId:student(first.entry.index),
