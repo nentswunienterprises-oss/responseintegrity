@@ -122,6 +122,8 @@ export default function CapabilityPracticalReview() {
     recordingContinuous:false,recordingBeginsBeforeReveal:false,
     allThreeCasesVisible:false,environmentAndToolsVisible:false,
     specialistScreenFaceVoiceObservable:false,
+      recordingConsentVerified:false,recordingAccessRestricted:false,
+      noRealStudentDataOrBystanders:false,
     flaggedCutOrManipulation:false,flaggedTechnicalInterruption:false,
   });
 
@@ -151,6 +153,8 @@ export default function CapabilityPracticalReview() {
       recordingContinuous:false,recordingBeginsBeforeReveal:false,
       allThreeCasesVisible:false,environmentAndToolsVisible:false,
       specialistScreenFaceVoiceObservable:false,
+      recordingConsentVerified:false,recordingAccessRestricted:false,
+      noRealStudentDataOrBystanders:false,
       flaggedCutOrManipulation:false,flaggedTechnicalInterruption:false,
     });
   };
@@ -167,6 +171,8 @@ export default function CapabilityPracticalReview() {
       recordingContinuous:false,recordingBeginsBeforeReveal:false,
       allThreeCasesVisible:false,environmentAndToolsVisible:false,
       specialistScreenFaceVoiceObservable:false,
+      recordingConsentVerified:false,recordingAccessRestricted:false,
+      noRealStudentDataOrBystanders:false,
       flaggedCutOrManipulation:false,flaggedTechnicalInterruption:false,
     });
   };
@@ -464,6 +470,9 @@ export default function CapabilityPracticalReview() {
                       ["allThreeCasesVisible","All three issued case references and responses are visible."],
                       ["environmentAndToolsVisible","Actual functional delivery environment, tools, work surface, camera and microphone are observable."],
                       ["specialistScreenFaceVoiceObservable","Screen, Specialist conduct/face and voice are sufficiently observable to assess."],
+                      ["recordingConsentVerified","The original recording had explicit Specialist consent before the first case was revealed."],
+                      ["recordingAccessRestricted","I confirmed private access to this original recording, restricted to the assigned TD and authorised evidence review; it is not publicly shared."],
+                      ["noRealStudentDataOrBystanders","I verified no real student records, family members or unrelated private spaces appear in the recording."],
                       ["flaggedCutOrManipulation","Red flag: suspected edit, missing footage, cut or manipulated recording."],
                       ["flaggedTechnicalInterruption","Red flag: technical interruption obscured required evidence."],
                     ] as [keyof typeof videoChecks,string][]).map(([key,label])=>
