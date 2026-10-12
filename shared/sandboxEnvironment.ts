@@ -33,6 +33,7 @@ import {
 } from "./responseEvidenceModel";
 import type { TrainingDimensionId } from "./trainingEvidenceContract";
 import { isSandboxBehaviorTransitionPlausible, sandboxBehaviorProfileMultiplier, sandboxBehaviorTransitionMultiplier } from "./sandboxBehaviorProfiles";
+import { renderSandboxBehaviorNarrativeV2 } from "./sandboxBehaviorNarrativesV2";
 import {
   getLegacyStatefulSandboxV1RequiredStructureStepPlanAudit,
   getLegacyStatefulSandboxV1ScenarioTruthAudit,
@@ -222,6 +223,7 @@ const hashUnit = (value: string) => {
 export function projectSandboxOutcomeToCurrentTrainingContract(
   definition: SandboxOutcomeDefinition,
   sourceTrainingSchemaVersion: number,
+  behaviorModelVersion: 1 | 2 = 1,
 ): SandboxOutcomeDefinition {
   const currentSchema = getDrillSchemaDefinition("training", definition.phase);
   if (sourceTrainingSchemaVersion === currentSchema.schemaVersion) {
@@ -402,13 +404,20 @@ export function projectSandboxOutcomeToCurrentTrainingContract(
 
   const auditedStudentBehavior =
     scenarioTruthAudit
-      ? renderLegacyStatefulSandboxV1StudentBehavior({
-          phase: definition.phase,
-          setId: definition.setId,
-          outcomeKey: definition.key,
-          repNumber: definition.repNumber,
-          repCount: currentSet.reps,
-        })
+      ? behaviorModelVersion === 2
+        ? renderSandboxBehaviorNarrativeV2({
+            phase: definition.phase,
+            setId: definition.setId,
+            outcomeKey: definition.key,
+            repNumber: definition.repNumber,
+          })
+        : renderLegacyStatefulSandboxV1StudentBehavior({
+            phase: definition.phase,
+            setId: definition.setId,
+            outcomeKey: definition.key,
+            repNumber: definition.repNumber,
+            repCount: currentSet.reps,
+          })
       : null;
   if (scenarioTruthAudit && !auditedStudentBehavior) {
     throw new Error(
