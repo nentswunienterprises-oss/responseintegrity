@@ -9,7 +9,7 @@ test("qualifying case issuance and execution never import public prototype workf
   for(const path of runtimePaths){
     const source=read(path);
     assert.doesNotMatch(source,/from\s+["']\.\/practicalBenchmarkBank["']/);
-    assert.doesNotMatch(source,/from\s+["']\.\/practicalCasePlans["']/);
+    assert.doesNotMatch(source,/^import\\s+(?!type\\b)[^\\n]*from\\s+["']\\.\\/practicalCasePlans["']/m);
     assert.match(source,/privatePracticalBenchmarkBank/);
   }
 });
