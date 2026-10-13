@@ -11,7 +11,7 @@ const handoverRules = [
   "If the inherited phase is Time Pressure Stability, preserve the same student/topic Timer Contract. Do not invent, loosen, tighten, pause, or replace the timer. If the valid topic timer is missing, re-establish it before TPS Handover evidence can count.",
   "Check whether the inherited state still holds. Do not teach forward, progress the student, or restart Intro inside Handover.",
   "Record the concrete behavior that actually occurred. Do not choose a preferred state.",
-  "If a behavior was not meaningfully observable, record it as not observed. If support or another condition changed the observation, record it as confounded.",
+  "Normally observe the complete behaviour under the prescribed condition. If a required observation genuinely cannot be established, keep the claim unresolved; if the student sees a worked example supplying the method, record that rare confound against the affected independence claim.",
   "Stop when RI-OS has enough evidence to keep the state, adjust stability, or require targeted re-diagnosis.",
 ];
 
@@ -33,8 +33,8 @@ const evidenceClasses = [
     detail: "The behavior that defines the inherited phase held cleanly under the inherited condition.",
   },
   {
-    title: "Not observed / Confounded",
-    detail: "The opportunity did not produce clean evidence the system can use for a decision. It counts as neither weakness nor strength.",
+    title: "Rare evidence exception",
+    detail: "Genuinely unavailable evidence remains unresolved; a visible worked-example cue can confound independence. Neither is routine student weakness or strength.",
   },
 ];
 
