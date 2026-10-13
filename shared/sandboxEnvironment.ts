@@ -345,10 +345,10 @@ export function projectSandboxOutcomeToCurrentTrainingContract(
         /\.pattern_8$/.test(definition.key) &&
         (
           (definition.phase === "Structured Execution" &&
-            (dimensionId === "execution.repeatability" ||
-              dimensionId === "execution.independence")) ||
+            (currentField.dimensionId === "execution.repeatability" ||
+              currentField.dimensionId === "execution.independence")) ||
           (definition.phase === "Time Pressure Stability" &&
-            dimensionId === "time.completion_integrity")
+            currentField.dimensionId === "time.completion_integrity")
         )
       ) {
         evidenceStatus = "confounded";
