@@ -81,46 +81,46 @@ export default function ResponseConditioningWhatNotToDo() {
           </Card>
 
           <Card className="p-6 space-y-4">
-            <h2 className="text-2xl font-bold">5. Do not force every field to become observable</h2>
+            <h2 className="text-2xl font-bold">5. Do not manufacture clean evidence</h2>
             <p className="text-muted-foreground">
-              If a behavior never meaningfully appeared, record not observed. If support or another condition makes interpretation unsafe, record confounded.
+              Most student responses are directly observable. Not observed is a narrow evidence-record status when no qualifying exposure exists, not an incident to create in a normal rep. A rare visible worked example can instead contaminate the student's independence claim.
             </p>
             <p className="font-semibold">
-              Never ask extra live questions only so the observation form will look complete.
+              Set up the correct observation condition before the rep. Record actual student behaviour and any visible mathematical cue rather than filling fields from assumption.
             </p>
           </Card>
 
           <DeepDiveTeachingInteraction
-            prompt="The observation form later asks how the student recognized the method, but the live no-support rep never exposed that reasoning. What should the Specialist do?"
+            prompt="During independent Structured Execution, the student begins correctly on their own, then consults an open worked solution showing the next method steps. They finish with a correct answer. What preserves evidence integrity?"
             options={[
               {
                 key: "a",
-                label: "Ask the student immediately before ending the rep so every field can be filled.",
-                feedback: "That changes the live condition and manufactures evidence the original opportunity did not expose.",
+                label: "Mark the whole rep independent because the student reached the correct final answer.",
+                feedback: "Final correctness after seeing the next method steps cannot prove independent execution.",
               },
               {
                 key: "b",
-                label: "Record not observed and let RI-OS decide whether another evidence opportunity is needed.",
-                feedback: "Yes. Missing evidence must stay missing.",
+                label: "Record the visible worked-solution cue and mark the affected independence claim confounded, without calling it weakness.",
+                feedback: "Yes. The visible mathematical cue compromised independence, not the student's demonstrated ability.",
               },
               {
                 key: "c",
-                label: "Infer the method recognition from the final answer.",
-                feedback: "A final answer cannot automatically prove the unobserved recognition process.",
+                label: "Mark all method steps weak because consulting an example proves the student does not know the method.",
+                feedback: "Reference exposure prevents clean independence evidence; it does not establish a capability breakdown.",
               },
               {
                 key: "d",
-                label: "Keep recognition unresolved while preserving the rest of the rep exactly as observed.",
-                feedback: "Yes. One missing observation does not erase the evidence that was actually observed.",
+                label: "Preserve the independently observed first step separately from the later reference-influenced continuation.",
+                feedback: "Yes. Evidence that was clean before the cue remains attributable to that observed interval.",
               },
               {
                 key: "e",
-                label: "Ask a leading follow-up that names the likely method, then use the answer to complete the original observation.",
-                feedback: "That manufactures recognition evidence and rewrites the original condition.",
+                label: "Ask the student to explain afterward and replace the confounded continuation with a clean record.",
+                feedback: "A later explanation cannot erase the reference cue or rewrite the original observation.",
               },
             ]}
             correctOptionKeys={["b","d"]}
-            truth="RI-OS decides when the evidence is complete. The Specialist owns truthful observation."
+            truth="An observed mathematical cue can confound the intended independence claim. Preserve the clean opening, record the cue and leave any further evidence decision to RI-OS."
           />
 
           <Card className="p-6 space-y-4">
