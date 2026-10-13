@@ -2818,6 +2818,8 @@ A refresh or retry must not manufacture a different student response for the sam
 
 ## Specialist Certification Lifecycle
 
+The Training index displays the next milestone below Training Progress. It uses the first incomplete check in the server-ordered Capability plan, including the real spacing unlock time. Mastery count alone never means Training is complete. Once every check is complete, the existing assignment-scoped Practicals API determines whether the next step is Sandbox readiness/assigned TD entry approval, practical demonstrations, or governed Trial entry after Practicals approval. Trial and Certified Live use the recorded operational mode. Loading, missing data and request errors do not imply milestone completion or grant stage authority.
+
 The governed Specialist pathway is:
 
 ```text
