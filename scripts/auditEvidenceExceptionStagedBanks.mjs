@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import pg from "pg";
-import { assertCapabilityOptionParity } from "../shared/capabilityOptionParity.ts";
+import { assertCapabilityOptionParity, analyzeCapabilityOptionParity } from "../shared/capabilityOptionParity.ts";
 import { assertNoSupersededEvidenceScenario } from "../shared/evidenceExceptionAuthoringGuard.ts";
 import { validateCapabilityAssessmentAgainstBlueprint } from "../shared/capabilityBankCoverage.ts";
 import { buildCapabilityCriticalBoundaryRequirements } from "../shared/capabilityCriticalCoverage.ts";
@@ -27,6 +27,7 @@ const client=new pg.Client({connectionString:proofUrl,ssl:{rejectUnauthorized:tr
 try {
   await client.connect();
   const audit=[];
+  const qualityErrors=[];
   let totalChanged=0;
   for(const assessmentKey of targets){
     const configRows=await client.query(
@@ -80,8 +81,20 @@ try {
       });
       itemShapes.push(form);
     }
-    assertCapabilityOptionParity(assessmentKey,itemShapes);
-    const blueprint=validateCapabilityAssessmentAgainstBlueprint({
+    const parity=analyzeCapabilityOptionParity(itemShapes);
+    if(parity.promptShapeMismatches.length){
+      console.log("EVIDENCE_BANK_SHAPE_MISMATCHES="+JSON.stringify({
+        bank:assessmentKey,
+        mismatches:parity.promptShapeMismatches.map(v=>({
+          itemKey:v.itemKey,optionKey:v.optionKey,
+          prompt:v.prompt,label:v.label
+        }))
+      }));
+    }
+    try {assertCapabilityOptionParity(assessmentKey,itemShapes);}
+    catch(error){qualityErrors.push(assessmentKey+": "+String(error.message||error));}
+    let blueprint;
+    try { blueprint=validateCapabilityAssessmentAgainstBlueprint({
       assessmentKey,
       assessmentDeepDiveKey:staged.assessment_deep_dive_key,
       evidenceKind:staged.evidence_kind,
@@ -98,8 +111,8 @@ try {
         criticalFailOptionKeys:x.critical_fail_option_keys,
         criticalBoundaryKeys:x.critical_boundary_keys,
       }))
-    });
-    assert.ok(blueprint);
+    }); assert.ok(blueprint); }
+    catch(error){qualityErrors.push(assessmentKey+" blueprint: "+String(error.message||error));}
     const boundary=buildCapabilityCriticalBoundaryRequirements(assessmentKey);
     assert.ok(boundary.length>=0);
     const attempts=await client.query(
@@ -109,9 +122,13 @@ try {
     assert.equal(attempts.rows[0].n,0,"Staged bank has live assessment attempts");
     totalChanged+=bankChanged;
     audit.push({key:assessmentKey,from:live.bank_version,to:staged.bank_version,items:revised.length,changed:bankChanged});
-    console.log("EVIDENCE_BANK_QUALITY_PASS="+JSON.stringify(audit.at(-1)));
+    console.log("EVIDENCE_BANK_READBACK="+JSON.stringify(audit.at(-1)));
   }
   assert.equal(audit.length,9);
   assert.equal(totalChanged,35);
+  if(qualityErrors.length){
+    console.log("EVIDENCE_BANK_ALL_QUALITY_ERRORS="+JSON.stringify(qualityErrors));
+    throw new Error("All staged bank quality gates must pass before any active promotion ("+qualityErrors.length+" failures).");
+  }
   console.log("OS_WIDE_EXCEPTION_BANK_QUALITY=PASS "+JSON.stringify({project:"Capability Proof",totalChanged,banks:audit}));
 }finally{await client.end();}
