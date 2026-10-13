@@ -10,11 +10,12 @@ import {
  * its audited Training V4 projection. These descriptions cannot change
  * canonical fields, intervention truth, transition class or scoring.
  *
- * There are 11 set contexts x 3 turns and 4 phase x 8 pattern x 3
- * separately authored observable responses: 264 unique set/rep/outcome
- * combinations. Existing V1 narrative rendering remains untouched.
+ * There are 11 set contexts x 3 turns and 7 V2-eligible patterns
+ * (six ordinary patterns and one exceptional worked-example confound):
+ * 231 distinct set/rep/outcome narratives. V2 does not fabricate missing
+ * observations; historical V1 narration remains untouched.
  */
-export const SANDBOX_BEHAVIOR_NARRATIVE_VERSION = 3 as const;
+export const SANDBOX_BEHAVIOR_NARRATIVE_VERSION = 4 as const;
 
 const SET_SCENES: Record<string, readonly [string, string, string]> = {
   "clarity.identification": [
@@ -106,11 +107,6 @@ const OBSERVED_RESPONSES: Record<TopicPhase, Record<number, readonly [string, st
       "They look at the prompt again but focus on unhelpful features. No viable procedure is offered, and they wait rather than make a controlled start.",
       "They name peripheral details while missing what determines the method. Their response stalls before a defensible first step appears."
     ],
-    "7": [
-      "She identifies the important quantities and chooses a suitable method. The Specialist proceeds to the written start without eliciting her reason, so that explanation is not heard in this opportunity.",
-      "The student recognises the terms, selects a method and begins working. The Specialist moves on without asking why this method fits, leaving the reasoning untested.",
-      "They name the key symbols and select the method unaided. The opportunity closes before anyone asks them to explain the connection, although their recognition and start are visible."
-    ],
     "8": [
       "The student identifies the relevant features, but a worked example beside the page names the procedure before they choose it. They select the method and explain why it fits in their own words.",
       "They recognise the quantities, glance at an open notebook heading showing the procedure, and use that method. They independently explain its mathematical connection.",
@@ -147,11 +143,6 @@ const OBSERVED_RESPONSES: Record<TopicPhase, Record<number, readonly [string, st
       "They wait without a usable first line, then write operations disconnected from the known method. Work stops again unless the Specialist supplies direction.",
       "They cannot settle on a first operation and write scattered steps that do not form the taught sequence. They turn the next decision over to the Specialist.",
       "They remain stuck at the start, then add lines that do not connect into a method. The task does not move forward independently."
-    ],
-    "7": [
-      "They independently work through the current method in order. Their earlier attempt needed step-by-step guidance, so it cannot provide a clean independent comparison.",
-      "They carry out the method without help. The preceding attempt involved a supplied step, meaning the present independent performance has no comparable unaided predecessor.",
-      "They begin correctly and maintain the expected method. The previous attempt was guided, so the repeatability of independent execution has not been established."
     ],
     "8": [
       "They begin with a valid step, but an old worked example beside the page shows the next operation. They look at it before continuing in the prescribed method.",
@@ -190,11 +181,6 @@ const OBSERVED_RESPONSES: Record<TopicPhase, Record<number, readonly [string, st
       "At the unfamiliar section they put the pen down and say the problem is impossible for them. No workable start follows without a rescue request.",
       "They refuse a first move at the challenging point, saying they cannot continue. They ask the Specialist to solve it rather than re-enter the task."
     ],
-    "7": [
-      "They begin the unfamiliar item with a sensible first move and stay engaged. The difficult point resolves almost immediately, leaving no sustained obstacle through which to observe endurance.",
-      "They enter the challenging problem calmly and produce a valid first step. It becomes manageable quickly, so their response to prolonged difficulty is not tested here.",
-      "They start the difficult work on their own and overcome the first obstacle immediately. No extended stuck point arises in this opportunity from which sustained tolerance could be judged."
-    ],
     "8": [
       "They remain engaged, but an open worked example beside the problem already shows its first step. They use that opening, then recover independently at a later difficult point.",
       "They face the hard item while a reference sheet shows a worked first move. They take that opening, then manage a later obstacle without asking the Specialist for a solution.",
@@ -232,11 +218,6 @@ const OBSERVED_RESPONSES: Record<TopicPhase, Record<number, readonly [string, st
       "The running timer leaves them stalled at the start. When they finally write, the operations do not form a usable sequence before time expires.",
       "They hesitate for several seconds, rush through fragments of work, and cross out an attempted answer. A complete method never appears within the limit."
     ],
-    "7": [
-      "They start promptly with the taught first step. In the timed middle their writing hand goes outside the camera's view; the completed written method is visible again at the end, but intervening pace is unseen.",
-      "They begin with an appropriate line and finally show the complete working. During part of the timed middle the camera shows their face rather than the working surface, so writing pace cannot be judged.",
-      "They start under the clock and display the completed method at the end. The middle section takes place outside the visible writing area, leaving the speed of those steps unknown."
-    ],
     "8": [
       "They start promptly and keep a controlled pace. A worked example beside the page shows middle steps and they glance at it while solving. They finish on time in the original taught order.",
       "They begin with a valid timed first line. A reference sheet containing the next steps is visible and they look towards it mid-solve. They finish steadily without any change to the prescribed method.",
@@ -252,7 +233,6 @@ const EXECUTION_COMPARISON: Record<number, string> = {
   "4": "The method returns only in pieces, with the ordering still changing materially.",
   "5": "The earlier method pattern fails to repeat without further prompting.",
   "6": "The previous usable sequence does not emerge during this attempt.",
-  "7": "The preceding guided opportunity cannot be used as an independent comparison for the current method.",
   "8": "The prescribed method remains unchanged, but the visible worked example prevents an independent method comparison."
 };
 
@@ -266,7 +246,9 @@ export function renderSandboxBehaviorNarrativeV2(input: {
   const expectedKey = input.setId + ".rep_" + input.repNumber + ".pattern_";
   if (!input.outcomeKey.startsWith(expectedKey)) return null;
   const pattern = Number(input.outcomeKey.slice(expectedKey.length));
-  if (!Number.isInteger(pattern) || pattern < 1 || pattern > 8) return null;
+  // Pattern 7 is historical V1-only: "not observed" is an evidence status,
+  // never a generated simulated-student encounter in V2.
+  if (!Number.isInteger(pattern) || pattern < 1 || pattern > 8 || pattern === 7) return null;
   const phaseFromSet =
     input.setId.startsWith("clarity.") ? "Clarity" :
     input.setId.startsWith("structured_execution.") ? "Structured Execution" :
