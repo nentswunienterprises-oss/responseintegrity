@@ -1,0 +1,37 @@
+name: Evidence Exception Bank Quality
+
+on:
+  push:
+    branches:
+      - fix/preview-training-session-authority
+    paths:
+      - 'scripts/auditEvidenceExceptionStagedBanks.mjs'
+      - '.github/workflows/evidence-exception-bank-quality.yml'
+      - 'shared/evidenceExceptionAuthoringGuard.ts'
+      - 'shared/evidenceExceptionAuthoringGuard.test.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evidence-exception-bank-quality
+  cancel-in-progress: false
+
+jobs:
+  staged-proof-bank-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RI_PROOF_DATABASE_URL: ${{ secrets.RI_PROOF_DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Verify 9 staged Proof banks, exact authority, and question quality
+        run: node --import tsx scripts/auditEvidenceExceptionStagedBanks.mjs
+      - name: Reject superseded future question authoring
+        run: node --import tsx --test shared/evidenceExceptionAuthoringGuard.test.ts
