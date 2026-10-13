@@ -324,7 +324,17 @@ test("V2 Diagnosis evidence projections invalidate only contaminated adjacent fi
     ["time.consistency",["time.completion_integrity"]],
   ] as Array<[DiagnosisProbeId,string[]]>){
     const ordinary=outcomeFor(probeId,probeId+".pattern_1","supported");
-    const disrupted=outcomeFor(probeId,probeId+".pattern_8","confounded");
+    const disrupted:SandboxDiagnosisOutcomeDefinition={
+      ...outcomeFor(probeId,probeId+".pattern_8","supported"),
+      trajectoryClass:"confounded",
+      canonicalObservations:outcomeFor(probeId,probeId+".pattern_8","supported")
+        .canonicalObservations.map(item=>({
+          ...item,
+          behaviorId:item.dimensionId===(probeId==="execution.repeatability"
+            ? "execution.step_discipline" : "time.structure")
+            ? "confounded" : item.behaviorId,
+        })),
+    };
     let witnessed=false;
     for(let i=0;i<7000;i++){
       const result=selectSandboxDiagnosisOutcome({
