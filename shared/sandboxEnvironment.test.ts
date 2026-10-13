@@ -887,8 +887,8 @@ test("all four Training phases evaluate V4 rep-specific Sandbox observations wit
 });
 
 
-test("V2 narratives have 264 distinct evidence-faithful visible outcomes while V1 remains identical", () => {
-  assert.equal(SANDBOX_BEHAVIOR_NARRATIVE_VERSION, 3);
+test("V2 renders 231 credible outcomes and excludes all invented not-observed encounters while V1 is unchanged", () => {
+  assert.equal(SANDBOX_BEHAVIOR_NARRATIVE_VERSION, 4);
   const seen = new Map<string, string>();
   const counts: Record<string, number> = {};
   for (const trainingPhase of [
@@ -904,6 +904,7 @@ test("V2 narratives have 264 distinct evidence-faithful visible outcomes while V
       for (let rep = 1; rep <= set.reps; rep++) {
         const versions: string[] = [];
         for (let pattern = 1; pattern <= 8; pattern++) {
+          if (pattern === 7) continue; // V2 has no scripted not-observed situation.
           const key = set.setId + ".rep_" + rep + ".pattern_" + pattern;
           const canonicalObservations = Object.fromEntries(
             oldSet!.fields.map(baseField => {
@@ -977,22 +978,26 @@ test("V2 narratives have 264 distinct evidence-faithful visible outcomes while V
           versions.push(text);
           phaseCount++;
         }
-        assert.equal(new Set(versions).size,8,set.setId+" rep "+rep+" lacks variety");
+        assert.equal(new Set(versions).size,7,set.setId+" rep "+rep+" lacks variety");
       }
     }
     counts[trainingPhase]=phaseCount;
   }
   assert.deepEqual(counts,{
-    Clarity:48,
-    "Structured Execution":72,
-    "Controlled Discomfort":72,
-    "Time Pressure Stability":72,
+    Clarity:42,
+    "Structured Execution":63,
+    "Controlled Discomfort":63,
+    "Time Pressure Stability":63,
   });
-  assert.equal(seen.size,264);
+  assert.equal(seen.size,231);
   assert.equal(renderSandboxBehaviorNarrativeV2({
     phase:"Clarity",setId:"clarity.identification",
     outcomeKey:"clarity.identification.rep_1.pattern_99",repNumber:1,
   }),null,"Unknown outcome patterns must fail closed");
+  assert.equal(renderSandboxBehaviorNarrativeV2({
+    phase:"Clarity",setId:"clarity.identification",
+    outcomeKey:"clarity.identification.rep_1.pattern_7",repNumber:1,
+  }),null,"V2 may not author a missing-observation incident");
 });
 
 test("V2 rep-to-rep conduct changes even when the same pattern repeats", () => {
@@ -1002,7 +1007,7 @@ test("V2 rep-to-rep conduct changes even when the same pattern repeats", () => {
     ["Controlled Discomfort","controlled_discomfort.controlled_entry"],
     ["Time Pressure Stability","time_pressure.structure_under_timer"],
   ] as Array<[TopicPhase,string]>){
-    for(const pattern of [1,2,3,4,5,6,7,8]){
+    for(const pattern of [1,2,3,4,5,6,8]){
       const versions=[1,2,3].map(repNumber=>
         renderSandboxBehaviorNarrativeV2({
           phase,setId,outcomeKey:setId+".rep_"+repNumber+".pattern_"+pattern,repNumber,
@@ -1025,6 +1030,7 @@ test("V2 rare evidence incidents are deterministic, below ordinary frequency, an
     setId,repNumber:1,key:setId+".rep_1.pattern_"+(index+1),trajectoryClass,
   }));
   let selectedExceptions=0;
+  let selectedNotObserved=0;
   const cohortSize=4000;
   for(let index=0;index<cohortSize;index++){
     const seed="realistic-evidence-frequency-qa-"+index;
@@ -1041,10 +1047,12 @@ test("V2 rare evidence incidents are deterministic, below ordinary frequency, an
     const b=selectSandboxOutcome({seed,outcomes,context});
     assert.equal(a.key,b.key,"Identical V2 evidence must not reroll on reload");
     if(["not_observed","confounded"].includes(a.trajectoryClass))selectedExceptions++;
+    if(a.trajectoryClass==="not_observed")selectedNotObserved++;
   }
   // The 2% eligibility window is an upper bound on simulation opportunities,
   // not a quota of incidents to be manufactured. With seeded, independent
   // contexts, routine selection must be overwhelmingly student behaviour.
+  assert.equal(selectedNotObserved,0,"V2 must never manufacture missing evidence");
   assert.ok(selectedExceptions<cohortSize*0.025,
     "Rare evidence-integrity conditions dominate ordinary simulated delivery");
   const v1Result=selectSandboxOutcome({
@@ -1054,6 +1062,15 @@ test("V2 rare evidence incidents are deterministic, below ordinary frequency, an
       behaviorModelVersion:1,
     },
   });
+  assert.throws(() => selectSandboxOutcome({
+    seed:"no-staged-unseen-student",outcomes:[outcomes[6]],
+    context:{
+      canonicalPhase:"Clarity",canonicalStability:"Low",
+      prescribedPhase:"Clarity",setId,repNumber:1,sequenceNumber:12,
+      behaviorModelVersion:2,
+    },
+  }),/no plausible behavioural continuation/,
+    "V2 must fail closed rather than create a scripted missing-observation encounter");
   assert.ok(v1Result,"V1 historical selection remains eligible");
 });
 
@@ -1066,7 +1083,7 @@ test("V2 exception descriptions preserve the taught method and name observable e
     const schema=getDrillSchemaDefinition("training",phase);
     for(const set of schema.sets.filter(x=>!x.modelingOnly)){
       for(let rep=1;rep<=set.reps;rep++){
-        for(const pattern of [7,8]){
+        for(const pattern of [8]){
           const txt=renderSandboxBehaviorNarrativeV2({
             phase,setId:set.setId,
             outcomeKey:set.setId+".rep_"+rep+".pattern_"+pattern,
