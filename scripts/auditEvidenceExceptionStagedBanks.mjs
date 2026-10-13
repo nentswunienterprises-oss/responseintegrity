@@ -5,7 +5,12 @@ import { assertNoSupersededEvidenceScenario } from "../shared/evidenceExceptionA
 import { validateCapabilityAssessmentAgainstBlueprint } from "../shared/capabilityBankCoverage.ts";
 import { buildCapabilityCriticalBoundaryRequirements } from "../shared/capabilityCriticalCoverage.ts";
 
-const proofUrl=String(process.env.RI_PROOF_DATABASE_URL||"");
+const proofUrl=[
+  process.env.RI_PROOF_DATABASE_URL,
+  process.env.RI_PROOF_DB_URL,
+  process.env.PROOF_DATABASE_URL,
+  process.env.SUPABASE_PROOF_DATABASE_URL,
+].map(value=>String(value||"").trim()).find(value=>value.includes("jftlxeacphvbnhbsbpxc"))||"";
 assert.ok(proofUrl.includes("jftlxeacphvbnhbsbpxc"),"Only Capability Proof is permitted.");
 const targets=[
   "handover_verification_mastery_v1",
