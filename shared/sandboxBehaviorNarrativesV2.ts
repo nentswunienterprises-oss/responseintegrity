@@ -14,7 +14,7 @@ import {
  * separately authored observable responses: 264 unique set/rep/outcome
  * combinations. Existing V1 narrative rendering remains untouched.
  */
-export const SANDBOX_BEHAVIOR_NARRATIVE_VERSION = 2 as const;
+export const SANDBOX_BEHAVIOR_NARRATIVE_VERSION = 3 as const;
 
 const SET_SCENES: Record<string, readonly [string, string, string]> = {
   "clarity.identification": [
@@ -107,14 +107,14 @@ const OBSERVED_RESPONSES: Record<TopicPhase, Record<number, readonly [string, st
       "They name peripheral details while missing what determines the method. Their response stalls before a defensible first step appears."
     ],
     "7": [
-      "They identify important features and state an appropriate method. The connection drops as they are asked to explain their choice; the reason is not heard.",
-      "They point out relevant symbols and choose a procedure. At the moment the Specialist asks why, the audio disappears and no explanation follows.",
-      "Their recognition and method choice are visible. The call ends before their explanation begins, leaving the reason unheard."
+      "She identifies the important quantities and chooses a suitable method. The Specialist proceeds to the written start without eliciting her reason, so that explanation is not heard in this opportunity.",
+      "The student recognises the terms, selects a method and begins working. The Specialist moves on without asking why this method fits, leaving the reasoning untested.",
+      "They name the key symbols and select the method unaided. The opportunity closes before anyone asks them to explain the connection, although their recognition and start are visible."
     ],
     "8": [
-      "They name key pieces, but an on-screen hint flashes a procedure before they can select one. They then offer a reason in their own words.",
-      "They identify important quantities while a visual prompt unexpectedly supplies the method name. Afterward they explain how it fits, with the hint still on screen.",
-      "They read the relevant symbols and prepare to choose an approach when a hint appears. They continue with an explanation after seeing the method name."
+      "The student identifies the relevant features, but a worked example beside the page names the procedure before they choose it. They select the method and explain why it fits in their own words.",
+      "They recognise the quantities, glance at an open notebook heading showing the procedure, and use that method. They independently explain its mathematical connection.",
+      "They pick out the terms while a nearby revision sheet displays the correct procedure name. They use that name, then explain its application without reading any explanation."
     ]
   },
   "Structured Execution": {
@@ -149,14 +149,14 @@ const OBSERVED_RESPONSES: Record<TopicPhase, Record<number, readonly [string, st
       "They remain stuck at the start, then add lines that do not connect into a method. The task does not move forward independently."
     ],
     "7": [
-      "They carry out the visible solve from a sound opening without a rescue request. The steps in this attempt can be followed in order.",
-      "They start promptly, write the method in sequence, and keep working on their own; the present attempt itself is observable.",
-      "They put down an independent first line and maintain the method through the visible work. No help is requested during this attempt."
+      "They independently work through the current method in order. Their earlier attempt needed step-by-step guidance, so it cannot provide a clean independent comparison.",
+      "They carry out the method without help. The preceding attempt involved a supplied step, meaning the present independent performance has no comparable unaided predecessor.",
+      "They begin correctly and maintain the expected method. The previous attempt was guided, so the repeatability of independent execution has not been established."
     ],
     "8": [
-      "They start with a sound operation. The display refreshes midway and changes the required step order; they adjust their work after the interruption.",
-      "The student begins independently and follows the familiar method until the displayed problem suddenly changes the order of two steps. They continue after noticing it.",
-      "They make a sensible opening move, then the task display redraws itself with a different order. Their later work follows that altered presentation."
+      "They begin with a valid step, but an old worked example beside the page shows the next operation. They look at it before continuing in the prescribed method.",
+      "They start independently, then glance at a previous model answer lying beside their work during the middle steps. They continue in the original step order.",
+      "They make a sound opening move, then consult an earlier worked solution lying open during the middle operations. The taught method itself never changes."
     ]
   },
   "Controlled Discomfort": {
@@ -191,14 +191,14 @@ const OBSERVED_RESPONSES: Record<TopicPhase, Record<number, readonly [string, st
       "They refuse a first move at the challenging point, saying they cannot continue. They ask the Specialist to solve it rather than re-enter the task."
     ],
     "7": [
-      "They make a sensible first move and stay responsible for the task. An interruption cuts the opportunity off before a longer response to difficulty can be seen.",
-      "They meet the hard point with a workable start. The connection ends shortly afterward, so no sustained attempt through the obstacle is visible.",
-      "Their first reaction to difficulty is composed and independent. The session is interrupted before it becomes clear whether that control lasts."
+      "They begin the unfamiliar item with a sensible first move and stay engaged. The difficult point resolves almost immediately, leaving no sustained obstacle through which to observe endurance.",
+      "They enter the challenging problem calmly and produce a valid first step. It becomes manageable quickly, so their response to prolonged difficulty is not tested here.",
+      "They start the difficult work on their own and overcome the first obstacle immediately. No extended stuck point arises in this opportunity from which sustained tolerance could be judged."
     ],
     "8": [
-      "They stay engaged at the unfamiliar part, but a hint appears on screen before their first mathematical move. They then continue and recover from a later pause.",
-      "An external prompt flashes just before their opening move. They keep working after seeing it and manage a later stuck point without asking for a full solution.",
-      "They begin the difficult item with an unexpected on-screen cue visible. Afterward they work through another pause and remain responsible for the task."
+      "They remain engaged, but an open worked example beside the problem already shows its first step. They use that opening, then recover independently at a later difficult point.",
+      "They face the hard item while a reference sheet shows a worked first move. They take that opening, then manage a later obstacle without asking the Specialist for a solution.",
+      "They approach the challenge willingly, but earlier notes visible beside the page supply the first operation. They later persist through another stuck point without rescue."
     ]
   },
   "Time Pressure Stability": {
@@ -233,14 +233,14 @@ const OBSERVED_RESPONSES: Record<TopicPhase, Record<number, readonly [string, st
       "They hesitate for several seconds, rush through fragments of work, and cross out an attempted answer. A complete method never appears within the limit."
     ],
     "7": [
-      "They start promptly and maintain visible method order through the timed task. A video freeze hides much of the middle, so the pace during that interval cannot be seen.",
-      "They begin with a sound line and reach the final step. The camera image freezes during the central working, leaving the middle of their timing unobservable.",
-      "They keep visible steps orderly before and after a frozen video segment. The missing part of the attempt leaves their middle pace unheard and unseen."
+      "They start promptly with the taught first step. In the timed middle their writing hand goes outside the camera's view; the completed written method is visible again at the end, but intervening pace is unseen.",
+      "They begin with an appropriate line and finally show the complete working. During part of the timed middle the camera shows their face rather than the working surface, so writing pace cannot be judged.",
+      "They start under the clock and display the completed method at the end. The middle section takes place outside the visible writing area, leaving the speed of those steps unknown."
     ],
     "8": [
-      "They work at a steady rate from the timer start. Midway through, the display refreshes with a different required step order; they continue after the glitch.",
-      "They begin promptly and keep their pace, but the task refreshes and changes the order of two operations. They adjust to the altered screen and finish.",
-      "Their initial timed working is calm. A sudden display change shifts the required sequence, and they complete the remaining lines in that new order."
+      "They start promptly and keep a controlled pace. A worked example beside the page shows middle steps and they glance at it while solving. They finish on time in the original taught order.",
+      "They begin with a valid timed first line. A reference sheet containing the next steps is visible and they look towards it mid-solve. They finish steadily without any change to the prescribed method.",
+      "They start on time and continue at an even pace, but consult an old worked solution for some middle operations. They complete all steps within the limit; the task and required sequence never change."
     ]
   }
 };
@@ -252,8 +252,8 @@ const EXECUTION_COMPARISON: Record<number, string> = {
   "4": "The method returns only in pieces, with the ordering still changing materially.",
   "5": "The earlier method pattern fails to repeat without further prompting.",
   "6": "The previous usable sequence does not emerge during this attempt.",
-  "7": "The preceding comparable work is unavailable after a connection refresh, preventing a clean comparison.",
-  "8": "Where comparison remains possible outside the display glitch, the same method pattern is visible."
+  "7": "The preceding guided opportunity cannot be used as an independent comparison for the current method.",
+  "8": "The prescribed method remains unchanged, but the visible worked example prevents an independent method comparison."
 };
 
 export function renderSandboxBehaviorNarrativeV2(input: {
@@ -280,7 +280,7 @@ export function renderSandboxBehaviorNarrativeV2(input: {
   if (input.setId === "structured_execution.required_structure") {
     const observedPlan = getLegacyStatefulSandboxV1RequiredStructureStepPlanAudit(input.outcomeKey)?.behavior;
     if (!observedPlan) return null;
-    additions.push(observedPlan);
+    additions.push(pattern === 8 ? "An earlier worked example beside the page already shows the step plan. The taught method does not change." : observedPlan);
   }
   if (input.phase === "Structured Execution" && input.repNumber > 1) {
     const comparison = EXECUTION_COMPARISON[pattern];
