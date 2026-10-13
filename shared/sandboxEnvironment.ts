@@ -557,15 +557,50 @@ export function selectSandboxOutcome(input: {
     );
   }
 
-  // Eligibility first: a clean outcome cannot silently erase an immediately
-  // preceding breakdown, even if the profile otherwise favours clean work.
-  const plausible = (input.context.behaviorModelVersion === 2 ? compatible.filter((definition) =>
-    isSandboxBehaviorTransitionPlausible({
-      trajectoryClass: definition.trajectoryClass,
-      previousTrajectoryClass: input.context.previousTrajectoryClass,
-      continuityTags: input.context.continuityTags,
-    }),
-  ) : compatible);
+  // Evidence-integrity exceptions describe rare loss of evidence, not a
+  // personality trait or an ordinary phase challenge. Normal V2 delivery must
+  // not manufacture them as one-in-four standard student outcomes.
+  //
+  // A deterministic, versioned 2% *eligibility window* permits an exceptional
+  // scenario to compete with normal outcomes. It does not guarantee that an
+  // exception will occur; routine evidence remains the default. This is a
+  // provisional Sandbox simulation calibration, not a frequency claim about
+  // real families. V1 selection remains exactly as it was.
+  const v2EvidenceIntegrityWindow =
+    input.context.behaviorModelVersion === 2 &&
+    hashUnit([
+      "sandbox-v2-rare-evidence-integrity-v1",
+      input.seed,
+      input.context.sequenceNumber,
+      input.context.prescribedPhase,
+      input.context.setId,
+      input.context.repNumber,
+    ].join(":")) < 0.02;
+  const plausible = input.context.behaviorModelVersion === 2
+    ? compatible.filter((definition) => {
+        const exceptionPattern = /\.pattern_[78]$/.test(definition.key);
+        const evidenceException =
+          exceptionPattern ||
+          definition.trajectoryClass === "not_observed" ||
+          definition.trajectoryClass === "confounded";
+        if (evidenceException && !v2EvidenceIntegrityWindow) return false;
+
+        // Repeatability cannot be declared unobserved at random when the
+        // earlier comparable execution is already in recorded evidence.
+        // Until a prior-evidence eligibility check exists, keep this specific
+        // exceptional V1 pattern out of the normal V2 student journey.
+        if (
+          definition.phase === "Structured Execution" &&
+          /\.pattern_7$/.test(definition.key)
+        ) return false;
+
+        return isSandboxBehaviorTransitionPlausible({
+          trajectoryClass: definition.trajectoryClass,
+          previousTrajectoryClass: input.context.previousTrajectoryClass,
+          continuityTags: input.context.continuityTags,
+        });
+      })
+    : compatible;
   if (!plausible.length) {
     throw new Error(
       `Sandbox Outcome Matrix has no plausible behavioural continuation for ${input.context.prescribedPhase} / ${input.context.setId} / rep ${input.context.repNumber}.`,
