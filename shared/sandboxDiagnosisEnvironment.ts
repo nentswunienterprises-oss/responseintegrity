@@ -21,6 +21,7 @@ import {
   buildTimedExecutionEvidence,
 } from "./tpsTimingContract";
 import { sandboxBehaviorProfileMultiplier } from "./sandboxBehaviorProfiles";
+import { renderSandboxDiagnosisExceptionNarrativeV2 } from "./sandboxDiagnosisExceptionNarrativesV2";
 import type { TopicPhase } from "./topicConditioningEngine";
 import type {
   SandboxCapabilityLayer,
@@ -184,9 +185,32 @@ export function selectSandboxDiagnosisOutcome(input: {
     );
   }
 
+  // A diagnosis evidence gap is an exceptional *observation condition*, not
+  // a normal student trait. Keep the same V2-only, deterministic 2% candidate
+  // window used by Training. It never hides actual real-world gaps and never
+  // changes already issued V1 diagnoses.
+  const v2IntegrityWindow =
+    input.context.behaviorModelVersion === 2 &&
+    hashUnit([
+      "sandbox-v2-rare-diagnosis-integrity-v1",
+      input.seed,
+      input.context.startingPhase,
+      input.context.probeId,
+      input.context.sequenceNumber,
+    ].join(":")) < 0.02;
+  const eligible = input.context.behaviorModelVersion === 2 && !v2IntegrityWindow
+    ? compatible.filter(
+        (definition) =>
+          definition.trajectoryClass !== "not_observed" &&
+          definition.trajectoryClass !== "confounded",
+      )
+    : compatible;
+  if (!eligible.length) {
+    throw new Error("Sandbox diagnosis has no observable, eligible V2 outcomes; preserve evidence and do not fabricate one.");
+  }
   const recent = new Set(input.context.recentOutcomeKeys || []);
-  const nonRepeated = compatible.filter((definition) => !recent.has(definition.key));
-  const repetitionEligible = nonRepeated.length ? nonRepeated : compatible;
+  const nonRepeated = eligible.filter((definition) => !recent.has(definition.key));
+  const repetitionEligible = nonRepeated.length ? nonRepeated : eligible;
   const target = input.context.earliestUnsupportedCapability || null;
   const targeted = target
     ? repetitionEligible.filter((definition) =>
@@ -195,7 +219,7 @@ export function selectSandboxDiagnosisOutcome(input: {
     : [];
   const candidates = targeted.length ? targeted : repetitionEligible;
 
-  return [...candidates].sort((a, b) => {
+  const chosen = [...candidates].sort((a, b) => {
     const score = (definition: SandboxDiagnosisOutcomeDefinition) =>
       hashUnit(
         [
@@ -217,6 +241,30 @@ export function selectSandboxDiagnosisOutcome(input: {
           : 1));
     return score(a) - score(b) || a.key.localeCompare(b.key);
   })[0];
+
+  if (input.context.behaviorModelVersion !== 2) return chosen;
+  const studentBehavior = renderSandboxDiagnosisExceptionNarrativeV2(chosen.key);
+  if (!studentBehavior) return chosen;
+  if (chosen.trajectoryClass !== "not_observed" && chosen.trajectoryClass !== "confounded") {
+    throw new Error("A V2 integrity scenario cannot replace an ordinary diagnostic outcome.");
+  }
+
+  // A worked model that guides the method also contaminates adjacent
+  // independence/repeatability judgments. An on-screen method cue removed
+  // before timing starts does not contaminate later timed execution.
+  const contaminatedDimensions =
+    chosen.key === "execution.repeatability.pattern_8"
+      ? ["execution.repeatability", "execution.independence"]
+      : chosen.key === "time.consistency.pattern_8"
+        ? ["time.completion_integrity"]
+        : [];
+  const canonicalObservations = chosen.canonicalObservations.map((observation) =>
+    contaminatedDimensions.includes(observation.dimensionId)
+      ? { ...observation, behaviorId: "confounded" }
+      : observation,
+  );
+
+  return { ...chosen, studentBehavior, canonicalObservations };
 }
 
 export function sandboxDiagnosisSupportPreservesCondition(
