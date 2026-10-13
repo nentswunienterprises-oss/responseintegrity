@@ -34,6 +34,7 @@ import {
 } from "@/components/tutor/TrainingLiveDeliveryUi";
 import { ResponseSnapshotCard } from "@/components/tutor/ResponseSnapshotCard";
 import type { ResponseSnapshotV1 } from "@shared/responseSnapshot";
+import { sandboxRequiresPrerequisiteSentinel } from "@shared/sandboxPrerequisiteProbe";
 import { displayTopicStability, topicStabilityConfirmationLabel } from "@shared/topicStabilityPresentation";
 import {
   NEXT_ACTION_ENGINE,
@@ -208,6 +209,7 @@ type EnvironmentForm = {
       targetPhase: string;
       evidenceQuestion: string;
       specialistInstruction: string;
+      simulatedFollowUp: string | null;
       options: Array<{
         id: "held" | "contradicted" | "not_observed" | "confounded";
         label: string;
@@ -368,6 +370,7 @@ export default function SpecialistSandboxSimulation({
   const [prerequisiteSentinel, setPrerequisiteSentinel] = useState<
     "held" | "contradicted" | "not_observed" | "confounded" | null
   >(null);
+  const [prerequisiteProbeStarted, setPrerequisiteProbeStarted] = useState(false);
   const [inheritedRescueSignal, setInheritedRescueSignal] = useState<
     "none" | "isolated" | "repeated" | "not_observed" | "confounded" | null
   >(null);
@@ -428,6 +431,7 @@ export default function SpecialistSandboxSimulation({
     setSelections({});
     setInterventionEvent("none");
     setPrerequisiteSentinel(null);
+    setPrerequisiteProbeStarted(false);
     setInheritedRescueSignal(null);
     setDiagnosisSelections({});
     setDiagnosisSupportEvent("none");
@@ -495,15 +499,7 @@ export default function SpecialistSandboxSimulation({
 
   const requiresPrerequisiteSentinel = Boolean(
     rep?.prerequisiteSentinel &&
-      rep.fields.some((field) => {
-        const selection = selections[field.fieldKey];
-        const selected = selection?.optionId;
-        if (!selected || selection?.evidenceStatus !== "observed") return false;
-        return field.options.some(
-          (option) =>
-            option.optionId === selected && option.requiresPrerequisiteSentinel,
-        );
-      }),
+      sandboxRequiresPrerequisiteSentinel(rep.fields, selections),
   );
 
   const requiresInheritedRescueSignal = Boolean(rep?.inheritedRescueSignal);
@@ -512,7 +508,7 @@ export default function SpecialistSandboxSimulation({
     Boolean(rep) &&
     completedObservationCount === (rep?.fields.length || 0) &&
     (rep?.fields.length || 0) > 0 &&
-    (!requiresPrerequisiteSentinel || Boolean(prerequisiteSentinel)) &&
+    (!requiresPrerequisiteSentinel || (prerequisiteProbeStarted && Boolean(prerequisiteSentinel))) &&
     (!requiresInheritedRescueSignal || Boolean(inheritedRescueSignal));
 
   const diagnosisObservationCount = useMemo(() => {
@@ -668,6 +664,7 @@ export default function SpecialistSandboxSimulation({
       setSelections({});
       setInterventionEvent("none");
       setPrerequisiteSentinel(null);
+      setPrerequisiteProbeStarted(false);
       setInheritedRescueSignal(null);
       setRepStarted(false);
       setSupportPickerOpen(false);
@@ -1207,7 +1204,7 @@ export default function SpecialistSandboxSimulation({
                 </div>
 
                 {requiresPrerequisiteSentinel && rep.prerequisiteSentinel && (
-                  <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+                  <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">
                       Prerequisite sentinel required
                     </div>
@@ -1217,23 +1214,58 @@ export default function SpecialistSandboxSimulation({
                     <p className="mt-2 text-sm leading-6 text-amber-900">
                       {rep.prerequisiteSentinel.specialistInstruction}
                     </p>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                      {rep.prerequisiteSentinel.options.map((option) => (
-                        <Button
-                          key={option.id}
-                          type="button"
-                          variant={
-                            prerequisiteSentinel === option.id
-                              ? "default"
-                              : "outline"
-                          }
-                          className="h-auto justify-start whitespace-normal py-3 text-left"
-                          onClick={() => setPrerequisiteSentinel(option.id)}
-                        >
-                          {option.label}
-                        </Button>
-                      ))}
-                    </div>
+                    <p className="mt-2 text-sm leading-6 text-amber-950">
+                      Your observed breakdown is valid evidence. Run this separate stripped-constraint check.
+                      Do not change the earlier observations to unlock confirmation.
+                    </p>
+                    {!prerequisiteProbeStarted ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-4 border-amber-700 bg-white text-amber-950 hover:bg-amber-100 hover:text-amber-950"
+                        onClick={() => setPrerequisiteProbeStarted(true)}
+                      >
+                        {form.prescribedPhase === "Time Pressure Stability"
+                          ? "Run untimed check"
+                          : "Run prerequisite check"}
+                      </Button>
+                    ) : (
+                      <>
+                        <div className="mt-4 rounded-lg border border-amber-300 bg-white p-3 text-amber-950">
+                          <div className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                            Simulated follow-up response
+                          </div>
+                          <p className="mt-2 text-sm leading-6">
+                            {rep.prerequisiteSentinel.simulatedFollowUp ||
+                              "The simulated case does not provide a separate comparable response. The earlier timed response alone cannot establish the prerequisite."}
+                          </p>
+                        </div>
+                        <p className="mt-3 text-sm font-semibold text-amber-950">
+                          What did the separate check actually establish?
+                        </p>
+                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                          {rep.prerequisiteSentinel.options.map((option) => (
+                            <Button
+                              key={option.id}
+                              type="button"
+                              variant="outline"
+                              disabled={
+                                !rep.prerequisiteSentinel?.simulatedFollowUp &&
+                                (option.id === "held" || option.id === "contradicted")
+                              }
+                              className={`h-auto justify-start whitespace-normal py-3 text-left ${
+                                prerequisiteSentinel === option.id
+                                  ? "border-amber-950 bg-amber-950 text-white hover:bg-amber-900 hover:text-white"
+                                  : "border-amber-300 bg-white text-amber-950 hover:bg-amber-100 hover:text-amber-950"
+                              }`}
+                              onClick={() => setPrerequisiteSentinel(option.id)}
+                            >
+                              {option.label}
+                            </Button>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -1270,6 +1302,11 @@ export default function SpecialistSandboxSimulation({
                   </div>
                 )}
 
+                {requiresPrerequisiteSentinel && !prerequisiteSentinel && (
+                  <p role="status" className="mt-4 text-sm text-amber-500">
+                    Confirm Rep is waiting for the prerequisite follow-up observation, not for stronger timed outcomes.
+                  </p>
+                )}
                 <div className="mt-6 flex justify-end">
                   <Button
                     disabled={!allComplete || submitRep.isPending}
