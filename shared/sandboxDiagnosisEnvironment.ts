@@ -185,11 +185,15 @@ export function selectSandboxDiagnosisOutcome(input: {
     );
   }
 
-  // A diagnosis evidence gap is an exceptional *observation condition*, not
-  // a normal student trait. Keep the same V2-only, deterministic 2% candidate
-  // window used by Training. It never hides actual real-world gaps and never
-  // changes already issued V1 diagnoses.
-  const v2IntegrityWindow =
+  // Diagnosis and Handover use the same V2 doctrine as Training:
+  // "not observed" is a factual evidence status entered when an observation
+  // genuinely cannot be established; it is NOT a fictional student scenario.
+  // Keep legacy V1 cases available only to historical V1 trajectories.
+  //
+  // A visibly consulted worked example is the one authored V2 confound.
+  // Its deterministic 2% eligibility window is an upper bound on when that
+  // event may compete with ordinary cases, not a quota or real-world rate.
+  const v2ConfoundEligibilityWindow =
     input.context.behaviorModelVersion === 2 &&
     hashUnit([
       "sandbox-v2-rare-diagnosis-integrity-v1",
@@ -198,12 +202,19 @@ export function selectSandboxDiagnosisOutcome(input: {
       input.context.probeId,
       input.context.sequenceNumber,
     ].join(":")) < 0.02;
-  const eligible = input.context.behaviorModelVersion === 2 && !v2IntegrityWindow
-    ? compatible.filter(
-        (definition) =>
-          definition.trajectoryClass !== "not_observed" &&
-          definition.trajectoryClass !== "confounded",
-      )
+  const eligible = input.context.behaviorModelVersion === 2
+    ? compatible.filter((definition) => {
+        if (
+          /\.pattern_7$/.test(definition.key) ||
+          definition.trajectoryClass === "not_observed"
+        ) return false;
+        if (
+          (/\.pattern_8$/.test(definition.key) ||
+            definition.trajectoryClass === "confounded") &&
+          !v2ConfoundEligibilityWindow
+        ) return false;
+        return true;
+      })
     : compatible;
   if (!eligible.length) {
     throw new Error("Sandbox diagnosis has no observable, eligible V2 outcomes; preserve evidence and do not fabricate one.");
