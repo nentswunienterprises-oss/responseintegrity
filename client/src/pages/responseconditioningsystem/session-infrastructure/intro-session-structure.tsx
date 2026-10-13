@@ -23,8 +23,8 @@ const specialistResponsibilities = [
   "Watch the complete student response before opening the observation runner.",
   "Click Student Finished at actual completion, then record the observations one at a time.",
   "Record only what the opportunity actually exposed. Do not use a retrospective walk-through to fill missing live evidence.",
-  "Use not-observed when the opportunity did not fairly expose a behavior.",
-  "Use confounded when intervention, content exposure, task design, or another condition prevents clean interpretation.",
+  "Do not invent evidence for a dimension without a qualifying observation. Not observed is a narrow record status, not a standard student scenario.",
+  "When a mathematical method is visibly supplied, such as by a worked example, treat only the affected independence claim as confounded.",
   "Record intervention separately from the student's behavior.",
   "Submit the observation faithfully and follow the next evidence question produced from that evidence.",
 ];
@@ -44,7 +44,7 @@ const opportunityExecutionFlow = [
   },
   {
     stage: "Record",
-    rule: "Record the exposed behaviors one at a time. Missing behavior stays not-observed; hindsight is not live evidence.",
+    rule: "Record observed behaviours one at a time. Do not invent a response for a dimension the system has not genuinely exposed.",
   },
   {
     stage: "Confirm",
@@ -376,21 +376,19 @@ export default function ResponseConditioningIntroSessionStructure() {
           <p className="text-muted-foreground">
             Each behavior RI-OS asks you to observe presents concrete choices. These include
             decision-relevant breakdown, conditional, near-stable, and supported behavior,
-            plus two critical escape states:
+            plus two exceptional evidence statuses, neither of which should appear routinely:
           </p>
           <div className="grid gap-3 md:grid-cols-2">
             <div className="rounded-xl border p-4">
               <p className="font-semibold">Not observed</p>
               <p className="text-sm text-muted-foreground">
-                The opportunity did not fairly expose that behavior. Missing evidence must
-                not be converted into weakness.
+                Only a genuinely unavailable qualifying observation belongs here. It is not a routine response to design into an opportunity, and missing evidence is not student weakness.
               </p>
             </div>
             <div className="rounded-xl border p-4">
               <p className="font-semibold">Confounded</p>
               <p className="text-sm text-muted-foreground">
-                Assistance, content exposure, task design, or another condition prevents a
-                clean interpretation.
+                A visible worked example or supplied mathematical method compromised the specific independence claim. Record what was exposed, rather than marking it clean or weak.
               </p>
             </div>
           </div>
@@ -468,9 +466,7 @@ export default function ResponseConditioningIntroSessionStructure() {
             available to them.
           </p>
           <p className="text-sm text-muted-foreground">
-            When content exposure makes the response uninterpretable, record not-observed or
-            confounded evidence. RI-OS should keep the question unresolved rather than invent a
-            response-conditioning placement from unavailable content.
+            If the student never learned the necessary content, preserve content readiness as an unresolved prerequisite rather than manufacturing a Response Integrity breakdown or a contrived evidence exception.
           </p>
         </Card>
 
@@ -492,8 +488,7 @@ export default function ResponseConditioningIntroSessionStructure() {
           </div>
           <p className="text-sm font-medium">
             The neutral independent starting problem does not deliberately ask for Vocabulary, Method, or Reason.
-            If those behaviors were not naturally exposed, record not-observed and let the system
-            select Clarity Recognition when that evidence is still required.
+            A neutral independent start is not supposed to test every Clarity explanation. If recognition or reason is still required, let RI-OS select the dedicated Clarity Recognition opportunity instead of treating the absent question as student behaviour.
           </p>
           <p className="text-sm text-muted-foreground">
             Clarity Recognition is different because the check deliberately asks for recognition. Ask:
