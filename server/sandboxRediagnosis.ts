@@ -36,6 +36,7 @@ import {
   type PersistedTpsTimerContract,
 } from "./tpsTimingAuthority";
 import { getSandboxEnvironmentHistory } from "./sandboxEnvironment";
+import { SANDBOX_DIAGNOSIS_EXCEPTION_NARRATIVE_VERSION } from "@shared/sandboxDiagnosisExceptionNarrativesV2";
 
 const BANK_KEY = "sandbox_stateful_environment";
 
@@ -423,6 +424,8 @@ async function plan(input: {
       run.id,
       sequenceNumber,
       selectedRecord.publicRef,
+      ...(truth.behavior_model_version === 2
+        ? ["evidence-exceptions-v" + SANDBOX_DIAGNOSIS_EXCEPTION_NARRATIVE_VERSION] : []),
     ].join(":"),
   ).slice(0, 32);
 
@@ -650,6 +653,8 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
       input.sequenceNumber,
       probeId,
       selectedRecord.publicRef,
+      ...(truth.behavior_model_version === 2
+        ? ["evidence-exceptions-v" + SANDBOX_DIAGNOSIS_EXCEPTION_NARRATIVE_VERSION] : []),
     ].join(":"),
   ).slice(0, 32);
 
