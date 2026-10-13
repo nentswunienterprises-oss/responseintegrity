@@ -14,8 +14,8 @@ export const SESSION_INFRASTRUCTURE_TEACHING = {
         },
         {
           "key": "b",
-          "label": "Place both topics from the stronger topic\u2019s result because the same student completed both.",
-          "feedback": "One topic\u2019s behavior cannot establish another topic\u2019s state."
+          "label": "Place both topics from the stronger topic’s result because the same student completed both.",
+          "feedback": "One topic’s behavior cannot establish another topic’s state."
         },
         {
           "key": "c",
@@ -24,13 +24,13 @@ export const SESSION_INFRASTRUCTURE_TEACHING = {
         },
         {
           "key": "d",
-          "label": "Teach the unresolved topic\u2019s opening method before collecting its missing diagnosis evidence.",
+          "label": "Teach the unresolved topic’s opening method before collecting its missing diagnosis evidence.",
           "feedback": "Teaching supplies the capability the diagnosis is trying to observe."
         },
         {
           "key": "e",
-          "label": "Assign the unresolved topic a weak opening response because it was not observed on the first check.",
-          "feedback": "Not observed is missing evidence, not observed weakness."
+          "label": "Assign the unresolved topic a weak opening response from the other topic's clean result.",
+          "feedback": "Another topic's clean response cannot establish the missing topic's behaviour or placement."
         }
       ],
       "correctOptionKey": "c",
@@ -61,12 +61,12 @@ export const SESSION_INFRASTRUCTURE_TEACHING = {
         },
         {
           "key": "e",
-          "label": "Repeat the whole diagnosis before every session so the topic\u2019s placement always feels current.",
+          "label": "Repeat the whole diagnosis before every session so the topic’s placement always feels current.",
           "feedback": "A trustworthy active state continues into Training rather than routine fresh placement."
         }
       ],
       "correctOptionKey": "b",
-      "truth": "Entry-state placement determines where Training starts. It is not a shortcut through that phase\u2019s required work."
+      "truth": "Entry-state placement determines where Training starts. It is not a shortcut through that phase’s required work."
     }
   ],
   "logging_system": [
@@ -103,50 +103,50 @@ export const SESSION_INFRASTRUCTURE_TEACHING = {
       "truth": "Record concrete behavior and each intervention separately. Preserve clean observations while keeping prompted behavior from proving independence."
     },
     {
-      "prompt": "A visible technical interruption hides part of a response. The student\u2019s final answer is correct. What can the Specialist record?",
+      "prompt": "During an independent Training rep, the student completes a valid start. An old worked solution remains open beside the page, and they look at it before continuing the remaining steps. What should the Specialist record?",
       "options": [
         {
           "key": "a",
-          "label": "Record the visible behavior and interruption, leaving the hidden behavior unresolved rather than inferred.",
-          "feedback": "An honest gap preserves what was and was not observed."
+          "label": "Preserve the independent start, record the visible worked-example cue, and leave the affected continuation confounded.",
+          "feedback": "Clean behaviour before a reference cue remains clean; the reference-assisted continuation cannot prove independence."
         },
         {
           "key": "b",
-          "label": "Record all behavior as strong because the correct answer makes the hidden execution highly likely.",
-          "feedback": "A correct result cannot restore direct observation of hidden behavior."
+          "label": "Mark every step independent because the completed answer is correct.",
+          "feedback": "Correctness cannot erase the observed cue or establish independent continuation."
         },
         {
           "key": "c",
-          "label": "Record the hidden behavior as weak because uncertainty should always lower the student\u2019s state.",
-          "feedback": "Uncertainty is not evidence that a weak behavior occurred."
+          "label": "Record a breakdown because looking at an example always proves inability.",
+          "feedback": "A contaminated observation cannot be converted into a clean capability failure."
         },
         {
           "key": "d",
-          "label": "Copy the corresponding behavior from a similar earlier response to keep this record fully complete and consistent.",
-          "feedback": "Each occurrence needs its own observed evidence."
+          "label": "Ignore the glance because the example was only used briefly.",
+          "feedback": "The presence of a mathematical step or method cue matters, not how briefly it was seen."
         },
         {
           "key": "e",
-          "label": "Ask the student what happened and enter their account as the original live observation afterward.",
-          "feedback": "A later account cannot become the Specialist\u2019s original direct observation."
+          "label": "Ask the student whether they knew the method, then overwrite the original result.",
+          "feedback": "A retrospective answer cannot make the earlier reference-assisted work independent."
         }
       ],
       "correctOptionKey": "a",
-      "truth": "Not-observed and confounded evidence stay unresolved. Preserve their source and let RI-OS determine the required recovery route."
+      "truth": "A visible worked example can confound the independence of affected work. Record the cue, preserve unrelated clean evidence, and follow RI-OS for any additional qualifying opportunity."
     }
   ],
   "session_flow_control": [
     {
-      "prompt": "Today\u2019s Training reveals a requirement for targeted re-diagnosis at the next booking. How should today\u2019s session be recorded?",
+      "prompt": "Today’s Training reveals a requirement for targeted re-diagnosis at the next booking. How should today’s session be recorded?",
       "options": [
         {
           "key": "a",
-          "label": "Relabel today\u2019s prepared Training as diagnosis because the next session now has that purpose.",
-          "feedback": "A future requirement does not change the conditions under which today\u2019s evidence was collected."
+          "label": "Relabel today’s prepared Training as diagnosis because the next session now has that purpose.",
+          "feedback": "A future requirement does not change the conditions under which today’s evidence was collected."
         },
         {
           "key": "b",
-          "label": "Discard today\u2019s observations because a re-diagnosis requirement makes all of today’s Training evidence unusable.",
+          "label": "Discard today’s observations because a re-diagnosis requirement makes all of today’s Training evidence unusable.",
           "feedback": "Valid exposure and observations retain their actual context."
         },
         {
@@ -161,12 +161,12 @@ export const SESSION_INFRASTRUCTURE_TEACHING = {
         },
         {
           "key": "e",
-          "label": "Preserve today\u2019s Training context and open the next scheduled session in required targeted diagnosis.",
-          "feedback": "The next booking changes operating purpose; today\u2019s source context stays accurate."
+          "label": "Preserve today’s Training context and open the next scheduled session in required targeted diagnosis.",
+          "feedback": "The next booking changes operating purpose; today’s source context stays accurate."
         }
       ],
       "correctOptionKey": "e",
-      "truth": "A requirement raised during Training governs the next scheduled session. Preserve today\u2019s evidence under its original conditions."
+      "truth": "A requirement raised during Training governs the next scheduled session. Preserve today’s evidence under its original conditions."
     },
     {
       "prompt": "A genuine connection failure ends Training early after several valid opportunities. What follows for those observations?",
@@ -239,7 +239,7 @@ export const SESSION_INFRASTRUCTURE_TEACHING = {
       "options": [
         {
           "key": "a",
-          "label": "A changed problem form and independent execution, with the set\u2019s assigned difficulty and pressure unchanged.",
+          "label": "A changed problem form and independent execution, with the set’s assigned difficulty and pressure unchanged.",
           "feedback": "The set tests whether the method survives changed form without Specialist help."
         },
         {
@@ -259,7 +259,7 @@ export const SESSION_INFRASTRUCTURE_TEACHING = {
         },
         {
           "key": "e",
-          "label": "A familiar form with a model beforehand so correct answers demonstrate the method\u2019s transferability.",
+          "label": "A familiar form with a model beforehand so correct answers demonstrate the method’s transferability.",
           "feedback": "Familiar exposure with modelling does not establish independent changed-form execution."
         }
       ],
@@ -269,36 +269,36 @@ export const SESSION_INFRASTRUCTURE_TEACHING = {
   ],
   "handover_verification": [
     {
-      "prompt": "A replacement Specialist inherits a topic state. The first continuity opportunity leaves one behavior unseen. What is the correct response?",
+      "prompt": "A replacement Specialist inherits strong independent execution. In the first continuity rep, the student begins unaided but then looks at an old worked solution showing the next steps. What is the correct response?",
       "options": [
         {
           "key": "a",
-          "label": "Restart Intro because a new Specialist cannot use evidence collected by the previous Specialist.",
-          "feedback": "Reassignment does not erase the topic\u2019s established history."
+          "label": "Restart Intro and discard the inherited record because the new Specialist saw a reference cue.",
+          "feedback": "Handover preserves inherited evidence and checks present continuity; it does not restart placement."
         },
         {
           "key": "b",
-          "label": "Treat the unseen behavior as strong because the inherited state previously supported that capability.",
-          "feedback": "Inherited state does not supply a missing new observation."
+          "label": "Treat the later steps as clean because the inherited state previously supported them.",
+          "feedback": "History cannot make a new reference-assisted response independent."
         },
         {
           "key": "c",
-          "label": "Lower the topic immediately because an unseen behavior creates doubt about the inherited state.",
-          "feedback": "Missing observation is not evidence of breakdown."
+          "label": "Lower the topic immediately because consulting an example proves a breakdown.",
+          "feedback": "Confounded evidence is not a clean demonstration of incapability."
         },
         {
           "key": "d",
-          "label": "Preserve the gap and inherited history, then collect only the next continuity check RI-OS requires.",
-          "feedback": "Bounded clean evidence resolves continuity without guessed placement."
+          "label": "Preserve the independent start and inherited history, log the later reference cue, and follow the next RI-OS continuity check.",
+          "feedback": "Only affected independence claims are confounded; RI-OS decides how the unresolved part is checked."
         },
         {
           "key": "e",
-          "label": "Teach the unseen behavior and keep checking until the student reproduces the inherited state.",
-          "feedback": "Teaching manufactures the continuity result rather than verifying it."
+          "label": "Teach the remainder and keep checking until the student reproduces the inherited strength.",
+          "feedback": "Teaching forward would change the continuity question rather than verify it."
         }
       ],
       "correctOptionKey": "d",
-      "truth": "Handover preserves inherited history and gathers only enough clean evidence to resolve continuity. It is neither fresh Intro nor forward teaching."
+      "truth": "Handover preserves inherited evidence and a clean observed start while recording any reference-contaminated continuation. It cannot manufacture independence or manually re-place the student."
     },
     {
       "prompt": "Continuity is resolved with clean evidence supporting a stability adjustment inside the inherited phase. What does this authorize?",
@@ -320,7 +320,7 @@ export const SESSION_INFRASTRUCTURE_TEACHING = {
         },
         {
           "key": "d",
-          "label": "Selecting a new phase manually because the replacement Specialist now owns the topic\u2019s judgment.",
+          "label": "Selecting a new phase manually because the replacement Specialist now owns the topic’s judgment.",
           "feedback": "The Specialist records evidence; RI-OS derives the state."
         },
         {
@@ -339,7 +339,7 @@ export const SESSION_INFRASTRUCTURE_TEACHING = {
       "options": [
         {
           "key": "a",
-          "label": "Keep the rear camera on the Specialist\u2019s notebook until every Clarity set has been completed.",
+          "label": "Keep the rear camera on the Specialist’s notebook until every Clarity set has been completed.",
           "feedback": "Identification already requires student response rather than continued demonstration."
         },
         {
@@ -367,7 +367,7 @@ export const SESSION_INFRASTRUCTURE_TEACHING = {
       "truth": "Camera mode follows the active set. Modelling exposes Specialist execution; Identification and Light Apply use student Observation within Clarity."
     },
     {
-      "prompt": "The correct equipment is present, but glare hides the Specialist\u2019s written steps during Modelling. What should happen?",
+      "prompt": "The correct equipment is present, but glare hides the Specialist’s written steps during Modelling. What should happen?",
       "options": [
         {
           "key": "a",
