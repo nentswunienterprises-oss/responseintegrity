@@ -722,7 +722,7 @@ test("V2 Sandbox cannot erase a breakdown without an observable intermediate res
   }), /no plausible behavioural continuation/);
   // Unknown evidence is not recovery from an earlier observed breakdown.
   assert.equal(selectSandboxOutcome({
-    seed: "identity-v1-1", outcomes: [supported, confounded, unseen],
+    seed: "identity-v1-1", outcomes: [supported, confounded, unseen, nearStable],
     context: { ...base, previousTrajectoryClass: "confounded" },
   }).trajectoryClass !== "supported", true);
   // A genuinely observed intermediate recovery may precede a clean response.
@@ -888,7 +888,7 @@ test("all four Training phases evaluate V4 rep-specific Sandbox observations wit
 
 
 test("V2 narratives have 264 distinct evidence-faithful visible outcomes while V1 remains identical", () => {
-  assert.equal(SANDBOX_BEHAVIOR_NARRATIVE_VERSION, 2);
+  assert.equal(SANDBOX_BEHAVIOR_NARRATIVE_VERSION, 3);
   const seen = new Map<string, string>();
   const counts: Record<string, number> = {};
   for (const trainingPhase of [
@@ -926,11 +926,46 @@ test("V2 narratives have 264 distinct evidence-faithful visible outcomes while V
             renderSandboxBehaviorNarrativeV2({
               phase:trainingPhase,setId:set.setId,outcomeKey:key,repNumber:rep,
             }));
-          // Nothing other than the visible student's prose is permitted to change.
+          // Except for downstream evidence also contaminated by a rare
+          // reference cue, canonical meaning must remain byte-for-byte equal.
+          // V1 has no overrides; the six ordinary outcome patterns are intact.
+          const additionalConfounds = pattern === 8
+            ? trainingPhase === "Structured Execution"
+              ? ["execution.repeatability", "execution.independence"]
+              : trainingPhase === "Time Pressure Stability"
+                ? ["time.completion_integrity"]
+                : []
+            : [];
+          const sourceFields=getFieldDefinitionsForRep(set,rep-1);
+          for(const field of sourceFields){
+            const oldStatus=legacy.canonicalObservations[field.fieldKey]?.evidenceStatus;
+            const newStatus=v2.canonicalObservations[field.fieldKey]?.evidenceStatus;
+            if(additionalConfounds.includes(field.dimensionId)){
+              assert.equal(newStatus,"confounded",key+" must invalidate "+field.dimensionId);
+              assert.equal(oldStatus,"observed",key+" must preserve historical V1");
+            }else{
+              assert.equal(newStatus,oldStatus,key+" unexpectedly changed "+field.dimensionId);
+            }
+            assert.equal(v2.canonicalObservations[field.fieldKey]?.optionId,
+              legacy.canonicalObservations[field.fieldKey]?.optionId,
+              key+" changed an evidence option rather than its explicit validity");
+          }
+          const v2Comparable={
+            ...v2,
+            studentBehavior:"<not compared>",
+            canonicalObservations:Object.fromEntries(
+              Object.entries(v2.canonicalObservations).map(([fieldKey,value])=>[
+                fieldKey,{
+                  ...value,
+                  evidenceStatus:legacy.canonicalObservations[fieldKey]?.evidenceStatus,
+                },
+              ]),
+            ),
+          };
           assert.deepEqual(
             {...legacy,studentBehavior:"<not compared>"},
-            {...v2,studentBehavior:"<not compared>"},
-            key+" mutated canonical evidence, class or selection rules",
+            v2Comparable,
+            key+" altered state, selected options or capability authority",
           );
           const text = v2.studentBehavior;
           assert.ok(text.length >= 100 && text.length < 850,key+" has an unsuitable length");
@@ -975,6 +1010,74 @@ test("V2 rep-to-rep conduct changes even when the same pattern repeats", () => {
       );
       assert.ok(versions.every(Boolean));
       assert.equal(new Set(versions).size,3,phase+" pattern "+pattern+" repeats verbatim across reps");
+    }
+  }
+});
+
+
+test("V2 rare evidence incidents are deterministic, below ordinary frequency, and cannot be gamed by profile", () => {
+  const setId="clarity.identification";
+  const classes=[
+    "supported","near_stable","conditional","conditional",
+    "breakdown","breakdown","not_observed","confounded",
+  ] as SandboxOutcomeDefinition["trajectoryClass"][];
+  const outcomes=classes.map((trajectoryClass,index)=>outcomeFor({
+    setId,repNumber:1,key:setId+".rep_1.pattern_"+(index+1),trajectoryClass,
+  }));
+  let selectedExceptions=0;
+  const cohortSize=4000;
+  for(let index=0;index<cohortSize;index++){
+    const seed="realistic-evidence-frequency-qa-"+index;
+    const context={
+      canonicalPhase:"Clarity" as const,
+      canonicalStability:"Low" as const,
+      prescribedPhase:"Clarity" as const,
+      setId,repNumber:1,sequenceNumber:index+1,
+      previousTrajectoryClass:"near_stable" as const,
+      continuityTags:[] as string[],
+      behaviorModelVersion:2 as const,
+    };
+    const a=selectSandboxOutcome({seed,outcomes,context});
+    const b=selectSandboxOutcome({seed,outcomes,context});
+    assert.equal(a.key,b.key,"Identical V2 evidence must not reroll on reload");
+    if(["not_observed","confounded"].includes(a.trajectoryClass))selectedExceptions++;
+  }
+  // The 2% eligibility window is an upper bound on simulation opportunities,
+  // not a quota of incidents to be manufactured. With seeded, independent
+  // contexts, routine selection must be overwhelmingly student behaviour.
+  assert.ok(selectedExceptions<cohortSize*0.025,
+    "Rare evidence-integrity conditions dominate ordinary simulated delivery");
+  const v1Result=selectSandboxOutcome({
+    seed:"v1-historical-replay",outcomes,context:{
+      canonicalPhase:"Clarity",canonicalStability:"Low",
+      prescribedPhase:"Clarity",setId,repNumber:1,sequenceNumber:4,
+      behaviorModelVersion:1,
+    },
+  });
+  assert.ok(v1Result,"V1 historical selection remains eligible");
+});
+
+test("V2 exception descriptions preserve the taught method and name observable evidence limits", () => {
+  const phases:TopicPhase[]=[
+    "Clarity","Structured Execution","Controlled Discomfort",
+    "Time Pressure Stability",
+  ];
+  for(const phase of phases){
+    const schema=getDrillSchemaDefinition("training",phase);
+    for(const set of schema.sets.filter(x=>!x.modelingOnly)){
+      for(let rep=1;rep<=set.reps;rep++){
+        for(const pattern of [7,8]){
+          const txt=renderSandboxBehaviorNarrativeV2({
+            phase,setId:set.setId,
+            outcomeKey:set.setId+".rep_"+rep+".pattern_"+pattern,
+            repNumber:rep,
+          });
+          assert.ok(txt);
+          assert.doesNotMatch(txt,/glitch|display refresh|new displayed order|changes? (?:the )?required step order|flashes|video freeze|call drops|camera image freezes/i,
+            "Synthetic incidents must not invent changing maths or miraculous glitches");
+          assert.ok(txt.length>=100&&txt.length<850);
+        }
+      }
     }
   }
 });
