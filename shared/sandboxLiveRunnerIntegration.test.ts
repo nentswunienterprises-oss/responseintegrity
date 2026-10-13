@@ -798,3 +798,23 @@ test("Sandbox V2 Diagnosis and Handover POST compare the exact visible profile-w
   assert.ok(!submit.includes(".filter((dimension) => dimension.phase === input.startingPhase)"),
     "A single Handover observation cannot certify repeatability without a repeat opportunity");
 });
+
+test("V2 Sandbox loader excludes staged missing observations but preserves historical V1 bank rows", () => {
+  const loader = sandboxAuthoritySource.slice(
+    sandboxAuthoritySource.indexOf("async function loadRepOutcomes"),
+    sandboxAuthoritySource.indexOf("function projectRepFields"),
+  );
+  assert.ok(loader.includes("input.behaviorModelVersion === 2"),
+    "The historical V1 bank must remain untouched.");
+  assert.ok(loader.includes('storedDefinition.trajectoryClass === "not_observed"'),
+    "V2 must exclude unobserved outcomes before projecting a fake student event.");
+  assert.ok(loader.includes(".pattern_7$"),
+    "Historical V1 pattern 7 must not be offered to V2 students.");
+  const filterPosition = loader.indexOf('storedDefinition.trajectoryClass === "not_observed"');
+  const projectionPosition = loader.indexOf("projectSandboxOutcomeToCurrentTrainingContract(");
+  assert.ok(filterPosition >= 0 && projectionPosition > filterPosition,
+    "Legacy missing-observation rows must be rejected before V2 narrative projection.");
+  // The backend still uses the real learner/booking authorization contract.
+  assert.match(sandboxAuthoritySource, /assertSandboxAccess/);
+  assert.match(sandboxAuthoritySource, /loadSandboxScheduledTrainingSession/);
+});
