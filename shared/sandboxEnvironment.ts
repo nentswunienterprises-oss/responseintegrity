@@ -336,6 +336,24 @@ export function projectSandboxOutcomeToCurrentTrainingContract(
         );
       }
 
+      // A visible worked example can contaminate more than the immediately
+      // prompted step. V2 must not certify independent repetition or timed
+      // completion integrity from a response influenced by a reference cue.
+      // V1 historical truth and all six normal outcome patterns are immutable.
+      if (
+        behaviorModelVersion === 2 &&
+        /\.pattern_8$/.test(definition.key) &&
+        (
+          (definition.phase === "Structured Execution" &&
+            (dimensionId === "execution.repeatability" ||
+              dimensionId === "execution.independence")) ||
+          (definition.phase === "Time Pressure Stability" &&
+            dimensionId === "time.completion_integrity")
+        )
+      ) {
+        evidenceStatus = "confounded";
+      }
+
       const optionIndex =
         currentField.optionEvidenceClasses?.findIndex(
           (candidate) => candidate === evidenceClass,
