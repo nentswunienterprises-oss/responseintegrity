@@ -41,6 +41,7 @@ import {
   type SandboxTrajectoryClass,
 } from "@shared/sandboxEnvironment";
 import { trainingRawObservationRequiresPrerequisiteSentinel } from "@shared/trainingEvidenceEvaluator";
+import { sandboxRequiresPrerequisiteSentinel, renderSandboxPrerequisiteFollowUp } from "@shared/sandboxPrerequisiteProbe";
 import type { TopicPhase, TopicStability } from "@shared/topicConditioningEngine";
 import { normalizeCapabilityProgressionState, type ProgressionAuthority } from "@shared/capabilityProgressionAuthority";
 import { SANDBOX_BEHAVIOR_NARRATIVE_VERSION } from "@shared/sandboxBehaviorNarrativesV2";
@@ -1614,6 +1615,10 @@ export async function prepareSandboxEnvironment(input: {
               targetPhase: definition.targetPhase,
               evidenceQuestion: definition.evidenceQuestion,
               specialistInstruction: definition.specialistInstruction,
+              simulatedFollowUp: renderSandboxPrerequisiteFollowUp(
+                planned.phase,
+                planned.selected.canonicalPrerequisiteSentinel,
+              ),
               options: [
                 { id: "held", label: definition.heldLabel },
                 { id: "contradicted", label: definition.contradictedLabel },
@@ -2046,6 +2051,17 @@ export async function submitSandboxEnvironmentRep(input: {
     if (!submitted?.optionId || !field.options.some((option) => option.optionId === submitted.optionId)) {
       throw httpError(400, `Sandbox rep is missing a valid ${field.fieldKey} observation.`);
     }
+  }
+
+  const requiresSentinel = sandboxRequiresPrerequisiteSentinel(fields, input.submission.observations);
+  if (requiresSentinel && !input.submission.prerequisiteSentinel) {
+    throw httpError(400, "Record the required prerequisite check before confirming this rep.");
+  }
+  if (!requiresSentinel && input.submission.prerequisiteSentinel) {
+    throw httpError(400, "A prerequisite result cannot be submitted without an observed current-phase breakdown.");
+  }
+  if (planned.phase === "Time Pressure Stability" && !input.submission.inheritedRescueSignal) {
+    throw httpError(400, "Record the inherited rescue signal for this timed rep.");
   }
 
   const turn: SandboxCompletedTurn = {
