@@ -1273,21 +1273,41 @@ async function loadRepOutcomes(input: {
   const sourceTrainingSchemaVersion =
     trainingSchemaVersionForSandboxBank(input.bank.bankVersion);
 
-  return result.rows.map((row) => {
+  const outcomes = result.rows.flatMap((row): PrivateOutcomeRecord[] => {
     const storedDefinition = (
       typeof row.definition === "string" ? JSON.parse(row.definition) : row.definition
     ) as SandboxOutcomeDefinition;
+
+    // The stored Outcome Matrix is shared with historical V1 sessions and
+    // therefore still contains pattern 7. V2 deliberately has NO authored
+    // "not observed" incident: evidence can be missing in the real recording,
+    // but the student simulator may not manufacture a reason for that absence.
+    // Exclude the legacy row before projecting/rendering a V2 narrative.
+    if (
+      input.behaviorModelVersion === 2 &&
+      (/\.pattern_7$/.test(storedDefinition.key) ||
+        storedDefinition.trajectoryClass === "not_observed")
+    ) return [];
+
     const definition = projectSandboxOutcomeToCurrentTrainingContract(
       storedDefinition,
       sourceTrainingSchemaVersion,
       input.behaviorModelVersion,
     );
     validateSandboxOutcomeDefinition(definition);
-    return {
+    return [{
       publicRef: String(row.public_ref),
       definition,
-    };
+    }];
   });
+
+  if (!outcomes.length) {
+    throw httpError(
+      503,
+      `Sandbox Outcome Matrix contains no eligible V${input.behaviorModelVersion} response for ${input.phase} / ${input.setId} / rep ${input.repNumber}.`,
+    );
+  }
+  return outcomes;
 }
 
 function projectRepFields(phase: TopicPhase, set: EvidenceSetDefinition, repNumber: number) {
