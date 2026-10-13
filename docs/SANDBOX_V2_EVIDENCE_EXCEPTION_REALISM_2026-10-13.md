@@ -38,3 +38,15 @@ The default simulation is student execution, not repeated camera failures, cues 
 ## Verification gate
 
 Require passing focused Sandbox Simulation CI and a controlled Preview smoke with a genuinely selected exceptional scenario before claiming live content acceptance. Founder experiential judgment remains separate from technical proof. Previously accepted V2 longitudinal mechanics are not evidence that these revised exception stories have passed Founder readability.
+
+## Diagnosis and Handover — same boundary, same restraint
+
+An additional read-only bank audit found **seven** diagnosis probe types, each with six ordinary outcomes and two evidence-integrity exceptions (14 exception definitions among 56 authored outcomes). Their historical descriptions were vague (e.g. a behavior "cannot be interpreted because a condition changed") rather than evidencing what actually happened.
+
+V2 now projects **14 concrete exceptional descriptions**, without changing ordinary probe descriptions or existing private bank records. The legitimate situations are: an unrequested written start, an inaudible microphone during a prolonged difficulty, a learner's notes outside view, an obscured final timed response, or a worked method/reference available before or during the relevant observation. Diagnosis/Handover remain separately authoritative from the Training session.
+
+The same deterministic **2% V2 exception eligibility window** now applies to Diagnosis/Handover probe selection. This is not a rate limit on genuine clinician/Specialist observation data: real missing or contaminated evidence must always be recorded faithfully. V1 selector outcomes remain stable. A V2-only form-version identifier prevents reusing a stale response after the authoring change.
+
+For a repeatability probe where a worked sequence is visible, both `execution.independence` and `execution.repeatability` are also invalidated. For timed consistency where a worked reference contaminates method structure, `time.completion_integrity` is invalidated too. An unrelated timed probe where a method cue is removed *before timing starts* can still establish the later timed execution from the visible work.
+
+**Operational remedy:** observe or elicit the missing part when possible; remove any reference/help and create a fresh independent opportunity where necessary. Neither a simulated exception nor an unverified method change may count as evidence of improved learner capability.
