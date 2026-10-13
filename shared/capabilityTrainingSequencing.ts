@@ -1,4 +1,5 @@
 import type { CapabilityEvidenceKind } from "./capabilityEngine";
+import { countsAsEditoriallyEquivalentPass } from "./capabilityEditorialBankContinuity";
 import {
   CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V1,
   CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V2,
@@ -222,8 +223,12 @@ function passedAttemptFor(
       .filter(
         (attempt) =>
           attempt.assessmentKey === assessmentKey &&
-          attempt.bankVersion === bank.bankVersion &&
-          attempt.passed,
+          countsAsEditoriallyEquivalentPass({
+            assessmentKey,
+            previousBankVersion: attempt.bankVersion,
+            currentBankVersion: bank.bankVersion,
+            passed: attempt.passed,
+          }),
       )
       .sort((left, right) => timestamp(left.completedAt) - timestamp(right.completedAt))
       .at(-1) || null
@@ -401,7 +406,10 @@ export function buildCapabilityTrainingAvailability(input: {
       };
     }
 
-    if (attempts.some((attempt) => attempt.passed)) {
+    // A formerly earned pass remains complete only across one specifically
+    // approved, semantic-equivalent editorial correction. New attempts and
+    // retry limits always use the actual active bank version.
+    if (Boolean(passedAttemptFor(entry.assessmentKey, bank, input.attempts))) {
       return {
         assessmentKey: entry.assessmentKey,
         title: entry.title,
