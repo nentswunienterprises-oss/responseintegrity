@@ -1093,7 +1093,15 @@ test("V2 exception descriptions preserve the taught method and name observable e
           assert.doesNotMatch(txt,/glitch|display refresh|new displayed order|changes? (?:the )?required step order|flashes|video freeze|call drops|camera image freezes/i,
             "Synthetic incidents must not invent changing maths or miraculous glitches");
           assert.ok(txt.length>=100&&txt.length<850);
+          assert.match(txt,
+            /worked example|worked solution|reference sheet|revision sheet|model answer|notebook heading|earlier notes/i,
+            "The only scripted V2 confound must involve a visible worked reference");
         }
+        assert.equal(renderSandboxBehaviorNarrativeV2({
+          phase,setId:set.setId,
+          outcomeKey:set.setId+".rep_"+rep+".pattern_7",
+          repNumber:rep,
+        }),null,"No V2 phase or opportunity may script missing observations");
       }
     }
   }
