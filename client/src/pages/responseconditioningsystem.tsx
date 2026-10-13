@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, ChevronRight } from "lucide-react";
+import { trainingMilestone } from "@/lib/training-milestone";
 
 const modules = [
   {
@@ -161,7 +162,7 @@ type MasteryAvailability = {
 };
 
 type PodData = {
-  assignment?: { id?: string | null } | null;
+  assignment?: { id?: string | null; operationalMode?: string } | null;
 };
 
 export default function ResponseConditioningSystem() {
@@ -204,6 +205,27 @@ export default function ResponseConditioningSystem() {
     totalCapabilityChecks > 0
       ? Math.round((completedCapabilityChecks / totalCapabilityChecks) * 100)
       : 0;
+
+  const trainingComplete = capabilityAssessments.length > 0 &&
+    capabilityAssessments.every((assessment) => assessment.status === "complete");
+  const mode = podQuery.data?.assignment?.operationalMode;
+  const practicalsQuery = useQuery<{
+    entry: { ready: boolean };
+    completion: { complete: boolean };
+  }>({
+    queryKey: ["/api/tutor/capability-practicals", tutorAssignmentId],
+    enabled: Boolean(tutorAssignmentId) && trainingComplete && mode !== "trial" && mode !== "certified_live",
+    retry: false,
+    queryFn: async () => (await apiRequest(
+      "GET",
+      `/api/tutor/capability-practicals?tutorAssignmentId=${encodeURIComponent(tutorAssignmentId)}`,
+    )).json(),
+  });
+  const milestoneMessage = podQuery.isError || capabilityPlanQuery.isError || practicalsQuery.isError
+    ? "Your next development milestone could not be loaded. Return to your Pod to check your development record."
+    : podQuery.isPending || (tutorAssignmentId && capabilityPlanQuery.isPending)
+      ? "Loading your next development milestone…"
+      : trainingMilestone(capabilityAssessments, mode, practicalsQuery.data);
 
   return (
     <div className="min-h-screen bg-background">
@@ -381,6 +403,9 @@ export default function ResponseConditioningSystem() {
 
             <p className="text-sm text-muted-foreground">
               {completedCapabilityChecks} of {totalCapabilityChecks} Deep Dive Capability Checks completed.
+            </p>
+            <p className="border-t border-border pt-4 text-sm" aria-live="polite">
+              {milestoneMessage}
             </p>
           </div>
         </Card>
