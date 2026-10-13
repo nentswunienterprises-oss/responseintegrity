@@ -575,16 +575,16 @@ export function selectSandboxOutcome(input: {
     );
   }
 
-  // Evidence-integrity exceptions describe rare loss of evidence, not a
-  // personality trait or an ordinary phase challenge. Normal V2 delivery must
-  // not manufacture them as one-in-four standard student outcomes.
+  // V2 does not manufacture missing observations as simulated student
+  // personalities. Genuine missing evidence remains a possible observation
+  // status in the Specialist's evidence workflow, never a generated student
+  // outcome. V1 historical outcome selection is left unchanged.
   //
-  // A deterministic, versioned 2% *eligibility window* permits an exceptional
-  // scenario to compete with normal outcomes. It does not guarantee that an
-  // exception will occur; routine evidence remains the default. This is a
-  // provisional Sandbox simulation calibration, not a frequency claim about
-  // real families. V1 selection remains exactly as it was.
-  const v2EvidenceIntegrityWindow =
+  // The only authored V2 evidence incident is a reference/worked example
+  // compromising independence. A deterministic 2% eligibility *window*
+  // allows it to compete with routine student behaviour exceptionally; it
+  // neither guarantees a 2% incidence nor describes real-world prevalence.
+  const v2ConfoundEligibilityWindow =
     input.context.behaviorModelVersion === 2 &&
     hashUnit([
       "sandbox-v2-rare-evidence-integrity-v1",
@@ -596,21 +596,17 @@ export function selectSandboxOutcome(input: {
     ].join(":")) < 0.02;
   const plausible = input.context.behaviorModelVersion === 2
     ? compatible.filter((definition) => {
-        const exceptionPattern = /\.pattern_[78]$/.test(definition.key);
-        const evidenceException =
-          exceptionPattern ||
-          definition.trajectoryClass === "not_observed" ||
-          definition.trajectoryClass === "confounded";
-        if (evidenceException && !v2EvidenceIntegrityWindow) return false;
-
-        // Repeatability cannot be declared unobserved at random when the
-        // earlier comparable execution is already in recorded evidence.
-        // Until a prior-evidence eligibility check exists, keep this specific
-        // exceptional V1 pattern out of the normal V2 student journey.
+        // Keep legacy pattern 7 in the historical bank, but never select it
+        // for a V2 student. There is no fabricated "not observed" scenario.
         if (
-          definition.phase === "Structured Execution" &&
-          /\.pattern_7$/.test(definition.key)
+          /\.pattern_7$/.test(definition.key) ||
+          definition.trajectoryClass === "not_observed"
         ) return false;
+
+        const confoundedIncident =
+          /\.pattern_8$/.test(definition.key) ||
+          definition.trajectoryClass === "confounded";
+        if (confoundedIncident && !v2ConfoundEligibilityWindow) return false;
 
         return isSandboxBehaviorTransitionPlausible({
           trajectoryClass: definition.trajectoryClass,
