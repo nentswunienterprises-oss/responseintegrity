@@ -7,6 +7,7 @@ import {
   type DiagnosisProbeId,
 } from "./evidenceCompleteDiagnosis";
 import { DIAGNOSIS_OBSERVATION_MATRIX } from "./diagnosisObservationMatrix";
+import { renderSandboxDiagnosisExceptionNarrativeV2, SANDBOX_DIAGNOSIS_EXCEPTION_NARRATIVE_VERSION } from "./sandboxDiagnosisExceptionNarrativesV2";
 import {
   buildSandboxDiagnosisProbeResult,
   compareSandboxDiagnosisDecisions,
@@ -256,4 +257,96 @@ test("Sandbox Diagnosis/Handover preserve legacy V1 outcome selection and use on
   });
   assert.equal(first.key, replay.key);
   assert.ok(outcomes.some((outcome) => outcome.key === first.key));
+});
+
+
+test("V2 Diagnosis/Handover exceptional responses describe 14 credible evidence boundaries", () => {
+  assert.equal(SANDBOX_DIAGNOSIS_EXCEPTION_NARRATIVE_VERSION,2);
+  const observed=new Set<string>();
+  const probes=Object.keys(DIAGNOSIS_PROBES) as DiagnosisProbeId[];
+  assert.equal(probes.length,7);
+  for(const probe of probes){
+    for(const pattern of [7,8]){
+      const key=probe+".pattern_"+pattern;
+      const body=renderSandboxDiagnosisExceptionNarrativeV2(key);
+      assert.ok(body && body.length>=100,key+" lacks a concrete observability condition");
+      assert.doesNotMatch(body,/glitch|screen refresh|new displayed order|changes the required step order|fictional video freeze/i);
+      assert.ok(!observed.has(body),key+" repeats another exceptional story");
+      observed.add(body);
+    }
+  }
+  assert.equal(observed.size,14);
+  assert.equal(renderSandboxDiagnosisExceptionNarrativeV2("clarity.recognition.pattern_1"),null,
+    "Normal student patterns cannot be silently reauthored");
+});
+
+test("V2 Diagnosis/Handover rare incident selection is deterministic and keeps normal student evidence primary", () => {
+  const probeId="clarity.recognition" as const;
+  const candidates=[
+    outcomeFor(probeId,"clarity.recognition.pattern_1","supported"),
+    outcomeFor(probeId,"clarity.recognition.pattern_2","near_stable"),
+    outcomeFor(probeId,"clarity.recognition.pattern_7","not_observed"),
+    outcomeFor(probeId,"clarity.recognition.pattern_8","confounded"),
+  ];
+  const N=4000;
+  let exceptional=0;
+  for(let i=0;i<N;i++){
+    const input={
+      seed:"v2-diagnosis-rare-fix-"+i+":handover:fixture",
+      profileSeed:"v2-diagnosis-rare-fix-"+i,
+      outcomes:candidates,
+      context:{
+        startingPhase:"Clarity" as const,
+        probeId,sequenceNumber:i+1,behaviorModelVersion:2 as const,
+      },
+    };
+    const selected=selectSandboxDiagnosisOutcome(input);
+    const replay=selectSandboxDiagnosisOutcome(input);
+    assert.deepEqual(selected,replay,"Protected cross-mode result must replay identically");
+    if(["not_observed","confounded"].includes(selected.trajectoryClass)){
+      exceptional++;
+      assert.equal(selected.studentBehavior,
+        renderSandboxDiagnosisExceptionNarrativeV2(selected.key),
+        "Rare V2 diagnostics must render the calibrated narrative");
+    }else{
+      assert.equal(selected.studentBehavior,
+        candidates.find(x=>x.key===selected.key)?.studentBehavior,
+        "The six normal diagnostic stories must remain unmodified");
+    }
+  }
+  assert.ok(exceptional<N*0.025,
+    "Rare V2 diagnostic integrity situations must not dominate normal placement.");
+});
+
+test("V2 Diagnosis evidence projections invalidate only contaminated adjacent fields", () => {
+  for(const [probeId,invalidDims] of [
+    ["execution.repeatability",["execution.repeatability","execution.independence"]],
+    ["time.consistency",["time.completion_integrity"]],
+  ] as Array<[DiagnosisProbeId,string[]]>){
+    const ordinary=outcomeFor(probeId,probeId+".pattern_1","supported");
+    const disrupted=outcomeFor(probeId,probeId+".pattern_8","confounded");
+    let witnessed=false;
+    for(let i=0;i<7000;i++){
+      const result=selectSandboxDiagnosisOutcome({
+        seed:"diagnosis-contamination-proof-"+probeId+"-"+i,
+        profileSeed:"identity-v1-1",
+        outcomes:[ordinary,disrupted],
+        context:{startingPhase:"Clarity",probeId,sequenceNumber:i+1,
+          behaviorModelVersion:2},
+      });
+      if(result.key!==disrupted.key)continue;
+      witnessed=true;
+      for(const dim of invalidDims){
+        assert.equal(result.canonicalObservations.find(x=>x.dimensionId===dim)?.behaviorId,
+          "confounded",probeId+" must not award "+dim+" after a reference cue");
+      }
+      assert.equal(result.canonicalObservations.find(x=>x.dimensionId==="execution.start" ||
+        x.dimensionId==="time.start")?.behaviorId,
+        ordinary.canonicalObservations.find(x=>x.dimensionId==="execution.start" ||
+        x.dimensionId==="time.start")?.behaviorId,
+        "Unrelated independent timing/start evidence must not be altered");
+      break;
+    }
+    assert.ok(witnessed,"Expected at least one deliberately seeded rare exception for "+probeId);
+  }
 });
