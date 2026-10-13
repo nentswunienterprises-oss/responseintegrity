@@ -260,22 +260,26 @@ test("Sandbox Diagnosis/Handover preserve legacy V1 outcome selection and use on
 });
 
 
-test("V2 Diagnosis/Handover exceptional responses describe 14 credible evidence boundaries", () => {
-  assert.equal(SANDBOX_DIAGNOSIS_EXCEPTION_NARRATIVE_VERSION,2);
+test("V2 Diagnosis/Handover scripts only seven credible visible worked-example confounds", () => {
+  assert.equal(SANDBOX_DIAGNOSIS_EXCEPTION_NARRATIVE_VERSION,3);
   const observed=new Set<string>();
   const probes=Object.keys(DIAGNOSIS_PROBES) as DiagnosisProbeId[];
   assert.equal(probes.length,7);
   for(const probe of probes){
-    for(const pattern of [7,8]){
+    for(const pattern of [8]){
       const key=probe+".pattern_"+pattern;
       const body=renderSandboxDiagnosisExceptionNarrativeV2(key);
       assert.ok(body && body.length>=100,key+" lacks a concrete observability condition");
       assert.doesNotMatch(body,/glitch|screen refresh|new displayed order|changes the required step order|fictional video freeze/i);
+      assert.match(body,/worked example|worked solution|reference sheet|revision sheet|open notebook|revision page/i,
+        "Only a visible worked reference may confound a V2 Diagnosis/Handover rep");
       assert.ok(!observed.has(body),key+" repeats another exceptional story");
       observed.add(body);
     }
+    assert.equal(renderSandboxDiagnosisExceptionNarrativeV2(probe+".pattern_7"),null,
+      "V2 cannot script a missing observation in "+probe);
   }
-  assert.equal(observed.size,14);
+  assert.equal(observed.size,7);
   assert.equal(renderSandboxDiagnosisExceptionNarrativeV2("clarity.recognition.pattern_1"),null,
     "Normal student patterns cannot be silently reauthored");
 });
@@ -290,6 +294,7 @@ test("V2 Diagnosis/Handover rare incident selection is deterministic and keeps n
   ];
   const N=4000;
   let exceptional=0;
+  let inventedUnseen=0;
   for(let i=0;i<N;i++){
     const input={
       seed:"v2-diagnosis-rare-fix-"+i+":handover:fixture",
@@ -305,6 +310,7 @@ test("V2 Diagnosis/Handover rare incident selection is deterministic and keeps n
     assert.deepEqual(selected,replay,"Protected cross-mode result must replay identically");
     if(["not_observed","confounded"].includes(selected.trajectoryClass)){
       exceptional++;
+      if(selected.trajectoryClass==="not_observed")inventedUnseen++;
       assert.equal(selected.studentBehavior,
         renderSandboxDiagnosisExceptionNarrativeV2(selected.key),
         "Rare V2 diagnostics must render the calibrated narrative");
@@ -314,8 +320,22 @@ test("V2 Diagnosis/Handover rare incident selection is deterministic and keeps n
         "The six normal diagnostic stories must remain unmodified");
     }
   }
+  assert.equal(inventedUnseen,0,"V2 Diagnosis/Handover must not invent missing observations");
   assert.ok(exceptional<N*0.025,
     "Rare V2 diagnostic integrity situations must not dominate normal placement.");
+  assert.throws(() => selectSandboxDiagnosisOutcome({
+    seed:"no-scripted-unseen-diagnosis",
+    outcomes:[candidates[2]],
+    context:{startingPhase:"Clarity",probeId,sequenceNumber:10,behaviorModelVersion:2},
+  }),/no observable, eligible V2 outcomes/,
+    "V2 must refuse a bank containing only staged not-observed scenarios");
+  const historical=selectSandboxDiagnosisOutcome({
+    seed:"historical-v1-unseen",
+    outcomes:[candidates[2]],
+    context:{startingPhase:"Clarity",probeId,sequenceNumber:10,behaviorModelVersion:1},
+  });
+  assert.equal(historical.trajectoryClass,"not_observed",
+    "Previously recorded V1 missing-evidence scenarios remain available for replay");
 });
 
 test("V2 Diagnosis evidence projections invalidate only contaminated adjacent fields", () => {
