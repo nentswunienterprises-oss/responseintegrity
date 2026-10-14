@@ -14,6 +14,7 @@ on:
       - 'shared/practicalExecuteChallenge*'
       - 'client/src/pages/responseconditioningsystem/**'
       - 'server/evidenceExceptionSurfaceAudit.test.ts'
+      - 'docs/response-integrity-os-implementation-source-of-truth.md'
       - 'scripts/deepDiveTeachingInteractionAuthoring.test.ts'
       - 'client/src/lib/sessionInfrastructureTeaching.ts'
       - '.github/workflows/evidence-exception-bank-quality.yml'

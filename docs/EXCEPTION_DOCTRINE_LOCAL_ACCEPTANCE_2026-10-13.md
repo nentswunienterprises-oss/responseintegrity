@@ -19,10 +19,15 @@ Base: `fb9b0884628282e090c56b6070b0b464388a7a52`, `fix/preview-training-session-
 - All nine proposed banks passed the full audit against read-only Capability Proof connector snapshots: 443 items, 44 content changes, canonical Blueprint coverage, option parity, feedback, preserved configuration/answer authority and the explicitly named critical metadata repair. This was a local dry run of proposed inactive copies, not a database write or live acceptance receipt.
 - A deliberately altered correct-answer key was rejected by the audit. No approval gate was weakened.
 
-## Not completed
+## Remote progress on 14 October 2026
 
-- No remote commit/ref update succeeded. Automatic approval review rejected the attempted GitHub tree write, treating public-repository disclosure as insufficiently authorized. The revised manifest now exports hashes rather than full private-bank content; the SQL contains only nine new authored item corrections and the separate metadata repair.
-- No new Proof copies have been applied from this patch. No Production banks, attempts, Specialist records or progression were changed.
+- Approved patch published at `7102a09ecb1706662f9a08eef082c6c8f486f2cc`. A transfer truncation in the canonical document was restored at `59a5875514941fb228e51e79fce24b41ae962c8a`; the remote blob hash `b0a2ddd4123ece99a83aa0b0d72efee387092e9c` matches the complete local source.
+- Seven new inactive Proof copies applied through the committed SQL. The actual readback passed all nine bank content/Blueprint/parity gates in workflow run `38494209603`, attempt 2. Its later source test used the earlier truncated-document head, so that attempt is not a whole-workflow acceptance.
+- All nine standard CI workflows passed on the restored `59a58755` head. The dedicated bank-quality workflow is being triggered on the complete current head.
+
+## Remaining release gates
+
+- New copies remain inactive; no Production bank, historical attempt or real Specialist record has changed.
 - Exact-head dedicated CI, authenticated final Sandbox/lesson acceptance, protected bank promotion, merge and deployed Specialist readback remain required. Local simulated-bank validation does not establish those gates.
 
 ## Exact continuation
