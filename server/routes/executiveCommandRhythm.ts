@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { confidentialReference, ensurePrivateBucket, parseConfidentialReference } from "../confidentialStorage";
 import type { Express, Request, RequestHandler, Response } from "express";
 import { z } from "zod";
 import { supabase } from "../storage";
@@ -365,13 +367,6 @@ function normalizeProofUrlOrThrow(value: string) {
   return parsedUrl.toString();
 }
 
-async function ensurePublicBucket(bucketName: string) {
-  const { error } = await supabase.storage.createBucket(bucketName, { public: true });
-  if (error && !/already exists|duplicate/i.test(String(error.message || ""))) {
-    throw error;
-  }
-}
-
 function normalizeBase64Payload(raw: string) {
   return raw.includes(",") ? raw.split(",").pop() || "" : raw;
 }
@@ -503,7 +498,8 @@ function normalizeExecutiveProof(row: any): ExecutiveTaskProof {
     reviewedByUserId: row.reviewed_by_user_id || null,
     label: row.label,
     proofType: row.proof_type,
-    proofUrl: row.proof_url,
+    proofUrl: row.proof_type === "link" ? row.proof_url :
+      `/api/executive/command-rhythm/tasks/${encodeURIComponent(row.task_id)}/proofs/${encodeURIComponent(row.id)}/file`,
     notes: row.notes || null,
     status: row.status,
     rejectionReason: row.rejection_reason || null,
@@ -1437,6 +1433,35 @@ export function registerExecutiveCommandRhythmRoutes(app: Express, isAuthenticat
     }
   );
 
+  app.get(
+    "/api/executive/command-rhythm/tasks/:taskId/proofs/:proofId/file",
+    isAuthenticated, requireExecutive,
+    async (req: Request, res: Response) => {
+      try {
+        const context = await enforceCommandSeat(req, res);
+        if (!context) return;
+        const task = await getTaskById(req.params.taskId);
+        const user = context.currentUser;
+        if (!task || (!APPROVER_ROLES.has(user.role) && task.ownerUserId !== user.id &&
+            !task.supportingUserIds.includes(user.id))) return res.status(404).json({ message: "Proof not found" });
+        const { data: proof, error } = await supabase.from("executive_task_proofs")
+          .select("proof_url,proof_type").eq("task_id",task.id).eq("id",req.params.proofId).maybeSingle();
+        if (error) throw error;
+        if (!proof || proof.proof_type === "link") return res.status(404).json({ message: "Proof not found" });
+        const object = parseConfidentialReference(proof.proof_url, process.env.SUPABASE_URL || "");
+        if (!object || object.bucket !== "executive-task-proofs" ||
+            !object.key.startsWith(`task-proofs/${task.id}/`)) return res.status(404).json({ message: "Proof not found" });
+        const { data, error: downloadError } = await supabase.storage.from(object.bucket).download(object.key);
+        if (downloadError || !data) throw downloadError || new Error("Proof unavailable");
+        res.setHeader("Cache-Control", "private, no-store");
+        res.setHeader("X-Content-Type-Options", "nosniff");
+        res.setHeader("Content-Security-Policy", "sandbox");
+        res.setHeader("Content-Type", data.type || "application/octet-stream");
+        res.send(Buffer.from(await data.arrayBuffer()));
+      } catch { res.status(503).json({ message: "Proof temporarily unavailable" }); }
+    }
+  );
+
   app.post(
     "/api/executive/command-rhythm/tasks/:taskId/proofs",
     isAuthenticated,
@@ -1450,6 +1475,11 @@ export function registerExecutiveCommandRhythmRoutes(app: Express, isAuthenticat
         const task = await getTaskById(req.params.taskId);
         if (!task) {
           return res.status(404).json({ message: "Task not found" });
+        }
+
+        if (!APPROVER_ROLES.has(currentUser.role) && task.ownerUserId !== currentUser.id &&
+            !task.supportingUserIds.includes(currentUser.id)) {
+          return res.status(403).json({ message: "Task access denied" });
         }
 
         const parsed = executiveProofSchema.parse(req.body || {});
@@ -1479,26 +1509,21 @@ export function registerExecutiveCommandRhythmRoutes(app: Express, isAuthenticat
             return res.status(400).json({ message: `Uploaded proof must be ${maxMb} MB or smaller` });
           }
 
-          await ensurePublicBucket(bucketName);
+          await ensurePrivateBucket(supabase, bucketName);
 
-          const storagePath = `task-proofs/${task.id}/${Date.now()}-${safeFileName}`;
+          const storagePath = `task-proofs/${task.id}/${randomUUID()}-${safeFileName}`;
           const { error: uploadError } = await supabase.storage
             .from(bucketName)
             .upload(storagePath, buffer, {
               contentType: parsed.contentType,
-              upsert: true,
+              upsert: false,
             });
 
           if (uploadError) {
             throw new Error(`Failed to upload proof file: ${uploadError.message}`);
           }
 
-          const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(storagePath);
-          if (!urlData?.publicUrl) {
-            throw new Error("Proof upload succeeded but file URL could not be generated");
-          }
-
-          persistedProofUrl = urlData.publicUrl;
+          persistedProofUrl = confidentialReference(bucketName, storagePath);
         }
 
         const { data, error } = await supabase

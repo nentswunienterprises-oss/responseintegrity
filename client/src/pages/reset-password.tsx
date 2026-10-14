@@ -67,18 +67,7 @@ export default function ResetPasswordPage() {
       return returnTo;
     }
 
-    let role: string | null | undefined =
-      session?.user?.user_metadata?.role || session?.user?.app_metadata?.role;
-
-    if (!role && session?.user?.id) {
-      const { data } = await supabase
-        .from("users")
-        .select("role")
-        .eq("id", session.user.id)
-        .maybeSingle();
-
-      role = (data as any)?.role;
-    }
+    const role = session?.user?.app_metadata?.role;
 
     return mapRoleToLoginPath(role);
   };
