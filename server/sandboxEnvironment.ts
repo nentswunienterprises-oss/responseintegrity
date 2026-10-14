@@ -1278,16 +1278,19 @@ async function loadRepOutcomes(input: {
       typeof row.definition === "string" ? JSON.parse(row.definition) : row.definition
     ) as SandboxOutcomeDefinition;
 
-    // The stored Outcome Matrix is shared with historical V1 sessions and
-    // therefore still contains pattern 7. V2 deliberately has NO authored
-    // "not observed" incident: evidence can be missing in the real recording,
-    // but the student simulator may not manufacture a reason for that absence.
-    // Exclude the legacy row before projecting/rendering a V2 narrative.
-    if (
+    // Historical submitted V1 evidence remains immutable. Retired fictional
+    // V1 incidents, however, must not be authored into NEW, unsubmitted reps:
+    // the old camera/call/display glitch patterns 7 and 8 are withdrawn.
+    // V2 continues to exclude authored pattern 7 while retaining only the
+    // rare worked-example-confound pattern 8.
+    const retiredV1Incident =
+      input.behaviorModelVersion === 1 &&
+      /\.pattern_[78]$/.test(storedDefinition.key);
+    const excludedV2NonObservation =
       input.behaviorModelVersion === 2 &&
       (/\.pattern_7$/.test(storedDefinition.key) ||
-        storedDefinition.trajectoryClass === "not_observed")
-    ) return [];
+        storedDefinition.trajectoryClass === "not_observed");
+    if (retiredV1Incident || excludedV2NonObservation) return [];
 
     const definition = projectSandboxOutcomeToCurrentTrainingContract(
       storedDefinition,
@@ -1425,7 +1428,8 @@ async function planNextRep(input: {
       eventSequence,
       selectedRecord.publicRef,
       ...(input.bundle.truth.behavior_model_version === 2
-        ? ["narrative-v" + SANDBOX_BEHAVIOR_NARRATIVE_VERSION] : []),
+        ? ["narrative-v" + SANDBOX_BEHAVIOR_NARRATIVE_VERSION]
+        : ["v1-retired-fictional-exceptions-v1"]),
     ].join(":"),
   ).slice(0, 32);
 
