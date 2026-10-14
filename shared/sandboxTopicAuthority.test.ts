@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   normalizeSandboxCanonicalLane,
   normalizeSandboxTopicLane,
+  deriveSandboxSameTopicSnapshotBefore,
   persistedTopicLane,
   resolveSandboxTopicSeed,
   sandboxTopicKey,
@@ -107,4 +108,47 @@ test("a returned new topic state must not inherit the preceding topic's hidden c
   assert.equal(persistedTopicLane(bank, "geometry", true), null);
   assert.equal(seed.state.phase, "Time Pressure Stability");
   assert.equal(seed.state.progression, "building");
+});
+
+test("Geometry's first completed drill never inherits Linear Equations' Before state", () => {
+  const before = deriveSandboxSameTopicSnapshotBefore({
+    completedTopicKey: "geometry",
+    previousTopicKey: "linear equatins",
+    previousSpecialistAuthority: {
+      nextPhase: "Clarity", nextStability: "High",
+    },
+  });
+  assert.deepEqual(before, { phaseBefore: null, stabilityBefore: null });
+});
+
+test("later Geometry drills use only the most recent prior Geometry evaluation", () => {
+  assert.deepEqual(deriveSandboxSameTopicSnapshotBefore({
+    completedTopicKey: " Geometry ",
+    previousTopicKey: "geometry",
+    previousSpecialistAuthority: {
+      nextPhase: "Time Pressure Stability", nextStability: "Medium",
+    },
+  }), {
+    phaseBefore: "Time Pressure Stability",
+    stabilityBefore: "Medium",
+  });
+});
+
+test("missing or corrupt same-topic evidence never invents a Before state", () => {
+  const absent = { phaseBefore: null, stabilityBefore: null };
+  assert.deepEqual(deriveSandboxSameTopicSnapshotBefore({
+    completedTopicKey: "geometry",
+    previousTopicKey: null,
+    previousSpecialistAuthority: null,
+  }), absent);
+  assert.deepEqual(deriveSandboxSameTopicSnapshotBefore({
+    completedTopicKey: "geometry",
+    previousTopicKey: "geometry",
+    previousSpecialistAuthority: { nextPhase: "Imaginary Phase", nextStability: "High" },
+  }), absent);
+  assert.deepEqual(deriveSandboxSameTopicSnapshotBefore({
+    completedTopicKey: null,
+    previousTopicKey: "geometry",
+    previousSpecialistAuthority: { nextPhase: "Clarity", nextStability: "High" },
+  }), absent);
 });

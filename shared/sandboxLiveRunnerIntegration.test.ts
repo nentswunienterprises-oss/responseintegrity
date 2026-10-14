@@ -590,15 +590,19 @@ test("Sandbox Response Snapshot resolves the same current Training schema used b
   );
 });
 
-test("Sandbox System Direction preserves Before stability and uses a real next-session action", () => {
-  assert.match(
-    sandboxEnvironmentSource,
-    /previous\.specialist_authority AS previous_specialist_authority/,
+test("Sandbox System Direction uses only previous same-topic evidence for Before", () => {
+  const history = sandboxEnvironmentSource.slice(
+    sandboxEnvironmentSource.indexOf("async function previousCompletedSessionBoundary"),
+    sandboxEnvironmentSource.indexOf("async function loadCapabilityOccurrences"),
   );
-  assert.match(
-    sandboxEnvironmentSource,
-    /stabilityBefore[\s\S]*previousAuthority\?\.nextStability/,
-  );
+  assert.match(history, /LEFT JOIN LATERAL/);
+  assert.match(history, /prior\.topic_key = current\.topic_key/);
+  assert.match(history, /prior\.session_number < current\.session_number/);
+  assert.match(history, /ORDER BY prior\.session_number DESC/);
+  assert.match(history, /deriveSandboxSameTopicSnapshotBefore/);
+  assert.doesNotMatch(history, /previous\.session_number = current\.session_number - 1/);
+  assert.doesNotMatch(history, /\|\| completedPhase/);
+  assert.match(sandboxEnvironmentSource, /previous\.specialist_authority AS previous_specialist_authority/);
   assert.match(
     sandboxRunnerSource,
     /snapshot\.engineOutcomeRef\.stabilityBefore/,
