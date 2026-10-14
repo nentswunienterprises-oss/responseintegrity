@@ -1,6 +1,10 @@
 import { pool } from "./db";
 import { getDrillSchemaDefinition } from "@shared/responseIntegrityDrillRegistry";
 import type { TopicPhase } from "@shared/topicConditioningEngine";
+import {
+  sandboxV1ToV2BoundaryReached,
+  sandboxV1ToV2EvidenceAccepted,
+} from "@shared/sandboxModelTransitionPolicy";
 
 /**
  * Founder-approved, evidence-preserving Sandbox V1 -> V2 upgrade.
@@ -62,11 +66,16 @@ export async function activateApprovedSandboxModelTransition(
   );
   const plan = pending.rows[0] as UpgradePlan | undefined;
   if (!plan) return false;
-  if (plan.status === "activated") return true; // Refresh a stale read.
   const boundary = Number(plan.completing_session_number);
-  const currentSession = Number(input.session_number);
-  if (currentSession <= boundary) return false;
-  if (currentSession !== boundary + 1) {
+  const disposition = sandboxV1ToV2BoundaryReached({
+    currentVersion: input.behavior_model_version,
+    planStatus: plan.status,
+    currentSession: Number(input.session_number),
+    completingSession: boundary,
+  });
+  if (disposition === "already_active") return true;
+  if (disposition === "not_yet") return false;
+  if (disposition !== "eligible") {
     throw blocked("The approved Sandbox model change missed its session boundary; preserve the existing history for review.");
   }
 
@@ -173,14 +182,19 @@ export async function activateApprovedSandboxModelTransition(
       ? getDrillSchemaDefinition("training",phase).sets
         .filter(set=>!set.modelingOnly).reduce((n,set)=>n+set.reps,0)
       : 0;
-    if (Number(stored?.total_reps) !== Number(plan.expected_rep_count_at_boundary) ||
-        Number(stored?.paired_truth_rows) !== Number(stored?.total_reps) ||
-        Number(stored?.boundary_reps) !== repPlanCount ||
-        Number(stored?.new_session_reps) !== 0 ||
-        Number(sessions.rows[0]?.evaluated) !== boundary ||
-        Number(billing.rows[0]?.confirmed_completions) !== 1 ||
-        Number(rep?.event_sequence) !== Number(plan.expected_rep_count_at_boundary) ||
-        !/\.pattern_[1-6]$/.test(String(rep?.outcome_key || ""))) {
+    if (!sandboxV1ToV2EvidenceAccepted({
+      expectedTotalReps: Number(plan.expected_rep_count_at_boundary),
+      recordedTotalReps: Number(stored?.total_reps),
+      pairedPrivateTruthRows: Number(stored?.paired_truth_rows),
+      boundaryReps: Number(stored?.boundary_reps),
+      requiredBoundaryReps: repPlanCount,
+      followingSessionReps: Number(stored?.new_session_reps),
+      evaluatedSessions: Number(sessions.rows[0]?.evaluated),
+      boundarySessionNumber: boundary,
+      bookedSessionCompletions: Number(billing.rows[0]?.confirmed_completions),
+      lastEventSequence: Number(rep?.event_sequence),
+      lastOutcomeKey: String(rep?.outcome_key || ""),
+    })) {
       throw blocked("V1->V2 boundary evidence is incomplete or the final rep uses a rejected exception. Never invent or consume evidence to upgrade.");
     }
     const receipt = {
