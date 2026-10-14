@@ -1,0 +1,81 @@
+name: Evidence Exception Bank Activation
+on:
+  pull_request:
+    paths:
+      - 'scripts/exceptionBankActivation*'
+      - 'scripts/activateEvidenceExceptionBanks.mjs'
+      - '.github/workflows/evidence-exception-bank-activation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/exceptionBankActivation*'
+      - 'scripts/activateEvidenceExceptionBanks.mjs'
+      - '.github/workflows/evidence-exception-bank-activation.yml'
+  workflow_dispatch:
+    inputs:
+      deployment_sha:
+        description: Independently verified READY Production deployment commit SHA
+        type: string
+        required: true
+      confirmation:
+        description: Activation requires THE_HUB_ACTIVATE_EXCEPTIONS
+        type: string
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: evidence-exception-bank-activation
+  cancel-in-progress: false
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: exception_ci
+          POSTGRES_DB: exception_activation_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d exception_activation_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: node --import tsx --test scripts/exceptionBankActivation.test.ts shared/capabilityEditorialBankContinuity.test.ts
+        env:
+          EXCEPTION_CI_DATABASE_URL: postgresql://postgres:exception_ci@localhost:5432/exception_activation_ci
+  activate:
+    if: github.event_name == 'workflow_dispatch'
+    needs: contract
+    runs-on: ubuntu-latest
+    environment: production-db
+    timeout-minutes: 10
+    env:
+      EXCEPTION_BANK_ACTIVATION_CONFIRM: ${{ inputs.confirmation }}
+      EXCEPTION_DEPLOYED_SHA: ${{ inputs.deployment_sha }}
+      RI_PRODUCTION_DATABASE_URL: ${{ secrets.RI_PRODUCTION_DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Configure verified Supabase CA trust
+        env:
+          RI_PRODUCTION_DB_CA_CERT: ${{ secrets.RI_PRODUCTION_DB_CA_CERT }}
+        run: |
+          test -n "$RI_PRODUCTION_DB_CA_CERT"
+          CA_PATH="$RUNNER_TEMP/supabase-activation-ca.crt"
+          printf '%s\n' "$RI_PRODUCTION_DB_CA_CERT" > "$CA_PATH"
+          chmod 600 "$CA_PATH"
+          echo "NODE_EXTRA_CA_CERTS=$CA_PATH" >> "$GITHUB_ENV"
+      - run: node scripts/activateEvidenceExceptionBanks.mjs
