@@ -5,7 +5,7 @@ name: Evidence Exception Bank Promotion Plan and Inactive Stage
 on:
   push:
     branches:
-      - fix/preview-training-session-authority
+      - fix/exception-doctrine-release
     paths:
       - ".github/workflows/evidence-exception-bank-promotion.yml"
       - "scripts/stageEvidenceExceptionBanks.mjs"

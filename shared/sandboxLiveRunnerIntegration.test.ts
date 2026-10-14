@@ -12,7 +12,7 @@ const sandboxTopicAuthoritySource = readFileSync(
   "utf8",
 );
 const sandboxTopicMigrationSource = readFileSync(
-  new URL("../docs/migration-proposals/20261010_sandbox_topic_state_lanes.sql", import.meta.url),
+  new URL("../migrations/20261014013817_sandbox_topic_state_lanes.sql", import.meta.url),
   "utf8",
 );
 const liveRunnerSource = readFileSync(

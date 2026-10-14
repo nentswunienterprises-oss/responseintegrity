@@ -3,7 +3,7 @@ name: Evidence Exception Bank Quality
 on:
   push:
     branches:
-      - fix/preview-training-session-authority
+      - fix/exception-doctrine-release
     paths:
       - 'scripts/auditEvidenceExceptionStagedBanks.mjs'
       - 'docs/qualification-content/20261013_evidence_exception_reviewed_inventory.json'

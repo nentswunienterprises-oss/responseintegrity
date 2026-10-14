@@ -102,8 +102,9 @@ export function buildTopics(
   byTopic.forEach((entry, topic) => {
     const history = entry.history;
     const latest = history[history.length - 1];
-    const phase = latest?.phase || entry.seeded?.phase || "Structured Execution";
-    const stability = latest?.stability || entry.seeded?.stability || "Low";
+    const explicitAuthority = entry.seeded?.progressionAuthority != null;
+    const phase = (explicitAuthority ? entry.seeded?.phase : latest?.phase) || entry.seeded?.phase || "Structured Execution";
+    const stability = (explicitAuthority ? entry.seeded?.stability : latest?.stability) || entry.seeded?.stability || "Low";
     const progressionAuthority = entry.seeded?.progressionAuthority ?? null;
     const lastSessionDate = latest?.date;
 

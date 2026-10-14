@@ -4,8 +4,10 @@ import { createHash } from "node:crypto";
 import { chromium } from "playwright";
 
 // Controlled Proof identity only. No rep, assessment or qualification submissions.
-const base="https://tt-confidence-o2ple3jpn-relief-works-technologies.vercel.app";
-const sha="59a5875514941fb228e51e79fce24b41ae962c8a";
+const base=String(process.env.EXCEPTION_PREVIEW_URL||"").replace(/\/$/,"");
+assert.match(base,/^https:\/\/[a-z0-9-]+\.vercel\.app$/);
+const sha=process.env.GITHUB_SHA;
+assert.match(sha||"",/^[a-f0-9]{40}$/);
 
 const witnesses=[{"scope":"diagnosis","sourceContextId":"qa-exception-readonly-20261014","topic":"QA Clarity","startingPhase":"Clarity","probeId":"clarity.recognition","sequenceNumber":9,"expectedBehavior":"The student identifies the important information, but a worked example beside the page names the appropriate method before they choose it. They close the example, explain the method in their own words, and make a sound written start."},{"scope":"handover","sourceContextId":"qa-exception-readonly-20261014","topic":"QA Clarity","startingPhase":"Clarity","probeId":"clarity.recognition","sequenceNumber":2606,"expectedBehavior":"The student identifies the important information, but a worked example beside the page names the appropriate method before they choose it. They close the example, explain the method in their own words, and make a sound written start."}];
 const uuid=(text)=>{const h=createHash("md5").update(text).digest("hex");return [h.slice(0,8),h.slice(8,12),h.slice(12,16),h.slice(16,20),h.slice(20)].join("-");};
