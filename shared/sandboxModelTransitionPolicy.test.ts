@@ -49,7 +49,7 @@ test("Only genuine observed final V1 evidence can trigger a V2 transition", () =
 test("V1 pending rep is reissued without fictional incidents, and only the current model changes", () => {
   const runner = readFileSync(new URL("../server/sandboxEnvironment.ts",import.meta.url),"utf8");
   const transition = readFileSync(new URL("../server/sandboxModelTransition.ts",import.meta.url),"utf8");
-  const migration = readFileSync(new URL("../migrations/20261014122500_sandbox_v1_v2_boundary_transition.sql",import.meta.url),"utf8");
+  const migration = readFileSync(new URL("../docs/migration-proposals/20261014122500_sandbox_v1_v2_boundary_transition.sql",import.meta.url),"utf8");
   assert.ok(runner.includes("retiredV1Incident"));
   assert.ok(runner.includes("v1-retired-fictional-exceptions-v1"));
   assert.ok(runner.includes("activateApprovedSandboxModelTransition"));
