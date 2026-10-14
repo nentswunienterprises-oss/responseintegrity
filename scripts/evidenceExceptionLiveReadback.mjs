@@ -6,19 +6,24 @@ import { chromium } from "playwright";
 // Controlled Proof identity only. No rep, assessment or qualification submissions.
 const base="https://tt-confidence-o2ple3jpn-relief-works-technologies.vercel.app";
 const sha="59a5875514941fb228e51e79fce24b41ae962c8a";
-const assignment="836a839f-2f29-45c7-b8c2-aa501c95e1b0";
-const witnesses=[{"studentId":"4e4ceb6e-3d37-2f31-5728-241cd663cc73","scope":"diagnosis","sourceContextId":"qa-exception-readonly-20261014","topic":"QA Clarity","startingPhase":"Clarity","probeId":"clarity.recognition","sequenceNumber":9,"expectedBehavior":"The student identifies the important information, but a worked example beside the page names the appropriate method before they choose it. They close the example, explain the method in their own words, and make a sound written start."},{"studentId":"4e4ceb6e-3d37-2f31-5728-241cd663cc73","scope":"handover","sourceContextId":"qa-exception-readonly-20261014","topic":"QA Clarity","startingPhase":"Clarity","probeId":"clarity.recognition","sequenceNumber":2606,"expectedBehavior":"The student identifies the important information, but a worked example beside the page names the appropriate method before they choose it. They close the example, explain the method in their own words, and make a sound written start."}];
+
+const witnesses=[{"scope":"diagnosis","sourceContextId":"qa-exception-readonly-20261014","topic":"QA Clarity","startingPhase":"Clarity","probeId":"clarity.recognition","sequenceNumber":9,"expectedBehavior":"The student identifies the important information, but a worked example beside the page names the appropriate method before they choose it. They close the example, explain the method in their own words, and make a sound written start."},{"scope":"handover","sourceContextId":"qa-exception-readonly-20261014","topic":"QA Clarity","startingPhase":"Clarity","probeId":"clarity.recognition","sequenceNumber":2606,"expectedBehavior":"The student identifies the important information, but a worked example beside the page names the appropriate method before they choose it. They close the example, explain the method in their own words, and make a sound written start."}];
 const uuid=(text)=>{const h=createHash("md5").update(text).digest("hex");return [h.slice(0,8),h.slice(8,12),h.slice(12,16),h.slice(16,20),h.slice(20)].join("-");};
+const bypass=String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET||"").trim();
+assert.ok(bypass,"Protected Preview automation credential is unavailable in the approved environment");
 const browser=await chromium.launch({headless:true});
 try{
  const context=await browser.newContext({viewport:{width:1440,height:900},extraHTTPHeaders:{"x-vercel-protection-bypass":String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET||"")}});
  const page=await context.newPage();
- async function get(path){const response=await context.request.get(base+path,{timeout:60000});assert.ok(response.ok(),"GET "+path.split("?")[0]+" HTTP "+response.status());return response.json();}
+ async function get(path){const response=await context.request.get(base+path,{timeout:60000});assert.ok(response.ok(),"GET "+path.split("?")[0]+" HTTP "+response.status());assert.match(response.headers()["content-type"]||"",/application\/json/,"Preview returned a protection page, not application JSON");return response.json();}
  const provenance=await get("/api/proof-environment");
  assert.equal(provenance.vercelEnv,"preview");assert.equal(provenance.supabaseProjectRef,"jftlxeacphvbnhbsbpxc");assert.equal(provenance.commitSha,sha);
  const login=await context.request.post(base+"/api/auth/signin",{data:{email:process.env.RI_PROOF_EMAIL,password:process.env.RI_PROOF_PASSWORD,expectedRole:"tutor"}});
  assert.ok(login.ok(),"Controlled Specialist authentication failed");
- const runtime=await get("/api/tutor/runtime-mode");assert.equal(runtime.operationalMode,"sandbox");assert.equal(runtime.assignmentId,assignment);
+ const runtime=await get("/api/tutor/runtime-mode");assert.equal(runtime.operationalMode,"sandbox");assert.ok(runtime.assignmentId);
+ const assignment=runtime.assignmentId;
+ // Reuse the published synthetic QA namespace, never export a database identifier.
+ for(const witness of witnesses)witness.studentId=uuid("ri-v2-longitudinal-proof-student-3");
  const qs=values=>new URLSearchParams(values).toString();
  const hist=studentId=>get("/api/tutor/sandbox-environment/history?"+qs({tutorAssignmentId:assignment,studentId}));
  const firstHistory=await hist(witnesses[0].studentId);

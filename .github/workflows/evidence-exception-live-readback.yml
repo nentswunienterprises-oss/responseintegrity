@@ -11,6 +11,7 @@ permissions:
 jobs:
   readback:
     runs-on: ubuntu-latest
+    environment: production-db
     timeout-minutes: 25
     env:
       RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
