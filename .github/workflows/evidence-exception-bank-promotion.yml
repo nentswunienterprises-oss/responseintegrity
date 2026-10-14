@@ -1,0 +1,61 @@
+name: Evidence Exception Bank Promotion Plan and Inactive Stage
+
+# Push is read-only. Inactive Production staging requires protected manual dispatch.
+
+on:
+  push:
+    branches:
+      - fix/preview-training-session-authority
+    paths:
+      - ".github/workflows/evidence-exception-bank-promotion.yml"
+      - "scripts/stageEvidenceExceptionBanks.mjs"
+      - "docs/qualification-content/20261014_evidence_exception_promotion_hashes.json"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Read-only plan or inactive bank stage
+        type: choice
+        required: true
+        default: plan
+        options: [plan, stage]
+      confirmation:
+        description: Stage requires THE_HUB_STAGE_EXCEPTIONS
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  promotion-plan:
+    runs-on: ubuntu-latest
+    environment: production-db
+    timeout-minutes: 20
+    env:
+      EXCEPTION_BANK_PROMOTION_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'plan' }}
+      EXCEPTION_BANK_PROMOTION_CONFIRM: ${{ inputs.confirmation }}
+      RI_PROOF_DATABASE_URL: ${{ secrets.RI_PROOF_DATABASE_URL }}
+      RI_PROOF_DB_URL: ${{ secrets.RI_PROOF_DB_URL }}
+      PROOF_DATABASE_URL: ${{ secrets.PROOF_DATABASE_URL }}
+      SUPABASE_PROOF_DATABASE_URL: ${{ secrets.SUPABASE_PROOF_DATABASE_URL }}
+      RI_PRODUCTION_DATABASE_URL: ${{ secrets.RI_PRODUCTION_DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Configure verified Supabase CA trust
+        env:
+          RI_PRODUCTION_DB_CA_CERT: ${{ secrets.RI_PRODUCTION_DB_CA_CERT }}
+        run: |
+          test -n "$RI_PRODUCTION_DB_CA_CERT"
+          CA_PATH="$RUNNER_TEMP/supabase-release-ca.crt"
+          printf '%s\n' "$RI_PRODUCTION_DB_CA_CERT" > "$CA_PATH"
+          chmod 600 "$CA_PATH"
+          echo "NODE_EXTRA_CA_CERTS=$CA_PATH" >> "$GITHUB_ENV"
+      - name: Verify current inactive Proof banks before planning or staging
+        run: node --import tsx scripts/auditEvidenceExceptionStagedBanks.mjs
+      - name: Plan or stage verified inactive banks
+        run: node scripts/stageEvidenceExceptionBanks.mjs
