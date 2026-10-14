@@ -781,22 +781,23 @@ test("Sandbox V2 Diagnosis and Handover POST compare the exact visible profile-w
     "A single Handover observation cannot certify repeatability without a repeat opportunity");
 });
 
-test("V2 Sandbox loader excludes staged missing observations but preserves historical V1 bank rows", () => {
+test("Sandbox filters retired fictional incidents only when preparing a new rep", () => {
   const loader = sandboxAuthoritySource.slice(
     sandboxAuthoritySource.indexOf("async function loadRepOutcomes"),
     sandboxAuthoritySource.indexOf("function projectRepFields"),
   );
-  assert.ok(loader.includes("input.behaviorModelVersion === 2"),
-    "The historical V1 bank must remain untouched.");
-  assert.ok(loader.includes('storedDefinition.trajectoryClass === "not_observed"'),
-    "V2 must exclude unobserved outcomes before projecting a fake student event.");
-  assert.ok(loader.includes(".pattern_7$"),
-    "Historical V1 pattern 7 must not be offered to V2 students.");
-  const filterPosition = loader.indexOf('storedDefinition.trajectoryClass === "not_observed"');
+  assert.match(loader,
+    /isAuthoredSandboxOutcomeEligible\(\{[\s\S]*?behaviorModelVersion: input\.behaviorModelVersion,[\s\S]*?outcomeKey: storedDefinition\.key,[\s\S]*?trajectoryClass: storedDefinition\.trajectoryClass,/,
+    "Selection must delegate V1 and V2 incident eligibility to the tested model-specific policy.");
+  const filterPosition = loader.indexOf("if (!isAuthoredSandboxOutcomeEligible(");
   const projectionPosition = loader.indexOf("projectSandboxOutcomeToCurrentTrainingContract(");
   assert.ok(filterPosition >= 0 && projectionPosition > filterPosition,
-    "Legacy missing-observation rows must be rejected before V2 narrative projection.");
-  // The backend still uses the real learner/booking authorization contract.
+    "Retired incidents must be rejected before producing a new student response.");
+  assert.doesNotMatch(loader, /DELETE FROM|UPDATE public\.specialist_sandbox_rep_events/,
+    "Authoring policy must not alter any previously recorded V1 rep.");
+  assert.match(sandboxAuthoritySource, /v1-retired-fictional-exceptions-v1/,
+    "Stale, pre-correction V1 forms must be invalidated.");
+  // Learner identity and booking authority remain unchanged.
   assert.match(sandboxAuthoritySource, /assertSandboxAccess/);
   assert.match(sandboxAuthoritySource, /loadSandboxScheduledTrainingSession/);
 });
