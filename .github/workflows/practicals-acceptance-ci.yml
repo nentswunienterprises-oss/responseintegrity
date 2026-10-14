@@ -3,20 +3,35 @@ on:
   pull_request:
     paths:
       - 'shared/practicalExecuteChallenge*'
+      - 'shared/practicalBenchmarkPolicy*'
+      - 'shared/practicalRepObservation*'
+      - 'shared/practicalPrivateBankIntegrity*'
+      - 'server/practicalBenchmarkBank*'
+      - 'server/practicalBenchmarkRuns.ts'
+      - 'server/privatePracticalBenchmarkBank.ts'
+      - 'server/privatePracticalBankSourceBoundary.test.ts'
+      - 'server/practicalCasePlans*'
+      - 'server/practicalCaseWork.ts'
+      - 'server/practicalRecordingRecovery.ts'
       - 'shared/capabilityPracticalEvidence.ts'
       - 'shared/practicalEntryGate*'
       - 'server/sandboxEnvironment.ts'
       - 'client/src/components/sandbox/SandboxReadinessAssessmentCard.tsx'
       - 'server/practicalExecuteChallenge.ts'
+      - 'server/practicalBenchmarkBank*'
+      - 'server/practicalBenchmarkRuns.ts'
+      - 'shared/practicalBenchmarkPolicy*'
       - 'server/capabilityPracticalEvidence.ts'
       - 'server/routes/capabilityPracticalEvidence.ts'
       - 'client/src/components/practicals/**'
       - 'client/src/pages/operational/tutor/practicals.tsx'
       - 'client/src/pages/operational/td/practicals-review.tsx'
       - 'migrations/20261009_practicals_evidence_stage_v1.sql'
+      - 'migrations/20261011_practicals_shared_video_benchmarks_v1.sql'
       - 'config/production-migration-authority.json'
       - '.github/workflows/practicals-acceptance-ci.yml'
       - 'scripts/practicalsMigrationIntegration.test.ts'
+      - 'scripts/checkPracticalsTypes.cjs'
       - 'scripts/practicalsProductionUnauthenticated.test.ts'
       - 'package.json'
   push:
@@ -27,6 +42,7 @@ on:
       - 'server/capabilityPracticalEvidence.ts'
       - 'client/src/components/practicals/**'
       - 'migrations/20261009_practicals_evidence_stage_v1.sql'
+      - 'migrations/20261011_practicals_shared_video_benchmarks_v1.sql'
       - 'package.json'
 permissions:
   contents: read
@@ -54,6 +70,8 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts
+      - name: TypeScript contract
+        run: node scripts/checkPracticalsTypes.cjs
       - name: Versioned adaptive Execute contract and security boundaries
         run: npm run test:practicals
       - name: PostgreSQL schema and immutable evidence integration

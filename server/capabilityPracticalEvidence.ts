@@ -3,6 +3,16 @@ import { getSandboxCapabilityReadiness } from "./sandboxEnvironment";
 import { derivePracticalCompletionGate } from "@shared/practicalCompletionGate";
 import { evaluatePracticalEntryGate } from "@shared/practicalEntryGate";
 import { assertCompletedExecuteChallenge, getExecuteChallengeForTd } from "./practicalExecuteChallenge";
+import { eligibleAttempt,requireCompletedBenchmark,getBenchmarkRunForTd } from "./practicalBenchmarkRuns";
+import {
+  validatePracticalRecordingDeclaration,
+  validateCaseReviews,
+  validatePracticalVideoVerification,
+  type PracticalBenchmarkProof,
+  type PracticalCaseReview,
+  type PracticalRecordingDeclaration,
+  type PracticalVideoVerification,
+} from "@shared/practicalBenchmarkPolicy";
 import {
   CAPABILITY_PRACTICAL_PROOFS,
   deriveCapabilityPracticalReview,
@@ -85,6 +95,7 @@ export function buildPublicPracticalDefinitions() {
     mustShow: proof.mustShow,
     declarationPrompts: proof.declarationPrompts,
     realStudentDataAllowed: false,
+    sharedBenchmarkCaseCount: 3,
   }));
 }
 
@@ -137,6 +148,8 @@ export async function submitPracticalCapabilityEvidence(input: {
   declaration: Record<string, unknown>;
   noRealStudentDataConfirmed: boolean;
   executeChallengeId?: string | null;
+  benchmarkRunId: string;
+  recording: PracticalRecordingDeclaration;
 }) {
   await assertPracticalEntry(input.tutorAssignmentId, input.tutorId);
 
@@ -168,7 +181,18 @@ export async function submitPracticalCapabilityEvidence(input: {
     throw httpError(409, "This practical proof is under integrity review and cannot be resubmitted yet.");
   }
 
-  const attemptNumber = Number(latest?.attempt_number || 0) + 1;
+  // Recording-only incidents do not create an evidence submission. An
+  // assigned-TD-approved abandoned recording must still advance the issued
+  // case/Execute attempt number rather than reuse a stale submission count.
+  const issuedAttempt=await eligibleAttempt({
+    tutorAssignmentId:input.tutorAssignmentId,
+    tutorId:input.tutorId,
+    proofKey:definition.key,
+  });
+  if(!issuedAttempt.allowed || issuedAttempt.attemptNumber<1
+      || issuedAttempt.version!==definition.version)
+    throw httpError(409,issuedAttempt.reason||"This Practical attempt is not authorised for submission.");
+  const attemptNumber=issuedAttempt.attemptNumber;
   const executeChallengeId = definition.key === "execute"
     ? await assertCompletedExecuteChallenge({
         tutorAssignmentId: input.tutorAssignmentId,
@@ -179,6 +203,20 @@ export async function submitPracticalCapabilityEvidence(input: {
     : null;
   if (definition.key !== "execute" && input.executeChallengeId) {
     throw httpError(400, "Only Execute may carry an Execute challenge reference.");
+  }
+  const recordingBlockers=validatePracticalRecordingDeclaration(definition.key,input.recording);
+  if(recordingBlockers.length)throw httpError(400,recordingBlockers.join(" "));
+  const issued=await requireCompletedBenchmark({
+    tutorAssignmentId:input.tutorAssignmentId,
+    tutorId:input.tutorId,
+    proofKey:definition.key,
+    attemptNumber,
+    runId:input.benchmarkRunId,
+    recordingDurationSeconds:input.recording.durationSeconds,
+  });
+  if(definition.key==="execute") {
+    const challenge=await getExecuteChallengeForTd(String(executeChallengeId),input.tutorAssignmentId,input.tutorId);
+    if(!challenge.completed)throw httpError(409,"The live Execute challenge is not complete.");
   }
   const artifactUrl = normalizeArtifactUrl(input.artifactUrl);
   const declaration = validateDeclaration(definition, input.declaration);
@@ -199,8 +237,13 @@ export async function submitPracticalCapabilityEvidence(input: {
          rubric_version,
          rubric_snapshot,
          no_real_student_data_confirmed,
-         execute_challenge_id
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11::jsonb, true, $12)
+         execute_challenge_id,
+         benchmark_run_id,
+         recording_duration_seconds,
+         recording_started_before_reveal_attested,
+         continuous_unedited_attested,
+         setup_tools_demonstrated_attested
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11::jsonb, true, $12, $13, $14, true, true, true)
        RETURNING id, submitted_at`,
       [
         input.tutorAssignmentId,
@@ -215,6 +258,8 @@ export async function submitPracticalCapabilityEvidence(input: {
         rubricSnapshot.version,
         JSON.stringify(rubricSnapshot),
         executeChallengeId,
+        issued.runId,
+        input.recording.durationSeconds,
       ],
     );
 
@@ -249,6 +294,8 @@ export async function getSpecialistPracticalEvidence(input: {
             e.attempt_number,
             e.artifact_type,
             e.execute_challenge_id,
+            e.benchmark_run_id,
+            e.recording_duration_seconds,
             e.submitted_at,
             r.outcome,
             r.feedback,
@@ -274,6 +321,8 @@ export async function getSpecialistPracticalEvidence(input: {
     attemptNumber: Number(row.attempt_number),
     artifactType: row.artifact_type,
     executeChallengeId: row.execute_challenge_id || null,
+    benchmarkRunId: row.benchmark_run_id || null,
+    recordingDurationSeconds: row.recording_duration_seconds || null,
     status: row.outcome || "submitted",
     feedback: row.feedback || null,
     reasonCode: row.reason_code || null,
@@ -324,6 +373,8 @@ export async function getPracticalReviewQueue(input: {
             e.artifact_type,
             e.declaration,
             e.execute_challenge_id,
+            e.benchmark_run_id,
+            e.recording_duration_seconds,
             e.submitted_at,
             p.pod_name,
             u.first_name,
@@ -360,6 +411,10 @@ export async function getPracticalReviewQueue(input: {
       artifactUrl: row.artifact_url,
       artifactType: row.artifact_type,
       declaration: row.declaration,
+      recordingDurationSeconds:Number(row.recording_duration_seconds||0),
+      benchmark: row.benchmark_run_id ? await getBenchmarkRunForTd(
+        String(row.benchmark_run_id),String(row.tutor_assignment_id),String(row.tutor_id)
+      ) : null,
       executeChallenge: row.proof_key === "execute" && row.execute_challenge_id
         ? await getExecuteChallengeForTd(String(row.execute_challenge_id),String(row.tutor_assignment_id),String(row.tutor_id))
         : null,
@@ -381,6 +436,8 @@ async function assertReviewerCanAccessEvidence(input: {
             e.rubric_version,
             e.rubric_snapshot,
             e.execute_challenge_id,
+            e.benchmark_run_id,
+            e.recording_duration_seconds,
             e.tutor_assignment_id,
             e.tutor_id,
             p.td_id,
@@ -418,6 +475,8 @@ export async function reviewPracticalCapabilityEvidence(input: {
   criterionJudgments: CapabilityPracticalCriterionReviewInput[];
   feedback?: string | null;
   executeTraceVideoVerified?: boolean;
+  benchmarkCaseReviews:PracticalCaseReview[];
+  videoVerification:PracticalVideoVerification;
 }) {
   const access = await assertReviewerCanAccessEvidence(input);
   if (input.rubricVersion !== access.rubric.version) {
@@ -431,6 +490,43 @@ export async function reviewPracticalCapabilityEvidence(input: {
     throw httpError(400, error instanceof Error ? error.message : "Invalid practical rubric review.");
   }
 
+  const benchmark=await getBenchmarkRunForTd(
+    String(access.row.benchmark_run_id||""),
+    String(access.row.tutor_assignment_id),
+    String(access.row.tutor_id),
+  );
+  if(!benchmark.completed || benchmark.history.length!==3 ||
+    Number(benchmark.proofVersion)!==Number(access.row.proof_version))
+    throw httpError(409,"The TD needs the complete original three-case benchmark for this recording.");
+  const caseKeys=benchmark.history.map((item:{caseKey:string})=>item.caseKey);
+  const caseBlockers=validateCaseReviews(caseKeys,input.benchmarkCaseReviews);
+  if(caseBlockers.length)throw httpError(400,caseBlockers.join(" "));
+  const verificationBlockers=validatePracticalVideoVerification(
+    String(access.row.proof_key) as PracticalBenchmarkProof,input.videoVerification);
+  const durationMismatch=Math.abs(input.videoVerification.observedDurationSeconds-Number(access.row.recording_duration_seconds||0))>10;
+  if(durationMismatch)verificationBlockers.push("The TD-observed video duration disagrees with the Specialist's declared original duration.");
+  if(input.videoVerification.flaggedCutOrManipulation && derived.outcome!=="integrity_review")
+    throw httpError(409,"Suspected video tampering requires an integrity-critical Fail and integrity review.");
+  const operationalRisks=benchmark.history.flatMap(item=>
+    (item.operationHistory||[]).flatMap(operation=>operation.riskFlags||[]));
+  const criticalOperationalRisks=new Set([
+    "unobserved_claimed_independent","assisted_claimed_independent",
+    "unobserved_rep_claimed_observed","interrupted_timer_claimed_valid",
+    "observed_support_omitted","invalid_independence_claim",
+    "evidence_status_overstated","unobserved_dimension_claimed_independent",
+  ]);
+  if(operationalRisks.some(risk=>criticalOperationalRisks.has(risk)) &&
+     derived.outcome!=="integrity_review")
+    throw httpError(409,
+      "The recorded operating events contain an objective evidence-integrity contradiction. Record the corresponding integrity-critical failure and review.");
+  if(derived.outcome==="approved" && operationalRisks.length>0)
+    throw httpError(409,
+      "The saved examination operations contradict at least one issued system condition. An approved result cannot conceal that discrepancy.");
+  if(derived.outcome==="approved" && (
+    verificationBlockers.length>0 ||
+    input.benchmarkCaseReviews.some(c=>c.judgment!=="clear"||c.videoTraceMatched!==true)
+  ))throw httpError(409,
+    "Cannot approve a recording with gaps, edits, missing setup, duration contradictions or a non-Clear issued case. Mark the corresponding observable criterion and document the failure.");
   if (access.row.proof_key === "execute") {
     if (input.executeTraceVideoVerified !== true) {
       throw httpError(400, "The assigned TD must affirm that the challenge reference, three persisted turns and demonstration recording agree.");
@@ -473,8 +569,10 @@ export async function reviewPracticalCapabilityEvidence(input: {
          outcome,
          reason_code,
          feedback,
-         execute_trace_video_verified
-       ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11::jsonb, $12, $13, $14, $15)
+         execute_trace_video_verified,
+         benchmark_case_reviews,
+         recording_verification
+       ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11::jsonb, $12, $13, $14, $15, $16::jsonb, $17::jsonb)
        RETURNING id, reviewed_at`,
       [
         input.evidenceId,
@@ -492,6 +590,8 @@ export async function reviewPracticalCapabilityEvidence(input: {
         derived.reasonCode,
         feedback,
         access.row.proof_key==="execute" && input.executeTraceVideoVerified===true,
+        JSON.stringify(input.benchmarkCaseReviews),
+        JSON.stringify(input.videoVerification),
       ],
     );
 

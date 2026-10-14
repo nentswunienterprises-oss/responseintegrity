@@ -4,7 +4,14 @@ import { useNavigate } from "react-router-dom";
 import { AlertCircle, ArrowLeft, CheckCircle2, ExternalLink, RefreshCcw, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import type { ExecuteResponse } from "@shared/practicalExecuteChallenge";
+import {
+  validateCaseReviews,
+  validatePracticalVideoVerification,
+  type PracticalCaseReview,
+  type PracticalVideoVerification,
+} from "@shared/practicalBenchmarkPolicy";
 import { apiRequest } from "@/lib/queryClient";
+import PracticalRecordingRecoveryQueue from "@/components/practicals/PracticalRecordingRecoveryQueue";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +37,17 @@ type ReviewQueueItem = {
   artifactUrl: string;
   artifactType: "screen_voice" | "screen_video" | "video";
   declaration: Record<string, string>;
+  recordingDurationSeconds:number;
+  benchmark:{
+    reference:string;bankVersion:number;proofVersion:number;attemptNumber:number;
+    startedAt:string;completedAt:string|null;completed:boolean;
+    history:Array<{caseKey:string;caseVersion:number;sequence:number;phase:string;title:string;
+      assessedCapability:string;situation:string;systemDirection:string;liveDemonstration:string;revealedAt:string;
+      examinerStandard?:null|{coreJudgment:string;evidenceRule:string;criticalFail:string[]};
+      completedOperations:number;requiredOperations:number;
+      operationHistory:Array<{stepNumber:number;operationKey:string;recordedPayload:Record<string,unknown>;
+        systemSnapshot:{label:string;prompt:string;kind:string};recordedAt:string;riskFlags:string[]}>;}>;
+  }|null;
   executeChallenge: {challengeId:string;completed:boolean;version:number;privateBankLineage?:{bankKey:string;bankVersion:number}|null;history:Array<{number:number;recordedAt?:string|null;situation:{kind:string;studentBehavior:string;evidenceQuestion:string};response:ExecuteResponse;riskFlags?:string[]}>} | null;
   submittedAt: string;
 };
@@ -98,6 +116,17 @@ export default function CapabilityPracticalReview() {
   const [criterionDrafts, setCriterionDrafts] = useState<Record<string, CriterionDraft>>({});
   const [feedback, setFeedback] = useState("");
   const [traceMatched,setTraceMatched]=useState(false);
+  const [caseDrafts,setCaseDrafts]=useState<Record<string,{judgment:""|"clear"|"partial"|"fail";observedEvidence:string;videoTraceMatched:boolean}>>({});
+  const [durationMinutes,setDurationMinutes]=useState("");
+  const [durationSeconds,setDurationSeconds]=useState("0");
+  const [videoChecks,setVideoChecks]=useState({
+    recordingContinuous:false,recordingBeginsBeforeReveal:false,
+    allThreeCasesVisible:false,environmentAndToolsVisible:false,
+    specialistScreenFaceVoiceObservable:false,
+      recordingConsentVerified:false,recordingAccessRestricted:false,
+      noRealStudentDataOrBystanders:false,
+    flaggedCutOrManipulation:false,flaggedTechnicalInterruption:false,
+  });
 
   const queueQuery = useQuery<{ queue: ReviewQueueItem[] }>({
     queryKey: ["capability-practical-review-queue"],
@@ -118,6 +147,17 @@ export default function CapabilityPracticalReview() {
     setCriterionDrafts({});
     setFeedback("");
     setTraceMatched(false);
+    setCaseDrafts({});
+    setDurationMinutes("");
+    setDurationSeconds("0");
+    setVideoChecks({
+      recordingContinuous:false,recordingBeginsBeforeReveal:false,
+      allThreeCasesVisible:false,environmentAndToolsVisible:false,
+      specialistScreenFaceVoiceObservable:false,
+      recordingConsentVerified:false,recordingAccessRestricted:false,
+      noRealStudentDataOrBystanders:false,
+      flaggedCutOrManipulation:false,flaggedTechnicalInterruption:false,
+    });
   };
 
   const openEvidence = (item: ReviewQueueItem) => {
@@ -125,6 +165,17 @@ export default function CapabilityPracticalReview() {
     setCriterionDrafts(emptyCriterionDrafts(item.reviewRubric));
     setFeedback("");
     setTraceMatched(false);
+    setCaseDrafts(Object.fromEntries((item.benchmark?.history||[]).map(c=>[c.caseKey,{judgment:"",observedEvidence:"",videoTraceMatched:false}])));
+    setDurationMinutes("");
+    setDurationSeconds("0");
+    setVideoChecks({
+      recordingContinuous:false,recordingBeginsBeforeReveal:false,
+      allThreeCasesVisible:false,environmentAndToolsVisible:false,
+      specialistScreenFaceVoiceObservable:false,
+      recordingConsentVerified:false,recordingAccessRestricted:false,
+      noRealStudentDataOrBystanders:false,
+      flaggedCutOrManipulation:false,flaggedTechnicalInterruption:false,
+    });
   };
 
   const criterionJudgments = useMemo<CapabilityPracticalCriterionReviewInput[]>(() => {
@@ -160,6 +211,23 @@ export default function CapabilityPracticalReview() {
     }
   }, [allJudged, criterionJudgments, notesValid, selected]);
 
+  const caseKeys=selected?.benchmark?.history.map(c=>c.caseKey)||[];
+  const benchmarkCaseReviews:PracticalCaseReview[]=caseKeys.flatMap(caseKey=>{
+    const draft=caseDrafts[caseKey];
+    return draft?.judgment?[{caseKey,judgment:draft.judgment,observedEvidence:draft.observedEvidence.trim(),videoTraceMatched:draft.videoTraceMatched}]:[];
+  });
+  const caseReviewsValid=selected?.benchmark?.completed===true &&
+    validateCaseReviews(caseKeys,benchmarkCaseReviews).length===0;
+  const observedSeconds=Number(durationMinutes)*60+Number(durationSeconds);
+  const videoTimeValid=durationMinutes.trim()!==""&&durationSeconds.trim()!==""&&
+    Number.isInteger(Number(durationMinutes))&&Number(durationMinutes)>=0&&
+    Number.isInteger(Number(durationSeconds))&&Number(durationSeconds)>=0&&Number(durationSeconds)<60;
+  const videoVerification:PracticalVideoVerification={...videoChecks,observedDurationSeconds:observedSeconds};
+  const videoProblems=selected&&videoTimeValid
+    ?validatePracticalVideoVerification(selected.proofKey,videoVerification)
+    :["Confirm actual full-length video duration."];
+  const videoMatchesDeclaration=selected&&Math.abs(observedSeconds-selected.recordingDurationSeconds)<=10;
+  const videoCanApprove=videoProblems.length===0&&videoMatchesDeclaration===true;
   const remediationSummaryRequired = derivedPreview !== null && derivedPreview.outcome !== "approved";
   const feedbackValid = !remediationSummaryRequired || feedback.trim().length >= 20;
 
@@ -169,6 +237,13 @@ export default function CapabilityPracticalReview() {
       if (!allJudged) throw new Error("Judge every rubric criterion before submitting the review.");
       if (!notesValid) throw new Error("Every Partial or Fail judgment needs at least 20 characters of observed evidence.");
       if (!derivedPreview) throw new Error("The rubric result could not be derived from the current judgments.");
+      if(!caseReviewsValid)throw new Error("Review every issued benchmark case and cite its directly observable video evidence.");
+      if(!videoTimeValid)throw new Error("Enter the actual full video duration as observed by the TD.");
+      if(derivedPreview.outcome==="approved" &&
+        (!videoCanApprove||benchmarkCaseReviews.some(c=>c.judgment!=="clear"||!c.videoTraceMatched)))
+        throw new Error("Approval requires all three cases Clear, intact continuous video, no interruptions, demonstrated setup and matching duration. Mark a failed criterion when the evidence does not support approval.");
+      if(videoChecks.flaggedCutOrManipulation && derivedPreview.outcome!=="integrity_review")
+        throw new Error("Suspected cuts or manipulation require an integrity-critical Fail, not an ordinary repeat.");
       if (selected.proofKey==="execute" && !traceMatched) throw new Error("Verify the server trace, challenge reference and demonstration recording before review.");
       if (selected.proofKey==="execute" && (!selected.executeChallenge?.completed || selected.executeChallenge.history.length!==3)) throw new Error("A complete three-turn Execute trace is required.");
       if (derivedPreview.outcome !== "approved" && feedback.trim().length < 20) {
@@ -183,6 +258,8 @@ export default function CapabilityPracticalReview() {
           criterionJudgments,
           feedback: feedback.trim() || null,
           executeTraceVideoVerified:selected.proofKey==="execute" && traceMatched,
+          benchmarkCaseReviews,
+          videoVerification,
         },
       );
       return response.json();
@@ -220,6 +297,8 @@ export default function CapabilityPracticalReview() {
             Compare the permanent, system-assigned Execute transcript with the recording. Judge observable execution against the frozen rubric; the system derives the outcome.
           </p>
         </div>
+
+        <PracticalRecordingRecoveryQueue />
 
         {queueQuery.error && (
           <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>Practical evidence queue could not be loaded.</AlertDescription></Alert>
@@ -318,6 +397,101 @@ export default function CapabilityPracticalReview() {
                     </div>
                   ) : null}
 
+                  <div className="space-y-4 border-t pt-5">
+                    <h2 className="font-semibold">Shared benchmark: case-by-case comparison</h2>
+                    <p className="text-sm text-muted-foreground">
+                      These same frozen cases and versions are issued to every Specialist. Judge the observed response to each exact case, not a general impression of the recording.
+                    </p>
+                    {!selected.benchmark?.completed||selected.benchmark.history.length!==3?
+                      <Alert variant="destructive"><AlertCircle className="h-4 w-4"/>
+                        <AlertDescription>The full three-case system assignment is missing. Do not approve.</AlertDescription>
+                      </Alert>:
+                      selected.benchmark.history.map(item=>{
+                        const draft=caseDrafts[item.caseKey]||{judgment:"" as const,observedEvidence:"",videoTraceMatched:false};
+                        return <div className="space-y-3 rounded-lg border p-4" key={item.caseKey}>
+                          <p className="font-semibold">Case {item.sequence} — {item.title}</p>
+                          <p className="text-xs text-muted-foreground">{item.caseKey} · Bank v{item.caseVersion} · {item.phase} · {item.assessedCapability}</p>
+                          <p className="text-sm"><strong>Issued condition:</strong> {item.situation}</p>
+                          <p className="text-sm"><strong>System boundary:</strong> {item.systemDirection}</p>
+                          <p className="text-sm"><strong>Expected demonstration:</strong> {item.liveDemonstration}</p>
+                          {item.examinerStandard&&<div className="rounded-md border p-3 space-y-1 text-sm">
+                            <p className="font-semibold">TD-only case standard</p>
+                            <p>{item.examinerStandard.coreJudgment}</p>
+                            <p className="text-xs text-muted-foreground">{item.examinerStandard.evidenceRule}</p>
+                            <p className="text-xs text-muted-foreground">Critical failures: {(item.examinerStandard.criticalFail||[]).join("; ")}</p>
+                          </div>}
+                          <div className="rounded-md border bg-muted/10 p-3 space-y-2">
+                            <p className="text-sm font-medium">Durable RI-OS action trail: {item.completedOperations}/{item.requiredOperations}</p>
+                            {item.operationHistory.map(e=><div key={e.stepNumber} className="rounded border p-2 text-xs space-y-1">
+                              <p className="font-semibold">Operation {e.stepNumber}: {e.systemSnapshot.label} · {new Date(e.recordedAt).toLocaleTimeString("en-ZA")}</p>
+                              <p><strong>Action:</strong> {e.operationKey.replaceAll("_"," ")}</p>
+                              <pre className="whitespace-pre-wrap break-words">{JSON.stringify(e.recordedPayload,null,2)}</pre>
+                              {e.riskFlags?.length>0&&<p className="text-destructive">Review: {e.riskFlags.join(", ").replaceAll("_"," ")}</p>}
+                            </div>)}
+                            {item.completedOperations!==item.requiredOperations&&
+                              <p role="alert" className="text-destructive">Incomplete executable case. TD approval is prohibited.</p>}
+                          </div>
+                          <div className="flex gap-2 flex-wrap">{(["clear","partial","fail"] as const).map(judgment=>
+                            <Button type="button" key={judgment} variant={draft.judgment===judgment?"default":"outline"}
+                              onClick={()=>setCaseDrafts(p=>({...p,[item.caseKey]:{
+                                judgment,observedEvidence:p[item.caseKey]?.observedEvidence||"",videoTraceMatched:p[item.caseKey]?.videoTraceMatched||false,
+                              }}))}>
+                              {judgment==="clear"?"Clear":judgment==="partial"?"Partial":"Fail"}
+                            </Button>)}</div>
+                          <label className="block space-y-1 text-sm">
+                            <span className="font-medium">What does the video actually show? (30+ characters, required in every case)</span>
+                            <textarea rows={3} maxLength={2000}
+                              className="w-full rounded-md border bg-background p-2"
+                              placeholder="Describe the visible or audible conduct, tools and decisions for this exact case."
+                              value={draft.observedEvidence}
+                              onChange={event=>setCaseDrafts(p=>({...p,[item.caseKey]:{
+                                judgment:p[item.caseKey]?.judgment||"",observedEvidence:event.target.value,videoTraceMatched:p[item.caseKey]?.videoTraceMatched||false,
+                              }}))}/>
+                          </label>
+                          <label className="flex items-start gap-2 text-sm">
+                            <input type="checkbox" checked={draft.videoTraceMatched}
+                              onChange={e=>setCaseDrafts(prev=>({...prev,[item.caseKey]:{
+                                judgment:prev[item.caseKey]?.judgment||"",
+                                observedEvidence:prev[item.caseKey]?.observedEvidence||"",
+                                videoTraceMatched:e.target.checked,
+                              }}))}/>
+                            I independently matched this case's persisted workflow actions,
+                            intervention/evidence entries and timestamps to the original,
+                            uninterrupted video interval.
+                          </label>
+                        </div>;
+                      })
+                    }
+                  </div>
+                  <div className="space-y-3 border-t pt-5">
+                    <h2 className="font-semibold">Original recording integrity and delivery setup</h2>
+                    <p className="text-sm">TD must inspect the complete original-length video, including preparation before the first case reveal. Judge functional working conditions and needed tools, not the Specialist's home, décor or wealth.</p>
+                    <p className="text-xs text-muted-foreground">Specialist declared {selected.recordingDurationSeconds}s. Match the entire video to issued case actions and timestamps. Duration is for calibration, not a fixed pass/fail threshold.</p>
+                    <div className="flex flex-wrap gap-3">
+                      <label className="block text-sm">Observed minutes<input type="number" min="0" value={durationMinutes} onChange={e=>setDurationMinutes(e.target.value)} className="mt-1 block w-32 rounded-md border bg-background p-2"/></label>
+                      <label className="block text-sm">Observed seconds<input type="number" min="0" max="59" value={durationSeconds} onChange={e=>setDurationSeconds(e.target.value)} className="mt-1 block w-32 rounded-md border bg-background p-2"/></label>
+                    </div>
+                    {([
+                      ["recordingContinuous","No edits, cuts, pauses, splices or missing intervals were observed."],
+                      ["recordingBeginsBeforeReveal","Recording visibly began before the first case appeared."],
+                      ["allThreeCasesVisible","All three issued case references and responses are visible."],
+                      ["environmentAndToolsVisible","Actual functional delivery environment, tools, work surface, camera and microphone are observable."],
+                      ["specialistScreenFaceVoiceObservable","Screen, Specialist conduct/face and voice are sufficiently observable to assess."],
+                      ["recordingConsentVerified","The original recording had explicit Specialist consent before the first case was revealed."],
+                      ["recordingAccessRestricted","I confirmed private access to this original recording, restricted to the assigned TD and authorised evidence review; it is not publicly shared."],
+                      ["noRealStudentDataOrBystanders","I verified no real student records, family members or unrelated private spaces appear in the recording."],
+                      ["flaggedCutOrManipulation","Red flag: suspected edit, missing footage, cut or manipulated recording."],
+                      ["flaggedTechnicalInterruption","Red flag: technical interruption obscured required evidence."],
+                    ] as [keyof typeof videoChecks,string][]).map(([key,label])=>
+                      <label key={key} className="flex items-start gap-2 text-sm">
+                        <input type="checkbox" checked={videoChecks[key]} onChange={e=>setVideoChecks(p=>({...p,[key]:e.target.checked}))}/>
+                        {label}
+                      </label>)}
+                    {!videoTimeValid||!videoCanApprove?
+                      <p className="text-sm text-destructive">
+                        This recording is not yet verified for approval. An interruption requires documented repeat/evidence recovery; suspected manipulation requires integrity review.
+                      </p>:<p className="text-sm">Recording duration, continuity and setup checks are verified.</p>}
+                  </div>
                   <div className="space-y-4 border-t pt-5">
                     <div>
                       <h2 className="font-semibold">Observable rubric</h2>
@@ -442,7 +616,10 @@ export default function CapabilityPracticalReview() {
                     )}
 
                     <Button
-                      disabled={reviewMutation.isPending || !derivedPreview || !feedbackValid || (selected.proofKey==="execute" && !traceMatched)}
+                      disabled={reviewMutation.isPending || !derivedPreview || !feedbackValid ||
+                        !caseReviewsValid || !videoTimeValid ||
+                        (derivedPreview.outcome==="approved"&&!videoCanApprove) ||
+                        (selected.proofKey==="execute" && !traceMatched)}
                       onClick={() => reviewMutation.mutate()}
                     >
                       {reviewMutation.isPending ? "Recording rubric..." : "Record immutable rubric review"}

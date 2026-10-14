@@ -83,7 +83,7 @@ export interface CapabilityPracticalProofDefinition {
 }
 
 const PREPARE_RUBRIC: CapabilityPracticalReviewRubric = {
-  version: 1,
+  version: 2,
   outcomeRuleVersion: 1,
   criteria: [
     {
@@ -189,7 +189,7 @@ const PREPARE_RUBRIC: CapabilityPracticalReviewRubric = {
 };
 
 const EXECUTE_RUBRIC: CapabilityPracticalReviewRubric = {
-  version: 2,
+  version: 3,
   outcomeRuleVersion: 1,
   criteria: [
     {
@@ -332,7 +332,7 @@ const EXECUTE_RUBRIC: CapabilityPracticalReviewRubric = {
 };
 
 const EVIDENCE_RUBRIC: CapabilityPracticalReviewRubric = {
-  version: 1,
+  version: 2,
   outcomeRuleVersion: 1,
   criteria: [
     {
@@ -440,11 +440,14 @@ const EVIDENCE_RUBRIC: CapabilityPracticalReviewRubric = {
 export const CAPABILITY_PRACTICAL_PROOFS: CapabilityPracticalProofDefinition[] = [
   {
     key: "prepare",
-    version: 1,
+    version: 2,
     title: "Practical 1 - Prepare",
     purpose: "Show that you can inspect a provided sandbox case and prepare an RI session from the system rather than from improvisation.",
-    requiredArtifactTypes: ["screen_voice", "screen_video"],
+    requiredArtifactTypes: ["screen_video"],
     mustShow: [
+      "Begin the uninterrupted screen + face + microphone recording before the shared Prepare benchmark is revealed.",
+      "Show the real delivery workspace, working surface, microphone, screen visibility and required session tools without revealing unnecessary household details.",
+      "Demonstrate all three system-issued Prepare situations on the same uncut recording.",
       "Open and inspect the provided sandbox student case.",
       "Identify the active topic state and the purpose of the session.",
       "Select the correct mode, drill and set conditions from RI-OS.",
@@ -468,11 +471,14 @@ export const CAPABILITY_PRACTICAL_PROOFS: CapabilityPracticalProofDefinition[] =
   },
   {
     key: "execute",
-    version: 2,
+    version: 3,
     title: "Practical 2 - Execute",
     purpose: "Demonstrate correct RI response to a system-assigned, unpredictable three-turn simulated student challenge; preserve the permanent event record and explain the session conduct in the linked recording.",
-    requiredArtifactTypes: ["screen_video", "video"],
+    requiredArtifactTypes: ["screen_video"],
     mustShow: [
+      "Begin the uninterrupted screen + face + microphone recording before the first of three shared Execute situations appears.",
+      "Demonstrate the real delivery setup and the required tools on recording.",
+      "Demonstrate the Clarity, Controlled Discomfort and TPS cases in their system-assigned order.",
       "Begin the server-assigned Execute challenge. The next simulated student response is revealed only after the previous response is saved.",
       "Open the simulated session professionally and establish the task condition clearly.",
       "Give the student only the instructions permitted by the active set.",
@@ -499,11 +505,14 @@ export const CAPABILITY_PRACTICAL_PROOFS: CapabilityPracticalProofDefinition[] =
   },
   {
     key: "evidence",
-    version: 1,
+    version: 2,
     title: "Practical 3 - Evidence",
     purpose: "Show that you can inspect messy sandbox session evidence and preserve the difference between observation, inference, contamination and authorised escalation.",
-    requiredArtifactTypes: ["screen_voice", "screen_video"],
+    requiredArtifactTypes: ["screen_video"],
     mustShow: [
+      "Begin the uninterrupted screen + face + microphone recording before the shared Evidence benchmark is revealed.",
+      "Demonstrate the tools and work view needed to review evidence responsibly.",
+      "Work all three fixed Evidence situations on the same uncut recording.",
       "Inspect the provided sandbox session evidence without rewriting it.",
       "Separate observable facts from inference or interpretation.",
       "Identify any support that contaminated a claim of independence.",

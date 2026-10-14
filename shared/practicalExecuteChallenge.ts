@@ -3,7 +3,7 @@
  * The Specialist never supplies the case, outcome sequence, or future student response.
  * No real student state or billing authority is touched here.
  */
-export const EXECUTE_CHALLENGE_VERSION = 1;
+export const EXECUTE_CHALLENGE_VERSION = 2;
 export const EXECUTE_CHALLENGE_TURNS = 3;
 
 export type ExecuteIntervention =
@@ -31,7 +31,7 @@ export type ExecuteScenarioTurn = {
   evidenceQuestion: string;
 };
 export type ExecutePlan = {
-  version: 1;
+  version: 2;
   seed: string;
   caseKey: "controlled_discomfort_no_rescue";
   initialVariant: number;
@@ -84,7 +84,7 @@ export function createExecutePlan(seed: string, bank?: {
   const first=bank ? bucket(seed,8,bank.behaviors.length) : 0;
   const second=bank ? (first+1+bucket(seed,16,bank.behaviors.length-1))%bank.behaviors.length : 0;
   return {
-    version: 1, seed, caseKey: "controlled_discomfort_no_rescue",
+    version: 2, seed, caseKey: "controlled_discomfort_no_rescue",
     initialVariant: bucket(seed, 0, INITIAL_BEHAVIORS.length),
     branchVariant: bucket(seed, 8, 2),
     observabilityVariant: bucket(seed, 16, INTERRUPTIONS.length),

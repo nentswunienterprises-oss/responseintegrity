@@ -24,7 +24,7 @@ test("Execute challenge is deterministic after server assignment, variable betwe
  const p=createExecutePlan("0123456789abcdef0123456789abcdef");
  const repeat=createExecutePlan("0123456789abcdef0123456789abcdef");
  assert.deepEqual(nextExecuteTurn(p,[]),nextExecuteTurn(repeat,[]));
- assert.equal(p.version,1);
+ assert.equal(p.version,2);
  assert.equal(executeCaseBrief().totalTurns,EXECUTE_CHALLENGE_TURNS);
  assert.throws(()=>createExecutePlan("user-choice"),/server entropy/);
  const variations=new Set(Array.from({length:40},(_,i)=>createExecutePlan(i.toString(16).padStart(8,"0").repeat(8))).map(x=>nextExecuteTurn(x,[])?.studentBehavior));
@@ -97,7 +97,10 @@ test("Boundaries: server chooses case, stores private plan, enforces three-turn 
  const migration=readFileSync("migrations/20261009_practicals_evidence_stage_v1.sql","utf8");
  const practicals=readFileSync("server/capabilityPracticalEvidence.ts","utf8");
  const routes=readFileSync("server/routes/capabilityPracticalEvidence.ts","utf8");
- assert.match(path,/randomBytes\(32\)/);
+ assert.match(path,/createHash\("sha256"\)/);
+ assert.match(path,/practicals-v1:execute.controlled_discomfort/);
+ assert.match(path,/assertLiveBenchmarkCase/);
+ assert.match(path,/getBenchmarkRunStatus/);
  assert.match(path,/FOR UPDATE OF c/);
  assert.match(path,/getPracticalEntryStatus/);
  assert.match(path,/private\.specialist_practical_execute_challenge_truth/);

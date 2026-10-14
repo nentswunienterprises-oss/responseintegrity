@@ -21,9 +21,15 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       CREATE ROLE service_role NOLOGIN;
       CREATE SCHEMA private;
       CREATE TABLE public.users(id varchar PRIMARY KEY);
+      CREATE TABLE public.pods(
+        id varchar PRIMARY KEY,
+        td_id varchar REFERENCES public.users(id),
+        pod_name varchar
+      );
       CREATE TABLE public.tutor_assignments(
         id varchar PRIMARY KEY,
-        tutor_id varchar NOT NULL REFERENCES public.users(id)
+        tutor_id varchar NOT NULL REFERENCES public.users(id),
+        pod_id varchar REFERENCES public.pods(id)
       );`);
     const sql=readFileSync("migrations/20261009_practicals_evidence_stage_v1.sql","utf8");
     await db.query(sql);
@@ -54,9 +60,10 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       anon_select:false,authenticated_insert:false,server_insert:true,anon_private_truth:false,
     });
 
-    const tutorId=randomUUID(), reviewerId=randomUUID(),assignmentId=randomUUID(),challengeId=randomUUID();
+    const tutorId=randomUUID(), reviewerId=randomUUID(),assignmentId=randomUUID(),challengeId=randomUUID(),podId=randomUUID();
     await db.query("INSERT INTO public.users(id) VALUES ($1),($2)",[tutorId,reviewerId]);
-    await db.query("INSERT INTO public.tutor_assignments(id,tutor_id) VALUES ($1,$2)",[assignmentId,tutorId]);
+    await db.query("INSERT INTO public.pods(id,td_id,pod_name) VALUES($1,$2,'CI assigned TD')",[podId,reviewerId]);
+    await db.query("INSERT INTO public.tutor_assignments(id,tutor_id,pod_id) VALUES ($1,$2,$3)",[assignmentId,tutorId,podId]);
     await db.query(`INSERT INTO public.specialist_practical_execute_challenges
       (id,tutor_assignment_id,tutor_id,challenge_version,attempt_number,status,active_turn)
       VALUES ($1,$2,$3,1,1,'active',1)`,[challengeId,assignmentId,tutorId]);
@@ -178,6 +185,219 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       (SELECT count(*)::int FROM public.specialist_capability_practical_reviews) AS reviews,
       (SELECT count(*)::int FROM public.specialist_practical_completion_decisions) AS decisions`);
     assert.deepEqual(counts[0],{turns:3,evidence:3,reviews:3,decisions:1});
+
+    // Second governed schema adds multi-situation video examinations only.
+    // Historical proof data stays as evidence, but is no longer current-version
+    // stage-completion authority. All fixtures remain in isolated CI PostgreSQL.
+    const videoSql=readFileSync("migrations/20261011_practicals_shared_video_benchmarks_v1.sql","utf8");
+    await db.query(videoSql);
+    for(const relation of ["specialist_practical_benchmark_runs","specialist_practical_benchmark_case_reveals","specialist_practical_case_actions","specialist_practical_recording_recovery_requests","specialist_practical_recording_recovery_decisions"]){
+      const {rows}=await db.query(
+        `SELECT c.relrowsecurity FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+         WHERE n.nspname='public' AND c.relname=$1`,[relation]);
+      assert.equal(rows.length,1);
+      assert.equal(rows[0].relrowsecurity,true);
+      const permissions=await db.query(
+        `SELECT has_table_privilege('anon',$1,'SELECT') AS anon_read,
+                has_table_privilege('authenticated',$1,'INSERT') AS authenticated_insert`,
+        ["public."+relation]);
+      assert.deepEqual(permissions.rows[0],{anon_read:false,authenticated_insert:false});
+    }
+    // CI-only cases are synthetic; no real exam prompts or answer truth
+    // enter public source control. Sealed private bank rows are append-only.
+    const fixtureSteps=(i:number)=>[
+      {kind:"configure",label:"Synthetic setup "+i,prompt:"Only a controlled PostgreSQL fixture"},
+      {kind:"rep",label:"Synthetic real rep "+i,prompt:"Only immutable fake evidence"},
+    ];
+    const fixtureCase=(proof:"prepare"|"execute"|"evidence",i:number)=>({
+      caseKey:proof+".ci_case"+i,caseVersion:2,sequence:i,
+      phase:"Clarity",assessedCapability:"Synthetic qualification contract",
+      title:"Synthetic CI work sample "+i,
+      situation:"Entirely synthetic CI case with no real student or examiner secret.",
+      systemDirection:"Demonstrate the synthetic, governed operation sequence.",
+      liveDemonstration:"Perform and record each synthetic operating action while recording.",
+      fictionalOnly:true,workflowSteps:fixtureSteps(i),
+    });
+    for(const proof of ["prepare","execute","evidence"] as const){
+      for(let i=1;i<=3;i++){
+        const c=fixtureCase(proof,i);
+        await db.query(`INSERT INTO private.specialist_practical_benchmark_private_cases
+          (bank_version,proof_key,case_sequence,case_key,case_version,case_snapshot)
+          VALUES (2,$1,$2,$3,2,$4::jsonb)`,
+          [proof,i,c.caseKey,JSON.stringify(c)]);
+      }
+    }
+    const nineCaseCount=await db.query(`SELECT count(*)::int AS n,COUNT(DISTINCT proof_key)::int AS categories
+      FROM private.specialist_practical_benchmark_private_cases WHERE bank_version=2`);
+    assert.deepEqual(nineCaseCount.rows[0],{n:9,categories:3},
+      "All nine synthetic sealed case identities must be present before a real private bank can issue");
+    const bankRights=await db.query(`SELECT
+      has_table_privilege('anon','private.specialist_practical_benchmark_private_cases','SELECT') AS anon_read,
+      has_table_privilege('authenticated','private.specialist_practical_benchmark_private_cases','INSERT') AS user_write`);
+    assert.deepEqual(bankRights.rows[0],{anon_read:false,user_write:false});
+    await assert.rejects(db.query(`UPDATE private.specialist_practical_benchmark_private_cases
+      SET case_snapshot='{}'::jsonb WHERE proof_key='prepare' AND case_sequence=1`),/immutable/);
+    await assert.rejects(db.query(`DELETE FROM private.specialist_practical_benchmark_private_cases
+      WHERE proof_key='prepare' AND case_sequence=1`),/immutable/);
+    // Recording failure is a distinct, immutable operating exception.
+    // A new assessment is never self-issued merely because the old video broke.
+    const incidentRunId=randomUUID();
+    await db.query(`INSERT INTO public.specialist_practical_benchmark_runs
+      (id,tutor_assignment_id,tutor_id,proof_key,proof_version,bank_version,
+       attempt_number,preflight_attested,recording_started_before_reveal_attested,
+       consent_to_recording_attested,privacy_scope_attested)
+      VALUES($1,$2,$3,'evidence',2,2,1,true,true,true,true)`,
+      [incidentRunId,assignmentId,tutorId]);
+    const incidentCase=fixtureCase("evidence",1);
+    // Forging a published/changed case snapshot cannot pass the database gate,
+    // even for a role that can create a run in the isolated fixture.
+    await assert.rejects(db.query(`INSERT INTO public.specialist_practical_benchmark_case_reveals
+      (run_id,case_sequence,case_key,case_version,case_snapshot)
+      VALUES($1,1,$2,2,$3::jsonb)`,[
+        incidentRunId,incidentCase.caseKey,
+        JSON.stringify({...incidentCase,situation:"Forged public simulation substituted for sealed source."}),
+      ]),/sealed private bank/);
+
+    await db.query(`INSERT INTO public.specialist_practical_benchmark_case_reveals
+      (run_id,case_sequence,case_key,case_version,case_snapshot)
+      VALUES($1,1,$2,2,$3::jsonb)`,
+      [incidentRunId,incidentCase.caseKey,JSON.stringify(incidentCase)]);
+    await assert.rejects(db.query(`
+      UPDATE public.specialist_practical_benchmark_runs SET status='abandoned',
+      completed_at=now() WHERE id=$1`,[incidentRunId]),/Benchmark must reveal/);
+    const recovery=await db.query(`INSERT INTO public.specialist_practical_recording_recovery_requests
+      (run_id,reason,incident_note)
+      VALUES($1,'recording_interrupted',$2) RETURNING id`,
+      [incidentRunId,"Original camera recording stopped before the issued assessment concluded."]);
+    const recoveryId=recovery.rows[0].id;
+    await assert.rejects(db.query(`INSERT INTO public.specialist_practical_case_actions
+      (run_id,case_sequence,step_number,operation_key,recorded_payload,system_snapshot)
+      VALUES($1,1,1,'rep','{}'::jsonb,$2::jsonb)`,
+      [incidentRunId,JSON.stringify(incidentCase.workflowSteps[0])]),/recording.*assigned TD/);
+    await assert.rejects(db.query(`DELETE FROM public.specialist_practical_recording_recovery_requests
+      WHERE id=$1`,[recoveryId]),/immutable/);
+    await assert.rejects(db.query(`UPDATE public.specialist_practical_benchmark_runs
+       SET active_case_index=2 WHERE id=$1`,[incidentRunId]),/recording incident permanently closes/);
+    await db.query(`INSERT INTO public.specialist_practical_recording_recovery_decisions
+      (request_id,reviewer_id,decision,rationale)
+      VALUES($1,$2,'approve_repeat',$3)`,
+      [recoveryId,reviewerId,
+       "The assigned TD reviewed the documented interruption and authorizes a new full, uninterrupted attempt."]);
+    await db.query(`UPDATE public.specialist_practical_benchmark_runs
+      SET status='abandoned',completed_at=now() WHERE id=$1`,[incidentRunId]);
+    await assert.rejects(db.query(`UPDATE public.specialist_practical_benchmark_runs
+      SET status='active',completed_at=NULL WHERE id=$1`,[incidentRunId]),/recording incident permanently closes/);
+    await assert.rejects(db.query(`INSERT INTO public.specialist_practical_case_actions
+      (run_id,case_sequence,step_number,operation_key,recorded_payload,system_snapshot)
+      VALUES($1,1,1,'rep','{}'::jsonb,$2::jsonb)`,
+      [incidentRunId,JSON.stringify(incidentCase.workflowSteps[0])]),/recording.*assigned TD/);
+    await assert.rejects(db.query(`DELETE FROM public.specialist_practical_recording_recovery_decisions
+      WHERE request_id=$1`,[recoveryId]),/immutable/);
+    const nextRun=await db.query(`INSERT INTO public.specialist_practical_benchmark_runs
+      (tutor_assignment_id,tutor_id,proof_key,proof_version,bank_version,attempt_number,
+       preflight_attested,recording_started_before_reveal_attested,
+       consent_to_recording_attested,privacy_scope_attested)
+      VALUES($1,$2,'evidence',2,2,2,true,true,true,true) RETURNING id`,[assignmentId,tutorId]);
+    assert.ok(nextRun.rows[0].id,"One separately issued attempt follows the immutable TD recovery");
+
+    const runId=randomUUID();
+    await db.query(`INSERT INTO public.specialist_practical_benchmark_runs
+      (id,tutor_assignment_id,tutor_id,proof_key,proof_version,bank_version,
+       attempt_number,preflight_attested,recording_started_before_reveal_attested,
+       consent_to_recording_attested,privacy_scope_attested)
+      VALUES($1,$2,$3,'prepare',2,2,1,true,true,true,true)`,[runId,assignmentId,tutorId]);
+    const reveal=async(i:number)=>db.query(`
+      INSERT INTO public.specialist_practical_benchmark_case_reveals
+        (run_id,case_sequence,case_key,case_version,case_snapshot)
+      VALUES($1,$2,$3,2,$4::jsonb)`,
+      [runId,i,fixtureCase("prepare",i).caseKey,JSON.stringify(fixtureCase("prepare",i))]);
+    const operation=(i:number,n:number)=>db.query(`
+      INSERT INTO public.specialist_practical_case_actions
+        (run_id,case_sequence,step_number,operation_key,recorded_payload,system_snapshot)
+      VALUES($1,$2,$3,$4,$5::jsonb,$6::jsonb)`,
+      [runId,i,n,fixtureSteps(i)[n-1].kind,JSON.stringify({fictionalOnly:true}),JSON.stringify(fixtureSteps(i)[n-1])]);
+    await reveal(1);
+    await assert.rejects(operation(1,2),/out of sequence/);
+    await assert.rejects(db.query(
+      "UPDATE public.specialist_practical_benchmark_runs SET active_case_index=3 WHERE id=$1",
+      [runId]),/must reveal every case once/);
+    await reveal(2);
+    await assert.rejects(db.query(
+      "UPDATE public.specialist_practical_benchmark_runs SET active_case_index=2 WHERE id=$1",
+      [runId]),/must reveal every case once/);
+    await operation(1,1);
+    await assert.rejects(db.query(
+      "UPDATE public.specialist_practical_benchmark_runs SET active_case_index=2 WHERE id=$1",
+      [runId]),/must reveal every case once/);
+    await operation(1,2);
+    await assert.rejects(operation(1,2),/out of sequence|duplicate key/);
+    await db.query("UPDATE public.specialist_practical_benchmark_runs SET active_case_index=2 WHERE id=$1",[runId]);
+    await assert.rejects(operation(1,1),/out of sequence/);
+    await reveal(3);
+    await operation(2,1);
+    await operation(2,2);
+    await db.query("UPDATE public.specialist_practical_benchmark_runs SET active_case_index=3 WHERE id=$1",[runId]);
+    await assert.rejects(db.query(
+      "UPDATE public.specialist_practical_benchmark_runs SET active_case_index=4,status='complete',completed_at=now() WHERE id=$1",
+      [runId]),/must reveal every case once/);
+    await operation(3,1);
+    await operation(3,2);
+    await db.query("UPDATE public.specialist_practical_benchmark_runs SET active_case_index=4,status='complete',completed_at=now() WHERE id=$1",[runId]);
+    await assert.rejects(db.query(
+      "UPDATE public.specialist_practical_case_actions SET recorded_payload='{}'::jsonb WHERE run_id=$1",
+      [runId]),/immutable/);
+    await assert.rejects(db.query(
+      "DELETE FROM public.specialist_practical_case_actions WHERE run_id=$1",
+      [runId]),/immutable/);
+    await assert.rejects(db.query("DELETE FROM public.specialist_practical_benchmark_case_reveals WHERE run_id=$1",[runId]),/immutable/);
+    await assert.rejects(db.query("UPDATE public.specialist_practical_benchmark_runs SET active_case_index=1 WHERE id=$1",[runId]),/cannot be erased or restarted|must reveal/);
+
+    const insertV2=(run:string|null,duration:number)=>db.query(`
+      INSERT INTO public.specialist_capability_practical_evidence
+        (tutor_assignment_id,tutor_id,proof_key,proof_version,attempt_number,
+         artifact_url,artifact_type,declaration,competency_links,no_real_student_data_confirmed,
+         benchmark_run_id,recording_duration_seconds,recording_started_before_reveal_attested,
+         continuous_unedited_attested,setup_tools_demonstrated_attested)
+      VALUES($1,$2,'prepare',2,1,'https://example.org/synthetic-uncut-video','screen_video',
+        '{}'::jsonb,'[]'::jsonb,true,$3,$4,true,true,true) RETURNING id`,
+      [assignmentId,tutorId,run,duration]);
+    await assert.rejects(insertV2(null,900),/three executed benchmark cases/);
+    await assert.rejects(insertV2(runId,0),/three executed benchmark cases/);
+    // A complete longer-than-old-window recording is allowed, but integrity
+    // and TD duration agreement are still mandatory.
+    const newEvidence=await insertV2(runId,3600);
+    const latestEvidenceId=newEvidence.rows[0].id;
+
+    const caseReviews=[1,2,3].map(i=>({
+      caseKey:fixtureCase("prepare",i).caseKey,judgment:"clear",
+      observedEvidence:"The unedited synthetic test video shows directly observable Specialist setup and response to this case.",videoTraceMatched:true,
+    }));
+    const video={
+      observedDurationSeconds:3600,recordingContinuous:true,
+      recordingBeginsBeforeReveal:true,allThreeCasesVisible:true,
+      environmentAndToolsVisible:true,specialistScreenFaceVoiceObservable:true,
+      recordingConsentVerified:true,recordingAccessRestricted:true,noRealStudentDataOrBystanders:true,
+      flaggedCutOrManipulation:false,flaggedTechnicalInterruption:false,
+    };
+    const insertReview=(cases:any,verification:any,outcome="approved")=>db.query(`
+      INSERT INTO public.specialist_capability_practical_reviews
+        (evidence_id,reviewer_id,reviewer_role,outcome,benchmark_case_reviews,recording_verification)
+      VALUES($1,$2,'td',$3,$4::jsonb,$5::jsonb) RETURNING id`,
+      [latestEvidenceId,reviewerId,outcome,JSON.stringify(cases),JSON.stringify(verification)]);
+    await assert.rejects(insertReview(caseReviews.slice(0,2),video),/all three exact benchmark cases/);
+    await assert.rejects(
+      insertReview(caseReviews.map((c,i)=>i===1?{...c,videoTraceMatched:false}:c),video),
+      /match each case to the original video/
+    );
+    await assert.rejects(insertReview(caseReviews,{...video,recordingContinuous:false}),/incomplete or interrupted/);
+    await assert.rejects(insertReview(caseReviews,{...video,recordingConsentVerified:false}),/incomplete or interrupted/);
+    await assert.rejects(insertReview(caseReviews,{...video,recordingAccessRestricted:false}),/incomplete or interrupted/);
+    await assert.rejects(insertReview(caseReviews,{...video,observedDurationSeconds:3575}),/duration/);
+    await assert.rejects(insertReview(caseReviews,{...video,observedDurationSeconds:700}),/duration must be positive and agree/);
+    await assert.rejects(insertReview(caseReviews,{...video,flaggedCutOrManipulation:true}),/integrity review/);
+    const accepted=await insertReview(caseReviews,video);
+    assert.ok(accepted.rows[0]?.id);
+    await assert.rejects(db.query("UPDATE public.specialist_capability_practical_reviews SET outcome='repeat_required' WHERE id=$1",[accepted.rows[0].id]),/immutable/);
   }finally{
     await db.end();
   }
