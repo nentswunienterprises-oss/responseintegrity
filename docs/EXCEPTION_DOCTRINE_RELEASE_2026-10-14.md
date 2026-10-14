@@ -28,3 +28,15 @@ The integration test verifies unchanged evidence and access, preserved earned ch
 - Read back actual Production runtime, active banks, historical pass continuity and earned Sandbox progression before closing the release.
 
 Production schema application, inactive staging, deployment and bank activation are pending. The broader development PR is not the merge vehicle. GitHub's connected tools support PRs and CI readback but do not expose manual workflow dispatch; the protected workflows still require their normal dispatch mechanism.
+
+## Verified release progress — 14 October, 04:55 SAST
+
+The protected schema plan (run 38500605396) and apply (38500889856) passed. Independent The Hub ledger readback matches all three migration SHA-256 hashes and release source `612ae8d34f19e38f072328bb104e1e73a050b294`. Both existing trajectories remain V1; progression fields are populated and RLS/negative client privileges remain intact.
+
+Exact-SHA authenticated preview acceptance (38502387344) passed 21 lessons / 313 slides, all four ordinary Training forms, native Begin Rep and Diagnosis/Handover worked-example witnesses, with zero qualification/rep submissions. Protected inactive bank stage (38503038470) passed; independent Production readback confirms all nine configs remain inactive, Review Mode is off, and all 443 items/content/config hashes match the approved authority.
+
+PR #190 merged at `6efa72d27065b5ffe5839a6a2432b3b4f1074a9a`. Production deployment readiness and separate bank activation/readback remain pending. The statements above supersede earlier pending-gate wording in this receipt.
+
+`Evidence Exception Bank Activation` is a separately confirmed protected manual workflow. Dispatch only after independently verifying the supplied `deployment_sha` is a READY Production deployment. The script requires that deployment to descend from the accepted release SHA and have identical client/server/shared/API/package/build sources. It also requires The Hub database target, exact staged successor content/config hashes, exact predecessor content/version authority, disabled Review Mode, and one active config per bank. All nine swaps occur in one locked transaction. An already completed exact activation is idempotent. It changes only private bank config activation/retirement metadata; it never edits assessment items, historical qualification attempts, earned progression, rep evidence or students.
+
+The PostgreSQL integration verifies rollback on a later-bank mismatch, unexpected predecessor rejection, atomic activation, idempotence and unchanged historical qualification evidence. Application acceptance remains the exact reviewed runtime above; adding release-operation scripts does not redefine it.
