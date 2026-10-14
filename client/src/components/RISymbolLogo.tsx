@@ -1,7 +1,7 @@
 export function RISymbolLogo({
   size = "lg",
   className = "",
-  alt = "Response Integrity symbol logo",
+  alt = "Response Integrity logo",
 }: {
   size?: "sm" | "md" | "lg" | "xl" | "xxl";
   className?: string;
