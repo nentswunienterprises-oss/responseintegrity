@@ -8,6 +8,7 @@ import {
   type ResponseSnapshotEvidence,
   type ResponseSnapshotV1,
 } from "@shared/responseSnapshot";
+import { displayTopicStability, topicStabilityConfirmationLabel } from "@shared/topicStabilityPresentation";
 
 function evidenceClassColor(item: ResponseSnapshotEvidence) {
   if (item.decisionEligible === false) return "text-muted-foreground";
@@ -22,7 +23,20 @@ function evidenceClassColor(item: ResponseSnapshotEvidence) {
 
 function formatState(phase?: string | null, stability?: string | null) {
   if (!phase && !stability) return null;
-  return [phase, stability].filter(Boolean).join(" / ");
+  const label = stability ? displayTopicStability(stability) : null;
+  const checkpoint = topicStabilityConfirmationLabel(stability, phase);
+  return [phase, label, checkpoint].filter(Boolean).join(" / ");
+}
+
+function displayTransitionReason(reason?: string | null) {
+  const raw = String(reason || "").trim();
+  if (raw.toLowerCase() === "high maintenance entry") {
+    return "High stability confirmation checkpoint recorded";
+  }
+  if (raw.toLowerCase() === "final maintenance hold") {
+    return "Final-phase stability held; transfer evidence remains separate";
+  }
+  return raw;
 }
 
 export function ResponseSnapshotCard({ snapshot }: { snapshot: ResponseSnapshotV1 }) {
@@ -81,7 +95,7 @@ export function ResponseSnapshotCard({ snapshot }: { snapshot: ResponseSnapshotV
             )}
             {view.engineOutcomeRef?.transitionReason && (
               <p className="mt-1 text-xs text-muted-foreground">
-                Decision: {view.engineOutcomeRef.transitionReason}
+                Decision: {displayTransitionReason(view.engineOutcomeRef.transitionReason)}
               </p>
             )}
           </div>

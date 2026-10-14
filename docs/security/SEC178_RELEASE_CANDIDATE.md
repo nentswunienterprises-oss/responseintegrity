@@ -4,7 +4,7 @@ Status: source candidate; Production has not been contained by this work.
 
 ## Source and authority
 
-Built from main 65f72294ca7139c9dd2301e9b846d701b37e37d6, then reconciled to main 4f21bc15 (protected exception-release workflows only) on the existing security/p0-anon-containment-20261013 branch. The branch was zero ahead and three behind at fresh readback, then fast-forwarded. The requested 18:29 handoff archive was not attached and two Library filename searches found no result. This is a newly implemented and locally tested candidate, not a claim to have verified that archive.
+Built from main 65f72294ca7139c9dd2301e9b846d701b37e37d6, then reconciled through main ee4d01a9 (including the approved Exception Doctrine release and its three managed migrations) on the existing security/p0-anon-containment-20261013 branch. The branch was zero ahead and three behind at fresh readback, then fast-forwarded. The requested 18:29 handoff archive was not attached and two Library filename searches found no result. This is a newly implemented and locally tested candidate, not a claim to have verified that archive.
 
 Founder emergency containment authorization: 11 October 2026, recorded in issue #178. Temporary interruption is authorized. Production DDL remains reserved to .github/workflows/production-db-promotion.yml, protected production-db environment, PLAN followed by APPLY with THE_HUB. No direct Production DDL was executed.
 

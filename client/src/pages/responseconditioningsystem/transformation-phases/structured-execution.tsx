@@ -370,12 +370,12 @@ export default function ResponseConditioningStructuredExecution() {
                 },
                 {
                   key: "c",
-                  label: "Return to Clarity, because skipped steps mean the method is no longer understood.",
+                  label: "The skipped steps prove the method is no longer understood and require a return to Clarity.",
                   feedback: "Skipped execution does not automatically prove a recognition failure. RI preserves earlier supported layers unless the evidence actually contradicts them.",
                 },
                 {
                   key: "d",
-                  label: "Treat the skipped steps as an arithmetic detail and keep Structured Execution strong because the outcome was correct.",
+                  label: "The correct outcome establishes strong Structured Execution; the skipped steps are only an arithmetic detail.",
                   feedback: "The phase is about carrying the method structure visibly and repeatably. Missing required steps are not repaired by the final answer.",
                 },
                 { key: "e", label: "The answer can be correct while the required execution chain is still unproven because the skipped steps were never shown.", feedback: "Yes. Outcome correctness cannot replace observable, repeatable structure." },

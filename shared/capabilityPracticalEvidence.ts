@@ -189,7 +189,7 @@ const PREPARE_RUBRIC: CapabilityPracticalReviewRubric = {
 };
 
 const EXECUTE_RUBRIC: CapabilityPracticalReviewRubric = {
-  version: 2,
+  version: 3,
   outcomeRuleVersion: 1,
   criteria: [
     {
@@ -312,21 +312,21 @@ const EXECUTE_RUBRIC: CapabilityPracticalReviewRubric = {
       sandboxMockCriteria: ["student_response_managed", "evidence_captured"],
     },
     {
-      key: "observability_interruptions",
-      label: "Responds truthfully when the simulated student's work becomes unobservable",
-      observableStandard: "During the assigned final interruption, names what cannot be seen or heard, records the missing or confounded evidence and preserves system authority over the next decision.",
-      clearAnchor: "The Specialist explicitly refuses to score hidden work as observed, records the limitation, and chooses a justified pause or authorised evidence recovery.",
-      partialAnchor: "The observability problem is acknowledged but the resulting evidence claim or next action is imprecise.",
-      failAnchor: "Unseen work or inaudible reasoning is claimed as observed, manufactured or used to advance the student.",
+      key: "adaptive_evidence_truthfulness",
+      label: "Preserves observed conduct across adaptive turns",
+      observableStandard: "During all three system-revealed student turns, records the visible start, hesitation, method use and independent correction precisely, and separates any actual Specialist intervention from the student's response.",
+      clearAnchor: "The Specialist preserves what the student actually attempts at each turn, identifies the support boundary, and never invents an absence or artificial confound to avoid judging observable work.",
+      partialAnchor: "The Specialist retains the sequence and broad behaviour but leaves one important independence or correction detail too vague for review.",
+      failAnchor: "The Specialist manufactures not-observed or confounded evidence, rewrites a visible student response, or counts an assisted step as clean independent capability.",
       criticalOnFail: true,
       competencyLinks: [
-        { deepDiveKey: "tools_required", competencyKey: "tools.observability_gate" },
         { deepDiveKey: "logging_system", competencyKey: "logging.evidence_status" },
+        { deepDiveKey: "session_flow_control", competencyKey: "session_flow.condition_integrity" },
       ],
       criticalBoundaryLinks: [
-        { deepDiveKey: "tools_required", boundaryKey: "tools.no_unobservable_evidence" },
+        { deepDiveKey: "logging_system", boundaryKey: "logging.record_actual_behavior" },
       ],
-      sandboxMockCriteria: ["evidence_captured", "system_result_respected"],
+      sandboxMockCriteria: ["evidence_captured", "student_response_managed"],
     },
   ],
 };

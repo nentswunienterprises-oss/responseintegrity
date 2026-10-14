@@ -84,11 +84,9 @@ test("landing preserves UTM attribution through the capacity specialist entry", 
 test("public homepage exposes company-first Google search title and clear identity", () => {
   const spa = fs.readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../index.html"), "utf8");
   const expectedTitle = "Response Integrity | Calm Execution Under Pressure";
-  for (const source of [homepage, spa]) {
-    // HTML attribute whitespace does not change the search identity contract.
-    const page = source.replace(/\s+/g, " ");
+  for (const page of [homepage, spa]) {
     assert.match(page, /<title>Response Integrity \| Calm Execution Under Pressure<\/title>/);
-    assert.match(page, /<meta name="description" content="Response Integrity is a conditioning-based academic performance system/);
+    assert.match(page, /<meta\s+name="description"\s+content="Response Integrity is a conditioning-based academic performance system/);
     assert.match(page, /<link rel="canonical" href="https:\/\/responseintegrity\.co\.za\/"\s*\/>/);
     assert.match(page, /<meta property="og:title" content="Response Integrity \| Calm Execution Under Pressure"/);
     assert.match(page, /<meta property="og:site_name" content="Response Integrity"/);

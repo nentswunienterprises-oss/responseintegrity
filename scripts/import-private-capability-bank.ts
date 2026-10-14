@@ -10,6 +10,7 @@ import {
 import { getRequiredCapabilityEvidenceCells } from "../shared/capabilityBlueprint";
 import { buildCapabilityCriticalBoundaryRequirements } from "../shared/capabilityCriticalCoverage";
 import { assertCapabilityOptionParity } from "../shared/capabilityOptionParity";
+import { assertNoSupersededEvidenceScenario } from "../shared/evidenceExceptionAuthoringGuard";
 
 const optionSchema = z.object({
   key: z.string().trim().min(1),
@@ -407,6 +408,14 @@ function validateAssessment(assessment: ParsedAssessment) {
         `Capability bank ${assessment.assessmentKey}/${item.key} teaches system authority without explaining its evidence basis. State and next-action authority must be grounded in qualifying evidence and shared RI decision rules, not obedience to software.`,
       );
     }
+
+    assertNoSupersededEvidenceScenario({
+      assessmentKey:assessment.assessmentKey,
+      itemKey:item.key,
+      competencyKey:item.competencyKey,
+      text:[item.prompt,item.explanation,...item.options.map(option=>option.label),
+        ...Object.values(item.optionFeedback||{})].join(" "),
+    });
 
     const promptContext = `${assessment.assessmentKey}/${item.key}/prompt`;
     assertNoAuthoringLeak(promptContext, item.prompt);

@@ -14,8 +14,8 @@ test("production DB authority locks the verified The Hub baseline", () => {
   assert.equal(result.authority.productionProjectRef, "yzcnavucvwgmulcxgxvw");
   assert.equal(result.authority.baseline.commit, "a8c1aab29b230ce523c0353cfcc4eb4b1ae07627");
   assert.equal(result.baselineCount, 15);
-  assert.equal(result.managedCount, 13);
-  assert.deepEqual(result.authority.managedMigrations.slice(0,11), [
+  assert.equal(result.managedCount, 16);
+  assert.deepEqual(result.authority.managedMigrations.slice(0,14), [
     {
       path: "migrations/20260927_diagnosis_activity_context_separation.sql",
       description:
@@ -82,12 +82,27 @@ test("production DB authority locks the verified The Hub baseline", () => {
         "Restore the missing governed Trial window and COO-extension columns, freeze a 35-day window from the first completed Trial session rather than family placement, and require explicit documented extensions without qualifying any Specialist.",
       risk: "additive",
     },
+    {
+      "path": "migrations/20261014013817_sandbox_topic_state_lanes.sql",
+      "description": "Topic-scoped Sandbox evidence lanes, with historical topic attribution only from immutable session lineage.",
+      "risk": "additive"
+    },
+    {
+      "path": "migrations/20261014013826_sandbox_progression_authority.sql",
+      "description": "Preserve earned Sandbox exit eligibility separately from stability; leave historical evaluations unchanged.",
+      "risk": "additive"
+    },
+    {
+      "path": "migrations/20261014013834_sandbox_behavior_model_v2.sql",
+      "description": "Add versioned Sandbox behaviour authority; existing trajectories remain V1 and new trajectories can elect V2.",
+      "risk": "additive"
+    },
   ]);
 });
 
 test("P0 candidates have exact registered checksums and emergency authority", () => {
   const authority=loadProductionMigrationAuthority();
-  const candidates=authority.managedMigrations.slice(11);
+  const candidates=authority.managedMigrations.filter(m => m.path.includes("20261013_p0_"));
   assert.deepEqual(candidates.map(m=>m.path),[
     "migrations/20261013_p0_anon_containment.sql",
     "migrations/20261013_p0_confidential_storage_private.sql",

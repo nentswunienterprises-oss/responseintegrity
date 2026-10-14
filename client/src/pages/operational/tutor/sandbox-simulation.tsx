@@ -34,6 +34,8 @@ import {
 } from "@/components/tutor/TrainingLiveDeliveryUi";
 import { ResponseSnapshotCard } from "@/components/tutor/ResponseSnapshotCard";
 import type { ResponseSnapshotV1 } from "@shared/responseSnapshot";
+import { sandboxRequiresPrerequisiteSentinel } from "@shared/sandboxPrerequisiteProbe";
+import { displayTopicStability, topicStabilityConfirmationLabel } from "@shared/topicStabilityPresentation";
 import {
   NEXT_ACTION_ENGINE,
   type TopicPhase,
@@ -207,6 +209,7 @@ type EnvironmentForm = {
       targetPhase: string;
       evidenceQuestion: string;
       specialistInstruction: string;
+      simulatedFollowUp: string | null;
       options: Array<{
         id: "held" | "contradicted" | "not_observed" | "confounded";
         label: string;
@@ -291,6 +294,7 @@ type HistoryData = {
     sessionNumber: number;
     prescribedPhase: string;
     prescribedStability: string;
+    activeTopicKey?: string | null;
     divergenceActive: boolean;
     route: string;
     targetPhase: string | null;
@@ -301,6 +305,7 @@ type HistoryData = {
     eventSequence: number;
     sessionNumber: number;
     phase: string;
+    topicKey?: string | null;
     setId: string;
     repNumber: number;
     conditionKept: boolean | null;
@@ -314,6 +319,7 @@ type HistoryData = {
     id: string;
     sessionNumber: number;
     phase: string;
+    topicKey?: string | null;
     authorityAligned: boolean;
     stateTrackAligned: boolean;
     completedAt: string;
@@ -364,6 +370,7 @@ export default function SpecialistSandboxSimulation({
   const [prerequisiteSentinel, setPrerequisiteSentinel] = useState<
     "held" | "contradicted" | "not_observed" | "confounded" | null
   >(null);
+  const [prerequisiteProbeStarted, setPrerequisiteProbeStarted] = useState(false);
   const [inheritedRescueSignal, setInheritedRescueSignal] = useState<
     "none" | "isolated" | "repeated" | "not_observed" | "confounded" | null
   >(null);
@@ -400,14 +407,15 @@ export default function SpecialistSandboxSimulation({
   const requestedStudentId = String(
     studentIdOverride || searchParams.get("studentId") || "",
   ).trim();
-  const selectedSandboxStudent = studentIdOverride
-    ? sandboxStudents.find((student) => String(student.id) === requestedStudentId) || null
-    : sandboxStudents.find((student) => String(student.id) === requestedStudentId) ||
-      sandboxStudents[0] ||
-      null;
-  const studentId = String(
-    studentIdOverride || selectedSandboxStudent?.id || "",
-  );
+  // An explicit deep link is an identity request, not a preference to fall
+  // back to another learner. The Pod card collection may be narrower than the
+  // server-authorized synthetic Sandbox students (e.g. controlled Proof QA).
+  // Keep backend assertSandboxAccess + confirmed-booking authority as the
+  // security boundary; invalid or unassigned IDs must fail closed there.
+  const selectedSandboxStudent =
+    sandboxStudents.find((student) => String(student.id) === requestedStudentId) ||
+    (!requestedStudentId ? sandboxStudents[0] || null : null);
+  const studentId = String(requestedStudentId || selectedSandboxStudent?.id || "");
   const requestedSandboxSessionNumberRaw = Number(
     searchParams.get("sandboxSession") || 0,
   );
@@ -423,6 +431,7 @@ export default function SpecialistSandboxSimulation({
     setSelections({});
     setInterventionEvent("none");
     setPrerequisiteSentinel(null);
+    setPrerequisiteProbeStarted(false);
     setInheritedRescueSignal(null);
     setDiagnosisSelections({});
     setDiagnosisSupportEvent("none");
@@ -490,15 +499,7 @@ export default function SpecialistSandboxSimulation({
 
   const requiresPrerequisiteSentinel = Boolean(
     rep?.prerequisiteSentinel &&
-      rep.fields.some((field) => {
-        const selection = selections[field.fieldKey];
-        const selected = selection?.optionId;
-        if (!selected || selection?.evidenceStatus !== "observed") return false;
-        return field.options.some(
-          (option) =>
-            option.optionId === selected && option.requiresPrerequisiteSentinel,
-        );
-      }),
+      sandboxRequiresPrerequisiteSentinel(rep.fields, selections),
   );
 
   const requiresInheritedRescueSignal = Boolean(rep?.inheritedRescueSignal);
@@ -507,7 +508,7 @@ export default function SpecialistSandboxSimulation({
     Boolean(rep) &&
     completedObservationCount === (rep?.fields.length || 0) &&
     (rep?.fields.length || 0) > 0 &&
-    (!requiresPrerequisiteSentinel || Boolean(prerequisiteSentinel)) &&
+    (!requiresPrerequisiteSentinel || (prerequisiteProbeStarted && Boolean(prerequisiteSentinel))) &&
     (!requiresInheritedRescueSignal || Boolean(inheritedRescueSignal));
 
   const diagnosisObservationCount = useMemo(() => {
@@ -663,6 +664,7 @@ export default function SpecialistSandboxSimulation({
       setSelections({});
       setInterventionEvent("none");
       setPrerequisiteSentinel(null);
+      setPrerequisiteProbeStarted(false);
       setInheritedRescueSignal(null);
       setRepStarted(false);
       setSupportPickerOpen(false);
@@ -812,16 +814,18 @@ export default function SpecialistSandboxSimulation({
       : nextActionData?.primaryAction || "Not recorded";
     const nextConstraint = nextActionData?.rules?.[0] || null;
     const formatState = (phase?: string | null, stability?: string | null) =>
-      phase && stability ? `${phase} · ${stability}` : phase || stability || "Not recorded";
+      phase && stability
+        ? `${phase} · ${displayTopicStability(stability)}${topicStabilityConfirmationLabel(stability, phase) ? " · Confirmation required" : ""}`
+        : phase || displayTopicStability(stability) || "Not recorded";
     const sessionResult =
       phaseAfter && stabilityAfter
         ? transitionReason === "stability advance"
-          ? `${routeTopic}: stability improved to ${stabilityAfter} in ${phaseAfter}`
+          ? `${routeTopic}: stability improved to ${displayTopicStability(stabilityAfter)} in ${phaseAfter}`
           : transitionReason === "stability regress"
-            ? `${routeTopic}: stability regressed to ${stabilityAfter} in ${phaseAfter}`
+            ? `${routeTopic}: stability regressed to ${displayTopicStability(stabilityAfter)} in ${phaseAfter}`
             : transitionReason === "phase progress"
-              ? `${routeTopic}: phase advanced to ${phaseAfter} at ${stabilityAfter} stability`
-              : `${routeTopic}: stability held at ${stabilityAfter} in ${phaseAfter}`
+              ? `${routeTopic}: phase advanced to ${phaseAfter} at ${displayTopicStability(stabilityAfter)} stability`
+              : `${routeTopic}: stability held at ${displayTopicStability(stabilityAfter)} in ${phaseAfter}${topicStabilityConfirmationLabel(stabilityAfter, phaseAfter) ? "; separate confirmation required" : ""}`
         : `${routeTopic}: session evidence recorded`;
     return (
       <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
@@ -1200,7 +1204,7 @@ export default function SpecialistSandboxSimulation({
                 </div>
 
                 {requiresPrerequisiteSentinel && rep.prerequisiteSentinel && (
-                  <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+                  <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">
                       Prerequisite sentinel required
                     </div>
@@ -1210,23 +1214,58 @@ export default function SpecialistSandboxSimulation({
                     <p className="mt-2 text-sm leading-6 text-amber-900">
                       {rep.prerequisiteSentinel.specialistInstruction}
                     </p>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                      {rep.prerequisiteSentinel.options.map((option) => (
-                        <Button
-                          key={option.id}
-                          type="button"
-                          variant={
-                            prerequisiteSentinel === option.id
-                              ? "default"
-                              : "outline"
-                          }
-                          className="h-auto justify-start whitespace-normal py-3 text-left"
-                          onClick={() => setPrerequisiteSentinel(option.id)}
-                        >
-                          {option.label}
-                        </Button>
-                      ))}
-                    </div>
+                    <p className="mt-2 text-sm leading-6 text-amber-950">
+                      Your observed breakdown is valid evidence. Run this separate stripped-constraint check.
+                      Do not change the earlier observations to unlock confirmation.
+                    </p>
+                    {!prerequisiteProbeStarted ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-4 border-amber-700 bg-white text-amber-950 hover:bg-amber-100 hover:text-amber-950"
+                        onClick={() => setPrerequisiteProbeStarted(true)}
+                      >
+                        {form.prescribedPhase === "Time Pressure Stability"
+                          ? "Run untimed check"
+                          : "Run prerequisite check"}
+                      </Button>
+                    ) : (
+                      <>
+                        <div className="mt-4 rounded-lg border border-amber-300 bg-white p-3 text-amber-950">
+                          <div className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                            Simulated follow-up response
+                          </div>
+                          <p className="mt-2 text-sm leading-6">
+                            {rep.prerequisiteSentinel.simulatedFollowUp ||
+                              "The simulated case does not provide a separate comparable response. The earlier timed response alone cannot establish the prerequisite."}
+                          </p>
+                        </div>
+                        <p className="mt-3 text-sm font-semibold text-amber-950">
+                          What did the separate check actually establish?
+                        </p>
+                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                          {rep.prerequisiteSentinel.options.map((option) => (
+                            <Button
+                              key={option.id}
+                              type="button"
+                              variant="outline"
+                              disabled={
+                                !rep.prerequisiteSentinel?.simulatedFollowUp &&
+                                (option.id === "held" || option.id === "contradicted")
+                              }
+                              className={`h-auto justify-start whitespace-normal py-3 text-left ${
+                                prerequisiteSentinel === option.id
+                                  ? "border-amber-950 bg-amber-950 text-white hover:bg-amber-900 hover:text-white"
+                                  : "border-amber-300 bg-white text-amber-950 hover:bg-amber-100 hover:text-amber-950"
+                              }`}
+                              onClick={() => setPrerequisiteSentinel(option.id)}
+                            >
+                              {option.label}
+                            </Button>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -1263,6 +1302,11 @@ export default function SpecialistSandboxSimulation({
                   </div>
                 )}
 
+                {requiresPrerequisiteSentinel && !prerequisiteSentinel && (
+                  <p role="status" className="mt-4 text-sm text-amber-500">
+                    Confirm Rep is waiting for the prerequisite follow-up observation, not for stronger timed outcomes.
+                  </p>
+                )}
                 <div className="mt-6 flex justify-end">
                   <Button
                     disabled={!allComplete || submitRep.isPending}
@@ -1372,7 +1416,10 @@ export default function SpecialistSandboxSimulation({
               </div>
               <div className="flex flex-wrap gap-2">
                 <Badge variant="outline">{form.prescribedPhase}</Badge>
-                <Badge variant="secondary">{form.prescribedStability}</Badge>
+                <Badge variant="secondary">{displayTopicStability(form.prescribedStability)}</Badge>
+                {topicStabilityConfirmationLabel(form.prescribedStability, form.prescribedPhase) ? (
+                  <Badge variant="outline">{topicStabilityConfirmationLabel(form.prescribedStability, form.prescribedPhase)}</Badge>
+                ) : null}
               </div>
             </div>
           </CardHeader>
@@ -1852,7 +1899,7 @@ export default function SpecialistSandboxSimulation({
                   >
                     <div>
                       <p className="font-medium">
-                        Session {session.sessionNumber} · {session.phase}
+                        Session {session.sessionNumber} · {session.topicKey ? session.topicKey.split(" ").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ") + " · " : ""}{session.phase}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         RI authority {session.authorityAligned ? "aligned" : "diverged"} · state{" "}

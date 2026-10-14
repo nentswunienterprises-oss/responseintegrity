@@ -61,8 +61,8 @@ Training uses the same behavioral classes as evidence-native diagnosis:
 - `conditional` - the capability appeared only inconsistently, dependently, or with material instability.
 - `near_stable` - the capability substantially held but with a small decision-relevant drift.
 - `supported` - the capability was cleanly demonstrated under the conditions of that opportunity.
-- `not_observed` - the opportunity did not meaningfully expose the behavior.
-- `confounded` - assistance, task design, content readiness, interruption, or another factor prevents clean interpretation.
+- `not_observed` - a narrowly used evidence-recording status: no qualifying observation exists. It is not a simulated student personality, the product of a casually skipped question, or a reason to invent an interruption.
+- `confounded` - a directly evidenced contamination of the intended claim, such as a worked example exposing a method during a no-support check. Log actual interventions separately and preserve unaffected clean evidence. Device or timer faults use their distinct operational recovery pathways.
 
 Only the first four classes can contribute to a capability decision.
 

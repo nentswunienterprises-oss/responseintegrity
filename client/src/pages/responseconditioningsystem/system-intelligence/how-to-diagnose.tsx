@@ -128,7 +128,7 @@ export default function ResponseConditioningHowToDiagnose() {
             <li>No modelling or method prompt.</li>
             <li>The student solves independently.</li>
             <li>The opportunity can naturally expose Clarity and immediate Structured Execution behavior.</li>
-            <li>Anything the response does not expose remains not observed. The Specialist does not ask extra questions just to fill fields.</li>
+            <li>The neutral start is not a compulsory test of every Clarity explanation. RI-OS selects a dedicated recognition check if that question still needs evidence; the Specialist does not add extra questions to fill fields.</li>
           </ul>
           <p className="font-semibold">
             This is a neutral starting evidence condition, not an automatic Structured Execution placement.
@@ -163,7 +163,7 @@ export default function ResponseConditioningHowToDiagnose() {
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>A decisive clean opportunity can end a question quickly.</li>
-            <li>Not-observed, confounded, or conflicting evidence can require another comparable opportunity.</li>
+            <li>A genuinely unresolved prerequisite, an exceptional worked-example confound, or conflicting clean observations can require another comparable opportunity.</li>
             <li>RI-OS requests only the smallest additional evidence needed.</li>
             <li>If permitted clean evidence is exhausted and the question is still unresolved, the system blocks rather than inventing a state.</li>
           </ul>

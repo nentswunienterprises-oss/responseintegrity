@@ -20,6 +20,8 @@ import {
   buildPassiveExecutionTimingEvidence,
   buildTimedExecutionEvidence,
 } from "./tpsTimingContract";
+import { sandboxBehaviorProfileMultiplier } from "./sandboxBehaviorProfiles";
+import { renderSandboxDiagnosisExceptionNarrativeV2 } from "./sandboxDiagnosisExceptionNarrativesV2";
 import type { TopicPhase } from "./topicConditioningEngine";
 import type {
   SandboxCapabilityLayer,
@@ -77,6 +79,8 @@ export type SandboxDiagnosisOutcomeSelectionContext = {
   sequenceNumber: number;
   earliestUnsupportedCapability?: SandboxCapabilityLayer | null;
   recentOutcomeKeys?: string[];
+  /** V1 preserves issued diagnostic outcomes; V2 uses the student's profile. */
+  behaviorModelVersion?: 1 | 2;
 };
 
 export type SandboxDiagnosisSubmittedProbe = {
@@ -162,6 +166,8 @@ export function validateSandboxDiagnosisOutcomeDefinition(
 
 export function selectSandboxDiagnosisOutcome(input: {
   seed: string;
+  /** Trajectory-level identity, independent of per-probe Handover/Diagnosis salt. */
+  profileSeed?: string;
   outcomes: SandboxDiagnosisOutcomeDefinition[];
   context: SandboxDiagnosisOutcomeSelectionContext;
 }) {
@@ -179,9 +185,43 @@ export function selectSandboxDiagnosisOutcome(input: {
     );
   }
 
+  // Diagnosis and Handover use the same V2 doctrine as Training:
+  // "not observed" is a factual evidence status entered when an observation
+  // genuinely cannot be established; it is NOT a fictional student scenario.
+  // Keep legacy V1 cases available only to historical V1 trajectories.
+  //
+  // A visibly consulted worked example is the one authored V2 confound.
+  // Its deterministic 2% eligibility window is an upper bound on when that
+  // event may compete with ordinary cases, not a quota or real-world rate.
+  const v2ConfoundEligibilityWindow =
+    input.context.behaviorModelVersion === 2 &&
+    hashUnit([
+      "sandbox-v2-rare-diagnosis-integrity-v1",
+      input.seed,
+      input.context.startingPhase,
+      input.context.probeId,
+      input.context.sequenceNumber,
+    ].join(":")) < 0.02;
+  const eligible = input.context.behaviorModelVersion === 2
+    ? compatible.filter((definition) => {
+        if (
+          /\.pattern_7$/.test(definition.key) ||
+          definition.trajectoryClass === "not_observed"
+        ) return false;
+        if (
+          (/\.pattern_8$/.test(definition.key) ||
+            definition.trajectoryClass === "confounded") &&
+          !v2ConfoundEligibilityWindow
+        ) return false;
+        return true;
+      })
+    : compatible;
+  if (!eligible.length) {
+    throw new Error("Sandbox diagnosis has no observable, eligible V2 outcomes; preserve evidence and do not fabricate one.");
+  }
   const recent = new Set(input.context.recentOutcomeKeys || []);
-  const nonRepeated = compatible.filter((definition) => !recent.has(definition.key));
-  const repetitionEligible = nonRepeated.length ? nonRepeated : compatible;
+  const nonRepeated = eligible.filter((definition) => !recent.has(definition.key));
+  const repetitionEligible = nonRepeated.length ? nonRepeated : eligible;
   const target = input.context.earliestUnsupportedCapability || null;
   const targeted = target
     ? repetitionEligible.filter((definition) =>
@@ -190,7 +230,7 @@ export function selectSandboxDiagnosisOutcome(input: {
     : [];
   const candidates = targeted.length ? targeted : repetitionEligible;
 
-  return [...candidates].sort((a, b) => {
+  const chosen = [...candidates].sort((a, b) => {
     const score = (definition: SandboxDiagnosisOutcomeDefinition) =>
       hashUnit(
         [
@@ -201,9 +241,41 @@ export function selectSandboxDiagnosisOutcome(input: {
           definition.key,
           definition.version,
         ].join(":"),
-      ) / Math.max(0.05, definition.weight);
+      ) / Math.max(0.05, definition.weight *
+        (input.context.behaviorModelVersion === 2
+          ? sandboxBehaviorProfileMultiplier({
+              seed: input.profileSeed || input.seed.split(":")[0],
+              // Diagnose what this probe observes, not the entry phase.
+              phase: DIAGNOSIS_PROBES[input.context.probeId].primaryPhase,
+              trajectoryClass: definition.trajectoryClass,
+            })
+          : 1));
     return score(a) - score(b) || a.key.localeCompare(b.key);
   })[0];
+
+  if (input.context.behaviorModelVersion !== 2) return chosen;
+  const studentBehavior = renderSandboxDiagnosisExceptionNarrativeV2(chosen.key);
+  if (!studentBehavior) return chosen;
+  if (chosen.trajectoryClass !== "not_observed" && chosen.trajectoryClass !== "confounded") {
+    throw new Error("A V2 integrity scenario cannot replace an ordinary diagnostic outcome.");
+  }
+
+  // A worked model that guides the method also contaminates adjacent
+  // independence/repeatability judgments. An on-screen method cue removed
+  // before timing starts does not contaminate later timed execution.
+  const contaminatedDimensions =
+    chosen.key === "execution.repeatability.pattern_8"
+      ? ["execution.repeatability", "execution.independence"]
+      : chosen.key === "time.consistency.pattern_8"
+        ? ["time.completion_integrity"]
+        : [];
+  const canonicalObservations = chosen.canonicalObservations.map((observation) =>
+    contaminatedDimensions.includes(observation.dimensionId)
+      ? { ...observation, behaviorId: "confounded" }
+      : observation,
+  );
+
+  return { ...chosen, studentBehavior, canonicalObservations };
 }
 
 export function sandboxDiagnosisSupportPreservesCondition(

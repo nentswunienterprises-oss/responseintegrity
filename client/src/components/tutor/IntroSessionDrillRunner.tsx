@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { observationLevelFromOptionIndex, type ObservationLevel } from "@shared/observationScoring";
 import { normalizeStability, tryParsePhase } from "@shared/topicConditioningEngine";
+import { displayTopicStability, topicStabilityConfirmationLabel } from "@shared/topicStabilityPresentation";
 import {
   DIAGNOSIS_OBSERVATION_MATRIX,
   type DiagnosisDimensionId,
@@ -3579,37 +3580,40 @@ function IntroSessionDrillRunnerCore({
             : "text-red-700";
         const resultLabelFor = (row: any, topicName: string) => {
           if (drillMode === "diagnosis" && row?.bandLabel) {
-            return `${topicName}: placed in ${row?.phase} at ${row?.stability} stability`;
+            return `${topicName}: placed in ${row?.phase} at ${displayTopicStability(row?.stability)} stability`;
           }
           const transitionReason = String(row?.transitionReason || row?.phaseDecision || "remain").toLowerCase();
           if (transitionReason === "targeted re-diagnosis required" || row?.requiresTargetedRediagnosis) {
             return `${topicName}: prerequisite trust is no longer sufficient for ordinary Training; state is held pending targeted re-diagnosis`;
           }
           if ((transitionReason === "phase progress" || row?.phaseDecision === "advance") && row?.phaseBefore !== row?.phase) {
-            return `${topicName}: phase advanced to ${row?.phase} at ${row?.stability} stability`;
+            return `${topicName}: phase advanced to ${row?.phase} at ${displayTopicStability(row?.stability)} stability`;
           }
           if (row?.phase === "Time Pressure Stability" && row?.stability === "High Maintenance") {
-            return `${topicName}: sustained final-phase maintenance in ${row?.phase}`;
+            return `${topicName}: final-phase high stability checkpoint recorded; verify transfer separately`;
           }
           if (transitionReason === "stability regress" || row?.phaseDecision === "regress") {
-            return `${topicName}: stability regressed to ${row?.stability} in ${row?.phase}`;
+            return `${topicName}: stability regressed to ${displayTopicStability(row?.stability)} in ${row?.phase}`;
           }
           if (transitionReason === "high maintenance entry") {
-            return `${topicName}: High Maintenance earned in ${row?.phase}`;
+            return `${topicName}: high stability confirmation checkpoint recorded in ${row?.phase}; a later qualifying exit check is required`;
           }
           if (transitionReason === "stability advance") {
-            return `${topicName}: stability improved to ${row?.stability} in ${row?.phase}`;
+            return `${topicName}: stability improved to ${displayTopicStability(row?.stability)} in ${row?.phase}`;
           }
           if (transitionReason === "final maintenance hold") {
-            return `${topicName}: sustained final-phase maintenance in ${row?.phase}`;
+            return `${topicName}: final-phase high stability checkpoint maintained; verify transfer separately`;
           }
-          return `${topicName}: stability held at ${row?.stability} in ${row?.phase}`;
+          return `${topicName}: stability held at ${displayTopicStability(row?.stability)} in ${row?.phase}${topicStabilityConfirmationLabel(row?.stability, row?.phase) ? "; separate confirmation required" : ""}`;
         };
         const formatState = (phaseValue?: string | null, stabilityValue?: string | null) => {
           if (!phaseValue && !stabilityValue) return "Not recorded";
-          if (!phaseValue) return String(stabilityValue || "Not recorded");
-          if (!stabilityValue) return String(phaseValue || "Not recorded");
-          return `${phaseValue} (${stabilityValue})`;
+          const renderedStability = stabilityValue
+            ? `${displayTopicStability(stabilityValue)}${topicStabilityConfirmationLabel(stabilityValue, phaseValue) ? " · Confirmation required" : ""}`
+            : "Not recorded";
+          if (!phaseValue) return renderedStability;
+          if (!stabilityValue) return String(phaseValue);
+          return `${phaseValue} (${renderedStability})`;
         };
         const getDisplayedActionDetails = (row: any) => {
           const transitionReason = String(row?.transitionReason || row?.phaseDecision || "remain").toLowerCase();
@@ -3670,7 +3674,7 @@ function IntroSessionDrillRunnerCore({
                         Resulting state
                       </p>
                       <p className="mt-1 font-semibold">
-                        {handoverEvidenceSummary.resultingPhase} · {handoverEvidenceSummary.resultingStability}
+                        {handoverEvidenceSummary.resultingPhase} · {displayTopicStability(handoverEvidenceSummary.resultingStability)}
                       </p>
                     </div>
                   </div>
@@ -3910,7 +3914,10 @@ function IntroSessionDrillRunnerCore({
               </p>
               {!isAdaptiveDiagnosisMode && (
               <p>
-                <span className="font-medium text-foreground">Inherited Stability:</span> {previousStability || "Not recorded"}
+                <span className="font-medium text-foreground">Inherited Stability:</span> {previousStability ? displayTopicStability(previousStability) : "Not recorded"}
+                {topicStabilityConfirmationLabel(previousStability, displayPhase) ? (
+                  <span className="ml-2 text-xs text-muted-foreground">{topicStabilityConfirmationLabel(previousStability, displayPhase)}</span>
+                ) : null}
               </p>
             )}
             <p>
@@ -4818,9 +4825,9 @@ function IntroSessionDrillRunnerCore({
               },
             ];
             return (
-              <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">
-                  Prerequisite sentinel required
+              <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-900">
+                  Earlier-skill check after a breakdown
                 </div>
                 <p className="mt-2 text-sm font-semibold text-amber-950">
                   {sentinelDefinition.evidenceQuestion}
@@ -4829,7 +4836,7 @@ function IntroSessionDrillRunnerCore({
                   {sentinelDefinition.specialistInstruction}
                 </p>
                 <p className="mt-2 text-xs leading-5 text-amber-800">
-                  This check does not move the topic backward. It only decides whether the earlier prerequisite can still be trusted or whether the evidence-complete diagnosis engine must re-establish the entry state.
+                  This is an exception check within Training, not a new diagnosis or a timed Training rep. If the earlier skill holds, the breakdown remains in this phase. If it fails or cannot be established cleanly, Training pauses for targeted re-diagnosis.
                 </p>
                 <div className="mt-3 grid gap-2">
                   {options.map((option) => (
@@ -4837,15 +4844,16 @@ function IntroSessionDrillRunnerCore({
                       type="button"
                       key={option.id}
                       onClick={() => handleTrainingPrerequisiteSentinel(option.id)}
+                      aria-pressed={selected === option.id}
                       className={[
-                        "rounded-lg border p-3 text-left",
+                        "w-full rounded-lg border p-3 text-left text-amber-950 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700",
                         selected === option.id
-                          ? "border-amber-600 bg-white ring-1 ring-amber-600"
-                          : "border-amber-200 bg-white/70 hover:bg-white",
+                          ? "border-amber-700 bg-amber-100 ring-1 ring-amber-700"
+                          : "border-amber-300 bg-white hover:bg-amber-100",
                       ].join(" ")}
                     >
-                      <span className="block text-sm font-medium text-foreground">{option.label}</span>
-                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">{option.detail}</span>
+                      <span className="block text-sm font-medium text-amber-950">{option.label}</span>
+                      <span className="mt-1 block text-xs leading-5 text-amber-800">{option.detail}</span>
                     </button>
                   ))}
                 </div>

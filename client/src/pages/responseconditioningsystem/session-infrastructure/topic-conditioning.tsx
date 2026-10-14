@@ -171,7 +171,7 @@ export default function ResponseConditioningTopicConditioning() {
             <li>No modelling or method prompt.</li>
             <li>The student executes independently.</li>
             <li>The response can naturally expose Clarity and immediate Structured Execution behavior.</li>
-            <li>Behavior that never appears remains not observed rather than being elicited just to fill the form.</li>
+            <li>Record only behaviours that the neutral opportunity genuinely exposed. A missing qualifying observation remains unresolved; do not manufacture a prompt to fill a field. RI-OS decides whether another proper check is needed.</li>
           </ul>
           <p className="font-semibold">
             This neutral baseline is not an automatic Structured Execution placement. It is the first clean evidence

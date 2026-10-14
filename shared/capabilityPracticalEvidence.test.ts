@@ -15,10 +15,10 @@ test("current Practicals retain valid competency and integrity-boundary lineage"
  }
  const execute=CAPABILITY_PRACTICAL_PROOFS[1];
  assert.equal(execute.version,2);
- assert.equal(execute.reviewRubric.version,2);
+ assert.equal(execute.reviewRubric.version,3);
  assert.ok(execute.mustShow.some(x=>x.includes("system")||x.includes("turn")));
  assert.ok(execute.reviewRubric.criteria.some(c=>c.key==="adaptive_turn_integrity"));
- assert.ok(execute.reviewRubric.criteria.some(c=>c.key==="observability_interruptions"&&c.criticalOnFail));
+ assert.ok(execute.reviewRubric.criteria.some(c=>c.key==="adaptive_evidence_truthfulness"&&c.criticalOnFail));
 });
 
 test("human judges all criteria, system derives outcome; ordinary weaknesses require repeat",()=>{

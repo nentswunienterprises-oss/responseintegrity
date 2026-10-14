@@ -128,6 +128,21 @@
       "risk": "additive"
     },
     {
+      "path": "migrations/20261014013817_sandbox_topic_state_lanes.sql",
+      "description": "Topic-scoped Sandbox evidence lanes, with historical topic attribution only from immutable session lineage.",
+      "risk": "additive"
+    },
+    {
+      "path": "migrations/20261014013826_sandbox_progression_authority.sql",
+      "description": "Preserve earned Sandbox exit eligibility separately from stability; leave historical evaluations unchanged.",
+      "risk": "additive"
+    },
+    {
+      "path": "migrations/20261014013834_sandbox_behavior_model_v2.sql",
+      "description": "Add versioned Sandbox behaviour authority; existing trajectories remain V1 and new trajectories can elect V2.",
+      "risk": "additive"
+    },
+    {
       "path": "migrations/20261013_p0_anon_containment.sql",
       "description": "P0 #178: fail closed across 62 reviewed no-RLS tables and three reviewed permissive-RLS tables for anon and authenticated direct access; retain existing privileged grants, abort global catalog drift, preserve previous containment.",
       "risk": "destructive",
