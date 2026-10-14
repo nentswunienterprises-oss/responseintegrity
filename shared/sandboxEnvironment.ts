@@ -78,6 +78,23 @@ export type SandboxOutcomeDefinition = {
   challengeCapabilities?: SandboxCapabilityLayer[];
 };
 
+/**
+ * Eligibility for AUTHORING the next Sandbox rep. It must never be used to
+ * reinterpret or edit previously stored V1 evidence. V1's scripted
+ * non-observation and display-glitch confounds (patterns 7/8) are retired.
+ * V2 keeps only the rare, worked-example-based confound (pattern 8).
+ */
+export function isAuthoredSandboxOutcomeEligible(input: {
+  behaviorModelVersion: 1 | 2;
+  outcomeKey: string;
+  trajectoryClass: SandboxTrajectoryClass;
+}): boolean {
+  if (input.behaviorModelVersion === 1)
+    return !/\.pattern_[78]$/.test(input.outcomeKey);
+  return !/\.pattern_7$/.test(input.outcomeKey) &&
+    input.trajectoryClass !== "not_observed";
+}
+
 export type SandboxOutcomeSelectionContext = {
   canonicalPhase: TopicPhase;
   canonicalStability: TopicStability;

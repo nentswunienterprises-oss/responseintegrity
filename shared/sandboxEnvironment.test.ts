@@ -5,6 +5,7 @@ import {
   compareSandboxTurn,
   evaluateSandboxCapabilityReadiness,
   evaluateSandboxCompletedSession,
+  isAuthoredSandboxOutcomeEligible,
   materializeSandboxTrainingEvidence,
   nextSandboxContinuityState,
   projectSandboxOutcomeToCurrentTrainingContract,
@@ -1105,4 +1106,37 @@ test("V2 exception descriptions preserve the taught method and name observable e
       }
     }
   }
+});
+
+test("Only V1 fictional incidents are retired for newly authored reps", () => {
+  const base = { outcomeKey: "timed_method.rep_3.pattern_1", trajectoryClass: "supported" as const };
+  for (let pattern = 1; pattern <= 6; pattern++) {
+    assert.equal(isAuthoredSandboxOutcomeEligible({
+      ...base, behaviorModelVersion: 1,
+      outcomeKey: "timed_method.rep_3.pattern_" + pattern,
+    }), true, "Ordinary V1 patterns remain available.");
+  }
+  for (const pattern of [7, 8]) {
+    assert.equal(isAuthoredSandboxOutcomeEligible({
+      ...base, behaviorModelVersion: 1,
+      outcomeKey: "timed_method.rep_3.pattern_" + pattern,
+    }), false, "Retired fictional V1 incidents cannot be newly authored.");
+  }
+  assert.equal(isAuthoredSandboxOutcomeEligible({
+    ...base, behaviorModelVersion: 2,
+    outcomeKey: "timed_method.rep_3.pattern_7",
+    trajectoryClass: "not_observed",
+  }), false, "No V2 authored not-observed incident.");
+  assert.equal(isAuthoredSandboxOutcomeEligible({
+    ...base, behaviorModelVersion: 2,
+    outcomeKey: "timed_method.rep_3.pattern_8",
+    trajectoryClass: "confounded",
+  }), true, "The rare worked-example V2 confound remains eligible.");
+  assert.equal(isAuthoredSandboxOutcomeEligible({
+    ...base, behaviorModelVersion: 2,
+    trajectoryClass: "not_observed",
+  }), false, "No mismarked V2 non-observation.");
+  assert.equal(isAuthoredSandboxOutcomeEligible({
+    ...base, behaviorModelVersion: 2,
+  }), true, "Ordinary V2 observations are unchanged.");
 });
