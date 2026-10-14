@@ -48,6 +48,7 @@ import { normalizeCapabilityProgressionState, type ProgressionAuthority } from "
 import { SANDBOX_BEHAVIOR_NARRATIVE_VERSION } from "@shared/sandboxBehaviorNarrativesV2";
 import {
   sandboxTopicKey,
+  deriveSandboxSameTopicSnapshotBefore,
   resolveSandboxTopicSeed,
   persistedTopicLane,
   normalizeSandboxTopicLane,
@@ -1047,11 +1048,18 @@ async function previousCompletedSessionBoundary(
   const result = await pool.query(
     `SELECT current.id, current.session_number, current.phase, current.topic_key, current.specialist_authority,
             current.authority_aligned, current.state_track_aligned, current.completed_at,
+            previous.topic_key AS previous_topic_key,
             previous.specialist_authority AS previous_specialist_authority
        FROM specialist_sandbox_session_evaluations current
-       LEFT JOIN specialist_sandbox_session_evaluations previous
-         ON previous.trajectory_id = current.trajectory_id
-        AND previous.session_number = current.session_number - 1
+       LEFT JOIN LATERAL (
+         SELECT prior.topic_key, prior.specialist_authority
+           FROM specialist_sandbox_session_evaluations prior
+          WHERE prior.trajectory_id = current.trajectory_id
+            AND prior.topic_key = current.topic_key
+            AND prior.session_number < current.session_number
+          ORDER BY prior.session_number DESC
+          LIMIT 1
+       ) previous ON true
       WHERE current.trajectory_id = $1
         AND current.session_number = $2
       LIMIT 1`,
@@ -1071,11 +1079,13 @@ async function previousCompletedSessionBoundary(
     typeof row.previous_specialist_authority === "string"
       ? JSON.parse(row.previous_specialist_authority)
       : row.previous_specialist_authority;
-  const phaseBefore =
-    (previousAuthority?.nextPhase as TopicPhase | undefined) || completedPhase;
-  const stabilityBefore =
-    (previousAuthority?.nextStability as TopicStability | undefined) ||
-    (Number(row.session_number) === 1 ? "Low" : null);
+  // "Before" is not the previous session's unrelated topic, nor the drill
+  // phase itself. First visits without a prior same-topic evaluation are unknown.
+  const { phaseBefore, stabilityBefore } = deriveSandboxSameTopicSnapshotBefore({
+    completedTopicKey: row.topic_key,
+    previousTopicKey: row.previous_topic_key,
+    previousSpecialistAuthority: previousAuthority,
+  });
   const turns = await loadSessionTurns(bundle, Number(row.session_number));
   const responseSnapshot = buildSandboxResponseSnapshot({
     sourceDrillId: String(row.id),

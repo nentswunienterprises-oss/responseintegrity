@@ -20,6 +20,34 @@ export function sandboxTopicKey(value: unknown): string {
     : "";
 }
 
+/**
+ * Historical Sandbox snapshots may only compare against a previous session
+ * from the same observed topic. Another topic's phase or stability must never
+ * become the current topic's "Before" state.
+ *
+ * When the preceding same-topic session has no usable Specialist authority,
+ * preserve an unknown Before state instead of fabricating a baseline.
+ */
+export function deriveSandboxSameTopicSnapshotBefore(input: {
+  completedTopicKey: string | null;
+  previousTopicKey: string | null;
+  previousSpecialistAuthority: {
+    nextPhase?: string | null;
+    nextStability?: string | null;
+  } | null;
+}): { phaseBefore: TopicPhase | null; stabilityBefore: TopicStability | null } {
+  const currentTopicKey = sandboxTopicKey(input.completedTopicKey);
+  if (!currentTopicKey || currentTopicKey !== sandboxTopicKey(input.previousTopicKey)) {
+    return { phaseBefore: null, stabilityBefore: null };
+  }
+  const phase = input.previousSpecialistAuthority?.nextPhase;
+  const stability = input.previousSpecialistAuthority?.nextStability;
+  if (!isPhase(phase) || !isStability(stability)) {
+    return { phaseBefore: null, stabilityBefore: null };
+  }
+  return { phaseBefore: phase, stabilityBefore: stability };
+}
+
 export type SandboxTopicRoute = "normal_training" | "targeted_rediagnosis";
 
 export type SandboxTopicLane = CapabilityProgressionState & {
