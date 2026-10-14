@@ -4,8 +4,8 @@ import {execFileSync} from 'node:child_process';
 import pg from 'pg';
 import {activateReviewedBanks} from './exceptionBankActivation.mjs';
 
-assert.equal(process.env.EXCEPTION_BANK_ACTIVATION_CONFIRM,'THE_HUB_ACTIVATE_EXCEPTIONS');
-const deployedSha=String(process.env.EXCEPTION_DEPLOYED_SHA||'');
+assert.equal(String(process.env.EXCEPTION_BANK_ACTIVATION_CONFIRM||'').trim(),'THE_HUB_ACTIVATE_EXCEPTIONS');
+const deployedSha=String(process.env.EXCEPTION_DEPLOYED_SHA||'').trim();
 assert.match(deployedSha,/^[a-f0-9]{40}$/,'Require the independently verified READY Production deployment SHA');
 const accepted='612ae8d34f19e38f072328bb104e1e73a050b294';
 // Production deployment identity is independently verified through Vercel before dispatch.
