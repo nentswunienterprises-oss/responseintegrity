@@ -1,5 +1,7 @@
 # Exception doctrine release — 14 October 2026
 
+**Status: completed in Production, verified 14 October 2026 at 08:35 SAST.** The final closure below supersedes the chronological pending-gate notes retained in this receipt.
+
 This branch isolates the approved exception cleanup from the broader development branch, preserving main's approved Google SEO changes. It removes authored missing-observation theatre, retains actual evidence-validity statuses and historical replay, and limits the rare learner confound to a visible worked mathematical example supplying the intended method or step.
 
 ## Verified scope
@@ -40,3 +42,24 @@ PR #190 merged at `6efa72d27065b5ffe5839a6a2432b3b4f1074a9a`. Production deploym
 `Evidence Exception Bank Activation` is a separately confirmed protected manual workflow. Dispatch only after independently verifying the supplied `deployment_sha` is a READY Production deployment. The script requires that deployment to descend from the accepted release SHA and have identical client/server/shared/API/package/build sources. It also requires The Hub database target, exact staged successor content/config hashes, exact predecessor content/version authority, disabled Review Mode, and one active config per bank. All nine swaps occur in one locked transaction. An already completed exact activation is idempotent. It changes only private bank config activation/retirement metadata; it never edits assessment items, historical qualification attempts, earned progression, rep evidence or students.
 
 The PostgreSQL integration verifies rollback on a later-bank mismatch, unexpected predecessor rejection, atomic activation, idempotence and unchanged historical qualification evidence. Application acceptance remains the exact reviewed runtime above; adding release-operation scripts does not redefine it.
+
+
+## Final Production closure — 14 October 2026
+
+Protected activation run [38522864748](https://github.com/nentswunienterprises-oss/responseintegrity/actions/runs/38522864748) passed contract and activation jobs on checkout `7d5533ac9024e19e64e8d67eeb612cdcc349ee2a`. The earlier attempt 38522025308 stopped before database connection because of a trailing space in the confirmation; PR #194 normalized surrounding whitespace without weakening the exact confirmation, source, target or hash guards.
+
+Independent The Hub readback after successful activation establishes:
+
+- All nine pinned successors are active, with exactly one active config per assessment key. Their pinned predecessors are inactive.
+- All 443 reviewed items and their content/config hashes match the approved promotion manifest. Review Mode remains disabled.
+- The complete historical qualification-attempt table remains at 31 rows with the exact pre-activation content fingerprint. Question-confirmation history also retains its exact fingerprint. No historical attempt or earned pass was rewritten.
+
+Production runtime verification:
+
+- `responseintegrity.co.za` points to Vercel deployment `dpl_6VM6n2onbhATtucAAF35UdmtMt7X`, READY / Production, SHA `ee4d01a99353ae26329fd17bff010ab649bcb1ec`.
+- Render API service `srv-d544dnu3jp1c739139vg` is live on deployment `dep-db7i365bedkc738ki9m0`, SHA `7d5533ac9024e19e64e8d67eeb612cdcc349ee2a`. Both application source trees are byte-identical to the accepted preview runtime `612ae8d34f19e38f072328bb104e1e73a050b294` across client, server, shared, API, package and build/type configuration sources.
+- The real Render `/api/health` returns HTTP 200 and status ok. All four bounded no-session Practicals API checks return explicit JSON authorization rejection without exposing records.
+
+The authored exception-doctrine cleanup is released across the reviewed lessons, simulation authoring, Practicals authoring and qualification banks. The sole rare learner confound remains a visible worked mathematical example supplying the intended method or step. Legitimate evidence statuses, actual technical-failure handling, historical V1 replay and earned qualification continuity remain preserved.
+
+This closes the exception-doctrine release only. It does not claim completion of unrelated Specialist journey, security-containment, commercial-display or Pod-roster work.
