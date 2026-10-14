@@ -29,6 +29,13 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run test:p0-security
+      - run: npm run test:production-link
+      - run: npm run test:demand-production
+      - run: npm run test:capability
+      - run: npm run test:sandbox
+      - run: npm run test:ri-snapshot
+      - run: npm run test:practicals
+      - run: npm run test:trial:policy
       - run: npm run test:db-authority
       - run: npm run db:authority:verify
       - run: npm run build:backend
