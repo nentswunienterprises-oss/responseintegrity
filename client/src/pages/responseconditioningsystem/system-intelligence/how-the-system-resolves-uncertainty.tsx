@@ -50,7 +50,7 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Not observed is not weakness</h2>
           <p className="text-muted-foreground">
-            If the opportunity never meaningfully exposed a behavior, that behavior remains not observed.
+            Not observed is a narrow evidence-recording status when no qualifying observation exists. It is not a routine student response, and the Specialist does not create one by neglecting the observation.
           </p>
           <p className="text-muted-foreground">
             The Specialist must not choose the closest weak or strong option from hindsight.
@@ -60,7 +60,7 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Confounded means the behavior cannot be interpreted cleanly</h2>
           <p className="text-muted-foreground">
-            Support, interruption, task mismatch, uncertain exposure, or another condition may make the observed behavior unusable for the intended claim.
+            A rare visible mathematical cue can compromise independence. For example, the student may consult a worked example showing the method before choosing that method themselves.
           </p>
           <p className="font-semibold">
             Confounded evidence remains truth. It simply does not count as clean strength or weakness for that question.
@@ -68,39 +68,18 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A student receives a first-step cue before the Specialist can see whether they would start independently. Which conclusions are supported?"
+          prompt="The student chooses the correct method after looking at a worked example that already names it. What can the Specialist conclude?"
           options={[
-            {
-              key: "a",
-              label: "The student demonstrated a weak independent start.",
-              feedback: "The cue changed the condition before independent start behavior could be observed cleanly.",
-            },
-            {
-              key: "b",
-              label: "Independent start is confounded or not observed, depending on what was actually exposed.",
-              feedback: "Do not manufacture weakness from a condition that no longer answered the independent-start question.",
-            },
-            {
-              key: "c",
-              label: "The student demonstrated a strong start because they continued successfully after the cue.",
-              feedback: "Assisted continuation cannot prove the missing independent start.",
-            },
-            {
-              key: "d",
-              label: "The cue belongs in the evidence record because it changed the condition.",
-              feedback: "The intervention is part of the truth of what happened.",
-            },
-            {
-              key: "e",
-              label: "Later independent work proves that the student would have started independently without the cue.",
-              feedback: "Later performance cannot prove the counterfactual first step that was never observed.",
-            },
+            { key: "a", label: "The student demonstrated independent method selection.", feedback: "The worked example supplied the method before the student chose it." },
+            { key: "b", label: "The method choice is confounded because the method was already visible.", feedback: "A concrete mathematical cue compromised the independence claim." },
+            { key: "c", label: "The student demonstrated weak method selection.", feedback: "A confound is not proof that the student lacks the method." },
+            { key: "d", label: "Record the visible worked-example cue and preserve unrelated clean observations.", feedback: "Evidence meaning is scoped to the affected behaviour and condition." },
+            { key: "e", label: "A later explanation makes this original choice independent.", feedback: "Later performance cannot remove the earlier cue." },
           ]}
           kind="multi_select"
           correctOptionKeys={["b","d"]}
-          truth="When support arrives before the target behavior can be observed, preserve the intervention and the observability limit. Do not convert an unseen independent response into strength or weakness."
+          truth="A rare visible worked example can confound method independence. It neither changes the prescribed method nor rewrites other clean evidence."
         />
-
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Conflicting evidence keeps the question open</h2>
           <p className="text-muted-foreground">
@@ -170,53 +149,33 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>Clean Handover evidence can support keeping the inherited state.</li>
-            <li>A behavior that was not observed or became confounded can require another comparable Handover opportunity.</li>
+            <li>A genuinely unresolved claim, including an exceptional visible worked-example cue, can require another clean comparable Handover opportunity.</li>
             <li>A confirmed breakdown in a behavior that defines the phase requires targeted re-diagnosis.</li>
             <li>Persistent conditional evidence can adjust stability within the same phase when the limited Handover check ends.</li>
           </ul>
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A Handover opportunity is clean except one required behavior was not meaningfully observed. Should the Specialist mark the closest behavior so Handover can finish?"
+          prompt="In Handover, the student begins independently but glances at an old worked solution before completing later steps. May the Specialist call the entire execution independent?"
           options={[
-            {
-              key: "a",
-              label: "Yes. Handover should avoid extra opportunities whenever possible.",
-              feedback: "Finishing faster is not more important than preserving evidence truth.",
-            },
-            {
-              key: "b",
-              label: "No. Preserve not observed and let the system decide whether another comparable opportunity is required.",
-              feedback: "Yes. Missing evidence must stay missing until RI-OS receives enough clean evidence or reaches the defined stopping point.",
-            },
-            {
-              key: "c",
-              label: "Yes. Mark it supported if every other required behavior was supported.",
-              feedback: "Strength in one observed behavior cannot be copied into a different one.",
-            },
-              {
-                key: "d",
-                label: "No. The missing behavior can remain unresolved while the behaviors already observed keep their own evidence.",
-                feedback: "Yes. Each observed behavior keeps its own evidence; RI-OS should not flatten them into a forced overall conclusion.",
-              },
-              {
-                key: "e",
-                label: "Yes, but only if the inferred value matches the inherited state.",
-                feedback: "Matching the inherited state does not make an unobserved behavior observable.",
-              },
+            { key: "a", label: "Yes, because the inherited topic state was strong.", feedback: "An inherited claim cannot erase a reference cue in a new opportunity." },
+            { key: "b", label: "No. Record the later continuation as confounded and follow the system's next qualifying check.", feedback: "Reference-assisted steps cannot prove independent continuation." },
+            { key: "c", label: "Yes, because the method order remained correct.", feedback: "Correct order after seeing a model does not prove independent execution." },
+            { key: "d", label: "No. The clean start remains independent, but the later worked-example cue prevents an independence claim for the entire execution.", feedback: "The earlier clean response retains its actual evidence." },
+            { key: "e", label: "No. The reference proves the whole response was a capability breakdown, including the clean start.", feedback: "A confound is not a clean capability breakdown." },
           ]}
+          kind="multi_select"
           correctOptionKeys={["b","d"]}
-          truth="The system can ask for another opportunity. The Specialist cannot manufacture completeness."
+          truth="Handover preserves the observed start and the later reference cue separately; RI-OS decides whether another clean comparable check is necessary."
         />
-
         <Card className="p-6 space-y-4">
           <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">Example</p>
-          <h2 className="text-2xl font-bold">Handover preserves what was proved and keeps the missing behavior open</h2>
+          <h2 className="text-2xl font-bold">Handover preserves what was proved when a later reference cue appears</h2>
           <p className="text-muted-foreground">
-            A new Specialist inherits a student's Structured Execution state. In the first Handover opportunity, the student starts independently and follows the required steps, but the task does not meaningfully expose repeatability.
+            A replacement Specialist inherits Structured Execution. The student begins independently but later consults an old worked example showing the required method while completing the middle steps.
           </p>
           <p className="text-muted-foreground">
-            RI-OS keeps the supported start and step evidence, records repeatability as not observed, and can ask for another comparable Handover opportunity. It does not copy strength from the observed behaviors into the missing one just to finish Handover.
+            RI-OS preserves the earlier clean start, records the visible reference, and treats the affected continuation as confounded. It can request another comparable opportunity instead of treating reference-aided work as independent.
           </p>
           <p className="font-semibold">
             Handover closes from sufficient evidence, not from filling every field with a convenient answer.

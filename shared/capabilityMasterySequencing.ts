@@ -1,3 +1,4 @@
+import { countsAsEditoriallyEquivalentPass } from "./capabilityEditorialBankContinuity";
 import {
   CAPABILITY_MVP_ASSESSMENT_PLAN_V1,
   type CapabilityAssessmentPlanEntry,
@@ -93,7 +94,16 @@ export function buildCapabilityMasteryAvailability(input: {
       )
       .sort((left, right) => timestamp(left.completedAt) - timestamp(right.completedAt));
 
-    if (attempts.some((attempt) => attempt.passed)) {
+    const hasEarnedPass = input.attempts.some((attempt) =>
+      attempt.assessmentKey === entry.assessmentKey &&
+      countsAsEditoriallyEquivalentPass({
+        assessmentKey: entry.assessmentKey,
+        previousBankVersion: attempt.bankVersion,
+        currentBankVersion: bank.bankVersion,
+        passed: attempt.passed,
+      }),
+    );
+    if (hasEarnedPass) {
       return {
         assessmentKey: entry.assessmentKey,
         title: entry.title,

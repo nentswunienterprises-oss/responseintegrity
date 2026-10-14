@@ -1,3 +1,4 @@
+import { SESSION_INFRASTRUCTURE_TEACHING } from "../client/src/lib/sessionInfrastructureTeaching";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -121,14 +122,17 @@ test("formative interactions keep the OS-wide silent alternate-valid standard", 
     const blocks = source.match(/<DeepDiveTeachingInteraction[\s\S]*?\/>/g) || [];
     for (const block of blocks) {
       total += 1;
-      const kind = block.match(/kind="([^"]+)"/)?.[1] || "single_choice";
-      const accepted = acceptedKeys(block);
-      const optionLabels = new Map(
+      const sharedRef=block.match(/SESSION_INFRASTRUCTURE_TEACHING\.(\w+)\[(\d+)\]/);
+      const shared=sharedRef ? (SESSION_INFRASTRUCTURE_TEACHING as any)[sharedRef[1]]?.[Number(sharedRef[2])] : null;
+      if(sharedRef) assert.ok(shared,"Imported formative source must resolve");
+      const kind = shared?.kind || block.match(/kind="([^"]+)"/)?.[1] || "single_choice";
+      const accepted = shared ? (shared.correctOptionKeys || [shared.correctOptionKey]) : acceptedKeys(block);
+      const optionLabels = new Map<string,string>(shared ? shared.options.map((o:any)=>[o.key,o.label]) :
         [...block.matchAll(/key:\s*"([^"]+)"[\s\S]*?label:\s*"([^"]+)"/g)].map(
           (match) => [match[1], match[2]] as const,
         ),
       );
-      const optionCount = [...block.matchAll(/key:\s*"([^"]+)"/g)].length;
+      const optionCount = shared ? shared.options.length : [...block.matchAll(/key:\s*"([^"]+)"/g)].length;
       assert.ok(optionCount >= 5, `${file} has a formative interaction with fewer than five options.`);
       assert.equal(
         new Set([...optionLabels.values()].map((label) => label.replace(/\s+/g, " ").trim().toLowerCase())).size,
@@ -136,17 +140,17 @@ test("formative interactions keep the OS-wide silent alternate-valid standard", 
         `${file} has duplicate formative option wording inside one interaction.`,
       );
 
-      const prompt = block.match(/prompt="([^"]+)"/)?.[1] || "";
-      for (const match of block.matchAll(/label:\s*"([^"]+)"/g)) {
+      const prompt = shared?.prompt || block.match(/prompt="([^"]+)"/)?.[1] || "";
+      for (const label of optionLabels.values()) {
         assert.doesNotMatch(
-          match[1],
+          label,
           /\bThat can seem reasonable\b|^What matters is that\b|^The key is that\b|part of the response still looks usable|avoids opening another evidence question/i,
           `${file} has formative answer copy that comments on the option instead of answering the prompt directly.`,
         );
         if (prompt) {
           assert.ok(
-            answerShapeFitsPrompt(prompt, match[1]),
-            `${file} has a formative option whose grammatical shape does not answer the final question: prompt="${prompt}" option="${match[1]}".`,
+            answerShapeFitsPrompt(prompt, label),
+            `${file} has a formative option whose grammatical shape does not answer the final question: prompt="${prompt}" option="${label}".`,
           );
         }
       }
@@ -174,9 +178,10 @@ test("formative interactions keep the OS-wide silent alternate-valid standard", 
         );
       }
 
-      for (const m of block.matchAll(/key:\s*"([^"]+)"[\s\S]*?feedback:\s*"([^"]+)"/g)) {
-        if (/^Yes\b/.test(m[2])) {
-          assert.ok(accepted.includes(m[1]), `${file} has a positive-feedback option that scoring does not accept.`);
+      const feedbackEntries=shared ? shared.options.map((o:any)=>[o.key,o.feedback]) : [...block.matchAll(/key:\s*"([^"]+)"[\s\S]*?feedback:\s*"([^"]+)"/g)].map(m=>[m[1],m[2]]);
+      for (const [key,feedback] of feedbackEntries) {
+        if (/^Yes\b/.test(feedback)) {
+          assert.ok(accepted.includes(key), `${file} has a positive-feedback option that scoring does not accept.`);
         }
       }
     }

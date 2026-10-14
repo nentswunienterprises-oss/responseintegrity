@@ -50,7 +50,7 @@ Q5
 What does Not observed mean?
 
 Expected Answer
-The opportunity did not meaningfully expose that behavior, so the evidence stays missing. It is not treated as weakness.
+A required observation genuinely had no qualifying opportunity. This is an exceptional evidence-record status, not a student behaviour to script or create through an omitted question. It is not weakness.
 
 Fail Answer
 The student failed
@@ -63,7 +63,7 @@ Q6
 What does Confounded mean?
 
 Expected Answer
-Something changed the condition enough that the behavior cannot be interpreted cleanly, such as assistance, interruption, task mismatch, or a relevant timing failure.
+The student saw a worked example or mathematical step before demonstrating the intended independent behaviour. Record the concrete cue and scope the confound to the affected independence claim; unrelated clean observations remain usable.
 
 Fail Answer
 The student was weak

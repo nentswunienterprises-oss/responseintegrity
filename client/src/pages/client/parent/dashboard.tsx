@@ -15,6 +15,7 @@ import { PushOptInCard } from "@/components/push/PushOptInCard";
 import { useNavigate } from "react-router-dom";
 import { getAuthMode } from "@/lib/authMode";
 import { getParentDashboardCopyByState } from "@shared/topicConditioningEngine";
+import { displayTopicStability, topicStabilityConfirmationLabel } from "@shared/topicStabilityPresentation";
 
 interface StudentStats {
   introDiagnosisCompleted?: number;
@@ -775,8 +776,13 @@ export default function ParentDashboard() {
                           Stage: {row.phase || "Unknown"}
                         </Badge>
                         <Badge variant="outline" className="border-primary/30 bg-background/80">
-                          Stability: {row.stability || "Unknown"}
+                          Stability: {displayTopicStability(row.stability)}
                         </Badge>
+                        {topicStabilityConfirmationLabel(row.stability, row.phase) ? (
+                          <Badge variant="outline" className="border-primary/20 text-muted-foreground">
+                            {topicStabilityConfirmationLabel(row.stability, row.phase)}
+                          </Badge>
+                        ) : null}
                       </div>
 
                       {hasProgressUpdate && (

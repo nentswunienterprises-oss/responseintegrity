@@ -1,0 +1,42 @@
+name: Exception Doctrine Release Acceptance
+on:
+  push:
+    branches: [fix/exception-doctrine-release]
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/exception-doctrine-release-ci.yml'
+      - 'shared/evidenceException*'
+      - 'migrations/20261014*'
+      - 'scripts/exceptionDoctrineMigrationIntegration.test.ts'
+permissions:
+  contents: read
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: exception_ci
+          POSTGRES_DB: exception_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d exception_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: node --import tsx scripts/productionMigrationAuthority.ts verify
+      - run: node --import tsx --test scripts/exceptionDoctrineMigrationIntegration.test.ts scripts/productionMigrationAuthority.test.ts
+        env:
+          EXCEPTION_CI_DATABASE_URL: postgresql://postgres:exception_ci@localhost:5432/exception_ci
+      - run: npm run test:capability && npm run test:sandbox && npm run test:practicals
+      - run: node --import tsx --test shared/capabilityProgressionAuthority.test.ts shared/sandboxPrerequisiteProbe.test.ts shared/sandboxTopicAuthority.test.ts shared/topicStabilityPresentation.test.ts shared/evidenceExceptionAuthoringGuard.test.ts server/evidenceExceptionSurfaceAudit.test.ts server/deepDiveSourceIntegrity.test.ts scripts/deepDiveTeachingInteractionAuthoring.test.ts shared/capabilityEditorialBankContinuity.test.ts client/src/components/tutor/topicConditioningEngine.test.ts client/src/lib/google-homepage.test.ts
+      - run: npm run build:vercel-api && npm run build:frontend

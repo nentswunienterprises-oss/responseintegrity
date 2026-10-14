@@ -3,7 +3,7 @@
  * The Specialist never supplies the case, outcome sequence, or future student response.
  * No real student state or billing authority is touched here.
  */
-export const EXECUTE_CHALLENGE_VERSION = 1;
+export const EXECUTE_CHALLENGE_VERSION = 2;
 export const EXECUTE_CHALLENGE_TURNS = 3;
 
 export type ExecuteIntervention =
@@ -23,7 +23,7 @@ export interface ExecuteResponse {
   decisionReason: string;
 }
 
-export type ExecuteEventKind = "uncertainty" | "difficulty" | "observability_interruption";
+export type ExecuteEventKind = "uncertainty" | "difficulty" | "observability_interruption" | "adaptive_continuation";
 export type ExecuteScenarioTurn = {
   number: 1 | 2 | 3;
   kind: ExecuteEventKind;
@@ -31,12 +31,13 @@ export type ExecuteScenarioTurn = {
   evidenceQuestion: string;
 };
 export type ExecutePlan = {
-  version: 1;
+  version: 1 | 2;
   seed: string;
   caseKey: "controlled_discomfort_no_rescue";
   initialVariant: number;
   branchVariant: number;
-  observabilityVariant: number;
+  observabilityVariant?: number; // Legacy V1 replay only.
+  continuationVariant?: number; // V2 real student response without invented equipment failure.
   privateBank?: {bankKey:string;bankVersion:number; withoutSupport:string; withSupport:string};
 };
 export type ExecuteTranscriptTurn = {
@@ -61,10 +62,21 @@ const BRANCH_NO_SUPPORT = [
   "Without receiving a method or first-step hint, the simulated student tries an incorrect route, pauses and asks whether to abandon the problem.",
   "The simulated student continues independently, corrects one step but remains uncertain, and asks for confirmation that the answer is right.",
 ];
+// Historical V1 prompts are replayable for immutable records, never
+// selected for newly created V2 Practical assessments.
 const INTERRUPTIONS = [
   "The simulated student's notebook moves out of camera view. The student says they have completed the next step, but the written work is not visible.",
   "The connection makes the student's explanation inaudible while their writing is partly obscured. They say, 'I finished it' after audio returns.",
   "The simulated student turns away from the camera, completes work you cannot observe, and returns with a confident answer.",
+];
+
+// The third V2 turn measures sustained conduct under the unchanged difficulty
+// and support boundary. It cannot silently force a fictional missing observation.
+const CONTINUATIONS = [
+  "The student tries a different first step without receiving a hint, corrects a misread sign and keeps working through the difficult point.",
+  "The student pauses, revisits the previous line and tries to connect it to the next operation, without asking the Specialist to take over.",
+  "After another unsuccessful move the student says, 'I am still not sure about the next step,' then makes a new attempt on their own.",
+  "The student notices that a prior line did not follow the method, crosses it out and restarts from a valid step without a supplied answer.",
 ];
 
 function bucket(seed: string, offset: number, size: number) {
@@ -84,10 +96,10 @@ export function createExecutePlan(seed: string, bank?: {
   const first=bank ? bucket(seed,8,bank.behaviors.length) : 0;
   const second=bank ? (first+1+bucket(seed,16,bank.behaviors.length-1))%bank.behaviors.length : 0;
   return {
-    version: 1, seed, caseKey: "controlled_discomfort_no_rescue",
+    version: EXECUTE_CHALLENGE_VERSION, seed, caseKey: "controlled_discomfort_no_rescue",
     initialVariant: bucket(seed, 0, INITIAL_BEHAVIORS.length),
     branchVariant: bucket(seed, 8, 2),
-    observabilityVariant: bucket(seed, 16, INTERRUPTIONS.length),
+    continuationVariant: bucket(seed, 16, CONTINUATIONS.length),
     ...(bank? { privateBank: {
       bankKey:bank.bankKey,bankVersion:bank.bankVersion,
       withoutSupport:bank.behaviors[first],withSupport:bank.behaviors[second],
@@ -101,7 +113,7 @@ export function executeCaseBrief() {
     context: "Stateful simulated training set, no rescue condition",
     student: "Fictional student, no personal data",
     operatingBoundary:
-      "The assigned difficulty must remain intact. Do not teach the answer, supply the method or imply independent performance after assistance. If observability fails, do not manufacture evidence or choose progression.",
+      "The assigned difficulty must remain intact. Do not teach the answer, supply the method or imply independent performance after assistance. Record only the response that occurs, preserve intervention truth, and leave progression to RI-OS.",
     totalTurns: EXECUTE_CHALLENGE_TURNS,
   };
 }
@@ -110,7 +122,7 @@ export function nextExecuteTurn(
   plan: ExecutePlan,
   previous: readonly ExecuteTranscriptTurn[],
 ): ExecuteScenarioTurn | null {
-  if (plan.version !== EXECUTE_CHALLENGE_VERSION) throw new Error("Unsupported Execute challenge version.");
+  if (plan.version !== 1 && plan.version !== EXECUTE_CHALLENGE_VERSION) throw new Error("Unsupported Execute challenge version.");
   const turn = previous.length + 1;
   if (turn > EXECUTE_CHALLENGE_TURNS) return null;
   if (previous.some((entry, index) => entry.number !== index + 1))
@@ -132,10 +144,18 @@ export function nextExecuteTurn(
       evidenceQuestion: "What is directly observable? Has any assistance changed the independence claim?",
     };
   }
+  if (plan.version === 1) {
+    // Historical challenge records retain their exact authored V1 third turn.
+    return {
+      number: 3, kind: "observability_interruption",
+      studentBehavior: INTERRUPTIONS[plan.observabilityVariant ?? 0],
+      evidenceQuestion: "What can be recorded now, and what must remain unobserved or confounded?",
+    };
+  }
   return {
-    number: 3, kind: "observability_interruption",
-    studentBehavior: INTERRUPTIONS[plan.observabilityVariant],
-    evidenceQuestion: "What can be recorded now, and what must remain unobserved or confounded?",
+    number: 3, kind: "adaptive_continuation",
+    studentBehavior: CONTINUATIONS[plan.continuationVariant ?? 0],
+    evidenceQuestion: "What did the student actually attempt and correct, and what remains independently established under the original condition?",
   };
 }
 
@@ -183,5 +203,7 @@ export function executeRiskFlags(
     flags.push("independence_claim_without_clean_observation");
   if (event.kind === "observability_interruption" && response.evidenceStatus === "observed")
     flags.push("unobservable_work_claimed_as_observed");
+  if (event.kind === "adaptive_continuation" && response.evidenceStatus === "not_observed")
+    flags.push("observable_student_work_marked_unobserved");
   return flags;
 }

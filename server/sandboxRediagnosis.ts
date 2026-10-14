@@ -36,6 +36,7 @@ import {
   type PersistedTpsTimerContract,
 } from "./tpsTimingAuthority";
 import { getSandboxEnvironmentHistory } from "./sandboxEnvironment";
+import { SANDBOX_DIAGNOSIS_EXCEPTION_NARRATIVE_VERSION } from "@shared/sandboxDiagnosisExceptionNarrativesV2";
 
 const BANK_KEY = "sandbox_stateful_environment";
 
@@ -61,6 +62,7 @@ type TrajectoryTruthRow = {
   canonical_route: "normal_training" | "targeted_rediagnosis";
   canonical_targeted_rediagnosis_phase: TopicPhase | null;
   trajectory_seed: string;
+  behavior_model_version: 1 | 2;
 };
 
 type RediagnosisRunRow = {
@@ -174,7 +176,7 @@ async function loadTrajectory(input: {
   const result = await pool.query(
     `SELECT t.*, truth.canonical_phase, truth.canonical_stability,
             truth.canonical_route, truth.canonical_targeted_rediagnosis_phase,
-            truth.trajectory_seed
+            truth.trajectory_seed, truth.behavior_model_version
        FROM specialist_sandbox_trajectories t
        JOIN private.specialist_sandbox_trajectory_truth truth
          ON truth.trajectory_id = t.id
@@ -199,6 +201,7 @@ async function loadTrajectory(input: {
         ? String(row.canonical_targeted_rediagnosis_phase) as TopicPhase
         : null,
       trajectory_seed: String(row.trajectory_seed),
+      behavior_model_version: Number(row.behavior_model_version) as 1 | 2,
     } satisfies TrajectoryTruthRow,
   };
 }
@@ -395,6 +398,7 @@ async function plan(input: {
   const history = await getSandboxEnvironmentHistory(input);
   const selected = selectSandboxDiagnosisOutcome({
     seed: truth.trajectory_seed,
+    profileSeed: truth.trajectory_seed,
     outcomes: outcomes.map((item) => item.definition),
     context: {
       startingPhase: run.target_phase,
@@ -405,6 +409,7 @@ async function plan(input: {
           ? history.readiness.earliestUnsupportedCapability
           : null,
       recentOutcomeKeys: diagnosisTruth.recent_outcome_keys,
+      behaviorModelVersion: truth.behavior_model_version,
     },
   });
   const selectedRecord = outcomes.find(
@@ -419,6 +424,8 @@ async function plan(input: {
       run.id,
       sequenceNumber,
       selectedRecord.publicRef,
+      ...(truth.behavior_model_version === 2
+        ? ["evidence-exceptions-v" + SANDBOX_DIAGNOSIS_EXCEPTION_NARRATIVE_VERSION] : []),
     ].join(":"),
   ).slice(0, 32);
 
@@ -616,6 +623,7 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
   ].join(":");
   const selected = selectSandboxDiagnosisOutcome({
     seed,
+    profileSeed: truth.trajectory_seed,
     outcomes: outcomes.map((item) => item.definition),
     context: {
       startingPhase: input.startingPhase,
@@ -623,6 +631,7 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
       sequenceNumber: input.sequenceNumber,
       earliestUnsupportedCapability: null,
       recentOutcomeKeys: [],
+      behaviorModelVersion: truth.behavior_model_version,
     },
   });
   const selectedRecord = outcomes.find(
@@ -644,6 +653,8 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
       input.sequenceNumber,
       probeId,
       selectedRecord.publicRef,
+      ...(truth.behavior_model_version === 2
+        ? ["evidence-exceptions-v" + SANDBOX_DIAGNOSIS_EXCEPTION_NARRATIVE_VERSION] : []),
     ].join(":"),
   ).slice(0, 32);
 
@@ -702,8 +713,12 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
     probeId: prepared.probeId as DiagnosisProbeId,
   });
   const { trajectory, truth } = await loadTrajectory(input);
+  // Preparation and submission must select the *same* versioned outcome.
+  // Re-evaluating a V2 Profile through V1 weighting can silently score the
+  // Specialist against a student response they were never shown.
   const selected = selectSandboxDiagnosisOutcome({
     seed: [truth.trajectory_seed, input.scope, input.sourceContextId].join(":"),
+    profileSeed: truth.trajectory_seed,
     outcomes: outcomes.map((item) => item.definition),
     context: {
       startingPhase: input.startingPhase,
@@ -711,15 +726,22 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
       sequenceNumber: input.sequenceNumber,
       earliestUnsupportedCapability: null,
       recentOutcomeKeys: [],
+      behaviorModelVersion: truth.behavior_model_version,
     },
   });
 
+  // Handover observes only its own phase, and only dimensions actually
+  // created by the prescribed probe. In particular, an immediate execution
+  // probe does NOT establish repeatability from a missing second opportunity.
+  const prescribedDimensions =
+    DIAGNOSIS_PROBES[prepared.probeId as DiagnosisProbeId].dimensions;
   const expectedDimensionIds =
     input.scope === "diagnosis"
-      ? DIAGNOSIS_PROBES[prepared.probeId as DiagnosisProbeId].dimensions
-      : Object.values(DIAGNOSIS_OBSERVATION_MATRIX)
-          .filter((dimension) => dimension.phase === input.startingPhase)
-          .map((dimension) => dimension.id);
+      ? prescribedDimensions
+      : prescribedDimensions.filter(
+          (dimensionId) =>
+            DIAGNOSIS_OBSERVATION_MATRIX[dimensionId].phase === input.startingPhase,
+        );
 
   const submitted = new Map(
     input.observations.map((item) => [

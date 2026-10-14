@@ -158,7 +158,7 @@ Scenario 4
 A continuity opportunity is interrupted and the Specialist had to supply a mathematical step before one dimension could be observed cleanly. How should that dimension be recorded?
 
 Expected Answer
-Record it as confounded, or not observed if the behavior never became meaningfully observable. It must count as neither weakness nor strength. The system may request another clean opportunity and, if clean truth remains unresolved at the bounded limit, route to targeted re-diagnosis.
+Record the visible worked-example cue as a rare confound of the affected independence claim. Genuine absence of qualifying evidence is not observed, never weakness. The system may request another clean opportunity and, if clean truth remains unresolved at the bounded limit, route to targeted re-diagnosis.
 
 Fail Answer
 Choose the closest weak option

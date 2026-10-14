@@ -1,0 +1,338 @@
+{
+  "authority": "docs/SPECIALIST_EVIDENCE_EXCEPTION_CANON_2026-10-13.md",
+  "changedItems": [
+    {
+      "assessmentKey": "handover_verification_mastery_v1",
+      "itemKey": "handover_extra_11",
+      "sourceVersion": 10,
+      "stagedVersion": 14,
+      "contentHash": "fd002b27477c4784d7772dbfbe92e51d70bf9c3feb1f17e00922bc07f2fab630"
+    },
+    {
+      "assessmentKey": "handover_verification_mastery_v1",
+      "itemKey": "handover_extra_12",
+      "sourceVersion": 10,
+      "stagedVersion": 14,
+      "contentHash": "2a053f9d113dbd1f2609fc3d4267be60d0610c7747dcdba859a1b73483b9d231"
+    },
+    {
+      "assessmentKey": "handover_verification_mastery_v1",
+      "itemKey": "handover_extra_25",
+      "sourceVersion": 10,
+      "stagedVersion": 14,
+      "contentHash": "daa904550ed4d3b60f7bb811a48577bf9cfa4b6faedae70a8ac9d3135eb5ae4c"
+    },
+    {
+      "assessmentKey": "handover_verification_mastery_v1",
+      "itemKey": "handover_verification_q14_base",
+      "sourceVersion": 10,
+      "stagedVersion": 14,
+      "contentHash": "c1d1bc86a064b3e10006e29675a1c2038e654653923f3143cbc15e93a897ce79"
+    },
+    {
+      "assessmentKey": "how_the_system_resolves_uncertainty_mastery_v1",
+      "itemKey": "how_the_system_resolves_uncertainty_f04_base",
+      "sourceVersion": 14,
+      "stagedVersion": 19,
+      "contentHash": "3ded634c2e7e72c4419dff5266f775ad8fdf992046f086911f7fa70feedaabda"
+    },
+    {
+      "assessmentKey": "how_the_system_resolves_uncertainty_mastery_v1",
+      "itemKey": "how_the_system_resolves_uncertainty_f13_base",
+      "sourceVersion": 14,
+      "stagedVersion": 19,
+      "contentHash": "2dc2d0590623e98b11f6d124bbe348ee6db6d25e758bc6e9a670aed0feb14d7e"
+    },
+    {
+      "assessmentKey": "how_the_system_resolves_uncertainty_mastery_v1",
+      "itemKey": "uncertainty_extra_01",
+      "sourceVersion": 14,
+      "stagedVersion": 19,
+      "contentHash": "f3c9297477242452b2cbdd9d9b53752efae3ccf2db297e8eb8fcd07657ce8145"
+    },
+    {
+      "assessmentKey": "how_the_system_resolves_uncertainty_mastery_v1",
+      "itemKey": "uncertainty_extra_02",
+      "sourceVersion": 14,
+      "stagedVersion": 19,
+      "contentHash": "71090e09a46b605ffbb2770f09de2421689c5468327c2ceeaea079c860f6977e"
+    },
+    {
+      "assessmentKey": "how_the_system_resolves_uncertainty_mastery_v1",
+      "itemKey": "uncertainty_extra_06",
+      "sourceVersion": 14,
+      "stagedVersion": 19,
+      "contentHash": "3c9f012be3ba940dee0909b5649b8d71c6adf1a87a1417293d0b06789b94ba6b"
+    },
+    {
+      "assessmentKey": "how_the_system_resolves_uncertainty_mastery_v1",
+      "itemKey": "uncertainty_extra_08",
+      "sourceVersion": 14,
+      "stagedVersion": 19,
+      "contentHash": "71a2ba34c78533d663bec4967000d0ad7e9e4563d90b65533d22fbbacd151235"
+    },
+    {
+      "assessmentKey": "how_the_system_resolves_uncertainty_mastery_v1",
+      "itemKey": "uncertainty_extra_20",
+      "sourceVersion": 14,
+      "stagedVersion": 19,
+      "contentHash": "5033597103745e7a4eb0e5aab9269a3d90a90210731b910d7ff5bc1c0ec57f47"
+    },
+    {
+      "assessmentKey": "how_the_system_resolves_uncertainty_mastery_v1",
+      "itemKey": "uncertainty_extra_25",
+      "sourceVersion": 14,
+      "stagedVersion": 19,
+      "contentHash": "c57c7d147fc9e37c87ffe254226fad4be4cf90fe5e396d7521866245a51e5dc2"
+    },
+    {
+      "assessmentKey": "how_to_diagnose_mastery_v1",
+      "itemKey": "how_to_diagnose_extra_11",
+      "sourceVersion": 19,
+      "stagedVersion": 22,
+      "contentHash": "b2785b05b803552eb3c4b2e8decee45b5c6eadc79b36814c22b2510d2376a4fa"
+    },
+    {
+      "assessmentKey": "how_to_diagnose_mastery_v1",
+      "itemKey": "how_to_diagnose_extra_19",
+      "sourceVersion": 19,
+      "stagedVersion": 22,
+      "contentHash": "6b77bdcfa735f2d899a4dfa7006bbdcfc254559ab18f2f82215ca93cbe7719d7"
+    },
+    {
+      "assessmentKey": "how_to_diagnose_mastery_v1",
+      "itemKey": "how_to_diagnose_extra_27",
+      "sourceVersion": 19,
+      "stagedVersion": 22,
+      "contentHash": "ed4f7b8590cedbd3daf4b36b91b9281c2f955fcce581d9eef8254ec733a0b5c0"
+    },
+    {
+      "assessmentKey": "how_to_diagnose_mastery_v1",
+      "itemKey": "how_to_diagnose_f09_base",
+      "sourceVersion": 19,
+      "stagedVersion": 22,
+      "contentHash": "60c6294808f81bb952430d4659584eb5588631e62aa7aca97f7b96ebd5f91d43"
+    },
+    {
+      "assessmentKey": "how_to_interpret_prompts_mastery_v1",
+      "itemKey": "how_to_interpret_prompts_f09_base",
+      "sourceVersion": 15,
+      "stagedVersion": 20,
+      "contentHash": "d4c102333aab61d1de03ee44bde1a982057df3cdbfbc5c6107284c41d8fdc862"
+    },
+    {
+      "assessmentKey": "how_to_interpret_prompts_mastery_v1",
+      "itemKey": "how_to_interpret_prompts_f10_base",
+      "sourceVersion": 15,
+      "stagedVersion": 20,
+      "contentHash": "a2292b7819edee237f75a014989743002a9067d5ef063ed1081f9e425b7ac974"
+    },
+    {
+      "assessmentKey": "how_to_interpret_prompts_mastery_v1",
+      "itemKey": "how_to_interpret_prompts_f13_base",
+      "sourceVersion": 15,
+      "stagedVersion": 20,
+      "contentHash": "7de1f8c361ddb395647b7e2c71ca89f6b24cba6471e19727ca9f7511b3ef9b5c"
+    },
+    {
+      "assessmentKey": "how_to_interpret_prompts_mastery_v1",
+      "itemKey": "interpret_prompts_extra_18",
+      "sourceVersion": 15,
+      "stagedVersion": 20,
+      "contentHash": "91fbb6b01ecf57794fb5df7e016cedcacf2fc803fb5237f60631f10406138d5b"
+    },
+    {
+      "assessmentKey": "how_to_interpret_prompts_mastery_v1",
+      "itemKey": "interpret_prompts_extra_19",
+      "sourceVersion": 15,
+      "stagedVersion": 20,
+      "contentHash": "c2ed41df9e17dc02895390f564a227946ede584e72631415d93b3fae0c759a2e"
+    },
+    {
+      "assessmentKey": "how_to_interpret_prompts_mastery_v1",
+      "itemKey": "interpret_prompts_extra_20",
+      "sourceVersion": 15,
+      "stagedVersion": 20,
+      "contentHash": "5e5907f7e8471ab2d01ebaa7facbc0459bd94fc7cca2e0d951e1e8fb65930f6e"
+    },
+    {
+      "assessmentKey": "how_to_interpret_prompts_mastery_v1",
+      "itemKey": "interpret_prompts_extra_25",
+      "sourceVersion": 15,
+      "stagedVersion": 20,
+      "contentHash": "0845601a123572a0df622905cf5c5f1781e198ccfd9fa19927ed8d98e8ec2eed"
+    },
+    {
+      "assessmentKey": "how_to_interpret_prompts_mastery_v1",
+      "itemKey": "interpret_prompts_extra_26",
+      "sourceVersion": 15,
+      "stagedVersion": 20,
+      "contentHash": "acb649bd9f1db4469bc1e2703e46148e6c4cf9c973153bb40ae67207f7f94129"
+    },
+    {
+      "assessmentKey": "how_to_interpret_prompts_mastery_v1",
+      "itemKey": "interpret_prompts_extra_27",
+      "sourceVersion": 15,
+      "stagedVersion": 20,
+      "contentHash": "0846f822eec2eaccca8fa8cd8967496e907edd4fe27c039c7116cee11065e5ec"
+    },
+    {
+      "assessmentKey": "how_to_interpret_prompts_mastery_v1",
+      "itemKey": "interpret_prompts_extra_28",
+      "sourceVersion": 15,
+      "stagedVersion": 20,
+      "contentHash": "9acc4c774293be732c24c3ac74bfe73d1c7beee866f095d79713844076391f3a"
+    },
+    {
+      "assessmentKey": "intro_session_structure_mastery_v1",
+      "itemKey": "v2r8_intro_session_structure_20",
+      "sourceVersion": 15,
+      "stagedVersion": 17,
+      "contentHash": "b376f714b66af0b2a05b199f17e49849bea46f6810a5dd648686391dbef347eb"
+    },
+    {
+      "assessmentKey": "logging_system_mastery_v1",
+      "itemKey": "v2r8_logging_system_08",
+      "sourceVersion": 14,
+      "stagedVersion": 18,
+      "contentHash": "30fad297f85feb7025b2b67fcb9ed3c5bd63382aeea866d009790885e26e359c"
+    },
+    {
+      "assessmentKey": "logging_system_mastery_v1",
+      "itemKey": "v2r8_logging_system_13",
+      "sourceVersion": 14,
+      "stagedVersion": 18,
+      "contentHash": "a803f5e39cf26073fa01ceaa7f3893ebb2bc38295cfeba63456c36da3a098181"
+    },
+    {
+      "assessmentKey": "logging_system_mastery_v1",
+      "itemKey": "v2r8_logging_system_15",
+      "sourceVersion": 14,
+      "stagedVersion": 18,
+      "contentHash": "9623a535a3959c4fc1d49a0e27e7ad6184697b9f587d007cbcbcc6c7ecc9220d"
+    },
+    {
+      "assessmentKey": "logging_system_mastery_v1",
+      "itemKey": "v2r8_logging_system_25",
+      "sourceVersion": 14,
+      "stagedVersion": 18,
+      "contentHash": "6b67be343451c684a47ba78461fcb5f046971497f84c3eeb52c58a0d9c949c41"
+    },
+    {
+      "assessmentKey": "operating_system_retrieval_v2",
+      "itemKey": "osr_errors_01",
+      "sourceVersion": 1,
+      "stagedVersion": 3,
+      "contentHash": "02a4147f7007e4f37b13c15d33e8e76b7c80f95ee49c1a9d4dc24a1dd80ccd7d"
+    },
+    {
+      "assessmentKey": "operating_system_retrieval_v2",
+      "itemKey": "osr_logging_03",
+      "sourceVersion": 1,
+      "stagedVersion": 3,
+      "contentHash": "654442957cd180082ef73b8966be323b93f579a2e539881298b28ff745c6f326"
+    },
+    {
+      "assessmentKey": "operating_system_transfer_v2",
+      "itemKey": "ost_errors_01",
+      "sourceVersion": 1,
+      "stagedVersion": 6,
+      "contentHash": "4310cb4b725fe6220aa0a00ce2bed98e4d064971f60271e55e5aecfd34c326d7"
+    },
+    {
+      "assessmentKey": "operating_system_transfer_v2",
+      "itemKey": "ost_handover_01",
+      "sourceVersion": 1,
+      "stagedVersion": 6,
+      "contentHash": "d7efcda6f457c9204738b82b9b0b5fa39755c42aab2547eb3e68de7b151fe2c4"
+    },
+    {
+      "assessmentKey": "operating_system_transfer_v2",
+      "itemKey": "ost_logging_02",
+      "sourceVersion": 1,
+      "stagedVersion": 6,
+      "contentHash": "f081dfe0a4a961096318d3f6895b321d97b47710914ca5b5fab3675ecb722554"
+    },
+    {
+      "assessmentKey": "operating_system_transfer_v2",
+      "itemKey": "ost_logging_04",
+      "sourceVersion": 1,
+      "stagedVersion": 6,
+      "contentHash": "1af9e00a78bc3d81bd5a5315496a90ad29c3c9d111856f37fc1410b005df7486"
+    },
+    {
+      "assessmentKey": "operating_system_transfer_v2",
+      "itemKey": "ost_prompts_03",
+      "sourceVersion": 1,
+      "stagedVersion": 6,
+      "contentHash": "9564dd91c204017de6fa44de269a5c81f54b6708bb24d648a0e67baa248f68ca"
+    },
+    {
+      "assessmentKey": "operating_system_transfer_v2",
+      "itemKey": "ost_uncertainty_01",
+      "sourceVersion": 1,
+      "stagedVersion": 6,
+      "contentHash": "d51623b01004bff7c73f17ca3cf2765b7b13a87f3c8ac28af8dcb4e169a8ad77"
+    },
+    {
+      "assessmentKey": "what_not_to_do_mastery_v1",
+      "itemKey": "what_not_to_do_extra_05",
+      "sourceVersion": 10,
+      "stagedVersion": 15,
+      "contentHash": "648dac8144e78dc5aa980941147321b279dfa7a915a71935d663631db1f36522"
+    },
+    {
+      "assessmentKey": "what_not_to_do_mastery_v1",
+      "itemKey": "what_not_to_do_extra_06",
+      "sourceVersion": 10,
+      "stagedVersion": 15,
+      "contentHash": "f65a73d40f32c12a92ba3e354301c139bacd66e1d54e4f1b1fff84f202a04a1e"
+    },
+    {
+      "assessmentKey": "what_not_to_do_mastery_v1",
+      "itemKey": "what_not_to_do_extra_07",
+      "sourceVersion": 10,
+      "stagedVersion": 15,
+      "contentHash": "c8b3e776618259b8734f760f06b0a3e5d55af18f6476f26e207398b180f1b925"
+    },
+    {
+      "assessmentKey": "what_not_to_do_mastery_v1",
+      "itemKey": "what_not_to_do_extra_12",
+      "sourceVersion": 10,
+      "stagedVersion": 15,
+      "contentHash": "3cb9d2c60460d98eb40b431f2da002cd4ad5452d4910fc086a8477d114573eeb"
+    },
+    {
+      "assessmentKey": "what_not_to_do_mastery_v1",
+      "itemKey": "what_not_to_do_f02_base",
+      "sourceVersion": 10,
+      "stagedVersion": 15,
+      "contentHash": "25387ff5f813c9d7917951333acf439214c88d5739e826389bc24082ce6af966"
+    }
+  ],
+  "authorityCorrections": [
+    {
+      "assessmentKey": "operating_system_transfer_v2",
+      "itemKey": "ost2_training_purpose_01",
+      "reason": "Restore the existing canonical training_purpose.no_stop_at_clarity boundary. Skipping CD because independent execution is intact is already wrong option e; future forms must treat that established violation as critical. Approved historical passes remain historical.",
+      "previous": {
+        "critical_boundary_keys": [
+          "training_purpose.no_diagnosis_as_training"
+        ],
+        "critical_fail_option_keys": [
+          "b"
+        ]
+      },
+      "revised": {
+        "critical_boundary_keys": [
+          "training_purpose.no_diagnosis_as_training",
+          "training_purpose.no_stop_at_clarity"
+        ],
+        "critical_fail_option_keys": [
+          "b",
+          "e"
+        ]
+      }
+    }
+  ]
+}
