@@ -6,6 +6,16 @@ on:
       - fix/preview-training-session-authority
     paths:
       - 'scripts/auditEvidenceExceptionStagedBanks.mjs'
+      - 'docs/qualification-content/20261013_evidence_exception_reviewed_inventory.json'
+      - 'shared/capabilityEditorialBankContinuity*'
+      - 'shared/capabilityTrainingSequencing*'
+      - 'shared/sandboxEnvironment*'
+      - 'shared/sandboxDiagnosisEnvironment*'
+      - 'shared/practicalExecuteChallenge*'
+      - 'client/src/pages/responseconditioningsystem/**'
+      - 'server/evidenceExceptionSurfaceAudit.test.ts'
+      - 'scripts/deepDiveTeachingInteractionAuthoring.test.ts'
+      - 'client/src/lib/sessionInfrastructureTeaching.ts'
       - '.github/workflows/evidence-exception-bank-quality.yml'
       - 'shared/evidenceExceptionAuthoringGuard.ts'
       - 'shared/evidenceExceptionAuthoringGuard.test.ts'
@@ -46,5 +56,5 @@ jobs:
           echo "NODE_EXTRA_CA_CERTS=$CA_PATH" >> "$GITHUB_ENV"
       - name: Verify 9 staged Proof banks, exact authority, and question quality
         run: node --import tsx scripts/auditEvidenceExceptionStagedBanks.mjs
-      - name: Reject superseded future question authoring
-        run: node --import tsx --test shared/evidenceExceptionAuthoringGuard.test.ts
+      - name: Verify authoring, all live lesson surfaces, simulation, Practicals and earned-pass continuity
+        run: node --import tsx --test shared/evidenceExceptionAuthoringGuard.test.ts server/evidenceExceptionSurfaceAudit.test.ts server/deepDiveSourceIntegrity.test.ts scripts/deepDiveTeachingInteractionAuthoring.test.ts shared/capabilityEditorialBankContinuity.test.ts shared/capabilityTrainingSequencing.test.ts shared/sandboxEnvironment.test.ts shared/sandboxDiagnosisEnvironment.test.ts shared/practicalExecuteChallenge.test.ts

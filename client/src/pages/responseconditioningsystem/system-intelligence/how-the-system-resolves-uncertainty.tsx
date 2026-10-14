@@ -161,8 +161,8 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
             { key: "a", label: "Yes, because the inherited topic state was strong.", feedback: "An inherited claim cannot erase a reference cue in a new opportunity." },
             { key: "b", label: "No. Record the later continuation as confounded and follow the system's next qualifying check.", feedback: "Reference-assisted steps cannot prove independent continuation." },
             { key: "c", label: "Yes, because the method order remained correct.", feedback: "Correct order after seeing a model does not prove independent execution." },
-            { key: "d", label: "Preserve the clean start separately and record the visible later cue.", feedback: "The earlier clean response retains its actual evidence." },
-            { key: "e", label: "Mark the whole response as breakdown because a reference was used.", feedback: "A confound is not a clean capability breakdown." },
+            { key: "d", label: "No. The clean start remains independent, but the later worked-example cue prevents an independence claim for the entire execution.", feedback: "The earlier clean response retains its actual evidence." },
+            { key: "e", label: "No. The reference proves the whole response was a capability breakdown, including the clean start.", feedback: "A confound is not a clean capability breakdown." },
           ]}
           kind="multi_select"
           correctOptionKeys={["b","d"]}

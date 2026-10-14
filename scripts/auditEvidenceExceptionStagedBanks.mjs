@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
 import pg from "pg";
+import { createHash } from "node:crypto";
+const canonical=(value)=>Array.isArray(value)?value.map(canonical):value&&typeof value==="object"?Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonical(value[key])])):value;
+const reviewedContentHash=(item)=>createHash("sha256").update(JSON.stringify(canonical({prompt:item.prompt,options:item.options,explanation:item.explanation,optionFeedback:item.option_feedback}))).digest("hex");
+import fs from "node:fs";
+const inventory=JSON.parse(fs.readFileSync(new URL("../docs/qualification-content/20261013_evidence_exception_reviewed_inventory.json",import.meta.url),"utf8"));
+const reviewed=inventory.changedItems;
+const authorityCorrections=inventory.authorityCorrections;
 import { assertCapabilityOptionParity, analyzeCapabilityOptionParity } from "../shared/capabilityOptionParity.ts";
 import { assertNoSupersededEvidenceScenario } from "../shared/evidenceExceptionAuthoringGuard.ts";
 import { validateCapabilityAssessmentAgainstBlueprint } from "../shared/capabilityBankCoverage.ts";
@@ -36,6 +43,9 @@ try {
     );
     assert.ok(configRows.rows.length>=2,assessmentKey+" has no staged version");
     const staged=configRows.rows[0];
+    const expected=reviewed.filter(row=>row.assessmentKey===assessmentKey);
+    assert.ok(expected.length,assessmentKey+" absent from reviewed inventory");
+    assert.equal(staged.bank_version,expected[0].stagedVersion,"Unreviewed staged version");
     const live=configRows.rows.find(row=>row.active===true);
     assert.ok(live && staged.bank_version>live.bank_version);
     assert.equal(staged.active,false,assessmentKey+" was prematurely activated");
@@ -44,17 +54,26 @@ try {
       "SELECT * FROM private.specialist_capability_assessment_items WHERE assessment_key=$1 AND bank_version=$2 ORDER BY item_key",
       [assessmentKey,version],
     )).rows;
+    assert.equal(live.bank_version,expected[0].sourceVersion,"Reviewed predecessor changed");
+    for(const field of ["title","assessment_deep_dive_key","evidence_kind","pass_threshold_percent","form_size","max_attempts","retry_cooldown_hours","competency_blueprint"]){
+      assert.deepEqual(staged[field],live[field],assessmentKey+" changed config authority "+field);
+    }
     const original=await read(live.bank_version);
     const revised=await read(staged.bank_version);
     assert.equal(revised.length,original.length,"Staged bank pool size changed");
     const prior=new Map(original.map(x=>[x.item_key,x]));
     const itemShapes=[];
     let bankChanged=0;
+    const changedKeys=[];
     for(const item of revised){
       const prev=prior.get(item.item_key);
       assert.ok(prev,item.item_key+" newly invented or source missing");
+      const authorityCorrection=authorityCorrections.find(row=>row.assessmentKey===assessmentKey&&row.itemKey===item.item_key);
       for(const unaltered of ["competency_key","deep_dive_key","question_kind","correct_option_keys","critical_fail_option_keys","critical_boundary_keys","active"]){
-        assert.deepEqual(item[unaltered],prev[unaltered],item.item_key+" changed authority field "+unaltered);
+        if(authorityCorrection?.revised[unaltered]){
+          assert.deepEqual(prev[unaltered],authorityCorrection.previous[unaltered],item.item_key+" predecessor metadata changed");
+          assert.deepEqual(item[unaltered],authorityCorrection.revised[unaltered],item.item_key+" unreviewed critical metadata");
+        }else assert.deepEqual(item[unaltered],prev[unaltered],item.item_key+" changed authority field "+unaltered);
       }
       assert.ok(item.active);
       if (
@@ -62,7 +81,13 @@ try {
         JSON.stringify(item.options)!==JSON.stringify(prev.options) ||
         item.explanation!==prev.explanation ||
         JSON.stringify(item.option_feedback)!==JSON.stringify(prev.option_feedback)
-      )bankChanged++;
+      ){
+        bankChanged++;
+        changedKeys.push(item.item_key);
+        const reviewedItem=expected.find(row=>row.itemKey===item.item_key);
+        assert.ok(reviewedItem,item.item_key+" unexpected edit outside reviewed inventory");
+        assert.equal(reviewedContentHash(item),reviewedItem.contentHash,item.item_key+" differs from semantic review");
+      }
       const form={key:item.item_key,prompt:item.prompt,kind:item.question_kind,options:item.options,correctOptionKeys:item.correct_option_keys};
       const wrong=item.options.filter(x=>!new Set(item.correct_option_keys).has(x.key));
       if(item.question_kind==="single_choice"){
@@ -80,6 +105,10 @@ try {
         assessmentKey,itemKey:item.item_key,competencyKey:item.competency_key,text:copy
       });
       itemShapes.push(form);
+    }
+    assert.deepEqual(changedKeys.sort(),expected.map(row=>row.itemKey).sort(),assessmentKey+" correction inventory mismatch");
+    for(const correction of authorityCorrections.filter(row=>row.assessmentKey===assessmentKey)){
+      assert.ok(revised.some(item=>item.item_key===correction.itemKey),"Critical metadata correction missing");
     }
     const parity=analyzeCapabilityOptionParity(itemShapes);
     if(parity.promptShapeMismatches.length){
@@ -125,7 +154,7 @@ try {
     console.log("EVIDENCE_BANK_READBACK="+JSON.stringify(audit.at(-1)));
   }
   assert.equal(audit.length,9);
-  assert.equal(totalChanged,35);
+  assert.equal(totalChanged,reviewed.length,"Reviewed correction count mismatch");
   if(qualityErrors.length){
     console.log("EVIDENCE_BANK_ALL_QUALITY_ERRORS="+JSON.stringify(qualityErrors));
     throw new Error("All staged bank quality gates must pass before any active promotion ("+qualityErrors.length+" failures).");

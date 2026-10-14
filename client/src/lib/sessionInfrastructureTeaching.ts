@@ -29,12 +29,15 @@ export const SESSION_INFRASTRUCTURE_TEACHING = {
         },
         {
           "key": "e",
-          "label": "Assign the unresolved topic a weak opening response from the other topic's clean result.",
-          "feedback": "Another topic's clean response cannot establish the missing topic's behaviour or placement."
+          "label": "Keep the unresolved topic without an invented placement; obtain its own opening evidence through RI-OS.",
+          "feedback": "Yes"
         }
       ],
-      "correctOptionKey": "c",
-      "truth": "Diagnosis is topic-specific and evidence-complete. Preserve missing evidence honestly and follow only the next requested check."
+      "truth": "Diagnosis is topic-specific and evidence-complete. Preserve missing evidence honestly and follow only the next requested check.",
+      "correctOptionKeys": [
+        "c",
+        "e"
+      ]
     },
     {
       "prompt": "A diagnosis resolves a topic at Structured Execution / High. How should its first Training session start?",
@@ -61,12 +64,15 @@ export const SESSION_INFRASTRUCTURE_TEACHING = {
         },
         {
           "key": "e",
-          "label": "Repeat the whole diagnosis before every session so the topic’s placement always feels current.",
-          "feedback": "A trustworthy active state continues into Training rather than routine fresh placement."
+          "label": "Use the resolved phase and let new Training evidence govern later movement; High entry alone does not authorize phase exit.",
+          "feedback": "Yes"
         }
       ],
-      "correctOptionKey": "b",
-      "truth": "Entry-state placement determines where Training starts. It is not a shortcut through that phase’s required work."
+      "truth": "Entry-state placement determines where Training starts. It is not a shortcut through that phase’s required work.",
+      "correctOptionKeys": [
+        "b",
+        "e"
+      ]
     }
   ],
   "logging_system": [
@@ -95,12 +101,15 @@ export const SESSION_INFRASTRUCTURE_TEACHING = {
         },
         {
           "key": "e",
-          "label": "Leave the prompt out if it was short and the student carried out most of the remaining work.",
-          "feedback": "The amount of speech does not determine whether mathematical direction was supplied."
+          "label": "Separate the supplied mathematical information from the student response so assisted continuation cannot establish independence.",
+          "feedback": "Yes"
         }
       ],
-      "correctOptionKey": "d",
-      "truth": "Record concrete behavior and each intervention separately. Preserve clean observations while keeping prompted behavior from proving independence."
+      "truth": "Record concrete behavior and each intervention separately. Preserve clean observations while keeping prompted behavior from proving independence.",
+      "correctOptionKeys": [
+        "d",
+        "e"
+      ]
     },
     {
       "prompt": "During an independent Training rep, the student completes a valid start. An old worked solution remains open beside the page, and they look at it before continuing the remaining steps. What should the Specialist record?",
@@ -127,12 +136,15 @@ export const SESSION_INFRASTRUCTURE_TEACHING = {
         },
         {
           "key": "e",
-          "label": "Ask the student whether they knew the method, then overwrite the original result.",
-          "feedback": "A retrospective answer cannot make the earlier reference-assisted work independent."
+          "label": "Record only the affected later independence claim as contaminated, retaining directly observed clean dimensions.",
+          "feedback": "Yes"
         }
       ],
-      "correctOptionKey": "a",
-      "truth": "A visible worked example can confound the independence of affected work. Record the cue, preserve unrelated clean evidence, and follow RI-OS for any additional qualifying opportunity."
+      "truth": "A visible worked example can confound the independence of affected work. Record the cue, preserve unrelated clean evidence, and follow RI-OS for any additional qualifying opportunity.",
+      "correctOptionKeys": [
+        "a",
+        "e"
+      ]
     }
   ],
   "session_flow_control": [
@@ -293,12 +305,15 @@ export const SESSION_INFRASTRUCTURE_TEACHING = {
         },
         {
           "key": "e",
-          "label": "Teach the remainder and keep checking until the student reproduces the inherited strength.",
-          "feedback": "Teaching forward would change the continuity question rather than verify it."
+          "label": "Retain the inherited state provisionally while excluding reference-assisted steps from fresh independent proof.",
+          "feedback": "Yes"
         }
       ],
-      "correctOptionKey": "d",
-      "truth": "Handover preserves inherited evidence and a clean observed start while recording any reference-contaminated continuation. It cannot manufacture independence or manually re-place the student."
+      "truth": "Handover preserves inherited evidence and a clean observed start while recording any reference-contaminated continuation. It cannot manufacture independence or manually re-place the student.",
+      "correctOptionKeys": [
+        "d",
+        "e"
+      ]
     },
     {
       "prompt": "Continuity is resolved with clean evidence supporting a stability adjustment inside the inherited phase. What does this authorize?",
@@ -325,12 +340,15 @@ export const SESSION_INFRASTRUCTURE_TEACHING = {
         },
         {
           "key": "e",
-          "label": "Continuing extra checks until both the inherited and adjusted stability labels produce identical behavior.",
-          "feedback": "Resolved continuity does not authorize open-ended reassurance sampling."
+          "label": "A bounded change in stability within the inherited phase, without independent authority to progress to a new phase.",
+          "feedback": "Yes"
         }
       ],
-      "correctOptionKey": "b",
-      "truth": "Handover may preserve state, adjust stability within the inherited phase, or require targeted re-diagnosis. It does not independently authorize phase progression."
+      "truth": "Handover may preserve state, adjust stability within the inherited phase, or require targeted re-diagnosis. It does not independently authorize phase progression.",
+      "correctOptionKeys": [
+        "b",
+        "e"
+      ]
     }
   ],
   "tools_required": [
@@ -354,8 +372,8 @@ export const SESSION_INFRASTRUCTURE_TEACHING = {
         },
         {
           "key": "d",
-          "label": "Use a recorded model instead of the live call so the Specialist can enter observations afterward.",
-          "feedback": "Recorded exposure cannot replace live student observation and reliable evidence capture."
+          "label": "Use the student-response camera mode from Identification onward and keep the live evidence-entry workspace available.",
+          "feedback": "Yes"
         },
         {
           "key": "e",
@@ -363,8 +381,11 @@ export const SESSION_INFRASTRUCTURE_TEACHING = {
           "feedback": "Observation starts within Clarity when the student executes."
         }
       ],
-      "correctOptionKey": "e",
-      "truth": "Camera mode follows the active set. Modelling exposes Specialist execution; Identification and Light Apply use student Observation within Clarity."
+      "truth": "Camera mode follows the active set. Modelling exposes Specialist execution; Identification and Light Apply use student Observation within Clarity.",
+      "correctOptionKeys": [
+        "e",
+        "d"
+      ]
     },
     {
       "prompt": "The correct equipment is present, but glare hides the Specialist’s written steps during Modelling. What should happen?",
