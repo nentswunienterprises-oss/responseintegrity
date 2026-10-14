@@ -25,10 +25,19 @@ Base: `fb9b0884628282e090c56b6070b0b464388a7a52`, `fix/preview-training-session-
 - Seven new inactive Proof copies applied through the committed SQL. The actual readback passed all nine bank content/Blueprint/parity gates in workflow run `38494209603`, attempt 2. Its later source test used the earlier truncated-document head, so that attempt is not a whole-workflow acceptance.
 - All nine standard CI workflows passed on the restored `59a58755` head. The dedicated bank-quality workflow is being triggered on the complete current head.
 
+## Protected release preparation and authenticated readback
+
+- Dedicated Evidence Exception Bank Quality run `38494615279`: complete workflow **PASS**, including actual nine-bank readback and lesson/simulation/continuity tests.
+- Protected Evidence Exception Bank Promotion Plan run `38495508183`: **PASS**. All nine active Production predecessors match the Proof predecessor hashes; all nine proposed Production successors are absent. The workflow supports only a read-only plan or separately dispatched inactive stage; it cannot activate banks.
+- Authenticated readback run `38495942394`: **PASS**. Exact runtime SHA `59a5875514941fb228e51e79fce24b41ae962c8a`, all 21 lessons and 313 slides, ordinary Training forms in all four phases, the actual native Training runner, and deterministic rare worked-example witnesses in Diagnosis and Handover. Zero rep or qualification submissions. Existing synthetic history remained unchanged. Private assignment/student identifiers are resolved at runtime rather than embedded in the current script.
+- Preview protection credentials are available through the existing `production-db` environment; no protection setting was disabled and no new bypass credential was exposed.
+- The separately approved Google identity fix on main is incorporated in development. Its brittle metadata assertion now accepts valid multiline HTML while retaining the exact identity requirement.
+
 ## Remaining release gates
 
 - New copies remain inactive; no Production bank, historical attempt or real Specialist record has changed.
-- Exact-head dedicated CI, authenticated final Sandbox/lesson acceptance, protected bank promotion, merge and deployed Specialist readback remain required. Local simulated-bank validation does not establish those gates.
+- Protected inactive Production staging, a bounded matching application release, bank activation and deployed Specialist readback remain required. The application release must include earned-pass continuity before activating corrected banks.
+- The GitHub connector supports workflow reads and retries but exposes no workflow-dispatch action. Do not replace protected promotion with direct Production SQL or an apply-on-push shortcut.
 
 ## Exact continuation
 

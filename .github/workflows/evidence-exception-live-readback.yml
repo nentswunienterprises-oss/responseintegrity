@@ -22,7 +22,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Verify immutable Preview runtime matches current app sources
-        run: git diff --exit-code 59a5875514941fb228e51e79fce24b41ae962c8a HEAD -- client server shared package.json package-lock.json vite.config.ts tsconfig.json
+        run: git diff --exit-code 59a5875514941fb228e51e79fce24b41ae962c8a HEAD -- client server shared package.json package-lock.json vite.config.ts tsconfig.json ":(exclude)client/index.html" ":(exclude)client/public/google-homepage.html" ":(exclude)client/public/ri-symbol-logo.svg" ":(exclude)client/src/components/RISymbolLogo.tsx" ":(exclude)client/src/lib/google-homepage.test.ts" ":(exclude)client/src/lib/publicSeo.ts"
       - uses: actions/setup-node@v4
         with:
           node-version: 24

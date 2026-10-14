@@ -57,7 +57,7 @@ function normalizeSeoPath(pathname: string) {
 export const routeSeoDefinitions: RouteSeoDefinition[] = [
   {
     path: "/",
-    title: "Calm Execution Under Pressure | Response Integrity",
+    title: "Response Integrity | Calm Execution Under Pressure",
     description:
       "Response Integrity is a conditioning-based academic performance system that helps students build calmer, more structured response patterns before pressure peaks.",
     prerender: false,
