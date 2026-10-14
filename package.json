@@ -37,7 +37,8 @@
     "test:issues": "node --import tsx --test shared/issueReporting.test.ts server/issueReportingRouteContract.test.ts client/src/components/layout/account-menu.test.ts server/issueReportingMigrationIntegration.test.ts",
     "test:trial:policy": "node --import tsx --test shared/trialCertification.test.ts",
     "test:trial:db": "node --import tsx --test scripts/trialWindowMigrationIntegration.test.ts",
-    "test:p0-security": "node --import tsx --test server/privilegedSupabaseKey.test.ts server/confidentialStorage.test.ts server/executiveProofSecurity.test.ts scripts/p0ContainmentIntegration.test.ts shared/storedDocumentUrl.test.ts"
+    "test:p0-security": "node --import tsx --test server/privilegedSupabaseKey.test.ts server/confidentialStorage.test.ts server/executiveProofSecurity.test.ts scripts/p0ContainmentIntegration.test.ts shared/storedDocumentUrl.test.ts",
+    "test:production-link": "node --import tsx --test client/src/lib/google-homepage.test.ts client/src/lib/oauth-attribution.test.ts server/productionLinks.test.ts server/productionLinkPersistence.test.ts server/productionLinkLive.integration.test.ts server/productionLinkOwnership.test.ts server/productionLinkServerBoundary.test.ts server/productionCloseLineage.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

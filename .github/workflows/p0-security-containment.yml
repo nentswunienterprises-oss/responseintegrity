@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - "server/**"
+      - "package.json"
+      - "package-lock.json"
       - "shared/storedDocumentUrl*"
       - "migrations/20261013_p0*"
       - "checks/**"
