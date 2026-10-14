@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -45,7 +46,22 @@ test("Only genuine observed final V1 evidence can trigger a V2 transition", () =
   }),true,"A valid breakdown is evidence, not an excuse to force success.");
 });
 
-test("V1 transition never resets earlier reps, topic state or previous session authority", () => {
-  const text=String.raw`All historical Sandbox rows are evidence, not resettable fixtures.`;
-  assert.match(text,/historical Sandbox rows/);
+test("V1 pending rep is reissued without fictional incidents, and only the current model changes", () => {
+  const runner = readFileSync(new URL("../server/sandboxEnvironment.ts",import.meta.url),"utf8");
+  const transition = readFileSync(new URL("../server/sandboxModelTransition.ts",import.meta.url),"utf8");
+  const migration = readFileSync(new URL("../migrations/20261014122500_sandbox_v1_v2_boundary_transition.sql",import.meta.url),"utf8");
+  assert.ok(runner.includes("retiredV1Incident"));
+  assert.ok(runner.includes("v1-retired-fictional-exceptions-v1"));
+  assert.ok(runner.includes("activateApprovedSandboxModelTransition"));
+  assert.ok(transition.includes("SELECT to_regclass($1)"));
+  assert.ok(transition.includes("sandbox-complete:"));
+  assert.ok(transition.includes("sandboxV1ToV2EvidenceAccepted"));
+  assert.ok(transition.includes("private.specialist_sandbox_trajectory_truth"));
+  assert.ok(transition.includes("private.specialist_sandbox_behavior_model_transitions"));
+  assert.ok(!transition.includes("UPDATE public.specialist_sandbox_rep_events"));
+  assert.ok(!transition.includes("DELETE FROM"));
+  assert.ok(!transition.includes("TRUNCATE"));
+  assert.ok(migration.includes("ENABLE ROW LEVEL SECURITY"));
+  assert.ok(migration.includes("REVOKE ALL ON TABLE"));
+  assert.ok(migration.includes("REFERENCES public.specialist_sandbox_trajectories"));
 });
