@@ -1,0 +1,61 @@
+name: Evidence Exception Bank Quality
+
+on:
+  push:
+    branches:
+      - fix/exception-doctrine-release
+    paths:
+      - 'scripts/auditEvidenceExceptionStagedBanks.mjs'
+      - 'docs/qualification-content/20261013_evidence_exception_reviewed_inventory.json'
+      - 'shared/capabilityEditorialBankContinuity*'
+      - 'shared/capabilityTrainingSequencing*'
+      - 'shared/sandboxEnvironment*'
+      - 'shared/sandboxDiagnosisEnvironment*'
+      - 'shared/practicalExecuteChallenge*'
+      - 'client/src/pages/responseconditioningsystem/**'
+      - 'server/evidenceExceptionSurfaceAudit.test.ts'
+      - 'docs/response-integrity-os-implementation-source-of-truth.md'
+      - 'scripts/deepDiveTeachingInteractionAuthoring.test.ts'
+      - 'client/src/lib/sessionInfrastructureTeaching.ts'
+      - '.github/workflows/evidence-exception-bank-quality.yml'
+      - 'shared/evidenceExceptionAuthoringGuard.ts'
+      - 'shared/evidenceExceptionAuthoringGuard.test.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evidence-exception-bank-quality
+  cancel-in-progress: false
+
+jobs:
+  staged-proof-bank-quality:
+    runs-on: ubuntu-latest
+    environment: production-db
+    timeout-minutes: 20
+    env:
+      RI_PROOF_DATABASE_URL: ${{ secrets.RI_PROOF_DATABASE_URL }}
+      RI_PROOF_DB_URL: ${{ secrets.RI_PROOF_DB_URL }}
+      PROOF_DATABASE_URL: ${{ secrets.PROOF_DATABASE_URL }}
+      SUPABASE_PROOF_DATABASE_URL: ${{ secrets.SUPABASE_PROOF_DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Configure verified Supabase CA trust
+        env:
+          RI_PRODUCTION_DB_CA_CERT: ${{ secrets.RI_PRODUCTION_DB_CA_CERT }}
+        run: |
+          test -n "$RI_PRODUCTION_DB_CA_CERT"
+          CA_PATH="$RUNNER_TEMP/supabase-release-ca.crt"
+          printf '%s\n' "$RI_PRODUCTION_DB_CA_CERT" > "$CA_PATH"
+          chmod 600 "$CA_PATH"
+          echo "NODE_EXTRA_CA_CERTS=$CA_PATH" >> "$GITHUB_ENV"
+      - name: Verify 9 staged Proof banks, exact authority, and question quality
+        run: node --import tsx scripts/auditEvidenceExceptionStagedBanks.mjs
+      - name: Verify authoring, all live lesson surfaces, simulation, Practicals and earned-pass continuity
+        run: node --import tsx --test shared/evidenceExceptionAuthoringGuard.test.ts server/evidenceExceptionSurfaceAudit.test.ts server/deepDiveSourceIntegrity.test.ts scripts/deepDiveTeachingInteractionAuthoring.test.ts shared/capabilityEditorialBankContinuity.test.ts shared/capabilityTrainingSequencing.test.ts shared/sandboxEnvironment.test.ts shared/sandboxDiagnosisEnvironment.test.ts shared/practicalExecuteChallenge.test.ts

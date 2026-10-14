@@ -134,42 +134,42 @@ export default function ResponseConditioningHowToInterpretPrompts() {
             <li>Observe the whole response live.</li>
             <li>Freeze the execution boundary at actual completion.</li>
             <li>Then answer the observation questions one at a time.</li>
-            <li>Do not reconstruct behavior that was not meaningfully observed.</li>
+            <li>Record only what actually occurred; do not manufacture or backfill evidence to satisfy a form.</li>
           </ul>
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="The observation form later asks how the student recognized the method, but the live independent opportunity never exposed that reasoning. Which responses preserve evidence integrity?"
+          prompt="The Specialist is checking independent method selection. The student looks at a worked example left beside the task that already names the correct method, then chooses the same method. What preserves the observation boundary?"
           options={[
             {
               key: "a",
-              label: "Ask before the opportunity ends so every observation field can be filled.",
-              feedback: "That changes the opportunity. Missing evidence is allowed to remain not observed.",
+              label: "Mark independent selection supported because the chosen method was correct.",
+              feedback: "A correct choice after seeing the method is not independent method selection.",
             },
             {
               key: "b",
-              label: "Record recognition as not observed for this opportunity.",
-              feedback: "The form records the response. It must not manufacture the response.",
+              label: "Record the visible worked-example cue and treat the affected independence claim as confounded.",
+              feedback: "The mathematical cue compromised the specific independence claim being tested.",
             },
             {
               key: "c",
-              label: "Ask a neutral recognition question because neutral wording preserves independence.",
-              feedback: "Even a neutral question can elicit evidence the opportunity was not designed to produce.",
+              label: "Mark the student's method selection as a breakdown for needing the example.",
+              feedback: "Confounded evidence is not proof that independent capability failed.",
             },
             {
               key: "d",
-              label: "Keep the rest of the opportunity intact instead of adding a follow-up just to manufacture the missing behavior.",
-              feedback: "Missing evidence is preferable to manufactured observability.",
+              label: "Preserve any earlier clean observations separately and follow the system's next qualifying opportunity.",
+              feedback: "A contaminated claim does not erase unrelated clean behaviour or authorize invented evidence.",
             },
             {
               key: "e",
-              label: "Ask after the student finishes, then backfill that answer into the original opportunity.",
-              feedback: "A later elicited answer is a different evidence event and cannot be backfilled into the original response.",
+              label: "Ask the student afterward whether they knew the method and backfill their answer as independent evidence.",
+              feedback: "A retrospective explanation cannot remove the original cue or rewrite the live condition.",
             },
           ]}
           kind="multi_select"
           correctOptionKeys={["b","d"]}
-          truth="Observation prompts capture evidence; they do not let the Specialist create missing evidence. A behavior that was not exposed remains not observed."
+          truth="Observation prompts report the actual response, not a preferred result. A visible worked example can confound an independence claim; preserve the cue and let RI-OS determine whether a clean comparable opportunity is required."
         />
 
         <Card className="p-6 space-y-4">

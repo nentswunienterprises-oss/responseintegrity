@@ -24,7 +24,7 @@ test("Execute challenge is deterministic after server assignment, variable betwe
  const p=createExecutePlan("0123456789abcdef0123456789abcdef");
  const repeat=createExecutePlan("0123456789abcdef0123456789abcdef");
  assert.deepEqual(nextExecuteTurn(p,[]),nextExecuteTurn(repeat,[]));
- assert.equal(p.version,1);
+ assert.equal(p.version,2);
  assert.equal(executeCaseBrief().totalTurns,EXECUTE_CHALLENGE_TURNS);
  assert.throws(()=>createExecutePlan("user-choice"),/server entropy/);
  const variations=new Set(Array.from({length:40},(_,i)=>createExecutePlan(i.toString(16).padStart(8,"0").repeat(8))).map(x=>nextExecuteTurn(x,[])?.studentBehavior));
@@ -57,7 +57,7 @@ test("approved private Sandbox bank varies unseen student responses while preser
  assert.throws(()=>createExecutePlan("abcdef0123456789abcdef0123456789",{...bank,behaviors:bank.behaviors.slice(0,1)}),/sufficiently varied/);
 });
 
-test("Third turn always introduces unpredictable observability failure and future turns remain withheld",()=>{
+test("New Practical third turn preserves real adaptive student conduct instead of scripted equipment failure",()=>{
  const p=createExecutePlan("ffffffff00000000ffffffff00000000");
  const first=nextExecuteTurn(p,[])!;
  assert.equal(first.kind,"uncertainty");
@@ -66,8 +66,9 @@ test("Third turn always introduces unpredictable observability failure and futur
  assert.equal(second.kind,"difficulty");
  const two=trace(2,second,validResponse);
  const third=nextExecuteTurn(p,[one,two])!;
- assert.equal(third.kind,"observability_interruption");
- assert.match(third.studentBehavior,/not visible|obscured|cannot observe|inaudible/i);
+ assert.equal(third.kind,"adaptive_continuation");
+ assert.match(third.studentBehavior,/student|work|step|problem|method|attempt/i);
+ assert.doesNotMatch(third.studentBehavior,/camera|call|connection|inaudible|out of view|screen glitch/i);
  assert.equal(nextExecuteTurn(p,[one,two,trace(3,third,{...validResponse,evidenceStatus:"not_observed"})]),null);
  assert.throws(()=>nextExecuteTurn(p,[{...one,number:2}]),/turn sequence/);
 });
@@ -80,10 +81,21 @@ test("Objective contradictions are exposed to TD instead of deleted or converted
  assert.deepEqual(executeRiskFlags(first,{...validResponse,intervention:"timer_changed"}),["unauthorised_condition_change"]);
  const t2=nextExecuteTurn(p,[trace(1,first,validResponse)])!;
  const last=nextExecuteTurn(p,[trace(1,first,validResponse),trace(2,t2,validResponse)])!;
- assert.deepEqual(executeRiskFlags(last,validResponse),["unobservable_work_claimed_as_observed"]);
- assert.deepEqual(executeRiskFlags(last,{...validResponse,evidenceStatus:"not_observed"}),[]);
+ assert.deepEqual(executeRiskFlags(last,validResponse),[]);
+ assert.deepEqual(executeRiskFlags(last,{...validResponse,evidenceStatus:"not_observed"}),["observable_student_work_marked_unobserved"]);
  assert.deepEqual(executeRiskFlags(last,{...validResponse,evidenceStatus:"confounded",independenceClaim:"independent"}),["independence_claim_without_clean_observation"]);
  assert.deepEqual(executeRiskFlags(first,{...validResponse,intervention:"full_rescue_or_teaching",independenceClaim:"assisted"}),["no_rescue_condition_broken"]);
+});
+
+test("Historical V1 Execute challenge transcripts replay without being authored for new Specialists",()=>{
+ const fresh=createExecutePlan("abcdef0123456789abcdef0123456789");
+ const old={...fresh,version:1 as const,observabilityVariant:1,continuationVariant:undefined};
+ const first=nextExecuteTurn(old,[])!;
+ const second=nextExecuteTurn(old,[trace(1,first,validResponse)])!;
+ const third=nextExecuteTurn(old,[trace(1,first,validResponse),trace(2,second,validResponse)])!;
+ assert.equal(third.kind,"observability_interruption");
+ assert.match(third.studentBehavior,/connection|inaudible/i);
+ assert.equal(createExecutePlan("abcdef0123456789abcdef0123456789").version,2);
 });
 
 test("All responses need explicit observable evidence and meaningful next-action rationale",()=>{

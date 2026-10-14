@@ -1,3 +1,4 @@
+import { CAPABILITY_EDITORIAL_PASS_CONTINUITY } from "./capabilityEditorialBankContinuity";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
@@ -642,4 +643,43 @@ test("Curriculum v1 final gate does not silently require the new v2 Mastery", ()
     (entry) => entry.assessmentKey === OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY,
   );
   assert.equal(retrieval?.status, "available");
+});
+
+test("content-only bank rollover preserves a passed Handover Mastery but never imports a failed attempt", () => {
+  const plan=getCapabilityTrainingAssessmentPlan({curriculumVersion:"v2"});
+  const handoverKey="handover_verification_mastery_v1";
+  const approved={
+    ...bank(handoverKey,"mastery" as const),bankVersion:CAPABILITY_EDITORIAL_PASS_CONTINUITY[handoverKey].current,
+  };
+  const passing={assessmentKey:handoverKey,bankVersion:10,attemptNumber:1,evidenceKind:"mastery" as const,passed:true,completedAt:"2026-10-11T11:00:00Z"};
+  const failed={...passing,passed:false};
+  const state=(attempts:CapabilityTrainingAttempt[])=>buildCapabilityTrainingAvailability({
+    now:"2026-10-13T13:00:00Z",activeBanks:[approved],
+    attempts,plan,
+  }).find(x=>x.assessmentKey===handoverKey);
+  assert.equal(state([passing])?.status,"complete");
+  assert.equal(state([passing])?.attemptCount,0,"Old attempts cannot consume the corrected bank attempt allowance");
+  assert.notEqual(state([failed])?.status,"complete","Failing a retired bank never qualifies");
+  assert.notEqual(state([{...passing,bankVersion:9}])?.status,"complete","Unapproved bank versions never become passes");
+  assert.notEqual(state([{...passing,assessmentKey:"unrelated_mastery_v1"}])?.status,"complete");
+});
+
+test("an editorially equivalent earlier Transfer pass is preserved without lifting unrelated bank rollover gates", () => {
+  const transferKey=OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY_V2;
+  const transferBank={...bank(transferKey,"transfer" as const),bankVersion:CAPABILITY_EDITORIAL_PASS_CONTINUITY[transferKey].current};
+  const earlier={
+    assessmentKey:transferKey,bankVersion:1,attemptNumber:1,
+    evidenceKind:"transfer" as const,passed:true,completedAt:"2026-10-11T12:00:00Z",
+  };
+  const plan=getCapabilityTrainingAssessmentPlan({curriculumVersion:"v2"});
+  const current=buildCapabilityTrainingAvailability({
+    now:"2026-10-13T13:00:00Z",activeBanks:[transferBank],
+    attempts:[earlier],plan,
+  }).find(x=>x.assessmentKey===transferKey);
+  assert.equal(current?.status,"complete");
+  const revised=buildCapabilityTrainingAvailability({
+    now:"2026-10-13T13:00:00Z",activeBanks:[{...transferBank,bankVersion:CAPABILITY_EDITORIAL_PASS_CONTINUITY[transferKey].current+1}],
+    attempts:[earlier],plan,
+  }).find(x=>x.assessmentKey===transferKey);
+  assert.notEqual(revised?.status,"complete");
 });

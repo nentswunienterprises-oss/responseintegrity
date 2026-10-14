@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Send, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { displayTopicStability, topicStabilityConfirmationLabel } from "@shared/topicStabilityPresentation";
 import {
   DEFAULT_MONTHLY_PACKAGE_KEY,
   MONTHLY_PACKAGE_KEYS,
@@ -440,7 +441,10 @@ export default function ParentOnboardingProposal({
                 </div>
                 <div className="rounded-md border bg-muted/50 p-2">
                   <p className="text-[10px] uppercase text-muted-foreground mb-1">Stability</p>
-                  <p className="text-xs font-medium text-foreground">{stability}</p>
+                  <p className="text-xs font-medium text-foreground">{displayTopicStability(stability)}</p>
+                  {topicStabilityConfirmationLabel(stability, trainingEntryPhase) ? (
+                    <p className="mt-1 text-[11px] text-muted-foreground">{topicStabilityConfirmationLabel(stability, trainingEntryPhase)}</p>
+                  ) : null}
                 </div>
               </div>
             </CardContent>

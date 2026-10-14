@@ -42,12 +42,26 @@ describe("topicConditioningEngine", () => {
   });
 
   it("recommends movement logic", () => {
-    assert.equal(nextMoveRecommendation("Clarity", "High"), "Continue Clarity drill until High Maintenance is earned");
+    assert.equal(nextMoveRecommendation("Clarity", "High"), "Continue Clarity training until qualifying repeatability is established");
     assert.equal(
       nextMoveRecommendation("Clarity", "High Maintenance"),
-      "Confirm High Maintenance in Clarity before advancing to Structured Execution",
+      "Confirm the phase-exit evidence in Clarity before advancing to Structured Execution",
     );
     assert.equal(nextMoveRecommendation("Controlled Discomfort", "Low").includes("Reinforce Structured Execution"), true);
+  });
+
+  it("distinguishes a high confirmation checkpoint from completed phase exit", () => {
+    const checkpoint = getNextActionData("Clarity", "High Maintenance");
+    assert.equal(checkpoint.advanceTo, "Structured Execution");
+    assert.match(checkpoint.rules.join(" "), /later qualifying drill before phase exit/);
+    assert.doesNotMatch(checkpoint.rules.join(" "), /High Maintenance/);
+
+    assert.equal(
+      nextMoveRecommendation("Time Pressure Stability", "High Maintenance"),
+      "Maintain timed stability and verify transfer through separate evidence",
+    );
+    const high = getNextActionData("Clarity", "High");
+    assert.match(high.rules.join(" "), /independently establish the progression checkpoint/);
   });
 
   it("explains priority reason", () => {

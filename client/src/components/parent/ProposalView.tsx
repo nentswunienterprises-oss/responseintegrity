@@ -11,6 +11,7 @@ import {
 } from "@shared/topicConditioningEngine";
 import { getMonthlyServicePackage, type MonthlyPackageKey } from "@shared/servicePackages";
 import { extractDiagnosisProposalSnapshot } from "@shared/diagnosisProposalCopy";
+import { displayTopicStability, topicStabilityConfirmationLabel } from "@shared/topicStabilityPresentation";
 
 interface ProposalData {
   id: string;
@@ -435,7 +436,7 @@ export default function ProposalView({
     const nextAction = NEXT_ACTION_ENGINE[phase as TopicPhase][stability as TopicStability];
 
     if (stability === "High Maintenance" && nextAction.advanceTo) {
-      return `We are running maintenance checks to confirm that this stability is reliable enough to introduce pressure. ${nextAction.advanceTo} will only begin once this level is consistently maintained.`;
+      return `We are gathering separate phase-exit evidence to confirm that this stability is sufficient to introduce the next training condition. ${nextAction.advanceTo} will only begin once this level is consistently maintained.`;
     }
 
     switch (phase) {
@@ -597,7 +598,7 @@ export default function ProposalView({
         topic: item.topic,
         phase,
         stability,
-        stateLabel: `${phase} (${stability})`,
+        stateLabel: `${phase} (${displayTopicStability(stability)}${topicStabilityConfirmationLabel(stability, phase) ? " · Exit confirmation pending" : ""})`,
         meaning: getPhaseMeaning(phase, stability),
         position: getLivePositionText(phase, stability),
         observations: getLiveObservationLines(phase, stability, false),
@@ -712,7 +713,12 @@ export default function ProposalView({
                 </div>
                 <div className="rounded-md border bg-muted/50 p-3">
                   <p className="text-xs uppercase text-muted-foreground mb-1">Stability</p>
-                  <p className="text-sm font-medium text-foreground">{diagnosisProposalSnapshot.stability}</p>
+                  <p className="text-sm font-medium text-foreground">{displayTopicStability(diagnosisProposalSnapshot.stability)}</p>
+                  {topicStabilityConfirmationLabel(diagnosisProposalSnapshot.stability, diagnosisProposalSnapshot.entryPhase) ? (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {topicStabilityConfirmationLabel(diagnosisProposalSnapshot.stability, diagnosisProposalSnapshot.entryPhase)}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </CardContent>
