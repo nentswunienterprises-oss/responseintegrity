@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 28124)
-Total output lines: 2952
-
 # Response Integrity-OS Live Implementation Source of Truth
 
 Last updated: 2026-09-28
@@ -959,7 +956,677 @@ For timing authority, `stack.normal_independent` and `execution.repeatability` a
 
 ### Completion and blocking
 
-Diagnosis completes as soon as t…4124 tokens truncated…ons: `Run High Maintenance confirmation in Structured Execution`; `Confirm repeatable execution stability in a later qualifying drill`; `Advance to Controlled Discomfort only after confirmation`
+Diagnosis completes as soon as the evidence is sufficient to identify the earliest unsupported response layer and its starting stability.
+
+If the required evidence remains unresolved after the permitted clean probes, the engine blocks for evidence review rather than inventing a placement.
+
+High Maintenance remains training-earned. A diagnosis may place a topic at High, after which ordinary same-phase training must establish High Maintenance before later confirmation can authorize progression.
+
+### Persistence and server authority
+
+The server independently replays the submitted probe history and recomputes:
+
+- the expected next probe;
+- evidence states;
+- phase support;
+- final placement;
+- starting stability;
+- completion reason.
+
+Durable diagnosis state preserves the ordered probe history, starting signal, constraints, evidence outcomes, final placement, and evidence ledger lineage. Interrupted runs resume from persisted state rather than asking the Specialist to re-enter already accepted evidence.
+
+### Legacy boundary
+
+The previous fixed-repetition/adaptive intro diagnosis is not a supported live intro path and cannot be selected with a query flag or Specialist control.
+
+Historical implementation code and stored records may remain where removal would damage existing evidence. Targeted handover re-diagnosis remains a separate handover workflow and must not be described or exposed as an intro fallback.
+
+## Training System
+
+Training is where real topic-state updates happen.
+
+Diagnosis classifies.
+Training conditions.
+
+Implementation:
+
+- `client/src/components/tutor/IntroSessionDrillRunner.tsx`
+- `server/routes.ts`
+- `shared/trainingEvidenceEvaluator.ts`
+- `shared/responseEvidenceModel.ts`
+- `shared/tpsTrainingReadiness.ts`
+- `shared/tpsTimingAuthority.ts` is represented server-side by `server/tpsTimingAuthority.ts`; the route surface is `server/tpsTimingRoutes.ts`
+- `shared/topicConditioningEngine.ts` remains for legacy transition helpers and next-action vocabulary
+
+### Training product law
+
+Training is drill-driven and evidence-native.
+
+The lesson may contain multiple topics, but each topic drill produces its own persisted evidence and state decision.
+
+The live authority chain is:
+
+`raw Specialist observation + intervention/condition -> evidence eligibility -> dimension evidence class -> recovery/minimum-evidence law -> topic-state decision / targeted re-diagnosis`
+
+### Important modeling-step clarification
+
+Older derivative docs sometimes described Clarity training as "2 modeled problems".
+
+The current live runner config uses:
+
+- one modeled pre-drill step in the UI
+- followed by the live observation drill sets
+
+If any older document says otherwise, trust the live runner and this file.
+
+### Guidance and intervention authority
+
+`Model -> Apply -> Guide` is historical shorthand for the Clarity / concept-entry teaching rhythm. It is not a universal three-step loop across RI-OS and `Guide` is not a phase.
+
+The live rule is:
+
+**The active set owns the support boundary. The Specialist does not increase support because the student hesitates, asks for help, or produces a weak response.**
+
+Guidance and correction are separate:
+
+- **guidance** = direction supplied while the current evidence opportunity is still live;
+- **correction** = teaching, reset, or repair after the opportunity has already revealed the response.
+
+Support contracts used by live training are:
+
+- `modeled` - Specialist demonstration is expected; the opportunity is instructional preparation and does not prove independent student capability;
+- `minimal` - limited support is permitted, but the Specialist may not carry the response or manufacture the dimension being observed;
+- `first_step_only` - support may reach the defined first-step boundary and no further;
+- `none` - present the task and observe; hesitation, rescue-seeking, or breakdown remains learner evidence rather than permission to help.
+
+Current training support map:
+
+| Phase | Set | Support contract |
+|---|---|---|
+| Clarity | Modeling | `modeled` |
+| Clarity | Identification | `none` |
+| Clarity | Light Apply | `minimal` |
+| Structured Execution | Required Structure | `minimal` |
+| Structured Execution | Independent Execution | `none` |
+| Structured Execution | Variation Control | `none` |
+| Controlled Discomfort | Controlled Entry | `minimal` |
+| Controlled Discomfort | No Rescue | `first_step_only` |
+| Controlled Discomfort | Repeat Exposure | `none` |
+| Time Pressure Stability | Structure Under Timer | `none` |
+| Time Pressure Stability | Repeated Timed Execution | `none` |
+| Time Pressure Stability | Full Constraint | `none` |
+
+Consequences:
+
+- the old general rule "guide to the first step" is not OS-wide; it belongs where the active set explicitly permits first-step support;
+- a no-help opportunity remains no-help even when the student stalls;
+- timed opportunities are not coached through;
+- a later-phase breakdown is not silently converted into Clarity modeling; preserve the assigned condition and let evidence / targeted re-diagnosis determine whether an inherited prerequisite has become untrustworthy;
+- support is recorded because supplied structure can confound only the dimensions it materially changed rather than erasing the whole opportunity;
+- post-opportunity correction may target the broken point, but it must not retroactively strengthen the evidence from the completed opportunity.
+
+## Live Training Drill Library
+
+This section describes the current live training set structures.
+
+### Clarity training drill
+
+Drill family:
+
+- `Clarity drill`
+
+Primary purpose:
+
+- build the mental map
+- verify recognition
+- verify that clarity survives light solving
+
+#### Set 1: Modeling
+
+Type:
+
+- pre-drill modeling step
+
+Evidence role:
+
+- instructional preparation only
+- no decision-eligible student observation evidence
+
+Purpose:
+
+- build the mental map before drilling
+
+Rep instruction:
+
+- teach `Vocabulary -> Method -> Reason`, then ask the student to explain back
+
+Active rules:
+
+- Specialist models first
+- student does not solve yet
+- use the vocabulary, method, reason sequence
+
+#### Persistent Topic Reference
+
+The first time a Specialist opens `Clarity` training `Set 1: Modeling` for a student-topic, the drill runner requires a Topic Reference before the observation sets can begin.
+
+The Topic Reference captures:
+
+- vocabulary
+- recognition / method
+- ordered steps
+- reason
+
+It is stored once on that student-topic's conditioning state, not on an individual session or drill result. After it is saved, the Specialist can open it from a collapsed `Topic Reference` toggle during Clarity and every later training phase.
+
+Current visibility rule:
+
+- Specialist drill UI only
+- not exposed in the student UI
+- not exposed through parent topic-conditioning responses
+
+Current integrity rule:
+
+- the Topic Reference is instructional context, not decision-eligible evidence
+- saving it does not change phase, stability, evidence authority, or state movement
+- an existing reference is returned unchanged rather than silently overwritten
+
+#### Set 2: Identification
+
+Reps:
+
+- 3
+
+Purpose:
+
+- recognition without solving
+- student names terms, identifies type, states steps, explains why
+
+Rep instruction:
+
+- show the problem and ask the student to name the terms, identify the type, state the steps, and explain why it works
+
+Active rules:
+
+- no solving allowed
+- push for vocabulary precision
+- require all four layers: terms, type, steps, reason
+
+Fields:
+
+- vocabulary
+- method
+- reason
+- immediate apply
+
+Typical options:
+
+- vocabulary: `wrong / hesitant / correct`
+- method: `missing / partial / clear`
+- reason: `none / weak / clear`
+- immediate apply: `avoids answering / unsure but tries / confident`
+
+#### Set 3: Light Apply
+
+Reps:
+
+- 3
+
+Purpose:
+
+- test whether clarity holds during active solving
+
+Rep instruction:
+
+- ask the student to solve with minimal guidance
+
+Active rules:
+
+- minimal guidance only
+- no step-by-step help
+- observe independent start and execution
+
+Fields:
+
+- vocabulary
+- method
+- reason
+- immediate apply
+
+Typical options:
+
+- vocabulary: `incorrect / partial / correct`
+- method: `skips / inconsistent / structured`
+- reason: `absent / weak / present`
+- immediate apply: `delayed / hesitant / immediate`
+
+### Structured Execution training drill
+
+Drill family:
+
+- `Structured Execution drill`
+
+Primary purpose:
+
+- enforce independent execution and repeatable structure
+
+#### Set 1: Required Structure
+
+Reps:
+
+- 3
+
+Purpose:
+
+- require structured execution before independence claims are allowed
+
+Rep instruction:
+
+- before solving, the student states the step plan, then solves using that plan
+
+Active rules:
+
+- steps must be stated before solving
+- no skipping steps
+- correct step order required
+
+Fields:
+
+- start behavior
+- step execution
+- repeatability
+- independence
+
+Typical options:
+
+- start behavior: `delayed / hesitant / immediate`
+- step execution: `skips / partial / full`
+- repeatability: `resists / accepts / adjusts / already structured correctly`
+- independence: `needs help / light support / independent`
+
+#### Set 2: Independent Execution
+
+Reps:
+
+- 3
+
+Purpose:
+
+- full independent execution without help
+
+Rep instruction:
+
+- solve independently
+
+Active rules:
+
+- no help from Specialist
+- independence expected
+- observe consistency and error handling
+
+Fields:
+
+- independence
+- repeatability
+- step execution
+- start behavior
+
+Typical options:
+
+- independence: `needs help / light support / independent`
+- repeatability: `breaks / inconsistent / stable`
+- step execution: `guesses / partial correction / structured correction / no correction needed`
+- start behavior: `delayed / hesitant / immediate`
+
+#### Set 3: Variation Control
+
+Reps:
+
+- 3
+
+Purpose:
+
+- test method survival when the form changes slightly
+
+Rep instruction:
+
+- solve a slightly different form
+
+Active rules:
+
+- same method, different form
+- test transfer, not memorization
+- no hints about what changed
+
+Fields:
+
+- step execution
+- repeatability
+- independence
+- start behavior
+
+Typical options:
+
+- transfer: `cannot adapt / partial / adapts`
+- step retention: `lost / partial / stable`
+- completion: `fails / partial / complete`
+- start behavior: `delayed / hesitant / immediate`
+
+### Controlled Discomfort training drill
+
+Drill family:
+
+- `Controlled Discomfort drill`
+
+Primary purpose:
+
+- build stable response under challenge without rescue
+
+#### Set 1: Controlled Entry
+
+Reps:
+
+- 3
+
+Purpose:
+
+- force controlled entry under difficulty
+
+Rep instruction:
+
+- pause, then state the first step
+
+Active rules:
+
+- force a pause before starting
+- first step must be stated out loud
+- do not let the student jump in
+
+Fields:
+
+- initial response
+- first-step control
+- discomfort tolerance
+- rescue dependence
+
+Typical options:
+
+- initial response: `freeze / hesitant / controlled`
+- first-step control: `wrong / partial / correct`
+- discomfort tolerance: `breaks / unstable / stable`
+- rescue dependence: `frequent / occasional / none`
+
+#### Set 2: No Rescue
+
+Reps:
+
+- 3
+
+Purpose:
+
+- build independence under difficulty with no rescue
+
+Rep instruction:
+
+- continue, no full help
+
+Active rules:
+
+- no rescue allowed
+- hold the pressure
+- observe rescue-seeking pattern
+
+Fields:
+
+- rescue dependence
+- discomfort tolerance
+- initial response
+- first-step control
+
+Typical options:
+
+- rescue dependence: `dependent / partial / independent`
+- discomfort tolerance: `breaks / unstable / stable`
+- initial response: `collapses / partial / recovers / no recovery needed`
+- first-step control: `none / prompted / independent`
+
+#### Set 3: Repeat Exposure
+
+Reps:
+
+- 3
+
+Purpose:
+
+- repeat exposure at the same difficulty to build tolerance
+
+Rep instruction:
+
+- another similar difficulty
+
+Active rules:
+
+- same difficulty level
+- repeat exposure
+- observe response consistency
+
+Fields:
+
+- discomfort tolerance
+- initial response
+- rescue dependence
+- first-step control
+
+Typical options:
+
+- discomfort tolerance: `breaks / inconsistent / stable`
+- initial response: `collapses / partial / recovers / no recovery needed`
+- rescue dependence: `frequent / occasional / none`
+- first-step control: `none / prompted / independent`
+
+### Time Pressure Stability training drill
+
+Drill family:
+
+- `Time Pressure Stability drill`
+
+Primary purpose:
+
+- keep structure intact while time constraint is active
+
+#### Set 1: Structure Under Timer
+
+Reps:
+
+- 3
+
+Purpose:
+
+- build structured execution under a timer
+
+Rep instruction:
+
+- focus on method, not speed
+
+Active rules:
+
+- timer active
+- method first
+- structure must be maintained
+
+Fields:
+
+- start under time
+- structure under time
+- pace control
+- completion integrity
+
+Typical options:
+
+- start: `panic / hesitant / controlled`
+- structure: `lost / partial / maintained`
+- pace: `rushed / uneven / controlled`
+- completion: `fails / partial / complete`
+
+#### Set 2: Repeated Timed Execution
+
+Reps:
+
+- 3
+
+Purpose:
+
+- build consistency under repeated timed attempts
+
+Rep instruction:
+
+- repeat under timer
+
+Active rules:
+
+- same timer
+- build consistency
+- observe pace regulation
+
+Fields:
+
+- completion integrity
+- pace control
+- structure under time
+- start under time
+
+Typical options:
+
+- consistency: `breaks / inconsistent / stable`
+- pace: `rushed / uneven / controlled`
+- structure: `lost / partial / maintained`
+- start: `panic / hesitant / controlled`
+
+#### Set 3: Full Constraint
+
+Reps:
+
+- 3
+
+Purpose:
+
+- test full constraint performance under tighter time
+
+Rep instruction:
+
+- solve under tighter time
+
+Active rules:
+
+- tighter timer
+- no relief
+- structure and completion both matter
+
+Fields:
+
+- completion integrity
+- structure under time
+- pace control
+- start under time
+
+Typical options:
+
+- completion: `fails / partial / complete`
+- integrity: `collapses / unstable / stable`
+- pace: `rushed / uneven / controlled`
+- start: `panic / hesitant / controlled`
+
+## Training State Authority
+
+Implementation:
+
+- `shared/trainingEvidenceEvaluator.ts`
+- `shared/responseEvidenceModel.ts`
+- `shared/topicConditioningEngine.ts` for legacy migration helpers and next-action vocabulary
+
+### Live authority
+
+Training state movement is evidence-native.
+
+The live authority chain is:
+
+`raw behavior + intervention/condition -> evidence eligibility -> dimension evidence class -> minimum-evidence / recovery law -> state decision`
+
+The system returns:
+
+- resulting phase;
+- resulting stability;
+- reason;
+- next action;
+- targeted re-diagnosis requirement where a prerequisite contradiction is detected.
+
+The Specialist does not see or act on retired numeric delivery outputs. Historical implementation fields may remain in storage or migration code where deleting them would damage old records, but they are not rendered in Specialist delivery surfaces and are not part of current operating doctrine.
+
+## Next Action Engine
+
+Implementation:
+
+- `shared/topicConditioningEngine.ts`
+
+### Purpose
+
+This engine tells the system what operational move should happen next from each live state.
+
+Each state stores:
+
+- `primaryAction`
+- `rules`
+- optional `nextActions`
+- optional `advanceTo`
+
+### State matrix
+
+#### Clarity
+
+`Low`
+
+- primary action: `Run Clarity drill`
+- rules: `No Boss Battles`, `No time pressure`, `No skipping layers`
+
+`Medium`
+
+- primary action: `Run Clarity drill`
+- rules: `No Boss Battles as primary`, `No time pressure`, `Reduce explanation, increase execution`
+
+`High`
+
+- primary action: `Run Clarity drill`
+- rules: `Do NOT phase advance yet`, `A later qualifying same-phase drill may earn High Maintenance`
+
+`High Maintenance`
+
+- primary action: `Run Clarity drill`
+- rules: `Do NOT phase advance yet`, `Confirm High Maintenance in a later qualifying drill`
+- next actions: `Run High Maintenance confirmation in Clarity`; `Confirm repeatable clarity in a later qualifying drill`; `Advance to Structured Execution only after confirmation`
+- advanceTo: `Structured Execution`
+
+#### Structured Execution
+
+`Low`
+
+- primary action: `Run Structured Execution drill`
+- rules: `No time pressure`, `Boss Battles only if student can start`, `No over-explaining`
+
+`Medium`
+
+- primary action: `Run Structured Execution drill`
+- rules: `Do not rush to time pressure`, `Still reinforce structure every time`
+
+`High`
+
+- primary action: `Run Structured Execution drill`
+- rules: `Do NOT phase advance yet`, `A later qualifying same-phase drill may earn High Maintenance`
+
+`High Maintenance`
+
+- primary action: `Run Structured Execution drill`
+- rules: `Do NOT phase advance yet`, `Confirm High Maintenance in a later qualifying drill`
+- next actions: `Run High Maintenance confirmation in Structured Execution`; `Confirm repeatable execution stability in a later qualifying drill`; `Advance to Controlled Discomfort only after confirmation`
 - advanceTo: `Controlled Discomfort`
 
 #### Controlled Discomfort
