@@ -523,6 +523,7 @@ export default function PodDetail() {
   const {
     data: podTutors,
     isLoading: podTutorsLoading,
+    isError: podTutorsError,
     refetch: refetchPodTutors,
   } = useQuery<any[]>({
     queryKey: [`/api/coo/pods/${podId}/tutors`],
@@ -558,7 +559,12 @@ export default function PodDetail() {
     refetchOnWindowFocus: true,
   });
 
-  const { data: podOperatingOverview = [] } = useQuery<any[]>({
+  const {
+    data: podOperatingOverview = [],
+    isLoading: operatingOverviewLoading,
+    isError: operatingOverviewError,
+    refetch: refetchOperatingOverview,
+  } = useQuery<any[]>({
     queryKey: ["/api/coo/pods/operating-overview"],
     enabled: isAuthenticated && !authLoading,
     refetchInterval: 10000,
@@ -1043,9 +1049,19 @@ export default function PodDetail() {
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-sm text-muted-foreground">Operating State</span>
                   <Badge className={getOperatingStateBadgeClass(operatingOverview?.operatingState?.key)}>
-                    {operatingOverview?.operatingState?.label || "Loading"}
+                    {operatingOverviewError
+                      ? "Unavailable"
+                      : operatingOverviewLoading && !operatingOverview
+                        ? "Loading"
+                        : operatingOverview?.operatingState?.label || "Unavailable"}
                   </Badge>
                 </div>
+                {operatingOverviewError || (!operatingOverviewLoading && !operatingOverview) ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm text-muted-foreground">Operating state unavailable. No state has been inferred.</p>
+                    <Button variant="outline" size="sm" onClick={() => refetchOperatingOverview()}>Retry</Button>
+                  </div>
+                ) : null}
                 {operatingOverview?.operatingState?.description ? (
                   <p className="text-sm text-muted-foreground">{operatingOverview.operatingState.description}</p>
                 ) : null}
@@ -1212,12 +1228,24 @@ export default function PodDetail() {
                       <Skeleton className="h-14" />
                       <Skeleton className="h-14" />
                     </div>
-                  ) : !podTutors || podTutors.length === 0 ? (
+                  ) : podTutorsError ? (
+                    <div className="space-y-3 py-6 text-center">
+                      <p className="text-sm text-muted-foreground">Assigned Specialist roster could not be loaded. The assignment count is not a roster.</p>
+                      <Button variant="outline" size="sm" onClick={() => refetchPodTutors()}>Retry roster</Button>
+                    </div>
+                  ) : !Array.isArray(podTutors) ? (
+                    <div className="text-sm text-muted-foreground py-6 text-center">Specialist roster returned an invalid response. No assignments have been changed.</div>
+                  ) : podTutors.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <p className="text-sm">No Specialists assigned yet</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
+                        {typeof podStats?.totalTutors === "number" && podStats.totalTutors !== podTutors.length ? (
+                          <p role="status" className="text-sm text-muted-foreground">
+                            Roster incomplete: {podTutors.length} of {podStats.totalTutors} assigned Specialist records loaded.
+                          </p>
+                        ) : null}
                         {podTutors.map((assignment: any) => {
                           const isExpanded = expandedTutors.has(assignment.id);
                           const tutorAudit = battleTestingSummary?.tutorSummaries.find(
@@ -1250,10 +1278,10 @@ export default function PodDetail() {
                                 <div className="flex items-start justify-between gap-2 sm:gap-4">
                                   <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
                                     <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center text-xs sm:text-sm font-bold text-primary shrink-0">
-                                      {assignment.tutorName.charAt(0).toUpperCase()}
+                                      {String(assignment.tutorName || "?").charAt(0).toUpperCase()}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      <p className="font-semibold text-sm sm:text-base truncate">{assignment.tutorName}</p>
+                                      <p className="font-semibold text-sm sm:text-base truncate">{assignment.tutorName || "Specialist record unavailable"}</p>
                                       <p className="text-xs sm:text-sm text-muted-foreground truncate">{assignment.tutorEmail}</p>
                                     </div>
                                   </div>
