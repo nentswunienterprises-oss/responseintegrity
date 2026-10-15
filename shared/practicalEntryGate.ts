@@ -12,6 +12,12 @@ export type PracticalReadinessSnapshot = {
   policyVersion?: number | null;
   bankKey?: string | null;
   bankVersion?: number | null;
+  qualification?: {
+    policyId?: string | null;
+    policyVersion?: number | null;
+    qualificationReady?: boolean | null;
+    evidenceFingerprint?: string | null;
+  } | null;
 };
 export type PracticalTdSignoff = {
   decision?: string | null;
@@ -51,6 +57,24 @@ export function evaluatePracticalEntryGate(input: PracticalEntryGateInput) {
   }
   if (approvedSnapshot?.practicalsReady !== true) {
     blockers.push("TD sign-off lacks positive Sandbox capability evidence.");
+  }
+
+  const currentQualification = readiness.qualification;
+  const signedQualification = approvedSnapshot?.qualification;
+  if (currentQualification?.qualificationReady !== true ||
+      !currentQualification.evidenceFingerprint) {
+    blockers.push("The current coverage-led Sandbox qualification evidence is not verified.");
+  }
+  if (signoff?.decision === "passed" && !(
+    currentQualification?.policyId &&
+    validVersion(currentQualification.policyVersion) &&
+    signedQualification?.policyId === currentQualification.policyId &&
+    signedQualification?.policyVersion === currentQualification.policyVersion &&
+    signedQualification?.qualificationReady === true &&
+    signedQualification?.evidenceFingerprint &&
+    signedQualification.evidenceFingerprint === currentQualification.evidenceFingerprint
+  )) {
+    blockers.push("TD qualification sign-off does not match the current versioned evidence fingerprint.");
   }
 
   const authoritativeLineage = Boolean(
