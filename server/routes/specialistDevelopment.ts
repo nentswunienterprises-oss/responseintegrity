@@ -428,6 +428,98 @@ async function loadSpecialistDevelopmentRecordPayload(tutorId: string) {
 }
 
 export function registerSpecialistDevelopmentRoutes(app: Express) {
+  // Historical TD dossier. Read-only, authenticated and scoped to the TD's own Pod.
+  // Only committed rep events can be inspected; never return future bank outcomes.
+  app.get("/api/td/tutors/:tutorId/sandbox-evidence-dossier", isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const td = requireTd(req, res);
+        if (!td) return;
+        const tutorId = String(req.params.tutorId || "").trim();
+        if (!tutorId) return res.status(400).json({ message: "tutorId is required." });
+        const assignment = await pool.query(
+          `SELECT ta.id FROM public.tutor_assignments ta
+             JOIN public.pods p ON p.id = ta.pod_id
+            WHERE ta.tutor_id = $1 AND p.td_id = $2
+            ORDER BY ta.created_at DESC LIMIT 1`,
+          [tutorId, String(td.id)],
+        );
+        const assignmentId = assignment.rows[0]?.id;
+        if (!assignmentId) return res.status(403).json({ message: "Specialist is outside your assigned Pod." });
+        res.setHeader("Cache-Control", "private, no-store, max-age=0");
+        const [reps, sessions] = await Promise.all([
+          pool.query(
+            `SELECT e.id, e.event_sequence, e.session_number, e.phase, e.topic_key,
+                    e.set_id, e.rep_number, e.student_behavior, e.specialist_submission,
+                    e.condition_kept, e.total_observations, e.matching_observations,
+                    e.observation_exact, e.evidence_exact, e.completed_at,
+                    t.bank_key, t.bank_version, t.outcome_version,
+                    t.canonical_observations, t.canonical_prerequisite_sentinel,
+                    t.canonical_inherited_rescue_signal, t.actual_intervention_event
+               FROM public.specialist_sandbox_rep_events e
+               LEFT JOIN private.specialist_sandbox_rep_event_truth t ON t.event_id = e.id
+              WHERE e.tutor_assignment_id = $1 AND e.tutor_id = $2
+              ORDER BY e.completed_at DESC, e.event_sequence DESC LIMIT 180`,
+            [assignmentId, tutorId],
+          ),
+          pool.query(
+            `SELECT e.id, e.session_number, e.phase, e.topic_key, e.authority_aligned,
+                    e.state_track_aligned, e.state_change_observed, e.completed_at,
+                    e.specialist_authority, t.canonical_authority
+               FROM public.specialist_sandbox_session_evaluations e
+               LEFT JOIN private.specialist_sandbox_session_truth t ON t.session_evaluation_id = e.id
+              WHERE e.tutor_assignment_id = $1 AND e.tutor_id = $2
+              ORDER BY e.completed_at DESC, e.session_number DESC LIMIT 90`,
+            [assignmentId, tutorId],
+          ),
+        ]);
+        const repRows = reps.rows.map((r: any) => {
+          const observed = r.specialist_submission?.observations || {};
+          const canonical = r.canonical_observations;
+          const keys = canonical && typeof canonical === "object" ? Object.keys(canonical) : [];
+          return {
+            id: String(r.id), eventSequence: Number(r.event_sequence),
+            sessionNumber: Number(r.session_number), phase: r.phase, topicKey: r.topic_key,
+            setId: r.set_id, repNumber: Number(r.rep_number), studentBehavior: r.student_behavior,
+            bankKey: r.bank_key, bankVersion: r.bank_version, outcomeVersion: r.outcome_version,
+            intervention: r.specialist_submission?.interventionEvent || null,
+            conditionKept: r.condition_kept, truthPresent: !!canonical,
+            observationExact: r.observation_exact, evidenceExact: r.evidence_exact,
+            matchingObservations: Number(r.matching_observations),
+            totalObservations: Number(r.total_observations),
+            comparisons: keys.map((fieldKey) => ({
+              fieldKey,
+              recorded: observed[fieldKey] || null,
+              expected: canonical[fieldKey],
+              matched: observed[fieldKey]?.optionId === canonical[fieldKey]?.optionId &&
+                (observed[fieldKey]?.evidenceStatus || "observed") ===
+                (canonical[fieldKey]?.evidenceStatus || "observed"),
+            })),
+            prerequisite: { recorded: r.specialist_submission?.prerequisiteSentinel || null,
+              expected: r.canonical_prerequisite_sentinel },
+            rescueSignal: { recorded: r.specialist_submission?.inheritedRescueSignal || null,
+              expected: r.canonical_inherited_rescue_signal },
+            completedAt: r.completed_at,
+          };
+        });
+        return res.json({
+          tutorId, assignmentId,
+          note: "Completed Sandbox evidence only. Canonical responses are TD-restricted and non-authoritative for real student state.",
+          reps: repRows,
+          sessions: sessions.rows.map((r: any) => ({
+            id: String(r.id), sessionNumber: Number(r.session_number), phase: r.phase,
+            topicKey: r.topic_key, authorityAligned: r.authority_aligned,
+            stateTrackAligned: r.state_track_aligned, stateChangeObserved: r.state_change_observed,
+            truthPresent: r.canonical_authority != null, specialistAuthority: r.specialist_authority,
+            canonicalAuthority: r.canonical_authority, completedAt: r.completed_at,
+          })),
+        });
+      } catch (error) {
+        console.error("TD Sandbox dossier query failed", error);
+        return res.status(500).json({ message: "Failed to load Sandbox evidence dossier." });
+      }
+    },
+  );
   app.get(
     "/api/td/pods/:podId/specialist-development-summaries",
     isAuthenticated,
