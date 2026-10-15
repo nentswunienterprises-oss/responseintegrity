@@ -50,4 +50,31 @@ COMMENT ON TABLE public.specialist_sandbox_live_evidence_turns IS
   'Server-owned, non-authoritative historical simulated evidence only; no future canonical answers, not native-mode completion authority.';
 COMMENT ON TABLE private.specialist_sandbox_live_evidence_truth IS
   'Completed Diagnosis/Handover simulated outcome truth, private and TD-projectable only after Pod authorization.';
+-- Explicit Specialist session preparation, subsequently validated against
+-- independently recorded first-rep behavior. Attestation alone never qualifies.
+CREATE TABLE IF NOT EXISTS public.specialist_sandbox_preparation_events (
+  id varchar PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  tutor_assignment_id varchar NOT NULL REFERENCES public.tutor_assignments(id) ON DELETE CASCADE,
+  tutor_id varchar NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  trajectory_id varchar NOT NULL REFERENCES public.specialist_sandbox_trajectories(id) ON DELETE CASCADE,
+  student_id varchar NOT NULL,
+  session_number integer NOT NULL CHECK (session_number > 0),
+  topic_key varchar NOT NULL,
+  bank_version integer NOT NULL CHECK (bank_version > 0),
+  phase varchar NOT NULL,
+  set_id varchar NOT NULL,
+  event_form_id varchar NOT NULL,
+  condition_contract_sha256 varchar(64) NOT NULL CHECK (length(condition_contract_sha256) = 64),
+  problem_prepared boolean NOT NULL CHECK (problem_prepared = true),
+  conditions_reviewed boolean NOT NULL CHECK (conditions_reviewed = true),
+  evidence_plan_reviewed boolean NOT NULL CHECK (evidence_plan_reviewed = true),
+  recorded_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (trajectory_id, session_number, topic_key)
+);
+ALTER TABLE public.specialist_sandbox_preparation_events ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.specialist_sandbox_preparation_events FROM PUBLIC, anon, authenticated;
+CREATE INDEX IF NOT EXISTS idx_sandbox_preparation_qualification
+  ON public.specialist_sandbox_preparation_events(tutor_assignment_id,tutor_id,recorded_at);
+COMMENT ON TABLE public.specialist_sandbox_preparation_events IS
+ 'Protected Specialist pre-session plan. Earns qualification only with a later matching, clean, canonical first rep; never by checkbox alone.';
 COMMIT;
