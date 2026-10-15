@@ -10,7 +10,7 @@ const event=(n:number,patch:Partial<E>={}):E=>({id:"event-"+n,occurredAt:when(n)
  bankVersion:1,outcomeVersion:1,...patch});
 function coverage():E[]{let n=0;const a:E[]=[];
  for(const mode of p.modes)a.push(event(++n,{mode,opportunityKey:"mode-"+mode}));
- for(const profile of p.profiles)for(let j=0;j<2;j++)a.push(event(++n,{profile,opportunityKey:"profile-"+profile+"-"+j}));
+ for(const profile of p.profiles)for(let j=0;j<2;j++)a.push(event(++n,{profile,opportunityKey:"profile-"+profile+"-"+j,situationTags:["profile_signature"]}));
  for(const [tag,min] of Object.entries(p.situationMinimums))for(let j=0;j<min;j++)a.push(event(++n,{situationTags:[tag],opportunityKey:"tag-"+tag+"-"+j}));
  return a;}
 function final(n:number){const phases=Object.keys(p.phaseMinimums);return Array.from({length:8},(_,i)=>
@@ -34,3 +34,10 @@ test("duplicate immutable records cannot count",()=>{const a=coverage(),f=final(
  assert.equal(evaluateSandboxQualification([...a,...f],{activated:true}).qualificationReady,false);});
 test("genuine student breakdown handled correctly remains clean",()=>{const a=coverage(),f=final(a.length+1);f[2].situationTags=["breakdown"];
  assert.equal(evaluateSandboxQualification([...a,...f],{activated:true}).qualificationReady,true);});
+
+test("mere profile identity without actual observable signature is not coverage",()=>{
+ const a=coverage();
+ a.filter(e=>e.profile==="pressure_fragile").forEach(e=>e.situationTags=[]);
+ const result=evaluateSandboxQualification([...a,...final(a.length+1)],{activated:true});
+ assert.equal(result.developmentCoverageReady,false);
+});
