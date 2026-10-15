@@ -295,7 +295,20 @@ export async function loadSandboxQualificationEvidence(
   }
   const previous=sessionResult.rows.find(r=>r.trajectory_id===raw.trajectory_id&&
       Number(r.session_number)===Number(raw.session_number)-1);
-  if(previous){
+  // Continuity must be earned across a correctly tracked prior session
+  // on the same topic, in strict chronological order. Mere adjacency of
+  // session numbers never proves preservation of state or judgment.
+  const priorAligned=previous?.authority_aligned===true &&
+    previous?.state_track_aligned===true && !!previous?.canonical_authority;
+  const nextAligned=raw.authority_aligned===true &&
+    raw.state_track_aligned===true && !!raw.canonical_authority;
+  const sameTopic=String(previous?.topic_key||"")===String(raw.topic_key||"") &&
+    !!String(raw.topic_key||"").trim();
+  const chronological=previous &&
+    Number.isFinite(Date.parse(String(previous.completed_at))) &&
+    Number.isFinite(Date.parse(String(raw.completed_at))) &&
+    Date.parse(String(previous.completed_at))<Date.parse(String(raw.completed_at));
+  if(priorAligned && nextAligned && sameTopic && chronological && session.complete){
    continuity.push({...session,id:"continuity:"+session.id,kind:"opportunity",mode:"continuity",
       opportunityKey:"continuity:"+session.id,sourceType:"session_transition",observed:true,
       sourceId:session.id});
