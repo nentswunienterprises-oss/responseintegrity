@@ -1,0 +1,38 @@
+name: Sandbox V2 Fast Recovery Supplemental Acceptance
+
+on:
+  push:
+    branches:
+      - fix/preview-training-session-authority
+    paths:
+      - 'scripts/sandboxV2FastRecoverySupplement.mjs'
+      - '.github/workflows/sandbox-v2-fast-recovery-supplement.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sandbox-v2-fast-recovery-supplement
+  cancel-in-progress: false
+
+jobs:
+  second-trajectory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      V2_PREVIEW_URL: https://tt-confidence-8gskpc50p-relief-works-technologies.vercel.app
+      V2_PREVIEW_SHA: 5c508c14eced70bd7319b7cb6701241c3178cc91
+      RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
+      RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm install --no-save playwright@1.55.0
+      - name: Verify untouched fast_recovery profile across two real sessions
+        run: node --import tsx scripts/sandboxV2FastRecoverySupplement.mjs

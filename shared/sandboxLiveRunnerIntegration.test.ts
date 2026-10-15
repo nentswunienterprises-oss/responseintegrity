@@ -805,3 +805,29 @@ test("Sandbox filters retired fictional incidents only when preparing a new rep"
   assert.match(sandboxAuthoritySource, /assertSandboxAccess/);
   assert.match(sandboxAuthoritySource, /loadSandboxScheduledTrainingSession/);
 });
+
+test("Sandbox history stays separate from the current package balance in the student card", () => {
+  assert.match(
+    studentCardSource,
+    /const countedProgramProgress =[\s\S]*student\.sessionProgress/,
+  );
+  assert.match(
+    studentCardSource,
+    /resolveTrainingPackageProgressSummary\(trainingSessionsData\?\.monthlyQuota\)/,
+  );
+  assert.match(
+    studentCardSource,
+    /const sessionProgress = isSandboxStudent\s*\? sandboxPackage\?\.sessionsUsed/,
+  );
+  assert.match(
+    studentCardSource,
+    /const sessionsRemaining = isSandboxStudent\s*\? sandboxPackage\?\.sessionsRemaining/,
+  );
+  assert.match(studentCardSource, /const progressLabel = isSandboxStudent \? "Current Package"/);
+  assert.match(studentCardSource, /Package balance is unavailable or inconsistent/);
+  assert.match(studentTopicDialogSource, /monthlyQuota: trainingSessionsData\?\.monthlyQuota/);
+  assert.match(serverRoutesSource, /specialist_sandbox_session_evaluations/);
+  assert.match(serverRoutesSource, /sandbox-session:/);
+  assert.match(serverRoutesSource, /specialist_phase, specialist_stability/);
+  assert.match(serverRoutesSource, /certificationMode !== "sandbox"/);
+});

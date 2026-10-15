@@ -1,0 +1,241 @@
+name: Sandbox V2 Narrative Live Proof
+
+on:
+  push:
+    branches:
+      - fix/preview-training-session-authority
+    paths:
+      - ".github/workflows/sandbox-v2-narrative-live-proof.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sandbox-v2-narrative-proof
+  cancel-in-progress: false
+
+jobs:
+  narrative:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
+      RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Install authenticated browser
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Verify V2 authored narratives in actual Capability Proof Sandbox
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import { createHash } from "node:crypto";
+          import { chromium } from "playwright";
+
+          const base = "https://tt-confidence-9ywaf0xqj-relief-works-technologies.vercel.app";
+          const expectedSha = "66bb0bbff4258ee64ed7501d0c5b570a710de55d";
+          const expectedDb = "jftlxeacphvbnhbsbpxc";
+          const assignment = "836a839f-2f29-45c7-b8c2-aa501c95e1b0";
+          const email=String(process.env.RI_PROOF_EMAIL||"").trim();
+          const password=String(process.env.RI_PROOF_PASSWORD||"");
+          const bypass=String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET||"").trim();
+          assert.ok(email&&password, "Protected Proof test account is required");
+          function id(prefix,i,ordinal){
+            const text=prefix+i+(ordinal===undefined?"":"-"+ordinal);
+            const h=createHash("md5").update(text).digest("hex");
+            return [h.slice(0,8),h.slice(8,12),h.slice(12,16),h.slice(16,20),h.slice(20)].join("-");
+          }
+          const student=i=>id("ri-v2-longitudinal-proof-student-",i);
+          const booking=i=>id("ri-v2-longitudinal-booking-",i,1);
+          const q=values=>new URLSearchParams(values).toString();
+          const browser=await chromium.launch({headless:true});
+          try {
+            const context=await browser.newContext({
+              viewport:{width:1440,height:900},
+              ...(bypass?{extraHTTPHeaders:{"x-vercel-protection-bypass":bypass}}:{}),
+            });
+            const page=await context.newPage();
+            async function api(method,path,body){
+              const r=method==="GET"?
+                await page.request.get(base+path,{timeout:60000}):
+                await page.request.post(base+path,{data:body,timeout:60000});
+              const value=await r.text();
+              assert.ok(r.ok(),method+" "+path.split("?")[0]+" HTTP "+r.status()+" "+value.slice(0,300));
+              return JSON.parse(value);
+            }
+            const get=path=>api("GET",path);
+            const post=(path,value)=>api("POST",path,value);
+            const provenance=await get("/api/proof-environment");
+            assert.equal(provenance.vercelEnv,"preview");
+            assert.equal(provenance.supabaseProjectRef,expectedDb);
+            assert.equal(provenance.commitSha,expectedSha);
+            console.log("V2_CONTENT_EXACT_PREVIEW_PROVENANCE=PASS");
+
+            const login=await post("/api/auth/signin",{email,password,expectedRole:"tutor"});
+            assert.equal(String(login?.dbUser?.role).toLowerCase(),"tutor");
+            const runtime=await get("/api/tutor/runtime-mode");
+            assert.equal(runtime.operationalMode,"sandbox");
+            assert.equal(runtime.assignmentId,assignment);
+            console.log("V2_CONTENT_AUTHORITY=PASS");
+
+            const cases=[
+              {index:5,topic:"QA Clarity",phase:"Clarity",scene:"The Specialist asks the student to identify what matters before any calculation."},
+              {index:6,topic:"QA Execution",phase:"Structured Execution",scene:"Before any calculation, the Specialist asks the student to state their intended step order."},
+              {index:7,topic:"QA Discomfort",phase:"Controlled Discomfort",scene:"The Specialist introduces a challenging problem and watches how the student enters it."},
+              {index:8,topic:"QA Pressure",phase:"Time Pressure Stability",scene:"The light timer starts while the student must still show the method in order."},
+            ];
+            const forms=[];
+            const serializedForms=[];
+            for(const entry of cases){
+              const params=q({tutorAssignmentId:assignment,studentId:student(entry.index),
+                scheduledSessionId:booking(entry.index),topic:entry.topic,sessionNumber:"1"});
+              const url="/api/tutor/sandbox-environment?"+params;
+              const result=await get(url);
+              assert.equal(result.evidenceScope,"sandbox");
+              assert.equal(result.studentStateAuthoritative,false);
+              assert.equal(result.status,"rep_ready");
+              assert.equal(result.prescribedPhase,entry.phase);
+              assert.equal(result.eventSequence,1,"QA fixture is not fresh and must not be replayed");
+              assert.ok(result.rep?.studentBehavior?.startsWith(entry.scene),
+                "V2 scene was not rendered for "+entry.phase);
+              const serialized=JSON.stringify(result);
+              for(const forbidden of ['"trajectory_seed"','"canonicalObservations"','"canonical_authority"','"behavior_model_version"']){
+                assert.ok(!serialized.includes(forbidden),"Private answer or identity leaked");
+              }
+              const reload=await get(url);
+              assert.equal(reload.eventFormId,result.eventFormId,"Same rep form changed on reload");
+              assert.equal(reload.rep.studentBehavior,result.rep.studentBehavior,"Conduct changed on reload");
+              forms.push({entry,result,params,url});
+              serializedForms.push(result.rep.studentBehavior);
+              console.log("V2_CONTENT_LIVE_PHASE=PASS "+entry.phase);
+            }
+            assert.equal(new Set(serializedForms).size,4,"Distinct phase conduct repeated verbatim");
+
+            // Diagnostic: the native Specialist UI resolves its assignment
+            // through /api/tutor/pod, which is independent of the Sandbox API.
+            try {
+              const podResult=await page.request.get(base+"/api/tutor/pod",{timeout:20000});
+              const podBody=podResult.ok()?await podResult.json():null;
+              console.log("V2_BROWSER_POD_HTTP="+podResult.status()+" assignment="+
+                Boolean(podBody?.assignment?.id)+" students="+
+                Number(podBody?.students?.length||0));
+            } catch (error) {
+              console.log("V2_BROWSER_POD_REQUEST_ERROR="+
+                String(error instanceof Error?error.message:error).slice(0,250));
+            }
+            page.on("response",response=>{
+              const path=new URL(response.url()).pathname;
+              if(path==="/api/tutor/pod"){
+                console.log("V2_BROWSER_POD_FETCH_HTTP="+response.status());
+              }
+              if(path==="/api/tutor/sandbox-environment"){
+                console.log("V2_BROWSER_SANDBOX_FETCH_HTTP="+response.status());
+              }
+            });
+            page.on("request",request=>{
+              if(new URL(request.url()).pathname==="/api/tutor/sandbox-environment"){
+                console.log("V2_BROWSER_SANDBOX_FETCH_STARTED=YES");
+              }
+            });
+            page.on("requestfailed",req=>{
+              if(new URL(req.url()).pathname==="/api/tutor/pod"){
+                console.log("V2_BROWSER_POD_FETCH_FAILED="+
+                  String(req.failure()?.errorText||"unknown").slice(0,150));
+              }
+            });
+            const first=forms[0];
+            // This explicitly authorized synthetic QA student is deliberately
+            // not among the Pod's summary cards. Deep-link identity must never
+            // silently fall back to another learner. Backend student/booking
+            // authorization remains the only runtime authority.
+            const browserStudent=student(first.entry.index);
+            const browserBooking=booking(first.entry.index);
+            const browserTopic=first.entry.topic;
+            const browserScene=first.entry.scene;
+            const browserParams=q({tutorAssignmentId:assignment,studentId:browserStudent,
+              scheduledSessionId:browserBooking,topic:browserTopic,sessionNumber:"1"});
+            const browserForm=await get("/api/tutor/sandbox-environment?"+browserParams);
+            assert.equal(browserForm.status,"rep_ready");
+            assert.equal(browserForm.eventFormId,first.result.eventFormId);
+            assert.ok(browserForm.rep.studentBehavior.startsWith(browserScene));
+            const browserPod=await get("/api/tutor/pod");
+            assert.ok(!browserPod.students?.some(s=>String(s.id)===browserStudent),
+              "The deep-link fixture unexpectedly entered the Pod cards; the negative test is invalid");
+            console.log("V2_BROWSER_DEEPLINK_STUDENT_AUTHORIZED_BY_SERVER=PASS");
+            // Exercise the real live Training runner, which embeds Sandbox
+            // and owns the Begin Rep boundary. The standalone Sandbox route is
+            // a different view and must never be used as live-runner proof.
+            const route=base+"/specialist/intro-session/"+encodeURIComponent(browserStudent)+"?"+
+              q({mode:"training",scheduledSessionId:browserBooking,
+                topic:browserTopic,sandboxSession:"1"});
+            await page.goto(route,{waitUntil:"domcontentloaded",timeout:90000});
+            await page.waitForLoadState("networkidle",{timeout:10000}).catch(()=>{});
+            console.log("V2_BROWSER_DIAGNOSTIC_LOCATION="+new URL(page.url()).pathname);
+            console.log("V2_BROWSER_DIAGNOSTIC_TITLE="+(await page.title()).slice(0,120));
+            console.log("V2_BROWSER_DIAGNOSTIC_BODY="+(await page.locator("body").innerText()).slice(0,650));
+            const queryStates=await page.evaluate(()=>{
+              const queryClient=window.__queryClient;
+              if(!queryClient)return [{query:"query-client-not-exposed"}];
+              return queryClient.getQueryCache().findAll()
+                .filter(q=>String(q.queryKey[0]||"").includes("sandbox")||
+                           String(q.queryKey[0]||"").includes("/api/tutor/pod"))
+                .map(q=>({query:String(q.queryKey[0]),status:q.state.status,
+                  fetchStatus:q.state.fetchStatus,
+                  error:q.state.error?String(q.state.error).slice(0,160):null}));
+            });
+            console.log("V2_BROWSER_DIAGNOSTIC_QUERY_STATES="+JSON.stringify(queryStates));
+            // The real Specialist UI starts with a preparation boundary:
+            // simulated student conduct becomes visible only after Begin Rep.
+            await page.getByRole("button",{name:"Begin Rep 1"}).click({timeout:18000});
+            await page.getByText(browserScene,{exact:false}).first().waitFor({
+              state:"visible",timeout:45000,
+            });
+            console.log("V2_CONTENT_BROWSER_VISIBLE=PASS");
+
+            const initial=first.result;
+            const observations=Object.fromEntries(initial.rep.fields.map(f=>[
+              f.fieldKey,{optionId:f.options[0].optionId,evidenceStatus:"observed"},
+            ]));
+            const response=await post("/api/tutor/sandbox-environment/rep",{
+              tutorAssignmentId:assignment,studentId:student(first.entry.index),
+              bankVersion:initial.bankVersion,trajectoryId:initial.trajectoryId,
+              eventSequence:initial.eventSequence,eventFormId:initial.eventFormId,
+              scheduledSessionId:booking(first.entry.index),topic:first.entry.topic,
+              submission:{interventionEvent:"none",observations},
+            });
+            assert.equal(response.sessionCompleted,false);
+            assert.equal(response.evidenceScope,"sandbox");
+            const second=await get(first.url);
+            assert.equal(second.eventSequence,2);
+            assert.equal(second.status,"rep_ready");
+            assert.ok(second.rep.studentBehavior.startsWith(
+              "Another recognition prompt is presented without a worked example."
+            ));
+            assert.notEqual(second.rep.studentBehavior,initial.rep.studentBehavior);
+            assert.equal(second.trajectoryId,initial.trajectoryId);
+            console.log("V2_CONTENT_CROSS_REP_VISIBLE=PASS");
+
+            // Reload the exact same explicitly selected QA student; the
+            // current rep must be the real second opportunity, not another
+            // Pod student or a stale rep-1 response.
+            await page.reload({waitUntil:"domcontentloaded",timeout:90000});
+            await page.getByRole("button",{name:"Begin Rep 2"}).click({timeout:60000});
+            await page.getByText(
+              "Another recognition prompt is presented without a worked example.",
+              {exact:false},
+            ).first().waitFor({state:"visible",timeout:45000});
+            console.log("V2_CONTENT_BROWSER_SECOND_REP_VISIBLE=PASS");
+            console.log("V2_NARRATIVE_LIVE_PROOF=PASS");
+          } finally {
+            await browser.close();
+          }
+          NODE
