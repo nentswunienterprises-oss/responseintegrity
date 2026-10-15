@@ -31,8 +31,13 @@ const SESSIONS=[
 ].join(" ");
 const REDIAGNOSIS=[
  "SELECT r.*,t.outcome_key,t.outcome_version,t.trajectory_class,t.canonical_observations,",
- "tr.bank_version,tr.bank_key,hidden.trajectory_seed",
+ "tr.bank_version,tr.bank_key,hidden.trajectory_seed,",
+ "run.status AS rediagnosis_status, run.specialist_decision,",
+ "completed_truth.canonical_decision AS rediagnosis_canonical_decision",
  "FROM public.specialist_sandbox_rediagnosis_turns r",
+ "JOIN public.specialist_sandbox_rediagnosis_runs run ON run.id=r.rediagnosis_run_id",
+ "LEFT JOIN private.specialist_sandbox_rediagnosis_truth completed_truth",
+ "ON completed_truth.rediagnosis_run_id=run.id",
  "JOIN public.specialist_sandbox_trajectories tr ON tr.id=r.trajectory_id",
  "LEFT JOIN private.specialist_sandbox_trajectory_truth hidden ON hidden.trajectory_id=r.trajectory_id",
  "LEFT JOIN private.specialist_sandbox_rediagnosis_turn_truth t ON t.rediagnosis_turn_id=r.id",
@@ -179,11 +184,23 @@ export async function loadSandboxQualificationEvidence(
   const item=base(r,"targeted_rediagnosis","opportunity");
   const truth=!!r.canonical_observations&&!!r.trajectory_seed;
   item.observed=!!String(r.student_behavior||"").trim();item.canonicalPresent=truth;
-  item.technicallyValid=truth&&item.observed;item.complete=item.technicallyValid;
+  item.technicallyValid=truth&&item.observed;
+  // A probe may be observed accurately without establishing a completed native
+  // targeted re-diagnosis. Both authority tracks must finish at the same
+  // placement and stability; partial/blocked runs never prove the mode.
+  const specialistDecision=r.specialist_decision;
+  const canonicalDecision=r.rediagnosis_canonical_decision;
+  const runAligned=r.rediagnosis_status==="completed" &&
+    specialistDecision?.complete===true && canonicalDecision?.complete===true &&
+    !!specialistDecision.placementPhase &&
+    specialistDecision.placementPhase===canonicalDecision.placementPhase &&
+    specialistDecision.stability===canonicalDecision.stability;
+  item.complete=item.technicallyValid&&runAligned;
   item.conditionKept=r.condition_conformed===true;item.observationExact=r.observation_exact===true;
-  item.evidenceExact=item.observationExact;item.authorityAligned=r.authority_aligned===true;
+  item.evidenceExact=item.observationExact;item.authorityAligned=r.authority_aligned===true&&runAligned;
   item.stateAligned=item.authorityAligned;
-  item.materialError=item.technicallyValid&&!(item.conditionKept&&item.observationExact&&item.authorityAligned);
+  item.materialError=item.technicallyValid&&!(item.conditionKept&&item.observationExact&&r.authority_aligned===true) ||
+    (item.technicallyValid&&r.rediagnosis_status==="completed"&&!runAligned);
   item.opportunityKey=[r.bank_key,r.bank_version,r.probe_id,r.outcome_key,r.outcome_version].join(":");
   item.situationTags=[...tags(r),"routing"];return item;
  });
