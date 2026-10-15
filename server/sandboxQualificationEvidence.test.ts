@@ -62,3 +62,26 @@ test("cross-mode absence is reported rather than silently accepted",async()=>{
  const r=await loadSandboxQualificationEvidence({tutorAssignmentId:"assignment",tutorId:"specialist"},db());
  assert.match(r.sourceGaps.join(" "),/schema not applied/);
 });
+
+test("only completed native Diagnosis matching the exact recorded probe may establish Diagnosis",async()=>{
+ const fixtureDb=db();
+ const native={id:"native-diagnosis",trajectory_id:"traj-1",student_id:"student",
+  scope:"diagnosis",phase:"Clarity",bank_version:1,outcome_version:1,
+  source_context_id:"native-run",probe_id:"clarity.recognition",
+  outcome_key:"diagnosis-pattern",trajectory_class:"conditional",
+  trajectory_seed:"hidden-seed",canonical_observations:[{dimensionId:"clarity.recognition",behaviorId:"recognizes"}],
+  student_behavior:"Synthetic response presented",condition_conformed:true,
+  observation_exact:true,native_proof_verified:true,
+  completed_at:"2026-10-15T11:05:58Z"};
+ const historical={query:async(sql:string,params?:any[])=>{
+  if(sql.includes("FROM public.specialist_sandbox_live_evidence_turns"))return {rows:[
+    native,{...native,id:"handover-simulation",scope:"handover",native_proof_verified:true},
+    {...native,id:"unmatched-diagnosis",native_proof_verified:false},
+  ]};
+  return fixtureDb.query(sql);
+ }};
+ const result=await loadSandboxQualificationEvidence({tutorAssignmentId:"assignment",tutorId:"specialist"},historical);
+ assert.equal(result.events.find(e=>e.id==="native-diagnosis")?.complete,true);
+ assert.equal(result.events.find(e=>e.id==="handover-simulation")?.complete,false);
+ assert.equal(result.events.find(e=>e.id==="unmatched-diagnosis")?.complete,false);
+});
