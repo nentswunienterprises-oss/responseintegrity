@@ -844,6 +844,35 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
     ],
   });
 
+  // Historical, submitted simulation only. Protected Proof schema + explicit flag required.
+  // A simulation observation never claims native Diagnosis/Handover authority.
+  if (process.env.RI_SANDBOX_CROSSMODE_CAPTURE_V1 === "true") {
+    const selectedRecord = outcomes.find(record =>
+      record.definition.key === selected.key && record.definition.version === selected.version);
+    if (!selectedRecord) throw new Error("Sandbox canonical lineage is missing.");
+    await pool.query(
+      `WITH recorded AS (
+        INSERT INTO public.specialist_sandbox_live_evidence_turns (
+          tutor_assignment_id,tutor_id,trajectory_id,student_id,scope,source_context_id,
+          form_id,sequence_number,phase,probe_id,bank_version,behavior_model_version,
+          student_behavior,specialist_submission,condition_conformed,observation_exact,
+          matching_observations,total_observations
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15,$16,$17,$18)
+        RETURNING id
+      )
+      INSERT INTO private.specialist_sandbox_live_evidence_truth (
+        event_id,outcome_ref,outcome_key,outcome_version,canonical_observations,
+        trajectory_class,actual_support_event
+      ) SELECT recorded.id,$19,$20,$21,$22::jsonb,$23,$24 FROM recorded`,
+      [input.tutorAssignmentId,input.tutorId,trajectory.id,input.studentId,input.scope,
+       input.sourceContextId,prepared.formId,input.sequenceNumber,input.startingPhase,
+       prepared.probeId,prepared.bankVersion,truth.behavior_model_version,
+       prepared.studentBehavior,JSON.stringify({supportEvent:input.supportEvent,observations:input.observations}),
+       conditionConformed,observationExact,matchingObservations,expectedDimensionIds.length,
+       selectedRecord.publicRef,selected.key,selected.version,
+       JSON.stringify(selected.canonicalObservations),selected.trajectoryClass,input.supportEvent],
+    );
+  }
   return {
     success: true as const,
     matchingObservations,
