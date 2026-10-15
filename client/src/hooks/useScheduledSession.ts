@@ -66,7 +66,7 @@ export function useTutorRespondToSession(studentId) {
   });
 }
 
-export function useTrainingSessions(studentId, enabled = true) {
+export function useTrainingSessions(studentId, enabled = true, refreshForSandbox = false) {
   return useQuery({
     queryKey: ["/api/tutor/students/training-sessions", studentId],
     queryFn: async () => {
@@ -76,8 +76,13 @@ export function useTrainingSessions(studentId, enabled = true) {
     },
     enabled: !!studentId && enabled,
     retry: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    // Only Sandbox cards need ongoing cross-account booking/package readback.
+    // Ordinary student surfaces keep their existing quiet query cadence.
+    refetchOnMount: refreshForSandbox ? "always" : undefined,
+    refetchOnWindowFocus: refreshForSandbox,
+    refetchOnReconnect: refreshForSandbox,
+    refetchInterval: refreshForSandbox ? 30000 : false,
+    refetchIntervalInBackground: false,
   });
 }
 
