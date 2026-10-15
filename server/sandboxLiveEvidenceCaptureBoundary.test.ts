@@ -17,3 +17,11 @@ test("exact immutable replay is accepted but conflicting observations and truth 
  assert.match(source,/throw httpError\(409, "The previous Sandbox evidence record conflicts/);
  assert.doesNotMatch(source,/ON CONFLICT \(tutor_assignment_id,form_id\) DO UPDATE/);
 });
+
+test("conflicting immutable cross-mode replay cannot grant new capability evidence",()=>{
+ const capture=source.indexOf('if (process.env.RI_SANDBOX_CROSSMODE_CAPTURE_V1 === "true")');
+ const reject=source.indexOf('The previous Sandbox evidence record conflicts with this submission');
+ const grant=source.indexOf('await insertCapabilityEvidence({',capture);
+ assert.ok(capture>=0&&reject>capture&&grant>reject,
+   "Captured truth must be verified before scoring the submitted capability.");
+});
