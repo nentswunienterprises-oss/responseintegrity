@@ -20,6 +20,12 @@ test("first Sandbox rep cannot start without the exact native preparation plan",
  assert.match(server,/condition_contract_sha256=\$11/);
  assert.match(server,/Confirm the prescribed pre-session plan before the first Sandbox rep/);
 });
+test("no simulated student behavior is exposed before preparation is accepted",()=>{
+ assert.match(server,/studentBehavior: preparationCaptureEnabled &&/);
+ assert.match(server,/planned\.completedInSession === 0 && !preparationRecorded/);
+ assert.match(server,/\? ""\s*:\s*planned\.selected\.studentBehavior/);
+});
+
 test("preparation UI captures explicit checks and protected tables do not expose private canonical truth",()=>{
  assert.match(client,/form\.preparationCaptureEnabled/);
  assert.match(client,/form\.preparationRecorded/);
