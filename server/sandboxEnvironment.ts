@@ -1728,6 +1728,21 @@ export async function prepareSandboxEnvironment(input: {
     };
   }
 
+  const preparationCaptureEnabled = process.env.RI_SANDBOX_PREPARATION_CAPTURE_V1 === "true";
+  let preparationRecorded = false;
+  if (preparationCaptureEnabled && planned.completedInSession === 0) {
+    const saved = await pool.query(
+      `SELECT id FROM public.specialist_sandbox_preparation_events
+        WHERE tutor_assignment_id=$1 AND tutor_id=$2 AND trajectory_id=$3
+          AND student_id=$4 AND session_number=$5 AND topic_key=$6
+          AND bank_version=$7 AND phase=$8 AND set_id=$9 AND event_form_id=$10
+        LIMIT 1`,
+      [input.tutorAssignmentId,input.tutorId,bundle.trajectory.id,input.studentId,
+       bundle.trajectory.session_number,sandboxTopicKey(input.topic),bank.bankVersion,
+       planned.phase,planned.position.set.setId,planned.eventFormId],
+    );
+    preparationRecorded = !!saved.rows[0];
+  }
   return {
     bankKey: bank.bankKey,
     bankVersion: bank.bankVersion,
@@ -1736,6 +1751,8 @@ export async function prepareSandboxEnvironment(input: {
     trajectoryId: bundle.trajectory.id,
     sessionNumber: bundle.trajectory.session_number,
     status: "rep_ready" as const,
+    preparationCaptureEnabled,
+    preparationRecorded,
     prescribedPhase: planned.phase,
     prescribedStability: bundle.truth.canonical_stability,
     sessionProgress: {
@@ -1793,6 +1810,78 @@ export async function prepareSandboxEnvironment(input: {
     evidenceScope: "sandbox" as const,
     readiness,
   };
+}
+
+/**
+ * First-rep preparation is explicitly submitted BEFORE delivery. Its receipt
+ * does not qualify on its own: the evidence adapter requires the matching
+ * later first rep, preserved conditions and private canonical alignment.
+ */
+export async function recordSandboxPreparation(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+  studentId: string;
+  bankVersion: number;
+  trajectoryId: string;
+  sessionNumber: number;
+  scheduledSessionId: string;
+  topic: string;
+  eventFormId: string;
+  attestedPhase: string;
+  attestedSetId: string;
+  problemPrepared: boolean;
+  conditionsReviewed: boolean;
+  evidencePlanReviewed: boolean;
+}) {
+  if (process.env.RI_SANDBOX_PREPARATION_CAPTURE_V1 !== "true") {
+    throw httpError(409, "Protected Sandbox preparation evidence capture is not active.");
+  }
+  if (!input.problemPrepared || !input.conditionsReviewed || !input.evidencePlanReviewed) {
+    throw httpError(400, "All three pre-session preparation confirmations are required.");
+  }
+  const form = await prepareSandboxEnvironment({
+    tutorAssignmentId: input.tutorAssignmentId,
+    tutorId: input.tutorId,
+    studentId: input.studentId,
+    requestedSessionNumber: input.sessionNumber,
+    scheduledSessionId: input.scheduledSessionId,
+    topic: input.topic,
+  });
+  if (form.status !== "rep_ready" || form.sessionProgress?.completedReps !== 0 ||
+      !form.rep || form.trajectoryId !== input.trajectoryId ||
+      form.bankVersion !== input.bankVersion || form.sessionNumber !== input.sessionNumber ||
+      form.eventFormId !== input.eventFormId ||
+      form.prescribedPhase !== input.attestedPhase ||
+      form.rep.setId !== input.attestedSetId ||
+      !sandboxTopicKey(input.topic)) {
+    throw httpError(409, "Pre-session preparation does not match the current unstarted Sandbox lesson.");
+  }
+  const contractHash = createHash("sha256")
+    .update(JSON.stringify(form.rep.constraints)).digest("hex");
+  const values = [input.tutorAssignmentId,input.tutorId,input.trajectoryId,input.studentId,
+    input.sessionNumber,sandboxTopicKey(input.topic),input.bankVersion,
+    input.attestedPhase,input.attestedSetId,input.eventFormId,contractHash];
+  const saved = await pool.query(
+    `INSERT INTO public.specialist_sandbox_preparation_events
+      (tutor_assignment_id,tutor_id,trajectory_id,student_id,session_number,
+       topic_key,bank_version,phase,set_id,event_form_id,condition_contract_sha256,
+       problem_prepared,conditions_reviewed,evidence_plan_reviewed)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true,true,true)
+      ON CONFLICT (trajectory_id,session_number,topic_key) DO NOTHING RETURNING id`,
+    values,
+  );
+  if (!saved.rows[0]) {
+    const replay = await pool.query(
+      `SELECT id FROM public.specialist_sandbox_preparation_events WHERE
+       tutor_assignment_id=$1 AND tutor_id=$2 AND trajectory_id=$3 AND student_id=$4
+       AND session_number=$5 AND topic_key=$6 AND bank_version=$7
+       AND phase=$8 AND set_id=$9 AND event_form_id=$10 AND condition_contract_sha256=$11
+       AND problem_prepared=true AND conditions_reviewed=true AND evidence_plan_reviewed=true LIMIT 1`,
+      values,
+    );
+    if (!replay.rows[0]) throw httpError(409, "The earlier pre-session plan differs; preserve it for TD evidence review.");
+  }
+  return { recorded: true as const, evidenceScope: "sandbox" as const };
 }
 
 async function insertCapabilityOccurrences(input: {
@@ -2188,6 +2277,25 @@ export async function submitSandboxEnvironmentRep(input: {
     input.eventFormId !== planned.eventFormId
   ) {
     throw httpError(409, "Sandbox rep is stale or does not match the active trajectory.");
+  }
+  if (process.env.RI_SANDBOX_PREPARATION_CAPTURE_V1 === "true" &&
+      planned.completedInSession === 0) {
+    const prepared = await pool.query(
+      `SELECT id FROM public.specialist_sandbox_preparation_events WHERE
+       tutor_assignment_id=$1 AND tutor_id=$2 AND trajectory_id=$3 AND student_id=$4
+       AND session_number=$5 AND topic_key=$6 AND bank_version=$7
+       AND phase=$8 AND set_id=$9 AND event_form_id=$10
+       AND condition_contract_sha256=$11
+       AND problem_prepared=true AND conditions_reviewed=true AND evidence_plan_reviewed=true
+       LIMIT 1`,
+      [input.tutorAssignmentId,input.tutorId,bundle.trajectory.id,input.studentId,
+       bundle.trajectory.session_number,sandboxTopicKey(input.topic),bank.bankVersion,
+       planned.phase,planned.position.set.setId,planned.eventFormId,
+       createHash("sha256").update(JSON.stringify(planned.position.set.constraints)).digest("hex")],
+    );
+    if (!prepared.rows[0]) {
+      throw httpError(409, "Confirm the prescribed pre-session plan before the first Sandbox rep.");
+    }
   }
   if (!TRAINING_INTERVENTION_OPTIONS.some((option) => option.id === input.submission.interventionEvent)) {
     throw httpError(400, "Sandbox rep has an invalid Specialist intervention event.");
