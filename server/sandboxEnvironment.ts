@@ -1299,8 +1299,20 @@ async function readinessFor(input: {
     policyVersion: input.bank.capabilityPolicy.policyVersion,
     ...capability,
     cleanWindow,
-    qualification,
-    qualificationSourceGaps,
+    // Public/Specialist readiness must never disclose hidden profile identities,
+    // decision-situation answer coverage or raw historical canonical lineage.
+    qualification: {
+      policyId: qualification.policyId,
+      policyVersion: qualification.policyVersion,
+      approved: qualification.approved,
+      activated: qualification.activated,
+      developmentCoverageReady: qualification.developmentCoverageReady,
+      qualificationReady: qualification.qualificationReady,
+      qualifyingSessions: qualification.qualifyingSessions,
+      requiredSessions: qualification.requiredSessions,
+      reason: qualification.reason,
+    },
+    qualificationSourceGaps: qualificationSourceGaps.length,
     cleanWindowEvidence: {
       completedSessionCount: activated ? qualification.qualifyingSessions : sessionEvidence.length,
       source: activated ? "specialist_cross_trajectory" : "persisted_latest_trajectory",
