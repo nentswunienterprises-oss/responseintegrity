@@ -24,6 +24,7 @@ import {
   type TrainingInterventionEvent,
   type TrainingPrerequisiteSentinelResult,
 } from "@shared/trainingEvidenceCapture";
+import { evaluateSandboxCleanWindow } from "@shared/sandboxCleanWindow";
 import {
   compareSandboxTurn,
   evaluateSandboxCapabilityReadiness,
@@ -1217,16 +1218,23 @@ async function readinessFor(input: {
     loadCapabilityOccurrences(input),
     exposureSummary(input),
   ]);
+  const capability = evaluateSandboxCapabilityReadiness({
+    policy: input.bank.capabilityPolicy, evidence, exposure,
+  });
+  // This distinct qualification policy has not yet received Founder approval.
+  // Legacy capability readiness must not silently authorize Practicals.
+  const cleanWindow = evaluateSandboxCleanWindow(null, []);
   return {
     policyAvailable: true as const,
     bankKey: input.bank.bankKey,
     bankVersion: input.bank.bankVersion,
     policyVersion: input.bank.capabilityPolicy.policyVersion,
-    ...evaluateSandboxCapabilityReadiness({
-      policy: input.bank.capabilityPolicy,
-      evidence,
-      exposure,
-    }),
+    ...capability,
+    cleanWindow,
+    practicalsReady: capability.practicalsReady && cleanWindow.qualified,
+    reason: capability.practicalsReady
+      ? cleanWindow.reason
+      : capability.reason,
     exposure,
   };
 }
