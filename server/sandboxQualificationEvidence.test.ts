@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {getDrillSchemaDefinitionByVersion} from "@shared/responseIntegrityDrillRegistry";
-import {loadSandboxQualificationEvidence} from "./sandboxQualificationEvidence";
+import {loadSandboxQualificationEvidence,nativeHandoverRepMatches} from "./sandboxQualificationEvidence";
 function fixture(){
  const schema=getDrillSchemaDefinitionByVersion("training","Clarity",1)!;
  const reps=schema.sets.filter(s=>!s.modelingOnly).flatMap(s=>Array.from({length:s.reps},(_,i)=>({
@@ -134,4 +134,54 @@ test("targeted re-diagnosis cannot count a clean probe as completed mode before 
  recorded=result.events.find(e=>e.id==="rediagnosis-1")!;
  assert.equal(recorded.complete,false);
  assert.equal(recorded.materialError,true);
+});
+
+test("completed Handover authority matches the actual dimension and response label, never attendance alone",()=>{
+ const sets=[{setName:"Clarity verification",observations:[
+  {vocabulary_dimension_id:"clarity.vocabulary",vocabulary_option_id:"verified-schema-option",
+   vocabulary:"Identified the important terms accurately"},
+ ]}];
+ const recorded={supportEvent:"none",observations:[
+  {dimensionId:"clarity.vocabulary",behaviorId:"accurate_recognition"}]};
+ assert.equal(nativeHandoverRepMatches(sets,recorded,1),true);
+ assert.equal(nativeHandoverRepMatches(sets,{...recorded,observations:[
+  {dimensionId:"clarity.vocabulary",behaviorId:"no_recognition"}]},1),false);
+ assert.equal(nativeHandoverRepMatches(sets,recorded,2),false);
+ assert.equal(nativeHandoverRepMatches(sets,{...recorded,supportEvent:"first_step_confirmation"},1),false);
+ assert.equal(nativeHandoverRepMatches([{...sets[0],observations:[
+  {vocabulary_dimension_id:"clarity.vocabulary",
+   vocabulary:"Identified the important terms accurately"}]}],recorded,1),false);
+});
+test("Handover only gets mode credit after an independently completed matching native drill",async()=>{
+ const source=db();
+ const native={id:"handover-evidence",trajectory_id:"traj-1",student_id:"student",
+  scope:"handover",phase:"Clarity",bank_version:1,outcome_version:1,
+  sequence_number:1,source_context_id:"scheduled-handover-1",probe_id:"clarity.recognition",
+  outcome_key:"observed-response",trajectory_class:"conditional",
+  trajectory_seed:"hidden-seed",canonical_observations:[{dimensionId:"clarity.vocabulary",behaviorId:"accurate_recognition"}],
+  student_behavior:"Synthetic student response",condition_conformed:true,observation_exact:true,
+  completed_at:"2026-10-15T11:05:58Z",specialist_submission:{supportEvent:"none",observations:[
+   {dimensionId:"clarity.vocabulary",behaviorId:"accurate_recognition"}]},
+  native_handover_drill_id:"native-drill-1",
+  native_handover_sets:[{observations:[{vocabulary_dimension_id:"clarity.vocabulary",
+   vocabulary_option_id:"versioned.vocabulary.option_4",
+   vocabulary:"Identified the important terms accurately"}]}],
+ };
+ const dbWith={query:async(sql:string,params?:any[])=>{
+  if(sql.includes("FROM public.specialist_sandbox_live_evidence_turns"))return {rows:[native]};
+  return source.query(sql);
+ }};
+ const result=await loadSandboxQualificationEvidence({tutorAssignmentId:"assignment",tutorId:"specialist"},dbWith);
+ const row=result.events.find(e=>e.id==="handover-evidence")!;
+ assert.equal(row.complete,true);
+ assert.equal(row.sourceId,"handover-evidence:native-drill-1");
+ const bad={...native,native_handover_sets:[{observations:[{vocabulary_dimension_id:"clarity.vocabulary",
+  vocabulary_option_id:"versioned.vocabulary.option_1",
+  vocabulary:"Could not identify the important terms or symbols"}]}]};
+ const dbBad={query:async(sql:string,params?:any[])=>{
+  if(sql.includes("FROM public.specialist_sandbox_live_evidence_turns"))return {rows:[bad]};
+  return source.query(sql);
+ }};
+ const rejected=await loadSandboxQualificationEvidence({tutorAssignmentId:"assignment",tutorId:"specialist"},dbBad);
+ assert.equal(rejected.events.find(e=>e.id==="handover-evidence")?.complete,false);
 });
