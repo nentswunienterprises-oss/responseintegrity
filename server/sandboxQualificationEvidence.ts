@@ -53,7 +53,7 @@ const CROSS_MODE=[
  "      WHERE native_probe->>'probeId'=r.probe_id",
  "      AND native_probe->'observations'=r.specialist_submission->'observations'",
  "      AND COALESCE(native_probe->>'supportEvent','none')=r.specialist_submission->>'supportEvent')",
- ") THEN true ELSE false END AS native_proof_verified,",
+ ") THEN true ELSE false END AS native_proof_verified",
  "FROM public.specialist_sandbox_live_evidence_turns r",
  "JOIN public.specialist_sandbox_trajectories tr ON tr.id=r.trajectory_id",
  "LEFT JOIN private.specialist_sandbox_trajectory_truth hidden ON hidden.trajectory_id=r.trajectory_id",
