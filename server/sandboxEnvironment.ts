@@ -1736,10 +1736,13 @@ export async function prepareSandboxEnvironment(input: {
         WHERE tutor_assignment_id=$1 AND tutor_id=$2 AND trajectory_id=$3
           AND student_id=$4 AND session_number=$5 AND topic_key=$6
           AND bank_version=$7 AND phase=$8 AND set_id=$9 AND event_form_id=$10
+          AND condition_contract_sha256=$11
+          AND problem_prepared=true AND conditions_reviewed=true AND evidence_plan_reviewed=true
         LIMIT 1`,
       [input.tutorAssignmentId,input.tutorId,bundle.trajectory.id,input.studentId,
        bundle.trajectory.session_number,sandboxTopicKey(input.topic),bank.bankVersion,
-       planned.phase,planned.position.set.setId,planned.eventFormId],
+       planned.phase,planned.position.set.setId,planned.eventFormId,
+       createHash("sha256").update(JSON.stringify(planned.position.set.constraints)).digest("hex")],
     );
     preparationRecorded = !!saved.rows[0];
   }
