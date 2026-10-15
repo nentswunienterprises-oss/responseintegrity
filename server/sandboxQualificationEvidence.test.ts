@@ -53,7 +53,7 @@ test("rep mismatch is a consequential Specialist error, not repaired by aggregat
  assert.equal(r.events.find(e=>e.kind==="session")?.materialError,true);
 });
 test("missing hidden truth is incomplete evidence, not fabricated Specialist divergence",async()=>{
- const f=fixture();f.reps[0].canonical_observations=null;
+ const f=fixture();(f.reps[0] as any).canonical_observations=null;
  const r=await loadSandboxQualificationEvidence({tutorAssignmentId:"assignment",tutorId:"specialist"},db(f));
  const rep=r.events.find(e=>e.id===f.reps[0].id)!;
  assert.equal(rep.technicallyValid,false);assert.equal(rep.materialError,false);
