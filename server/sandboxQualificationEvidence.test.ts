@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {getDrillSchemaDefinitionByVersion} from "@shared/responseIntegrityDrillRegistry";
+import {createHash} from "node:crypto";
 import {loadSandboxQualificationEvidence,nativeHandoverRepMatches} from "./sandboxQualificationEvidence";
 function fixture(){
  const schema=getDrillSchemaDefinitionByVersion("training","Clarity",1)!;
@@ -29,6 +30,9 @@ function db(f=fixture()){
   if(sql.includes("FROM public.specialist_sandbox_session_evaluations s"))return {rows:f.sessions};
   if(sql.includes("FROM public.specialist_sandbox_rediagnosis_turns r"))return {rows:[]};
   if(sql.includes("FROM public.session_billing_events e"))return {rows:[]};
+  if(sql.includes("FROM public.specialist_sandbox_preparation_events")){
+   const error=Object.assign(new Error("relation does not exist"),{code:"42P01"});throw error;
+  }
   if(sql.includes("FROM public.specialist_sandbox_live_evidence_turns")){
    const error=Object.assign(new Error("relation does not exist"),{code:"42P01"});throw error;
   }
@@ -231,4 +235,49 @@ test("continuity requires aligned sequential evidence on the same student topic"
  f.reps.filter(x=>x.session_number===2).forEach(rep=>rep.topic_key="different-topic");
  r=await loadSandboxQualificationEvidence({tutorAssignmentId:"assignment",tutorId:"specialist"},db(f));
  assert.equal(r.events.filter(e=>e.mode==="continuity").length,0);
+});
+
+test("preparation counts only after a matching canonical first rep preserves the contract",async()=>{
+ const records=fixture();
+ const first=records.reps[0];
+ const schema=getDrillSchemaDefinitionByVersion("training","Clarity",1)!;
+ const firstSet=schema.sets.find(set=>set.setId===first.set_id)!;
+ const sha=createHash("sha256").update(JSON.stringify(firstSet.constraints)).digest("hex");
+ const prepared={id:"preparation-1",trajectory_id:"traj-1",student_id:"student",
+  bank_version:1,trajectory_bank_version:1,phase:"Clarity",
+  set_id:first.set_id,topic_key:"geometry",session_number:1,
+  condition_contract_sha256:sha,trajectory_seed:"hidden-seed",
+  problem_prepared:true,conditions_reviewed:true,evidence_plan_reviewed:true,
+  recorded_at:"2026-10-15T10:58:00Z",
+  first_rep_id:first.id,first_rep_truth_id:first.id,
+  first_rep_completed_at:first.completed_at,first_rep_condition_kept:true,
+  first_rep_observation_exact:true,first_rep_evidence_exact:true};
+ const backing=db(records);
+ let rows=[prepared];
+ const service={query:async(sql:string,params?:any[])=>{
+   if(sql.includes("FROM public.specialist_sandbox_preparation_events"))return {rows};
+   return backing.query(sql);
+ }};
+ let result=await loadSandboxQualificationEvidence(
+   {tutorAssignmentId:"assignment",tutorId:"specialist"},service);
+ assert.equal(result.events.find(e=>e.id==="preparation-1")?.complete,true);
+ assert.equal(result.events.find(e=>e.id==="preparation-1")?.conditionKept,true);
+ rows=[{...prepared,first_rep_id:null,first_rep_truth_id:null}];
+ result=await loadSandboxQualificationEvidence(
+   {tutorAssignmentId:"assignment",tutorId:"specialist"},service);
+ assert.equal(result.events.find(e=>e.id==="preparation-1")?.complete,false);
+ rows=[{...prepared,condition_contract_sha256:"tampered"}];
+ result=await loadSandboxQualificationEvidence(
+   {tutorAssignmentId:"assignment",tutorId:"specialist"},service);
+ assert.equal(result.events.find(e=>e.id==="preparation-1")?.technicallyValid,false);
+ rows=[{...prepared,first_rep_condition_kept:false}];
+ result=await loadSandboxQualificationEvidence(
+   {tutorAssignmentId:"assignment",tutorId:"specialist"},service);
+ const failed=result.events.find(e=>e.id==="preparation-1")!;
+ assert.equal(failed.materialError,true);
+ assert.equal(failed.conditionKept,false);
+ rows=[{...prepared,recorded_at:"2026-10-15T11:59:00Z"}];
+ result=await loadSandboxQualificationEvidence(
+   {tutorAssignmentId:"assignment",tutorId:"specialist"},service);
+ assert.equal(result.events.find(e=>e.id==="preparation-1")?.complete,false);
 });
