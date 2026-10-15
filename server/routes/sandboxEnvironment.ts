@@ -4,6 +4,7 @@ import { isAuthenticated } from "../supabaseAuth";
 import {
   getSandboxEnvironmentHistory,
   prepareSandboxEnvironment,
+  recordSandboxPreparation,
   submitSandboxEnvironmentRep,
 } from "../sandboxEnvironment";
 import {
@@ -54,6 +55,22 @@ const repSubmissionSchema = z.object({
   }),
 });
 
+
+const preparationSubmissionSchema = z.object({
+  tutorAssignmentId: z.string().trim().min(1),
+  studentId: z.string().trim().min(1),
+  bankVersion: z.number().int().positive(),
+  trajectoryId: z.string().trim().min(1),
+  sessionNumber: z.number().int().positive(),
+  scheduledSessionId: z.string().trim().uuid(),
+  topic: z.string().trim().min(1).max(200),
+  eventFormId: z.string().trim().min(1),
+  attestedPhase: z.enum(["Clarity","Structured Execution","Controlled Discomfort","Time Pressure Stability"]),
+  attestedSetId: z.string().trim().min(1),
+  problemPrepared: z.literal(true),
+  conditionsReviewed: z.literal(true),
+  evidencePlanReviewed: z.literal(true),
+});
 
 const sandboxLiveEvidenceQuerySchema = z.object({
   tutorAssignmentId: z.string().trim().min(1),
@@ -271,6 +288,20 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
       return res.json(environment);
     } catch (error) {
       return sendError(res, error, "Failed to prepare the Sandbox environment.");
+    }
+  });
+
+  app.post("/api/tutor/sandbox-environment/preparation", isAuthenticated, async (req, res) => {
+    try {
+      const user = requireSpecialist(req, res);
+      if (!user) return;
+      const payload = preparationSubmissionSchema.parse(req.body);
+      return res.status(201).json(await recordSandboxPreparation({
+        ...payload,
+        tutorId: String(user.id),
+      }));
+    } catch (error) {
+      return sendError(res, error, "Unable to verify Sandbox session preparation.");
     }
   });
 
