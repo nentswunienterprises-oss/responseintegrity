@@ -1191,6 +1191,46 @@ async function exposureSummary(input: {
   };
 }
 
+async function loadCleanWindowEvidence(input: { tutorAssignmentId: string; tutorId: string }) {
+  const latest = await pool.query(
+    `SELECT trajectory_id FROM public.specialist_sandbox_session_evaluations
+     WHERE tutor_assignment_id = $1 AND tutor_id = $2
+     ORDER BY completed_at DESC, id DESC LIMIT 1`,
+    [input.tutorAssignmentId, input.tutorId],
+  );
+  const trajectoryId = latest.rows[0]?.trajectory_id;
+  if (!trajectoryId) return [];
+  const result = await pool.query(
+    `SELECT s.id, s.session_number, s.phase, s.authority_aligned, s.state_track_aligned,
+       s.state_change_observed, s.student_breakdown_recovery_observed,
+       (st.session_evaluation_id IS NOT NULL) AS has_session_truth,
+       COUNT(r.id)::int AS rep_count, COUNT(rt.event_id)::int AS truth_count,
+       COALESCE(bool_and(r.observation_exact IS TRUE), false) AS observation_exact,
+       COALESCE(bool_and(r.evidence_exact IS TRUE), false) AS evidence_exact,
+       COALESCE(bool_and(r.condition_kept IS TRUE), false) AS conditions_kept
+     FROM public.specialist_sandbox_session_evaluations s
+     LEFT JOIN private.specialist_sandbox_session_truth st ON st.session_evaluation_id = s.id
+     LEFT JOIN public.specialist_sandbox_rep_events r
+       ON r.trajectory_id = s.trajectory_id AND r.session_number = s.session_number
+       AND r.topic_key IS NOT DISTINCT FROM s.topic_key
+     LEFT JOIN private.specialist_sandbox_rep_event_truth rt ON rt.event_id = r.id
+     WHERE s.trajectory_id = $1 AND s.tutor_assignment_id = $2 AND s.tutor_id = $3
+     GROUP BY s.id, st.session_evaluation_id
+     ORDER BY s.session_number ASC, s.id ASC`,
+    [trajectoryId, input.tutorAssignmentId, input.tutorId],
+  );
+  return result.rows.map(row => ({
+    id: String(row.id), sessionNumber: Number(row.session_number), phase: String(row.phase),
+    situationTags: ["normal", ...(row.state_change_observed === true ? ["state_change"] : []),
+      ...(row.student_breakdown_recovery_observed === true ? ["breakdown_recovery"] : [])],
+    authorityAligned: row.authority_aligned === true, stateTrackAligned: row.state_track_aligned === true,
+    observationExact: Number(row.rep_count) > 0 && row.observation_exact === true,
+    evidenceExact: Number(row.rep_count) > 0 && row.evidence_exact === true && row.conditions_kept === true,
+    complete: Number(row.rep_count) > 0 && Number(row.rep_count) === Number(row.truth_count),
+    truthPresent: row.has_session_truth === true && Number(row.rep_count) > 0
+      && Number(row.rep_count) === Number(row.truth_count),
+  }));
+}
 async function readinessFor(input: {
   tutorAssignmentId: string;
   tutorId: string;
@@ -1214,16 +1254,17 @@ async function readinessFor(input: {
       reason: "The active Sandbox environment bank does not yet have a capability policy.",
     };
   }
-  const [evidence, exposure] = await Promise.all([
+  const [evidence, exposure, sessionEvidence] = await Promise.all([
     loadCapabilityOccurrences(input),
     exposureSummary(input),
+    loadCleanWindowEvidence(input),
   ]);
   const capability = evaluateSandboxCapabilityReadiness({
     policy: input.bank.capabilityPolicy, evidence, exposure,
   });
   // This distinct qualification policy has not yet received Founder approval.
   // Legacy capability readiness must not silently authorize Practicals.
-  const cleanWindow = evaluateSandboxCleanWindow(null, []);
+  const cleanWindow = evaluateSandboxCleanWindow(null, sessionEvidence);
   return {
     policyAvailable: true as const,
     bankKey: input.bank.bankKey,
@@ -1231,6 +1272,7 @@ async function readinessFor(input: {
     policyVersion: input.bank.capabilityPolicy.policyVersion,
     ...capability,
     cleanWindow,
+    cleanWindowEvidence: { completedSessionCount: sessionEvidence.length, source: "persisted_latest_trajectory", policyApprovalPending: true },
     practicalsReady: capability.practicalsReady && cleanWindow.qualified,
     reason: capability.practicalsReady
       ? cleanWindow.reason
