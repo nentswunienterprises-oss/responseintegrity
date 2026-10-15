@@ -101,3 +101,37 @@ test("native Diagnosis SQL projection has one legal column terminator before FRO
  assert.match(projection!,/END AS native_proof_verified\s+FROM public\.specialist_sandbox_live_evidence_turns/);
  assert.doesNotMatch(projection!,/native_proof_verified,\s+FROM/);
 });
+
+test("targeted re-diagnosis cannot count a clean probe as completed mode before final canonical placement",async()=>{
+ const baseDb=db();
+ const rediagnosis={id:"rediagnosis-1",trajectory_id:"traj-1",student_id:"student",
+  probe_id:"clarity.recognition",bank_key:"sandbox_stateful_environment",bank_version:1,
+  outcome_key:"probe-1",outcome_version:1,trajectory_seed:"hidden-seed",
+  canonical_observations:[{dimensionId:"recognition",behaviorId:"observed"}],
+  student_behavior:"Student response observed",condition_conformed:true,
+  observation_exact:true,authority_aligned:true,rediagnosis_status:"active",
+  specialist_decision:{complete:false},rediagnosis_canonical_decision:null,
+  completed_at:"2026-10-15T11:04:00Z"};
+ let nativeRows=[rediagnosis];
+ const sourceDb={query:async(sql:string)=>{
+  if(sql.includes("FROM public.specialist_sandbox_rediagnosis_turns r"))
+   return {rows:nativeRows};
+  return baseDb.query(sql);
+ }};
+ let result=await loadSandboxQualificationEvidence({tutorAssignmentId:"assignment",tutorId:"specialist"},sourceDb);
+ let recorded=result.events.find(e=>e.id==="rediagnosis-1")!;
+ assert.equal(recorded.complete,false);
+ assert.equal(recorded.materialError,false);
+ nativeRows=[{...rediagnosis,rediagnosis_status:"completed",
+  specialist_decision:{complete:true,placementPhase:"Clarity",stability:"Medium"},
+  rediagnosis_canonical_decision:{complete:true,placementPhase:"Clarity",stability:"Medium"}}];
+ result=await loadSandboxQualificationEvidence({tutorAssignmentId:"assignment",tutorId:"specialist"},sourceDb);
+ recorded=result.events.find(e=>e.id==="rediagnosis-1")!;
+ assert.equal(recorded.complete,true);
+ nativeRows=[{...nativeRows[0],rediagnosis_canonical_decision:{
+  complete:true,placementPhase:"Structured Execution",stability:"Medium"}}];
+ result=await loadSandboxQualificationEvidence({tutorAssignmentId:"assignment",tutorId:"specialist"},sourceDb);
+ recorded=result.events.find(e=>e.id==="rediagnosis-1")!;
+ assert.equal(recorded.complete,false);
+ assert.equal(recorded.materialError,true);
+});
