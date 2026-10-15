@@ -1,4 +1,4 @@
-import { createHmac } from "crypto";
+import { createHash, createHmac } from "crypto";
 import { pool } from "./db";
 import { activateApprovedSandboxModelTransition } from "./sandboxModelTransition";
 import { loadTutorOperationalModeAuthority } from "./tutorOperationalModeAuthority";
@@ -1273,10 +1273,21 @@ async function readinessFor(input: {
   const activated = process.env.RI_SANDBOX_QUALIFICATION_V1_ACTIVE === "true";
   let qualification = evaluateSandboxQualification([], { activated: false });
   let qualificationSourceGaps: string[] = [];
+  let evidenceFingerprint: string | null = null;
   if (activated) {
     const evidenceTimeline = await loadSandboxQualificationEvidence(input);
     qualificationSourceGaps = evidenceTimeline.sourceGaps;
     qualification = evaluateSandboxQualification(evidenceTimeline.events, { activated: true });
+    // Bound TD approval to the exact immutable evidence readback, not only
+    // a numeric session total. New errors/evidence invalidate old approvals.
+    evidenceFingerprint = createHash("sha256").update(JSON.stringify({
+      policyId: qualification.policyId, policyVersion: qualification.policyVersion,
+      evidence: evidenceTimeline.events.map(e => [
+        e.id, e.occurredAt, e.mode, e.sourceId, e.bankVersion, e.outcomeVersion,
+        e.technicallyValid, e.complete, e.materialError, e.observationExact,
+        e.evidenceExact, e.authorityAligned, e.stateAligned,
+      ]).sort((a,b) => String(a[0]).localeCompare(String(b[0]))),
+    })).digest("hex");
     if (qualificationSourceGaps.length) {
       qualification = {
         ...qualification, qualificationReady: false,
@@ -1311,6 +1322,7 @@ async function readinessFor(input: {
       qualifyingSessions: qualification.qualifyingSessions,
       requiredSessions: qualification.requiredSessions,
       reason: qualification.reason,
+      evidenceFingerprint,
     },
     qualificationSourceGaps: qualificationSourceGaps.length,
     cleanWindowEvidence: {
