@@ -85,3 +85,19 @@ test("only completed native Diagnosis matching the exact recorded probe may esta
  assert.equal(result.events.find(e=>e.id==="handover-simulation")?.complete,false);
  assert.equal(result.events.find(e=>e.id==="unmatched-diagnosis")?.complete,false);
 });
+
+test("native Diagnosis SQL projection has one legal column terminator before FROM",async()=>{
+ let projection:string|undefined;
+ const normal=db();
+ const spy={query:async(sql:string,params?:any[])=>{
+   if(sql.includes("FROM public.specialist_sandbox_live_evidence_turns")) {
+     projection=sql;
+     return {rows:[]};
+   }
+   return normal.query(sql);
+ }};
+ await loadSandboxQualificationEvidence({tutorAssignmentId:"assignment",tutorId:"specialist"},spy);
+ assert.ok(projection);
+ assert.match(projection!,/END AS native_proof_verified\s+FROM public\.specialist_sandbox_live_evidence_turns/);
+ assert.doesNotMatch(projection!,/native_proof_verified,\s+FROM/);
+});
