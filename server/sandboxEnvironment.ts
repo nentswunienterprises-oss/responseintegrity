@@ -1773,7 +1773,12 @@ export async function prepareSandboxEnvironment(input: {
       repCount: planned.position.set.reps,
       constraints: { ...planned.position.set.constraints },
       repNumber: planned.position.repNumber,
-      studentBehavior: planned.selected.studentBehavior,
+      // Do not reveal the next simulated behavior before the Specialist
+      // has completed the recorded pre-session operating plan.
+      studentBehavior: preparationCaptureEnabled &&
+        planned.completedInSession === 0 && !preparationRecorded
+          ? ""
+          : planned.selected.studentBehavior,
       fields: projectRepFields(
         planned.phase,
         planned.position.set,
