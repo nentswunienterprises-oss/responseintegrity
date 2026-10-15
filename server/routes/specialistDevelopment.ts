@@ -91,6 +91,7 @@ function documentsComplete(row: any) {
 function deriveCurrentStage(input: {
   operationalMode: string;
   latestSandboxDecision?: string | null;
+  sandboxPracticalsReady?: boolean;
   trial: any | null;
 }) {
   const mode = String(input.operationalMode || "").trim().toLowerCase();
@@ -114,7 +115,8 @@ function deriveCurrentStage(input: {
 
   if (
     mode === "sandbox" &&
-    String(input.latestSandboxDecision || "").toLowerCase() === "passed"
+    String(input.latestSandboxDecision || "").toLowerCase() === "passed" &&
+    input.sandboxPracticalsReady === true
   ) {
     return "practicals";
   }
@@ -136,9 +138,10 @@ function stageSummary(assessments: any[], stage: string) {
 async function loadDevelopmentSummaryForAssignment(assignment: any) {
   const tutorId = String(assignment.tutor_id);
   const assignmentId = String(assignment.id);
-  const [pathway, latestSandboxAssessment, trialIdResult] = await Promise.all([
+  const [pathway, latestSandboxAssessment, sandboxReadiness, trialIdResult] = await Promise.all([
     loadPathwayForDevelopmentRecord(tutorId),
     getLatestSandboxReadinessAssessment(assignmentId),
+    getSandboxCapabilityReadiness({ tutorAssignmentId: assignmentId, tutorId }),
     pool.query(
       `SELECT id
          FROM public.tutor_trial_cases
@@ -156,6 +159,7 @@ async function loadDevelopmentSummaryForAssignment(assignment: any) {
   const currentStage = deriveCurrentStage({
     operationalMode: String(assignment.operational_mode || ""),
     latestSandboxDecision: latestSandboxAssessment?.decision || null,
+    sandboxPracticalsReady: sandboxReadiness.practicalsReady === true,
     trial,
   });
 
@@ -320,6 +324,7 @@ async function loadSpecialistDevelopmentRecordPayload(tutorId: string) {
   const currentStage = deriveCurrentStage({
     operationalMode: String(assignment.operational_mode || ""),
     latestSandboxDecision: latestSandboxAssessment?.decision || null,
+    sandboxPracticalsReady: sandboxReadiness.practicalsReady === true,
     trial,
   });
 
