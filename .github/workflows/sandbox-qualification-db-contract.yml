@@ -1,0 +1,40 @@
+name: Sandbox Qualification DB Contract
+on:
+  pull_request:
+    paths:
+      - "docs/migration-proposals/20261015_sandbox_coverage_crossmode_evidence.sql"
+      - "scripts/sandboxQualificationDbContract.mjs"
+      - ".github/workflows/sandbox-qualification-db-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-postgres-contract:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: sandbox_ci_only
+          POSTGRES_DB: sandbox_qualification_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sandbox_qualification_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 6
+    env:
+      QUALIFICATION_TEST_DATABASE_URL: postgresql://postgres:sandbox_ci_only@127.0.0.1:5432/sandbox_qualification_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Run isolated protected-schema migration and RLS contract
+        run: node scripts/sandboxQualificationDbContract.mjs
