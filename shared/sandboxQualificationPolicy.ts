@@ -19,7 +19,7 @@ export type SandboxQualificationEvidence={
   materialError:boolean;technicallyValid:boolean;sourceId:string;sourceType:string;
   bankVersion:number|null;outcomeVersion:number|null;
 };
-export type QualificationRequirement={key:string;required:number;encountered:number;correct:number;distinctCorrect:number;met:boolean};
+export type QualificationRequirement={key:string;required:number;encountered:number;correct:number;distinctCorrect:number;priorErrors:number;recoveredAfterError:boolean;met:boolean};
 export type SandboxQualificationStatus={
   policyId:string;policyVersion:number;approved:boolean;activated:boolean;
   developmentCoverageReady:boolean;qualificationReady:boolean;
@@ -38,7 +38,11 @@ const getCoverage=(events:SandboxQualificationEvidence[])=>{
   const observed=events.filter(e=>e.kind==="opportunity"&&e.observed&&match(e));
   const clean=observed.filter(exact);
   const unique=new Set(clean.map(e=>e.opportunityKey)).size;
-  result.push({key,required,encountered:observed.length,correct:clean.length,distinctCorrect:unique,met:unique>=required});
+  const priorErrors=observed.filter(e=>e.materialError).length;
+  const recoveredAfterError=observed.some((e,i)=>e.materialError&&observed.slice(i+1).some(next=>
+    exact(next)&&next.opportunityKey!==e.opportunityKey));
+  result.push({key,required,encountered:observed.length,correct:clean.length,
+    distinctCorrect:unique,priorErrors,recoveredAfterError,met:unique>=required});
  };
  for(const mode of SANDBOX_QUALIFICATION_V1.modes)add("mode:"+mode,1,e=>e.mode===mode);
  for(const profile of SANDBOX_QUALIFICATION_V1.profiles)add("profile:"+profile,2,e=>e.profile===profile);
