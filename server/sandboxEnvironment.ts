@@ -24,7 +24,8 @@ import {
   type TrainingInterventionEvent,
   type TrainingPrerequisiteSentinelResult,
 } from "@shared/trainingEvidenceCapture";
-import { evaluateSandboxCleanWindow } from "@shared/sandboxCleanWindow";
+import { evaluateSandboxQualification } from "@shared/sandboxQualificationPolicy";
+import { loadSandboxQualificationEvidence } from "./sandboxQualificationEvidence";
 import {
   compareSandboxTurn,
   evaluateSandboxCapabilityReadiness,
@@ -1267,9 +1268,30 @@ async function readinessFor(input: {
   const capability = evaluateSandboxCapabilityReadiness({
     policy: input.bank.capabilityPolicy, evidence, exposure,
   });
-  // This distinct qualification policy has not yet received Founder approval.
-  // Legacy capability readiness must not silently authorize Practicals.
-  const cleanWindow = evaluateSandboxCleanWindow(null, sessionEvidence);
+  // Founder approved Policy V1. Production remains dormant until controlled
+  // acceptance + protected evidence migration/native-mode proof are complete.
+  const activated = process.env.RI_SANDBOX_QUALIFICATION_V1_ACTIVE === "true";
+  let qualification = evaluateSandboxQualification([], { activated: false });
+  let qualificationSourceGaps: string[] = [];
+  if (activated) {
+    const evidenceTimeline = await loadSandboxQualificationEvidence(input);
+    qualificationSourceGaps = evidenceTimeline.sourceGaps;
+    qualification = evaluateSandboxQualification(evidenceTimeline.events, { activated: true });
+    if (qualificationSourceGaps.length) {
+      qualification = {
+        ...qualification, qualificationReady: false,
+        technicalBlockers: [...qualification.technicalBlockers, ...qualificationSourceGaps],
+        reason: "Sandbox qualification is blocked by incomplete persisted source coverage.",
+      };
+    }
+  }
+  const cleanWindow = {
+    qualified: qualification.qualificationReady,
+    completeCleanSessions: qualification.qualifyingSessions,
+    requiredCleanSessions: qualification.requiredSessions,
+    cleanSessionIds: qualification.cleanSessionIds,
+    reason: qualification.reason,
+  };
   return {
     policyAvailable: true as const,
     bankKey: input.bank.bankKey,
@@ -1277,11 +1299,16 @@ async function readinessFor(input: {
     policyVersion: input.bank.capabilityPolicy.policyVersion,
     ...capability,
     cleanWindow,
-    cleanWindowEvidence: { completedSessionCount: sessionEvidence.length, source: "persisted_latest_trajectory", policyApprovalPending: true },
-    practicalsReady: capability.practicalsReady && cleanWindow.qualified,
-    reason: capability.practicalsReady
-      ? cleanWindow.reason
-      : capability.reason,
+    qualification,
+    qualificationSourceGaps,
+    cleanWindowEvidence: {
+      completedSessionCount: activated ? qualification.qualifyingSessions : sessionEvidence.length,
+      source: activated ? "specialist_cross_trajectory" : "persisted_latest_trajectory",
+      policyApprovalPending: false,
+      releaseAcceptancePending: !activated,
+    },
+    practicalsReady: capability.practicalsReady && qualification.qualificationReady,
+    reason: capability.practicalsReady ? qualification.reason : capability.reason,
     exposure,
   };
 }
