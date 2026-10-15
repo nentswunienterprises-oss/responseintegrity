@@ -2,7 +2,8 @@
  * This module never updates a simulated or real student's state and must not
  * be called from public/Specialist endpoints with raw canonical answers. */
 import { getDrillSchemaDefinitionByVersion } from "@shared/responseIntegrityDrillRegistry";
-import { resolveSandboxBehaviorProfile } from "@shared/sandboxBehaviorProfiles";
+import { resolveSandboxBehaviorProfile, sandboxBehaviorObservableSignatureMultiplier } from "@shared/sandboxBehaviorProfiles";
+import type { SandboxTrajectoryClass } from "@shared/sandboxEnvironment";
 import type { TopicPhase } from "@shared/topicConditioningEngine";
 import type { SandboxQualificationEvidence as Event } from "@shared/sandboxQualificationPolicy";
 
@@ -97,6 +98,7 @@ export async function loadSandboxQualificationEvidence(
  const sourceGaps:string[]=[];
  if([repResult,sessionResult,rediagnosisResult,billingResult].some(x=>x.rows.length>=5000))
   sourceGaps.push("Historical evidence result exceeded safe projection limit.");
+ const lastOutcomeByTrajectory=new Map<string,SandboxTrajectoryClass>();
  const reps=repResult.rows.map(r=>{
   const item=base(r,"training","opportunity");
   const truth=!!r.canonical_observations&&!!r.trajectory_seed&&
@@ -108,7 +110,24 @@ export async function loadSandboxQualificationEvidence(
   item.conditionKept=r.condition_kept===true;item.observationExact=r.observation_exact===true;
   item.evidenceExact=r.evidence_exact===true;item.authorityAligned=true;item.stateAligned=true;
   item.materialError=valid&&!(item.conditionKept&&item.observationExact&&item.evidenceExact);
-  item.situationTags=tags(r);return item;
+  item.situationTags=tags(r);
+  const previousClass=lastOutcomeByTrajectory.get(String(r.trajectory_id))||null;
+  const trajectoryClass=String(r.trajectory_class||"") as SandboxTrajectoryClass;
+  if (item.technicallyValid && r.trajectory_seed && trajectoryClass) {
+    const observableBias=sandboxBehaviorObservableSignatureMultiplier({
+      seed:String(r.trajectory_seed),phase:String(r.phase) as TopicPhase,
+      trajectoryClass,previousTrajectoryClass:previousClass,outcomeKey:String(r.outcome_key||""),
+    });
+    const uneven=profile(r.trajectory_seed)==="uneven_performer" &&
+      ((previousClass==="supported" && ["near_stable","conditional"].includes(trajectoryClass)) ||
+       (previousClass==="conditional" && trajectoryClass==="supported"));
+    const strong=profile(r.trajectory_seed)!=="quietly_strong" ||
+      trajectoryClass==="supported" || trajectoryClass==="near_stable";
+    if ((observableBias>1 || uneven) && strong)
+      item.situationTags.push("profile_signature");
+    lastOutcomeByTrajectory.set(String(r.trajectory_id),trajectoryClass);
+  }
+  return item;
  });
  const bySession=new Map<string,Event[]>();
  for(const r of reps){
