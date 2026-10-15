@@ -89,6 +89,17 @@ export async function recordSandboxReadinessAssessment(input: {
     );
   }
 
+  const qualification = input.capabilitySnapshot?.qualification as
+    | {policyId?: string; policyVersion?: number; qualificationReady?: boolean; evidenceFingerprint?: string}
+    | undefined;
+  if (input.decision === "passed" && (
+    qualification?.qualificationReady !== true ||
+    !qualification.policyId || !Number.isInteger(qualification.policyVersion) ||
+    !qualification.evidenceFingerprint
+  )) {
+    throw new Error("TD sign-off requires the approved, versioned zero-divergence qualification evidence fingerprint.");
+  }
+
   const checklist = {
     assessment_version: 2,
     assessment_owner: "td",
