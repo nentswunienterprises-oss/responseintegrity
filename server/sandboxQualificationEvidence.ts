@@ -157,8 +157,11 @@ export async function loadSandboxQualificationEvidence(
   sourceDb.query(REDIAGNOSIS,params),sourceDb.query(BILLING,[input.tutorId]),
  ]);
  const sourceGaps:string[]=[];
- if([repResult,sessionResult,rediagnosisResult,billingResult].some(x=>x.rows.length>=5000))
-  sourceGaps.push("Historical evidence result exceeded safe projection limit.");
+ // Never infer clean chronology from a truncated source. Sessions have a
+ // separate 1000-row limit; all other streams cap at 5000 rows.
+ if(repResult.rows.length>=5000 || sessionResult.rows.length>=1000 ||
+    rediagnosisResult.rows.length>=5000 || billingResult.rows.length>=5000)
+  sourceGaps.push("Historical qualification evidence reached a projection limit; full review is required.");
  const lastOutcomeByTrajectory=new Map<string,SandboxTrajectoryClass>();
  const reps=repResult.rows.map(r=>{
   const item=base(r,"training","opportunity");
@@ -249,7 +252,11 @@ export async function loadSandboxQualificationEvidence(
   item.situationTags=[...tags(r),"routing"];return item;
  });
  let cross:any[]=[];
- try { cross=(await sourceDb.query(CROSS_MODE,params)).rows; }
+ try {
+   cross=(await sourceDb.query(CROSS_MODE,params)).rows;
+   if(cross.length>=5000)
+     sourceGaps.push("Completed Diagnosis/Handover evidence reached the safe projection limit.");
+ }
  catch(error:any){
   if(error?.code==="42P01"||String(error?.message||"").includes("specialist_sandbox_live_evidence_turns"))
     sourceGaps.push("Protected Diagnosis/Handover evidence schema not applied.");
