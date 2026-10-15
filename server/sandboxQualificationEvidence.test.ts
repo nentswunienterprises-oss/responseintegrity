@@ -185,3 +185,31 @@ test("Handover only gets mode credit after an independently completed matching n
  const rejected=await loadSandboxQualificationEvidence({tutorAssignmentId:"assignment",tutorId:"specialist"},dbBad);
  assert.equal(rejected.events.find(e=>e.id==="handover-evidence")?.complete,false);
 });
+
+test("1000-row completed-session cap is never accepted as a complete qualification history",async()=>{
+ const records=fixture();
+ records.sessions=Array.from({length:1000},(_,i)=>({
+   ...records.sessions[0],id:"session-"+i,session_number:i+1,
+ }));
+ const result=await loadSandboxQualificationEvidence(
+   {tutorAssignmentId:"assignment",tutorId:"specialist"},db(records));
+ assert.match(result.sourceGaps.join(" "),/projection limit/);
+});
+test("5000-row Diagnosis/Handover cap also blocks qualification readback",async()=>{
+ const original=db();
+ const template={id:"cross",completed_at:"2026-10-15T11:02:00Z",
+  trajectory_id:"traj-1",student_id:"student",scope:"diagnosis",phase:"Clarity",
+  bank_version:1,outcome_version:1,probe_id:"clarity.recognition",
+  outcome_key:"case",source_context_id:"run",sequence_number:1,
+  trajectory_seed:"hidden-seed",canonical_observations:[{dimensionId:"clarity.vocabulary"}],
+  student_behavior:"Simulated response",condition_conformed:true,
+  observation_exact:true,native_proof_verified:false};
+ const mocked={query:async(sql:string,params?:any[])=>{
+   if(sql.includes("FROM public.specialist_sandbox_live_evidence_turns"))
+     return {rows:Array.from({length:5000},(_,i)=>({...template,id:"cross-"+i}))};
+   return original.query(sql);
+ }};
+ const result=await loadSandboxQualificationEvidence(
+   {tutorAssignmentId:"assignment",tutorId:"specialist"},mocked);
+ assert.match(result.sourceGaps.join(" "),/Diagnosis\/Handover evidence reached/);
+});
