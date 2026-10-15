@@ -850,7 +850,7 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
     const selectedRecord = outcomes.find(record =>
       record.definition.key === selected.key && record.definition.version === selected.version);
     if (!selectedRecord) throw new Error("Sandbox canonical lineage is missing.");
-    await pool.query(
+    const stored = await pool.query(
       `WITH recorded AS (
         INSERT INTO public.specialist_sandbox_live_evidence_turns (
           tutor_assignment_id,tutor_id,trajectory_id,student_id,scope,source_context_id,
@@ -858,6 +858,7 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
           student_behavior,specialist_submission,condition_conformed,observation_exact,
           matching_observations,total_observations
         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15,$16,$17,$18)
+        ON CONFLICT (tutor_assignment_id,form_id) DO NOTHING
         RETURNING id
       )
       INSERT INTO private.specialist_sandbox_live_evidence_truth (
@@ -872,6 +873,37 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
        selectedRecord.publicRef,selected.key,selected.version,
        JSON.stringify(selected.canonicalObservations),selected.trajectoryClass,input.supportEvent],
     );
+    if (!stored.rowCount) {
+      // A replay is allowed only when the originally committed public record
+      // AND its private canonical truth match every decision-relevant field.
+      // Never overwrite or reinterpret the first committed observation.
+      const previouslyStored = await pool.query(
+        `SELECT e.id FROM public.specialist_sandbox_live_evidence_turns e
+           JOIN private.specialist_sandbox_live_evidence_truth t ON t.event_id=e.id
+          WHERE e.tutor_assignment_id=$1 AND e.tutor_id=$2
+            AND e.trajectory_id=$3 AND e.student_id=$4
+            AND e.scope=$5 AND e.source_context_id=$6 AND e.form_id=$7
+            AND e.sequence_number=$8 AND e.phase=$9 AND e.probe_id=$10
+            AND e.bank_version=$11 AND e.behavior_model_version=$12
+            AND e.student_behavior=$13 AND e.specialist_submission=$14::jsonb
+            AND e.condition_conformed=$15 AND e.observation_exact=$16
+            AND e.matching_observations=$17 AND e.total_observations=$18
+            AND t.outcome_ref=$19 AND t.outcome_key=$20 AND t.outcome_version=$21
+            AND t.canonical_observations=$22::jsonb
+            AND t.trajectory_class=$23 AND t.actual_support_event=$24
+          LIMIT 1`,
+        [input.tutorAssignmentId,input.tutorId,trajectory.id,input.studentId,input.scope,
+         input.sourceContextId,prepared.formId,input.sequenceNumber,input.startingPhase,
+         prepared.probeId,prepared.bankVersion,truth.behavior_model_version,
+         prepared.studentBehavior,JSON.stringify({supportEvent:input.supportEvent,observations:input.observations}),
+         conditionConformed,observationExact,matchingObservations,expectedDimensionIds.length,
+         selectedRecord.publicRef,selected.key,selected.version,
+         JSON.stringify(selected.canonicalObservations),selected.trajectoryClass,input.supportEvent],
+      );
+      if (!previouslyStored.rows[0]) {
+        throw httpError(409, "The previous Sandbox evidence record conflicts with this submission. Preserve the original and escalate for evidence review.");
+      }
+    }
   }
   return {
     success: true as const,
