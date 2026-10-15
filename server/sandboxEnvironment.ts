@@ -1219,17 +1219,22 @@ async function loadCleanWindowEvidence(input: { tutorAssignmentId: string; tutor
      ORDER BY s.session_number ASC, s.id ASC`,
     [trajectoryId, input.tutorAssignmentId, input.tutorId],
   );
-  return result.rows.map(row => ({
-    id: String(row.id), sessionNumber: Number(row.session_number), phase: String(row.phase),
+  return result.rows.map(row => {
+    const phase = String(row.phase) as TopicPhase;
+    const expectedRepCount = flattenedRepPlan(phase).length;
+    const exactRepCount = expectedRepCount > 0 && Number(row.rep_count) === expectedRepCount &&
+      Number(row.truth_count) === expectedRepCount;
+    return {
+    id: String(row.id), sessionNumber: Number(row.session_number), phase,
     situationTags: ["normal", ...(row.state_change_observed === true ? ["state_change"] : []),
       ...(row.student_breakdown_recovery_observed === true ? ["breakdown_recovery"] : [])],
     authorityAligned: row.authority_aligned === true, stateTrackAligned: row.state_track_aligned === true,
     observationExact: Number(row.rep_count) > 0 && row.observation_exact === true,
     evidenceExact: Number(row.rep_count) > 0 && row.evidence_exact === true && row.conditions_kept === true,
-    complete: Number(row.rep_count) > 0 && Number(row.rep_count) === Number(row.truth_count),
-    truthPresent: row.has_session_truth === true && Number(row.rep_count) > 0
-      && Number(row.rep_count) === Number(row.truth_count),
-  }));
+    complete: exactRepCount,
+    truthPresent: row.has_session_truth === true && exactRepCount,
+  };
+  });
 }
 async function readinessFor(input: {
   tutorAssignmentId: string;
