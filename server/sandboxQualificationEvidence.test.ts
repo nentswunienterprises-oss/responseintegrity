@@ -213,3 +213,22 @@ test("5000-row Diagnosis/Handover cap also blocks qualification readback",async(
    {tutorAssignmentId:"assignment",tutorId:"specialist"},mocked);
  assert.match(result.sourceGaps.join(" "),/Diagnosis\/Handover evidence reached/);
 });
+
+test("continuity requires aligned sequential evidence on the same student topic",async()=>{
+ const f=fixture();
+ const second=f.sessions[0];
+ f.sessions.push({...second,id:"session-two",session_number:2,
+   completed_at:"2026-10-15T11:15:55Z"});
+ f.reps.push(...f.reps.map((rep,i)=>({...rep,id:rep.id+"-second",
+   session_number:2,completed_at:new Date(Date.UTC(2026,9,15,11,7,i)).toISOString()})));
+ let r=await loadSandboxQualificationEvidence({tutorAssignmentId:"assignment",tutorId:"specialist"},db(f));
+ assert.equal(r.events.filter(e=>e.mode==="continuity").length,1);
+ f.sessions[0].authority_aligned=false;
+ r=await loadSandboxQualificationEvidence({tutorAssignmentId:"assignment",tutorId:"specialist"},db(f));
+ assert.equal(r.events.filter(e=>e.mode==="continuity").length,0);
+ f.sessions[0].authority_aligned=true;
+ f.sessions[1].topic_key="different-topic";
+ f.reps.filter(x=>x.session_number===2).forEach(rep=>rep.topic_key="different-topic");
+ r=await loadSandboxQualificationEvidence({tutorAssignmentId:"assignment",tutorId:"specialist"},db(f));
+ assert.equal(r.events.filter(e=>e.mode==="continuity").length,0);
+});
