@@ -6,8 +6,37 @@ import { resolveSandboxBehaviorProfile, sandboxBehaviorObservableSignatureMultip
 import type { SandboxTrajectoryClass } from "@shared/sandboxEnvironment";
 import type { TopicPhase } from "@shared/topicConditioningEngine";
 import type { SandboxQualificationEvidence as Event } from "@shared/sandboxQualificationPolicy";
+import { DIAGNOSIS_OBSERVATION_MATRIX, type DiagnosisDimensionId } from "@shared/diagnosisObservationMatrix";
 
 type Queryable={query:(sql:string,values?:any[])=>Promise<{rows:any[]}>};
+
+export function nativeHandoverRepMatches(sets: unknown, submitted: unknown, repNumber: number): boolean {
+  if (!Array.isArray(sets) || sets.length !== 1 || !Number.isInteger(repNumber) ||
+      repNumber < 1 || !submitted || typeof submitted !== "object") return false;
+  const reps = sets[0]?.observations;
+  const native = Array.isArray(reps) ? reps[repNumber - 1] : null;
+  if (!native || typeof native !== "object" || Array.isArray(native)) return false;
+  const observations = (submitted as any).observations;
+  if (!Array.isArray(observations) || !observations.length ||
+      (submitted as any).supportEvent !== "none") return false;
+  const dimensions = Object.keys(native).filter(key => key.endsWith("_dimension_id"));
+  if (dimensions.length !== observations.length) return false;
+  const used = new Set<string>();
+  for (const observed of observations) {
+    const dimensionId = String(observed?.dimensionId || "");
+    const definition = DIAGNOSIS_OBSERVATION_MATRIX[dimensionId as DiagnosisDimensionId];
+    const option = definition?.options.find(o => o.id === observed?.behaviorId);
+    if (!option || used.has(dimensionId)) return false;
+    const matchingKeys = dimensions.filter(key => native[key] === dimensionId);
+    if (matchingKeys.length !== 1) return false;
+    const base = matchingKeys[0].slice(0, -"_dimension_id".length);
+    if (!String(native[base + "_option_id"] || "").trim() ||
+        native[base] !== option.label) return false;
+    used.add(dimensionId);
+  }
+  return used.size === dimensions.length;
+}
+
 const TRAINING_REPS=[
  "SELECT r.*, t.outcome_key,t.outcome_version,t.outcome_ref AS truth_outcome_ref,",
  "t.trajectory_class,t.canonical_observations,t.canonical_prerequisite_sentinel,",
@@ -47,6 +76,8 @@ const REDIAGNOSIS=[
 const CROSS_MODE=[
  "SELECT r.*,t.outcome_key,t.outcome_version,t.trajectory_class,t.canonical_observations,",
  "tr.bank_key,hidden.trajectory_seed,",
+ "native_handover.drill->'sets' AS native_handover_sets,",
+ "native_handover.id AS native_handover_drill_id,",
  "CASE WHEN r.scope='diagnosis' AND EXISTS (",
  "  SELECT 1 FROM public.response_integrity_diagnosis_runs native_run",
  "  WHERE native_run.id::text=r.source_context_id",
@@ -63,6 +94,19 @@ const CROSS_MODE=[
  "JOIN public.specialist_sandbox_trajectories tr ON tr.id=r.trajectory_id",
  "LEFT JOIN private.specialist_sandbox_trajectory_truth hidden ON hidden.trajectory_id=r.trajectory_id",
  "LEFT JOIN private.specialist_sandbox_live_evidence_truth t ON t.event_id=r.id",
+ "LEFT JOIN LATERAL (",
+ "  SELECT h.id,h.drill FROM public.intro_session_drills h",
+ "  JOIN public.scheduled_sessions native_session ON native_session.id=h.scheduled_session_id",
+ "  WHERE h.tutor_id::text=r.tutor_id::text AND h.student_id::text=r.student_id::text",
+ "    AND h.scheduled_session_id::text=r.source_context_id",
+ "    AND native_session.tutor_id::text=r.tutor_id::text",
+ "    AND native_session.student_id::text=r.student_id::text",
+ "    AND native_session.type='handover' AND native_session.status='completed'",
+ "    AND h.drill->>'drillType'='handover_verification'",
+ "    AND h.drill->>'handoverMode'='verification'",
+ "    AND h.drill->>'phase'=r.phase AND h.submitted_at>=r.completed_at",
+ "  ORDER BY h.submitted_at DESC,h.id DESC LIMIT 1",
+ ") native_handover ON r.scope='handover'",
  "WHERE r.tutor_assignment_id=$1 AND r.tutor_id=$2",
  "ORDER BY r.completed_at ASC,r.id ASC LIMIT 5000",
 ].join(" ");
@@ -216,10 +260,13 @@ export async function loadSandboxQualificationEvidence(
   const truth=!!r.canonical_observations&&!!r.trajectory_seed;
   item.observed=!!String(r.student_behavior||"").trim();item.canonicalPresent=truth;
   item.technicallyValid=truth&&item.observed;
-  // Cross-mode simulated selection is NOT proof of native-mode authority.
-  // Only an independently persisted native completed Diagnosis run may verify
-  // Diagnosis. A Handover simulation is not Handover completion authority.
-  const nativeVerified=r.scope==="diagnosis"&&r.native_proof_verified===true;
+  // Cross-mode simulation is not completion authority. Check the actual
+  // native Diagnosis run or the exact completed Handover rep evidence.
+  const nativeVerified=r.scope==="diagnosis"
+    ? r.native_proof_verified===true
+    : r.scope==="handover" && !!r.native_handover_drill_id &&
+      nativeHandoverRepMatches(r.native_handover_sets,r.specialist_submission,Number(r.sequence_number));
+  if (nativeVerified) item.sourceId=[r.id,r.scope==="diagnosis"?r.source_context_id:r.native_handover_drill_id].join(":");
   item.complete=item.technicallyValid&&nativeVerified;
   item.conditionKept=r.condition_conformed===true;item.observationExact=r.observation_exact===true;
   item.evidenceExact=item.observationExact;item.authorityAligned=nativeVerified;
