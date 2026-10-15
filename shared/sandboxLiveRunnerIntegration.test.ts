@@ -805,3 +805,18 @@ test("Sandbox filters retired fictional incidents only when preparing a new rep"
   assert.match(sandboxAuthoritySource, /assertSandboxAccess/);
   assert.match(sandboxAuthoritySource, /loadSandboxScheduledTrainingSession/);
 });
+
+
+test("Sandbox Specialist card uses verified current-package authority, not historical session progress", () => {
+  assert.match(studentCardSource, /useTrainingSessions\(student\.id, true, isSandboxStudent\)/);
+  assert.match(studentCardSource, /resolveTrainingPackageProgressSummary\(trainingSessionsData\?\.monthlyQuota\)/);
+  assert.match(studentCardSource, /progressAvailable\s*\?/);
+  assert.match(studentCardSource, /Package balance is unavailable or inconsistent/);
+  assert.doesNotMatch(studentCardSource, /isSandboxStudent\s*\?\s*countedProgramProgress/);
+  const hooks = readFileSync(
+    new URL("../client/src/hooks/useScheduledSession.ts", import.meta.url), "utf8",
+  );
+  assert.match(hooks, /refetchInterval: refreshForSandbox \? 30000 : false/);
+  assert.match(hooks, /refetchOnWindowFocus: refreshForSandbox/);
+  assert.doesNotMatch(hooks, /refetchInterval: 10000/);
+});
