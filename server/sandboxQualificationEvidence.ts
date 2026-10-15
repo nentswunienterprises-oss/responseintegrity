@@ -1,7 +1,6 @@
 /** Read-only, privileged historical Sandbox evidence projection.
  * This module never updates a simulated or real student's state and must not
  * be called from public/Specialist endpoints with raw canonical answers. */
-import { pool } from "./db";
 import { getDrillSchemaDefinitionByVersion } from "@shared/responseIntegrityDrillRegistry";
 import { resolveSandboxBehaviorProfile } from "@shared/sandboxBehaviorProfiles";
 import type { TopicPhase } from "@shared/topicConditioningEngine";
@@ -87,12 +86,13 @@ const planKeys=(phase:string,bankVersion:number)=>{
   Array.from({length:set.reps},(_,i)=>set.setId+"::"+(i+1)));
 };
 export async function loadSandboxQualificationEvidence(
- input:{tutorAssignmentId:string;tutorId:string},db:Queryable=pool,
+ input:{tutorAssignmentId:string;tutorId:string},db?:Queryable,
 ):Promise<{events:Event[];sourceGaps:string[]}>{
+ const sourceDb=db ?? (await import("./db")).pool;
  const params=[input.tutorAssignmentId,input.tutorId];
  const [repResult,sessionResult,rediagnosisResult,billingResult]=await Promise.all([
-  db.query(TRAINING_REPS,params),db.query(SESSIONS,params),
-  db.query(REDIAGNOSIS,params),db.query(BILLING,[input.tutorId]),
+  sourceDb.query(TRAINING_REPS,params),sourceDb.query(SESSIONS,params),
+  sourceDb.query(REDIAGNOSIS,params),sourceDb.query(BILLING,[input.tutorId]),
  ]);
  const sourceGaps:string[]=[];
  if([repResult,sessionResult,rediagnosisResult,billingResult].some(x=>x.rows.length>=5000))
@@ -157,7 +157,7 @@ export async function loadSandboxQualificationEvidence(
   item.situationTags=[...tags(r),"routing"];return item;
  });
  let cross:any[]=[];
- try { cross=(await db.query(CROSS_MODE,params)).rows; }
+ try { cross=(await sourceDb.query(CROSS_MODE,params)).rows; }
  catch(error:any){
   if(error?.code==="42P01"||String(error?.message||"").includes("specialist_sandbox_live_evidence_turns"))
     sourceGaps.push("Protected Diagnosis/Handover evidence schema not applied.");
