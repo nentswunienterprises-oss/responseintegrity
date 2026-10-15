@@ -11,6 +11,8 @@ on:
       - "shared/trainingEvidenceEvaluator.ts"
       - "server/sandbox*.ts"
       - "server/routes/sandbox*.ts"
+      - "server/routes/specialistDevelopment.ts"
+      - "client/src/components/sandbox/*.tsx"
       - "client/src/pages/operational/tutor/sandbox*.tsx"
       - "client/src/components/tutor/TrainingLiveDeliveryUi.tsx"
       - "client/src/components/tutor/IntroSessionDrillRunner.tsx"
@@ -18,6 +20,7 @@ on:
       - "server/index.ts"
       - "server/vercelPreviewApi.ts"
       - "client/src/App.tsx"
+      - "client/src/lib/queryPersistence*.ts"
       - "package.json"
       - ".github/workflows/sandbox-simulation-ci.yml"
   push:
@@ -33,6 +36,8 @@ on:
       - "shared/trainingEvidenceEvaluator.ts"
       - "server/sandbox*.ts"
       - "server/routes/sandbox*.ts"
+      - "server/routes/specialistDevelopment.ts"
+      - "client/src/components/sandbox/*.tsx"
       - "client/src/pages/operational/tutor/sandbox*.tsx"
       - "client/src/components/tutor/TrainingLiveDeliveryUi.tsx"
       - "client/src/components/tutor/IntroSessionDrillRunner.tsx"
@@ -40,6 +45,7 @@ on:
       - "server/index.ts"
       - "server/vercelPreviewApi.ts"
       - "client/src/App.tsx"
+      - "client/src/lib/queryPersistence*.ts"
       - "package.json"
       - ".github/workflows/sandbox-simulation-ci.yml"
 

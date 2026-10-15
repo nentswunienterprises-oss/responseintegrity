@@ -167,17 +167,20 @@ export function SandboxReadinessAssessmentCard({
       }),
   });
 
-  if (!isSandbox) return null;
-
   const [showDossier, setShowDossier] = useState(false);
-  const { data: dossier, isLoading: dossierLoading, isError: dossierError } = useQuery<SandboxDossier>({
+  const { data: dossier, isFetching: dossierLoading, isError: dossierError } = useQuery<SandboxDossier>({
     queryKey: ["/api/td/tutors", tutorId, "sandbox-evidence-dossier"],
-    enabled: showDossier && isSandbox,
+    enabled: !!tutorId && showDossier && isSandbox,
+    gcTime: 0,
+    staleTime: 0,
+    networkMode: "always",
     queryFn: async () => {
       const response = await apiRequest("GET", `/api/td/tutors/${encodeURIComponent(tutorId)}/sandbox-evidence-dossier`);
       return response.json();
     },
   });
+
+  if (!isSandbox) return null;
 
   const readiness = data?.capabilityReadiness;
   const latestDecision = data?.latestAssessment?.decision || null;
@@ -291,7 +294,7 @@ export function SandboxReadinessAssessmentCard({
             </div>
             {showDossier && dossierLoading ? <p className="text-sm">Loading committed Sandbox evidence...</p> : null}
             {showDossier && dossierError ? <p className="text-sm text-destructive">Evidence unavailable; readiness must not be inferred.</p> : null}
-            {showDossier && dossier ? (
+            {showDossier && !dossierLoading && !dossierError && dossier ? (
               <div className="space-y-3 max-h-[650px] overflow-y-auto">
                 <p className="text-xs font-medium">Completed sessions ({dossier.sessions.length})</p>
                 {dossier.sessions.map(session => (
@@ -310,7 +313,7 @@ export function SandboxReadinessAssessmentCard({
                 {dossier.reps.map(rep => (
                   <details key={rep.id} className="rounded-md border p-2">
                     <summary className="cursor-pointer text-sm font-medium">
-                      Session {rep.sessionNumber} · {rep.phase} · {rep.setId} · Rep {rep.repNumber} · {rep.truthPresent && rep.observationExact && rep.evidenceExact && rep.conditionKept !== false ? "Aligned" : "Review divergence"}
+                      Session {rep.sessionNumber} · {rep.phase} · {rep.setId} · Rep {rep.repNumber} · {rep.truthPresent && rep.observationExact && rep.evidenceExact && rep.conditionKept === true ? "Aligned" : "Review divergence"}
                     </summary>
                     <div className="mt-2 space-y-2 text-xs">
                       <p><strong>Student behavior:</strong> {rep.studentBehavior}</p>

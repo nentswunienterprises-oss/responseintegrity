@@ -2950,3 +2950,9 @@ Any change to the live Response Integrity-OS algorithm, reporting logic, drill s
 4. Update any derivative docs whose screenshots, examples, or instructions are now visibly stale.
 
 Do not ship Response Integrity-OS logic changes without updating this file.
+
+## 2026-10-15 Sandbox TD dossier validation boundary (PR #202)
+
+The TD evidence dossier reads committed rep events and session evaluations, with canonical truth joined only by those historical event IDs. Authentication, TD role and ownership of the Specialist's latest assignment are required before any private evidence read. Former-Pod and cross-Pod TDs are denied. Responses disable shared/browser caching; canonical dossiers are excluded from offline query persistence and withheld during revalidation or request failure. Missing canonical truth or missing condition evidence never establishes alignment. The bounded view returns up to 180 reps and 90 session evaluations; it is not the complete longitudinal qualification input.
+
+The clean-window evaluator remains a foundation only: live readiness currently passes no approved policy or persisted session evidence, so Practicals qualification fails closed. Numeric policy approval, persisted longitudinal integration, and authenticated Preview/Proof acceptance remain outstanding. Focused tests do not establish deployed credentials, grants or RLS acceptance.

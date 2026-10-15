@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { evaluateSandboxCleanWindow, type SandboxSessionEvidence } from "./sandboxCleanWindow";
 
 const policy = {
@@ -13,25 +14,25 @@ const row = (n: number, overrides: Partial<SandboxSessionEvidence> = {}): Sandbo
 });
 describe("zero-divergence graduation gate", () => {
   it("fails closed before explicit numeric policy approval", () => {
-    expect(evaluateSandboxCleanWindow(null, [row(1),row(2),row(3)]).qualified).toBe(false);
-    expect(evaluateSandboxCleanWindow({...policy,status:"candidate"}, [row(1),row(2),row(3)]).qualified).toBe(false);
+    assert.equal(evaluateSandboxCleanWindow(null, [row(1),row(2),row(3)]).qualified, false);
+    assert.equal(evaluateSandboxCleanWindow({...policy,status:"candidate"}, [row(1),row(2),row(3)]).qualified, false);
   });
   it("qualifies consecutive complete correctly-covered zero-divergence evidence", () => {
-    expect(evaluateSandboxCleanWindow(policy,[row(1),row(2),row(3)]).qualified).toBe(true);
+    assert.equal(evaluateSandboxCleanWindow(policy,[row(1),row(2),row(3)]).qualified, true);
   });
   it("does not cherry-pick earlier clean sessions after a material divergence", () => {
-    expect(evaluateSandboxCleanWindow(policy,[row(1),row(2),row(3,{authorityAligned:false}),row(4)]).qualified).toBe(false);
+    assert.equal(evaluateSandboxCleanWindow(policy,[row(1),row(2),row(3,{authorityAligned:false}),row(4)]).qualified, false);
   });
   it("blocks incorrect observation, evidence integrity, state and missing truth", () => {
     for(const failure of [{observationExact:false},{evidenceExact:false},{stateTrackAligned:false},{truthPresent:false},{complete:false}]) {
-      expect(evaluateSandboxCleanWindow(policy,[row(1),row(2),row(3,failure)]).qualified).toBe(false);
+      assert.equal(evaluateSandboxCleanWindow(policy,[row(1),row(2),row(3,failure)]).qualified, false);
     }
   });
   it("blocks missing situation coverage and duplicate sessions", () => {
-    expect(evaluateSandboxCleanWindow(policy,[row(1),row(2),row(3,{situationTags:["normal"]})]).qualified).toBe(false);
-    expect(evaluateSandboxCleanWindow(policy,[row(1),row(2),row(2)]).qualified).toBe(false);
+    assert.equal(evaluateSandboxCleanWindow(policy,[row(1),row(2),row(3,{situationTags:["normal"]})]).qualified, false);
+    assert.equal(evaluateSandboxCleanWindow(policy,[row(1),row(2),row(2)]).qualified, false);
   });
   it("blocks single-session standards even if marked approved", () => {
-    expect(evaluateSandboxCleanWindow({...policy,requiredConsecutiveSessions:1},[row(1)]).qualified).toBe(false);
+    assert.equal(evaluateSandboxCleanWindow({...policy,requiredConsecutiveSessions:1},[row(1)]).qualified, false);
   });
 });

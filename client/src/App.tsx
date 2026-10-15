@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { queryClient, persister } from "./lib/queryClient";
+import { shouldPersistQuery } from "./lib/queryPersistence";
 import { Toaster } from "@/components/ui/toaster";
 import { RouteSeoManager } from "@/components/RouteSeoManager";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -679,7 +680,7 @@ export default function App() {
   return (
     <PersistQueryClientProvider 
       client={queryClient} 
-      persistOptions={{ persister }}
+      persistOptions={{ persister, dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery } }}
     >
       <TooltipProvider>
         <ScrollToTop />
