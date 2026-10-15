@@ -68,6 +68,17 @@ type SandboxReadinessPayload = {
   };
 };
 
+type SandboxDossier = {
+  reps: Array<{id:string; sessionNumber:number; phase:string; setId:string; repNumber:number;
+    studentBehavior:string; observationExact:boolean|null; evidenceExact:boolean|null;
+    conditionKept:boolean|null; truthPresent:boolean; comparisons:Array<{
+      fieldKey:string; recorded:{optionId:string;evidenceStatus?:string}|null;
+      expected:{optionId:string;evidenceStatus?:string}|null; matched:boolean;
+    }> }>;
+  sessions:Array<{id:string;sessionNumber:number;phase:string;authorityAligned:boolean;
+    stateTrackAligned:boolean;truthPresent:boolean;specialistAuthority:any;canonicalAuthority:any}>;
+};
+
 const CAPABILITY_LABELS: Record<string, string> = {
   condition_integrity: "Condition Integrity",
   observation_integrity: "Observation Integrity",
@@ -157,6 +168,16 @@ export function SandboxReadinessAssessmentCard({
   });
 
   if (!isSandbox) return null;
+
+  const [showDossier, setShowDossier] = useState(false);
+  const { data: dossier, isLoading: dossierLoading, isError: dossierError } = useQuery<SandboxDossier>({
+    queryKey: ["/api/td/tutors", tutorId, "sandbox-evidence-dossier"],
+    enabled: showDossier && isSandbox,
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/td/tutors/${encodeURIComponent(tutorId)}/sandbox-evidence-dossier`);
+      return response.json();
+    },
+  });
 
   const readiness = data?.capabilityReadiness;
   const latestDecision = data?.latestAssessment?.decision || null;
@@ -257,6 +278,55 @@ export function SandboxReadinessAssessmentCard({
               </div>
             </div>
           ) : null}
+
+          <div className="rounded-lg border bg-background p-3 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold">Recorded-vs-canonical evidence dossier</p>
+                <p className="text-xs text-muted-foreground">TD-only historical observations and state consequences; no future scenario truth.</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setShowDossier(value => !value)}>
+                {showDossier ? "Hide evidence" : "Inspect evidence"}
+              </Button>
+            </div>
+            {showDossier && dossierLoading ? <p className="text-sm">Loading committed Sandbox evidence...</p> : null}
+            {showDossier && dossierError ? <p className="text-sm text-destructive">Evidence unavailable; readiness must not be inferred.</p> : null}
+            {showDossier && dossier ? (
+              <div className="space-y-3 max-h-[650px] overflow-y-auto">
+                <p className="text-xs font-medium">Completed sessions ({dossier.sessions.length})</p>
+                {dossier.sessions.map(session => (
+                  <details key={session.id} className="rounded-md border p-2">
+                    <summary className="cursor-pointer text-sm font-medium">
+                      Session {session.sessionNumber} · {session.phase} · {session.truthPresent && session.authorityAligned && session.stateTrackAligned ? "Aligned" : "Diverged / incomplete"}
+                    </summary>
+                    <div className="mt-2 text-xs space-y-2">
+                      <p>Authority aligned: {String(session.authorityAligned)} · State aligned: {String(session.stateTrackAligned)} · Canonical evidence available: {String(session.truthPresent)}</p>
+                      <p><strong>Specialist authority:</strong> <code className="break-all">{JSON.stringify(session.specialistAuthority)}</code></p>
+                      <p><strong>Canonical authority:</strong> <code className="break-all">{JSON.stringify(session.canonicalAuthority)}</code></p>
+                    </div>
+                  </details>
+                ))}
+                <p className="text-xs font-medium">Completed rep evidence ({dossier.reps.length})</p>
+                {dossier.reps.map(rep => (
+                  <details key={rep.id} className="rounded-md border p-2">
+                    <summary className="cursor-pointer text-sm font-medium">
+                      Session {rep.sessionNumber} · {rep.phase} · {rep.setId} · Rep {rep.repNumber} · {rep.truthPresent && rep.observationExact && rep.evidenceExact && rep.conditionKept !== false ? "Aligned" : "Review divergence"}
+                    </summary>
+                    <div className="mt-2 space-y-2 text-xs">
+                      <p><strong>Student behavior:</strong> {rep.studentBehavior}</p>
+                      <p>Condition preserved: {String(rep.conditionKept)} · Canonical evidence available: {String(rep.truthPresent)}</p>
+                      {rep.comparisons.map(c => <div key={c.fieldKey} className="rounded border p-2">
+                        <strong>{c.fieldKey} — {c.matched ? "Aligned" : "Diverged"}</strong>
+                        <p>Recorded: {JSON.stringify(c.recorded)}</p>
+                        <p>Expected: {JSON.stringify(c.expected)}</p>
+                      </div>)}
+                    </div>
+                  </details>
+                ))}
+                {dossier.reps.length === 0 && dossier.sessions.length === 0 ? <p className="text-sm">No completed Sandbox evaluation evidence.</p> : null}
+              </div>
+            ) : null}
+          </div>
 
           {readiness?.cleanWindow ? (
             <div className="rounded-lg border bg-background p-3">
