@@ -1,6 +1,7 @@
 /** Read-only, privileged historical Sandbox evidence projection.
  * This module never updates a simulated or real student's state and must not
  * be called from public/Specialist endpoints with raw canonical answers. */
+import { createHash } from "crypto";
 import { getDrillSchemaDefinitionByVersion } from "@shared/responseIntegrityDrillRegistry";
 import { resolveSandboxBehaviorProfile, sandboxBehaviorObservableSignatureMultiplier } from "@shared/sandboxBehaviorProfiles";
 import type { SandboxTrajectoryClass } from "@shared/sandboxEnvironment";
@@ -37,6 +38,23 @@ export function nativeHandoverRepMatches(sets: unknown, submitted: unknown, repN
   return used.size === dimensions.length;
 }
 
+const PREPARATION=[
+ "SELECT p.*, tr.bank_version AS trajectory_bank_version, hidden.trajectory_seed,",
+ "r.id AS first_rep_id, r.completed_at AS first_rep_completed_at,",
+ "r.condition_kept AS first_rep_condition_kept,",
+ "r.observation_exact AS first_rep_observation_exact,",
+ "r.evidence_exact AS first_rep_evidence_exact,",
+ "truth.event_id AS first_rep_truth_id",
+ "FROM public.specialist_sandbox_preparation_events p",
+ "JOIN public.specialist_sandbox_trajectories tr ON tr.id=p.trajectory_id",
+ "LEFT JOIN private.specialist_sandbox_trajectory_truth hidden ON hidden.trajectory_id=p.trajectory_id",
+ "LEFT JOIN public.specialist_sandbox_rep_events r",
+ "  ON r.trajectory_id=p.trajectory_id AND r.session_number=p.session_number",
+ "  AND r.topic_key=p.topic_key AND r.set_id=p.set_id AND r.rep_number=1",
+ "LEFT JOIN private.specialist_sandbox_rep_event_truth truth ON truth.event_id=r.id",
+ "WHERE p.tutor_assignment_id=$1 AND p.tutor_id=$2",
+ "ORDER BY p.recorded_at ASC,p.id ASC LIMIT 5000",
+].join(" ");
 const TRAINING_REPS=[
  "SELECT r.*, t.outcome_key,t.outcome_version,t.outcome_ref AS truth_outcome_ref,",
  "t.trajectory_class,t.canonical_observations,t.canonical_prerequisite_sentinel,",
@@ -282,6 +300,47 @@ export async function loadSandboxQualificationEvidence(
   item.opportunityKey=[r.scope,r.bank_version,r.probe_id,r.outcome_key,r.outcome_version].join(":");
   item.situationTags=tags(r);return item;
  });
+ let savedPreparations:any[]=[];
+ try {
+   savedPreparations=(await sourceDb.query(PREPARATION,params)).rows;
+   if(savedPreparations.length>=5000)
+     sourceGaps.push("Session preparation evidence reached the safe historical projection limit.");
+ } catch(error:any) {
+   if(error?.code==="42P01" ||
+      String(error?.message||"").includes("specialist_sandbox_preparation_events"))
+     sourceGaps.push("Protected pre-session preparation evidence schema not applied.");
+   else throw error;
+ }
+ const preparations=savedPreparations.map(row=>{
+   const item=base({
+     ...row,completed_at:row.first_rep_completed_at||row.recorded_at,
+   },"preparation","opportunity");
+   const schema=Number(row.bank_version)===1 ?
+     getDrillSchemaDefinitionByVersion("training",String(row.phase) as TopicPhase,1) : null;
+   const set=schema?.sets.find(candidate=>candidate.setId===row.set_id);
+   const expectedHash=set?
+     createHash("sha256").update(JSON.stringify(set.constraints)).digest("hex") : null;
+   const lineageMatches=!!row.first_rep_id&&!!row.first_rep_truth_id &&
+     Number(row.trajectory_bank_version)===Number(row.bank_version) &&
+     expectedHash===row.condition_contract_sha256 &&
+     Date.parse(String(row.recorded_at))<Date.parse(String(row.first_rep_completed_at));
+   item.observed=!!row.first_rep_id;
+   item.canonicalPresent=!!row.first_rep_truth_id&&!!row.trajectory_seed;
+   item.technicallyValid=!!lineageMatches&&item.canonicalPresent &&
+     row.problem_prepared===true && row.conditions_reviewed===true &&
+     row.evidence_plan_reviewed===true;
+   item.conditionKept=row.first_rep_condition_kept===true;
+   item.observationExact=row.first_rep_observation_exact===true;
+   item.evidenceExact=row.first_rep_evidence_exact===true;
+   item.authorityAligned=item.technicallyValid;
+   item.stateAligned=item.technicallyValid;
+   item.complete=item.technicallyValid;
+   item.materialError=item.technicallyValid && !(
+     item.conditionKept&&item.observationExact&&item.evidenceExact);
+   item.opportunityKey=["prepared",row.phase,row.set_id,row.condition_contract_sha256].join(":");
+   item.situationTags=["prepared_conditions"];
+   return item;
+ });
  const billing=billingResult.rows;
  const closure:Event[]=[];const continuity:Event[]=[];
  for(const session of sessions){
@@ -314,5 +373,5 @@ export async function loadSandboxQualificationEvidence(
       sourceId:session.id});
   }
  }
- return {events:[...reps,...sessions,...rediagnoses,...crossEvents,...closure,...continuity],sourceGaps};
+ return {events:[...preparations,...reps,...sessions,...rediagnoses,...crossEvents,...closure,...continuity],sourceGaps};
 }
