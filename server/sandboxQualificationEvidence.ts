@@ -41,7 +41,19 @@ const REDIAGNOSIS=[
 ].join(" ");
 const CROSS_MODE=[
  "SELECT r.*,t.outcome_key,t.outcome_version,t.trajectory_class,t.canonical_observations,",
- "tr.bank_key,hidden.trajectory_seed",
+ "tr.bank_key,hidden.trajectory_seed,",
+ "CASE WHEN r.scope='diagnosis' AND EXISTS (",
+ "  SELECT 1 FROM public.response_integrity_diagnosis_runs native_run",
+ "  WHERE native_run.id::text=r.source_context_id",
+ "    AND native_run.tutor_id::text=r.tutor_id::text",
+ "    AND native_run.student_id::text=r.student_id::text",
+ "    AND native_run.status='completed'",
+ "    AND native_run.session_context IN ('intro','active_training')",
+ "    AND EXISTS (SELECT 1 FROM jsonb_array_elements(native_run.probe_history) native_probe",
+ "      WHERE native_probe->>'probeId'=r.probe_id",
+ "      AND native_probe->'observations'=r.specialist_submission->'observations'",
+ "      AND COALESCE(native_probe->>'supportEvent','none')=r.specialist_submission->>'supportEvent')",
+ ") THEN true ELSE false END AS native_proof_verified,",
  "FROM public.specialist_sandbox_live_evidence_turns r",
  "JOIN public.specialist_sandbox_trajectories tr ON tr.id=r.trajectory_id",
  "LEFT JOIN private.specialist_sandbox_trajectory_truth hidden ON hidden.trajectory_id=r.trajectory_id",
@@ -188,9 +200,12 @@ export async function loadSandboxQualificationEvidence(
   item.observed=!!String(r.student_behavior||"").trim();item.canonicalPresent=truth;
   item.technicallyValid=truth&&item.observed;
   // Cross-mode simulated selection is NOT proof of native-mode authority.
-  item.complete=item.technicallyValid&&r.native_authority_verified===true;
+  // Only an independently persisted native completed Diagnosis run may verify
+  // Diagnosis. A Handover simulation is not Handover completion authority.
+  const nativeVerified=r.scope==="diagnosis"&&r.native_proof_verified===true;
+  item.complete=item.technicallyValid&&nativeVerified;
   item.conditionKept=r.condition_conformed===true;item.observationExact=r.observation_exact===true;
-  item.evidenceExact=item.observationExact;item.authorityAligned=r.native_authority_verified===true;
+  item.evidenceExact=item.observationExact;item.authorityAligned=nativeVerified;
   item.stateAligned=item.authorityAligned;
   item.materialError=item.technicallyValid&&(!item.conditionKept||!item.observationExact);
   item.opportunityKey=[r.scope,r.bank_version,r.probe_id,r.outcome_key,r.outcome_version].join(":");
