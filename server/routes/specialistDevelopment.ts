@@ -5,6 +5,7 @@ import { createSandboxEvidenceDossierHandler } from "../sandboxEvidenceDossier";
 import { getSpecialistCapabilityTrainingState } from "../capabilitySequencing";
 import { getSandboxCapabilityReadiness } from "../sandboxEnvironment";
 import { getLatestSandboxReadinessAssessment } from "../sandboxReadiness";
+import { createTdSandboxQualificationReview } from "../sandboxQualificationReview";
 import { getSpecialistDevelopmentPathway } from "../specialistDevelopmentPathway";
 import { getTrialCaseById } from "../trialCertification";
 
@@ -434,6 +435,11 @@ async function loadSpecialistDevelopmentRecordPayload(tutorId: string) {
 }
 
 export function registerSpecialistDevelopmentRoutes(app: Express) {
+  app.get(
+    "/api/td/tutors/:tutorId/sandbox-qualification-review",
+    isAuthenticated,
+    createTdSandboxQualificationReview(),
+  );
   app.get("/api/td/tutors/:tutorId/sandbox-evidence-dossier", isAuthenticated,
     createSandboxEvidenceDossierHandler(pool),
   );
