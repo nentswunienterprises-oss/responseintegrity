@@ -1,12 +1,11 @@
 import type {Request,Response} from "express";
-import {pool} from "./db";
 import {loadSandboxQualificationEvidence} from "./sandboxQualificationEvidence";
 import {evaluateSandboxQualification} from "@shared/sandboxQualificationPolicy";
 import {resolveSandboxBehaviorProfile} from "@shared/sandboxBehaviorProfiles";
 type DB={query:(sql:string,values?:any[])=>Promise<{rows:any[]}>};
 
 /** Read-only TD authority: latest Pod ownership is checked BEFORE private history. */
-export function createTdSandboxQualificationReview(db:DB=pool){
+export function createTdSandboxQualificationReview(db?:DB){
  return async (req:Request,res:Response)=>{
   try {
    const td=(req as any).dbUser;
@@ -15,7 +14,8 @@ export function createTdSandboxQualificationReview(db:DB=pool){
     return res.status(403).json({message:"TD access required."});
    const tutorId=String(req.params.tutorId||"").trim();
    if(!tutorId)return res.status(400).json({message:"tutorId is required."});
-   const assignment=await db.query(
+   const sourceDb=db ?? (await import("./db")).pool;
+   const assignment=await sourceDb.query(
     "SELECT ta.id FROM (SELECT id,pod_id FROM public.tutor_assignments "+
     "WHERE tutor_id=$1 ORDER BY created_at DESC,id DESC LIMIT 1) ta "+
     "JOIN public.pods p ON p.id=ta.pod_id WHERE p.td_id=$2",
@@ -26,8 +26,8 @@ export function createTdSandboxQualificationReview(db:DB=pool){
    const tutorAssignmentId=String(assignment.rows[0].id);
    res.setHeader("Cache-Control","private,no-store,max-age=0");
    const [history, assigned]=await Promise.all([
-    loadSandboxQualificationEvidence({tutorAssignmentId,tutorId},db),
-    db.query(
+    loadSandboxQualificationEvidence({tutorAssignmentId,tutorId},sourceDb),
+    sourceDb.query(
      "SELECT t.id,truth.trajectory_seed FROM public.specialist_sandbox_trajectories t "+
      "JOIN private.specialist_sandbox_trajectory_truth truth ON truth.trajectory_id=t.id "+
      "WHERE t.tutor_assignment_id=$1 AND t.tutor_id=$2",
