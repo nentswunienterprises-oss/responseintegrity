@@ -68,6 +68,23 @@ type SandboxReadinessPayload = {
   };
 };
 
+type SandboxQualificationReview = {
+  assignedByProfile: Record<string,number>;
+  sourceGaps: string[];
+  qualification: {
+    policyId:string;policyVersion:number;activated:boolean;
+    developmentCoverageReady:boolean;qualificationReady:boolean;
+    qualifyingSessions:number;requiredSessions:number;
+    technicalBlockers:string[];materialErrorsSinceCoverage:number;
+    reason:string;requirements:Array<{
+      key:string;required:number;encountered:number;correct:number;distinctCorrect:number;
+      priorErrors:number;recoveredAfterError:boolean;met:boolean;
+    }>;
+  };
+  evidence:Array<{id:string;mode:string;phase:string|null;profile:string|null;
+    occurredAt:string;materialError:boolean;technicallyValid:boolean}>;
+};
+
 type SandboxDossier = {
   reps: Array<{id:string; sessionNumber:number; phase:string; setId:string; repNumber:number;
     studentBehavior:string; observationExact:boolean|null; evidenceExact:boolean|null;
@@ -165,6 +182,17 @@ export function SandboxReadinessAssessmentCard({
           error?.message || "Failed to record the Sandbox readiness assessment.",
         variant: "destructive",
       }),
+  });
+
+  const [showCoverage, setShowCoverage] = useState(false);
+  const { data: coverageReview, isFetching: coverageLoading, isError: coverageError } = useQuery<SandboxQualificationReview>({
+    queryKey: ["/api/td/tutors", tutorId, "sandbox-qualification-review"],
+    enabled: !!tutorId && showCoverage && isSandbox,
+    gcTime: 0, staleTime: 0, networkMode: "always",
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/td/tutors/${encodeURIComponent(tutorId)}/sandbox-qualification-review`);
+      return response.json();
+    },
   });
 
   const [showDossier, setShowDossier] = useState(false);
@@ -281,6 +309,46 @@ export function SandboxReadinessAssessmentCard({
               </div>
             </div>
           ) : null}
+
+          <div className="rounded-lg border bg-background p-3 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold">Development coverage and qualification</p>
+                <p className="text-xs text-muted-foreground">TD-only evidence: encountered behavior, correct decisions, independent repetition and recovery.</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setShowCoverage(value => !value)}>
+                {showCoverage ? "Hide coverage" : "Inspect coverage"}
+              </Button>
+            </div>
+            {showCoverage && coverageLoading ? <p className="text-sm">Loading protected coverage evidence...</p> : null}
+            {showCoverage && coverageError ? <p className="text-sm text-destructive">Coverage evidence unavailable. Readiness remains blocked.</p> : null}
+            {showCoverage && !coverageLoading && !coverageError && coverageReview ? (
+              <div className="space-y-3">
+                <p className="text-sm font-medium">{coverageReview.qualification.reason}</p>
+                <p className="text-xs text-muted-foreground">
+                  Final clean sessions: {coverageReview.qualification.qualifyingSessions}/{coverageReview.qualification.requiredSessions}.
+                  Policy v{coverageReview.qualification.policyVersion}.
+                  {coverageReview.qualification.activated ? " Controlled activation on." : " Production qualification inactive."}
+                </p>
+                {coverageReview.sourceGaps.length > 0 ? <p className="text-xs text-destructive">
+                  Unresolved evidence sources: {coverageReview.sourceGaps.join("; ")}
+                </p> : null}
+                <div className="max-h-[450px] overflow-y-auto space-y-2">
+                  {coverageReview.qualification.requirements.map(requirement => (
+                    <div key={requirement.key} className="rounded border p-2 text-xs">
+                      <p className="font-medium">{requirement.key.replace(":", ": ").replaceAll("_", " ")} — {requirement.met ? "Established" : "Not established"}</p>
+                      <p className="text-muted-foreground">
+                        Encountered {requirement.encountered} · Correct {requirement.correct} ·
+                        Distinct clean opportunities {requirement.distinctCorrect}/{requirement.required}
+                        {requirement.priorErrors > 0 ? ` · Prior errors ${requirement.priorErrors}` : ""}
+                        {requirement.recoveredAfterError ? " · Fresh recovery observed" : ""}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
 
           <div className="rounded-lg border bg-background p-3 space-y-3">
             <div className="flex items-center justify-between gap-2">
