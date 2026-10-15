@@ -45,7 +45,7 @@ const getCoverage=(events:SandboxQualificationEvidence[])=>{
     distinctCorrect:unique,priorErrors,recoveredAfterError,met:unique>=required});
  };
  for(const mode of SANDBOX_QUALIFICATION_V1.modes)add("mode:"+mode,1,e=>e.mode===mode);
- for(const profile of SANDBOX_QUALIFICATION_V1.profiles)add("profile:"+profile,2,e=>e.profile===profile);
+ for(const profile of SANDBOX_QUALIFICATION_V1.profiles)add("profile:"+profile,2,e=>e.profile===profile&&e.situationTags.includes("profile_signature"));
  for(const [tag,min] of Object.entries(SANDBOX_QUALIFICATION_V1.situationMinimums))add("situation:"+tag,min,e=>e.situationTags.includes(tag));
  return result;
 };
