@@ -35,6 +35,7 @@ type CapabilityReadiness = {
   breadthReady: boolean;
   longitudinalReady: boolean;
   reason: string;
+  cleanWindow?: { qualified: boolean; completeCleanSessions: number; requiredCleanSessions: number | null; reason: string };
   exposure?: {
     distinctPhases: number;
     distinctSets: number;
@@ -254,6 +255,21 @@ export function SandboxReadinessAssessmentCard({
                     : "Still developing"}
                 </p>
               </div>
+            </div>
+          ) : null}
+
+          {readiness?.cleanWindow ? (
+            <div className="rounded-lg border bg-background p-3">
+              <p className="text-sm font-semibold">Zero-divergence graduation gate</p>
+              <p className="mt-1 text-sm">
+                {readiness.cleanWindow.qualified ? "Qualifying evidence established" : "Not yet qualified"}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {readiness.cleanWindow.requiredCleanSessions === null
+                  ? "Consecutive clean-session requirement awaits Founder-approved calibration."
+                  : `${readiness.cleanWindow.completeCleanSessions}/${readiness.cleanWindow.requiredCleanSessions} consecutive clean sessions`}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">{readiness.cleanWindow.reason}</p>
             </div>
           ) : null}
 
