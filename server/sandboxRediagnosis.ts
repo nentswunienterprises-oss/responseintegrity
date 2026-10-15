@@ -811,38 +811,7 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
     reason,
   });
 
-  await insertCapabilityEvidence({
-    trajectory,
-    sourceType: "turn",
-    sourceId,
-    occurrences: [
-      ...(input.scope === "diagnosis"
-        ? [
-            occurrence(
-              "condition_integrity",
-              conditionConformed ? "supported" : "breakdown",
-              conditionConformed
-                ? "The Specialist preserved the prescribed Sandbox evidence condition."
-                : "The Specialist changed the prescribed Sandbox evidence condition through mathematical support.",
-            ),
-          ]
-        : []),
-      occurrence(
-        "observation_integrity",
-        observationExact ? "supported" : "breakdown",
-        observationExact
-          ? "The Specialist recorded the concrete simulated student behavior that occurred."
-          : "At least one recorded behavior differed from the hidden simulated student truth.",
-      ),
-      occurrence(
-        "evidence_integrity",
-        observationExact ? "supported" : "breakdown",
-        observationExact
-          ? "The Specialist preserved the evidence class carried by the simulated response."
-          : "The Specialist record changed decision-relevant evidence truth.",
-      ),
-    ],
-  });
+
 
   // Historical, submitted simulation only. Protected Proof schema + explicit flag required.
   // A simulation observation never claims native Diagnosis/Handover authority.
@@ -905,6 +874,41 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
       }
     }
   }
+  // Record qualification capability only AFTER immutable capture validation.
+  // A conflicting replay must never write a fresh capability occurrence.
+  await insertCapabilityEvidence({
+    trajectory,
+    sourceType: "turn",
+    sourceId,
+    occurrences: [
+      ...(input.scope === "diagnosis"
+        ? [
+            occurrence(
+              "condition_integrity",
+              conditionConformed ? "supported" : "breakdown",
+              conditionConformed
+                ? "The Specialist preserved the prescribed Sandbox evidence condition."
+                : "The Specialist changed the prescribed Sandbox evidence condition through mathematical support.",
+            ),
+          ]
+        : []),
+      occurrence(
+        "observation_integrity",
+        observationExact ? "supported" : "breakdown",
+        observationExact
+          ? "The Specialist recorded the concrete simulated student behavior that occurred."
+          : "At least one recorded behavior differed from the hidden simulated student truth.",
+      ),
+      occurrence(
+        "evidence_integrity",
+        observationExact ? "supported" : "breakdown",
+        observationExact
+          ? "The Specialist preserved the evidence class carried by the simulated response."
+          : "The Specialist record changed decision-relevant evidence truth.",
+      ),
+    ],
+  });
+
   return {
     success: true as const,
     matchingObservations,
