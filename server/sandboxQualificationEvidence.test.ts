@@ -250,6 +250,8 @@ test("preparation counts only after a matching canonical first rep preserves the
   problem_prepared:true,conditions_reviewed:true,evidence_plan_reviewed:true,
   recorded_at:"2026-10-15T10:58:00Z",
   first_rep_id:first.id,first_rep_truth_id:first.id,
+  first_rep_truth_ref:"ref",first_rep_outcome_ref:"ref",
+  first_rep_canonical_observations:{evidence:"yes"},
   first_rep_completed_at:first.completed_at,first_rep_condition_kept:true,
   first_rep_observation_exact:true,first_rep_evidence_exact:true};
  const backing=db(records);
@@ -265,11 +267,16 @@ test("preparation counts only after a matching canonical first rep preserves the
  rows=[{...prepared,first_rep_id:null,first_rep_truth_id:null}];
  result=await loadSandboxQualificationEvidence(
    {tutorAssignmentId:"assignment",tutorId:"specialist"},service);
- assert.equal(result.events.find(e=>e.id==="preparation-1")?.complete,false);
+ assert.equal(result.events.find(e=>e.id==="preparation-1"),undefined,
+   "Unattempted preparation remains on the audit ledger but is not qualification evidence.");
  rows=[{...prepared,condition_contract_sha256:"tampered"}];
  result=await loadSandboxQualificationEvidence(
    {tutorAssignmentId:"assignment",tutorId:"specialist"},service);
  assert.equal(result.events.find(e=>e.id==="preparation-1")?.technicallyValid,false);
+ rows=[{...prepared,first_rep_truth_ref:"wrong-outcome"}];
+ result=await loadSandboxQualificationEvidence(
+   {tutorAssignmentId:"assignment",tutorId:"specialist"},service);
+ assert.equal(result.events.find(e=>e.id==="preparation-1")?.complete,false);
  rows=[{...prepared,first_rep_condition_kept:false}];
  result=await loadSandboxQualificationEvidence(
    {tutorAssignmentId:"assignment",tutorId:"specialist"},service);
