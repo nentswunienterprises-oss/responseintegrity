@@ -44,7 +44,9 @@ const PREPARATION=[
  "r.condition_kept AS first_rep_condition_kept,",
  "r.observation_exact AS first_rep_observation_exact,",
  "r.evidence_exact AS first_rep_evidence_exact,",
- "truth.event_id AS first_rep_truth_id",
+ "truth.event_id AS first_rep_truth_id,",
+ "truth.outcome_ref AS first_rep_truth_ref, r.outcome_ref AS first_rep_outcome_ref,",
+ "truth.canonical_observations AS first_rep_canonical_observations",
  "FROM public.specialist_sandbox_preparation_events p",
  "JOIN public.specialist_sandbox_trajectories tr ON tr.id=p.trajectory_id",
  "LEFT JOIN private.specialist_sandbox_trajectory_truth hidden ON hidden.trajectory_id=p.trajectory_id",
@@ -317,10 +319,12 @@ export async function loadSandboxQualificationEvidence(
    },"preparation","opportunity");
    const schema=Number(row.bank_version)===1 ?
      getDrillSchemaDefinitionByVersion("training",String(row.phase) as TopicPhase,1) : null;
-   const set=schema?.sets.find(candidate=>candidate.setId===row.set_id);
+   const set=schema?.sets.find(candidate=>candidate.setId===row.set_id && !candidate.modelingOnly);
    const expectedHash=set?
      createHash("sha256").update(JSON.stringify(set.constraints)).digest("hex") : null;
    const lineageMatches=!!row.first_rep_id&&!!row.first_rep_truth_id &&
+     !!row.first_rep_canonical_observations &&
+     row.first_rep_truth_ref===row.first_rep_outcome_ref &&
      Number(row.trajectory_bank_version)===Number(row.bank_version) &&
      expectedHash===row.condition_contract_sha256 &&
      Date.parse(String(row.recorded_at))<Date.parse(String(row.first_rep_completed_at));
@@ -373,5 +377,8 @@ export async function loadSandboxQualificationEvidence(
       sourceId:session.id});
   }
  }
- return {events:[...preparations,...reps,...sessions,...rediagnoses,...crossEvents,...closure,...continuity],sourceGaps};
+ // An unstarted, abandoned preparation is not an observed opportunity.
+ // Preserve its audit receipt in the protected table, but do not permanently
+ // poison the Specialist's future clean evidence with an unattempted rep.
+ return {events:[...preparations.filter(e=>e.observed),...reps,...sessions,...rediagnoses,...crossEvents,...closure,...continuity],sourceGaps};
 }
