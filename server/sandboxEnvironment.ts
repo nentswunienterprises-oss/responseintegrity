@@ -1,5 +1,6 @@
 import { createHash, createHmac } from "crypto";
 import { pool } from "./db";
+import { sandboxPreparationFingerprint } from "./sandboxPreparationFingerprint";
 import { activateApprovedSandboxModelTransition } from "./sandboxModelTransition";
 import { loadTutorOperationalModeAuthority } from "./tutorOperationalModeAuthority";
 import {
@@ -1844,6 +1845,15 @@ export async function getSandboxSessionPreparationPreview(input: {
     captureActive: true as const,
     status: "rep_ready" as const,
     prescribedPhase: form.prescribedPhase,
+    planFingerprint: sandboxPreparationFingerprint({
+      trajectoryId: form.trajectoryId,
+      sessionNumber: form.sessionNumber,
+      bankVersion: form.bankVersion,
+      eventFormId: form.eventFormId,
+      prescribedPhase: form.prescribedPhase,
+      setId: form.rep.setId,
+      constraints: form.rep.constraints,
+    }),
     preparationRecorded: form.preparationRecorded === true,
     sessionNumber: form.sessionNumber,
     sets: schema.sets.map(set => ({
@@ -1868,6 +1878,7 @@ export async function recordSandboxPreparation(input: {
   scheduledSessionId: string;
   topic: string;
   attestedPhase: string;
+  planFingerprint: string;
   problemPrepared: boolean;
   conditionsReviewed: boolean;
   evidencePlanReviewed: boolean;
@@ -1892,6 +1903,18 @@ export async function recordSandboxPreparation(input: {
       form.prescribedPhase !== input.attestedPhase ||
       !sandboxTopicKey(input.topic)) {
     throw httpError(409, "Pre-session preparation does not match the current unstarted Sandbox lesson.");
+  }
+  const actualFingerprint = sandboxPreparationFingerprint({
+    trajectoryId: form.trajectoryId,
+    sessionNumber: form.sessionNumber,
+    bankVersion: form.bankVersion,
+    eventFormId: form.eventFormId,
+    prescribedPhase: form.prescribedPhase,
+    setId: form.rep.setId,
+    constraints: form.rep.constraints,
+  });
+  if (actualFingerprint !== input.planFingerprint) {
+    throw httpError(409, "The Sandbox preparation plan changed. Review the current prescribed sets in Map again.");
   }
   const contractHash = createHash("sha256")
     .update(JSON.stringify(form.rep.constraints)).digest("hex");
