@@ -10,6 +10,7 @@ import {DIAGNOSIS_OBSERVATION_MATRIX} from "../shared/diagnosisObservationMatrix
 import {loadPracticalEntryStatus} from "../server/practicalEntryStatus";
 import {sandboxQualificationEvidenceFingerprint} from "../server/sandboxQualificationFingerprint";
 import {createTdSandboxQualificationReview} from "../server/sandboxQualificationReview";
+import {diagnosisScheduledSessionQuery} from "../server/diagnosisScheduledSessionQuery";
 
 // Synthetic storage-contract integration only. Never connect to Proof or Production.
 // Native source fixtures below are explicitly authored test records, not user qualification.
@@ -282,6 +283,23 @@ try{
  console.log("JOURNEY_POSTGRES_EVIDENCE_BOUND_TD_APPROVAL=PASS");
  console.log("JOURNEY_POSTGRES_STALE_APPROVAL_AND_REASSIGNMENT_DENIAL=PASS");
 
+ // Real PostgreSQL UUID/text binding regression for both native launch paths.
+ // Roll back the temporary contract table; all synthetic journey history stays intact.
+ await db.query("BEGIN");
+ try {
+  await db.query("ALTER TABLE public.scheduled_sessions RENAME TO scheduled_sessions_journey_fixture");
+  await db.query("CREATE TABLE public.scheduled_sessions (id uuid PRIMARY KEY,tutor_id uuid,student_id uuid,type text,status text,scheduled_time timestamp,created_at timestamp)");
+  const identities={tutorId:"11111111-1111-4111-8111-111111111111",studentId:"22222222-2222-4222-8222-222222222222",scheduledSessionId:"33333333-3333-4333-8333-333333333333",requestedKind:"training" as const};
+  await db.query("INSERT INTO public.scheduled_sessions VALUES ($1,$2,$3,'training','confirmed',now(),now())",[identities.scheduledSessionId,identities.tutorId,identities.studentId]);
+  for(const scheduledSessionId of [identities.scheduledSessionId,null]) {
+   const query=diagnosisScheduledSessionQuery({...identities,scheduledSessionId});
+   const rows=await db.query(query.text,query.values);
+   assert.equal(rows.rows[0]?.id,identities.scheduledSessionId);
+   const denied=diagnosisScheduledSessionQuery({...identities,scheduledSessionId,tutorId:"44444444-4444-4444-8444-444444444444"});
+   assert.equal((await db.query(denied.text,denied.values)).rows.length,0);
+  }
+ } finally { await db.query("ROLLBACK"); }
+ console.log("NATIVE_DIAGNOSIS_SCHEDULED_UUID_BINDINGS_AND_OWNERSHIP=PASS");
  console.log("SYNTHETIC_POSTGRES_QUALIFICATION_PIPELINE=PASS");
  console.log("LIVE_NATIVE_JOURNEY_ACCEPTANCE=NOT_RUN");
 }finally{await db.end();}

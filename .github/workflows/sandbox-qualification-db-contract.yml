@@ -2,6 +2,8 @@ name: Sandbox Qualification DB Contract
 on:
   pull_request:
     paths:
+      - "server/diagnosisScheduledSessionQuery.ts"
+      - "server/evidenceCompleteDiagnosisRoutes.ts"
       - "docs/migration-proposals/20261015_sandbox_coverage_crossmode_evidence.sql"
       - "scripts/sandboxQualificationDbContract.mjs"
       - "scripts/sandboxQualificationJourneyIntegration.ts"

@@ -1,5 +1,7 @@
 # Persisted qualification pipeline integration
 
+16 October deployed continuation: the controlled Specialist completed one native six-rep Clarity lesson after the persisted Map preparation. All six rows have exact observations/evidence and intact conditions; session authority and state tracks align, with Sandbox-only evidence and no student-authoritative promotion. The next native Map-launched targeted re-diagnosis exposed `operator does not exist: uuid = integer`: scheduled-session lookup interpolated the binding index as a SQL integer. Both explicit-session and latest-kind lookups now bind `$3`; the isolated PostgreSQL contract verifies actual UUID lookup and cross-Specialist denial. Re-deployed native re-diagnosis acceptance remains required. This is not full qualification acceptance.
+
 `scripts/sandboxQualificationJourneyIntegration.ts` runs after the protected schema contract
 in the ephemeral PostgreSQL 17 GitHub service. It refuses a non-loopback host or a database
 other than `sandbox_qualification_ci`, creates a separate synthetic-only database, and
