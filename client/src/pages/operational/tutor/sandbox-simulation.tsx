@@ -14,7 +14,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   instructionPromptDisplayText,
   instructionPromptLabelFor,
@@ -377,9 +376,6 @@ export default function SpecialistSandboxSimulation({
   const [inheritedRescueSignal, setInheritedRescueSignal] = useState<
     "none" | "isolated" | "repeated" | "not_observed" | "confounded" | null
   >(null);
-  const [prepProblemReady, setPrepProblemReady] = useState(false);
-  const [prepConditionsReady, setPrepConditionsReady] = useState(false);
-  const [prepEvidenceReady, setPrepEvidenceReady] = useState(false);
   const [repStarted, setRepStarted] = useState(false);
   const [supportPickerOpen, setSupportPickerOpen] = useState(false);
   const [showEvidenceExceptions, setShowEvidenceExceptions] = useState(false);
@@ -494,9 +490,6 @@ export default function SpecialistSandboxSimulation({
     setRepStarted(false);
     setSupportPickerOpen(false);
     setShowEvidenceExceptions(false);
-    setPrepProblemReady(false);
-    setPrepConditionsReady(false);
-    setPrepEvidenceReady(false);
   }, [form?.eventFormId, form?.turnFormId]);
   const diagnosisProbe =
     form?.status === "rediagnosis_probe_ready" ? form.probe : undefined;
@@ -614,27 +607,6 @@ export default function SpecialistSandboxSimulation({
           queryKey: ["sandbox-environment-history", tutorAssignmentId, studentId],
         }),
       ]);
-    },
-  });
-
-  const recordPreparation = useMutation({
-    mutationFn: async () => {
-      if (!form || form.status !== "rep_ready" || !rep ||
-          !form.eventFormId || !scheduledSessionId ||
-          !prepProblemReady || !prepConditionsReady || !prepEvidenceReady) {
-        throw new Error("Complete the three preparation confirmations from the confirmed session before continuing.");
-      }
-      const response = await apiRequest("POST", "/api/tutor/sandbox-environment/preparation", {
-        tutorAssignmentId,studentId,bankVersion:form.bankVersion,
-        trajectoryId:form.trajectoryId,sessionNumber:form.sessionNumber,
-        scheduledSessionId,topic:routeTopic,eventFormId:form.eventFormId,
-        attestedPhase:form.prescribedPhase,attestedSetId:rep.setId,
-        problemPrepared:true,conditionsReviewed:true,evidencePlanReviewed:true,
-      });
-      return response.json() as Promise<{recorded:true}>;
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({queryKey:["sandbox-environment",tutorAssignmentId,studentId]});
     },
   });
 
@@ -923,53 +895,25 @@ export default function SpecialistSandboxSimulation({
     );
   }
 
-  // This is a pre-session confirmation, not qualification by attendance.
-  // The TD's independent evidence review only credits this preparation when
-  // subsequent matching first-rep behavior preserves the agreed conditions.
+  // The existing Map -> Start Session preparation is the ONLY confirmation.
+  // Do not create a second checklist before the first Sandbox rep.
+  // Server-side rep submission remains blocked until the Map receipt is verified.
   if (form.status === "rep_ready" && form.preparationCaptureEnabled &&
       form.sessionProgress?.completedReps === 0 && !form.preparationRecorded) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Prepare this Sandbox session</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Confirm the actual problem, delivery conditions and evidence plan
-              before the first rep. This preparation earns capability evidence only
-              when your later observed delivery agrees with the plan.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="font-medium">{form.prescribedPhase} · {rep?.setName || "Prescribed drill"}</p>
-            <p className="text-sm text-muted-foreground">
-              {Object.entries(rep?.constraints || {})
-                .map(([key,value])=>`${humanize(key)}: ${humanize(String(value))}`).join(" · ")}
-            </p>
-            <label className="flex items-start gap-3 text-sm">
-              <Checkbox checked={prepProblemReady} onCheckedChange={value=>setPrepProblemReady(value===true)}/>
-              <span>I have prepared the appropriate problem for this prescribed set, without exposing the answer to the student.</span>
-            </label>
-            <label className="flex items-start gap-3 text-sm">
-              <Checkbox checked={prepConditionsReady} onCheckedChange={value=>setPrepConditionsReady(value===true)}/>
-              <span>I have checked the operating conditions, support boundaries and any required timing.</span>
-            </label>
-            <label className="flex items-start gap-3 text-sm">
-              <Checkbox checked={prepEvidenceReady} onCheckedChange={value=>setPrepEvidenceReady(value===true)}/>
-              <span>I know which student behaviors must be observed and how to record them without inventing evidence.</span>
-            </label>
-            {!scheduledSessionId ? <p className="text-sm text-destructive">
-              Open this Sandbox session from its confirmed scheduled lesson to record preparation.
-            </p> : null}
-            {recordPreparation.isError ? <p className="text-sm text-destructive">
-              {recordPreparation.error instanceof Error ? recordPreparation.error.message : "Preparation could not be recorded."}
-            </p> : null}
-            <Button disabled={!scheduledSessionId || !prepProblemReady || !prepConditionsReady ||
-              !prepEvidenceReady || recordPreparation.isPending}
-              onClick={()=>recordPreparation.mutate()}>
-              {recordPreparation.isPending ? "Recording preparation..." : "Confirm preparation and start"}
+      <div className="mx-auto max-w-3xl p-4 sm:p-6">
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="space-y-3">
+            <p>The preparation for this Sandbox lesson has not been verified.</p>
+            <p>Open the student's Map, choose <strong>Start Session</strong>,
+              review the prescribed preparation rules and confirm once there.
+              The current simulated response remains hidden until that evidence is recorded.</p>
+            <Button variant="outline" onClick={() => navigate("/specialist/pod")}>
+              Return to Pod and Map
             </Button>
-          </CardContent>
-        </Card>
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
