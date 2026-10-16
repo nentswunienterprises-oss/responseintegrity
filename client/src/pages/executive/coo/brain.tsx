@@ -1,3 +1,5 @@
+import { resolveStoredDocumentUrl } from "@shared/storedDocumentUrl";
+import { API_URL } from "@/lib/config";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -678,7 +680,7 @@ export default function COOBrain() {
 
                       {selectedItem.kind === "pdf" && selectedItem.pdfUrl ? (
                         <Button asChild variant="outline" className="gap-2">
-                          <a href={selectedItem.pdfUrl} target="_blank" rel="noreferrer">
+                          <a href={resolveStoredDocumentUrl(selectedItem.pdfUrl, API_URL)} target="_blank" rel="noreferrer">
                             <ExternalLink className="h-4 w-4" />
                             Open PDF
                           </a>
