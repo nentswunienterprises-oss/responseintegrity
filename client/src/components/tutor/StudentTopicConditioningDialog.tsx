@@ -377,6 +377,19 @@ const PHASE_OBSERVATION_CONFIG: Record<
   },
 };
 
+type SandboxMapPreparationPlan = {
+  captureActive: boolean;
+  status: "inactive" | "rep_ready" | "targeted_rediagnosis_required" | "session_complete";
+  prescribedPhase?: string;
+  preparationRequired?: boolean;
+  preparationRecorded?: boolean;
+  sessionNumber?: number;
+  sets?: Array<{
+    setId: string; setName: string; reps: number; modelingOnly: boolean;
+    constraints: Record<string, unknown>;
+  }>;
+};
+
 interface StudentTopicConditioningDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -1210,32 +1223,42 @@ export default function StudentTopicConditioningDialog({
       // The existing Map preparation checkbox is the single confirmation.
       // The server derives phase, form, first set, bank and constraints; the
       // browser never supplies canonical rep identifiers or answer material.
-      if (isSandboxMode && topicState.hasObservedState && !topicState.requiresTargetedRediagnosis) {
-        if (!sessionId || !sessionPrepChecklistComplete) {
-          setSandboxPreparationError("Confirm preparation for the scheduled Sandbox lesson first.");
+      if (isSandboxMode) {
+        const plan = sandboxMapPreparationQuery.data;
+        if (!plan || sandboxMapPreparationQuery.isError || !sessionId) {
+          setSandboxPreparationError("The current Sandbox preparation prescription could not be verified. Refresh this Map before launching.");
           return;
         }
-        const plan = selectedSessionPrepPlans.find(row => row.topic === topicState.topic);
-        const attestedPhase = String(plan?.prepPlan.drillType || "").replace(/ Drill$/, "");
-        if (!["Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability"].includes(attestedPhase)) {
-          setSandboxPreparationError("The prescribed phase could not be verified from the Map. Refresh preparation first.");
+        if (plan.captureActive && plan.status !== "rep_ready" &&
+            plan.status !== "targeted_rediagnosis_required") {
+          setSandboxPreparationError("The current Sandbox session does not permit Training preparation. Review its required next action.");
           return;
         }
-        setSandboxPreparationPending(true);
-        setSandboxPreparationError(null);
-        try {
-          await apiRequest("POST", "/api/tutor/sandbox-environment/preparation", {
-            studentId, scheduledSessionId: sessionId, topic: topicState.topic,
-            attestedPhase, problemPrepared: true,
-            conditionsReviewed: true, evidencePlanReviewed: true,
-          });
-        } catch (error) {
-          setSandboxPreparationError(
-            error instanceof Error ? error.message : "The prepared Sandbox conditions could not be verified.",
-          );
-          return;
-        } finally {
-          setSandboxPreparationPending(false);
+        // A targeted re-diagnosis uses its own prescribed evidence opportunity.
+        // Otherwise persist this one Map confirmation against the actual
+        // server-authoritative phase, not a guess from a historical Map state.
+        if (plan.captureActive && plan.status === "rep_ready") {
+          const attestedPhase = String(plan.prescribedPhase || "");
+          if (!["Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability"].includes(attestedPhase)) {
+            setSandboxPreparationError("The current Sandbox phase is not established. Do not launch with assumed conditions.");
+            return;
+          }
+          setSandboxPreparationPending(true);
+          setSandboxPreparationError(null);
+          try {
+            await apiRequest("POST", "/api/tutor/sandbox-environment/preparation", {
+              studentId, scheduledSessionId: sessionId, topic: topicState.topic,
+              attestedPhase, problemPrepared: true,
+              conditionsReviewed: true, evidencePlanReviewed: true,
+            });
+          } catch (error) {
+            setSandboxPreparationError(
+              error instanceof Error ? error.message : "The prescribed Sandbox preparation could not be verified.",
+            );
+            return;
+          } finally {
+            setSandboxPreparationPending(false);
+          }
         }
       }
       const topicParam = encodeURIComponent(topicState.topic);
@@ -1693,6 +1716,29 @@ export default function StudentTopicConditioningDialog({
         ? ["confirmed", "ready", "live"].includes(String(session.status || "")) && session.id !== activeTrainingSession?.id
         : ["confirmed", "ready", "live"].includes(String(session.status || "")) && !session.launch?.canLaunch,
   ) || null;
+
+  const selectedSandboxPrepTopic = selectedSessionTopics.size === 1
+    ? Array.from(selectedSessionTopics)[0] : null;
+  const sandboxMapPreparationQuery = useQuery<SandboxMapPreparationPlan>({
+    queryKey: ["sandbox-map-preparation-plan", studentId, activeTrainingSession?.id, selectedSandboxPrepTopic],
+    enabled: isSandboxMode && sessionTopicsModalOpen && Boolean(
+      studentId && activeTrainingSession?.id && selectedSandboxPrepTopic,
+    ),
+    staleTime: 0,
+    refetchOnMount: "always",
+    retry: false,
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        studentId,
+        scheduledSessionId: String(activeTrainingSession!.id),
+        topic: String(selectedSandboxPrepTopic),
+      });
+      const response = await apiRequest(
+        "GET", `/api/tutor/sandbox-environment/preparation-plan?${params.toString()}`,
+      );
+      return response.json() as Promise<SandboxMapPreparationPlan>;
+    },
+  });
 
   const showTopicManagement = !readOnly && !mapOnly;
 
@@ -2870,6 +2916,9 @@ export default function StudentTopicConditioningDialog({
               onOpenChange={(open) => {
                 setSessionTopicsModalOpen(open);
                 if (open) {
+                  // Never carry an earlier lesson's confirmation into a new one.
+                  setSessionPrepChecks({});
+                  setSandboxPreparationError(null);
                   // Pre-populate with activated topics
                   const activatedTopics = new Set<string>(activationTopics.map((t) => t.topic));
                   setSelectedSessionTopics(activatedTopics);
@@ -2944,6 +2993,14 @@ export default function StudentTopicConditioningDialog({
                 {selectedSessionPrepPlans.length > 0 ? (
                   <div className="rounded-md border border-primary/20 bg-primary/5 p-3 space-y-3">
                     <p className="text-sm font-medium">Prep Rules For Selected Topics</p>
+                    {isSandboxMode && selectedSessionTopics.size === 1 && sandboxMapPreparationQuery.isPending ? (
+                      <p className="text-xs text-muted-foreground">Loading the current Sandbox prescription...</p>
+                    ) : null}
+                    {isSandboxMode && selectedSessionTopics.size === 1 && sandboxMapPreparationQuery.isError ? (
+                      <p role="alert" className="text-xs text-destructive">
+                        The prescribed Sandbox conditions are unavailable. Launch remains blocked until they can be verified.
+                      </p>
+                    ) : null}
                     <p className="text-xs text-muted-foreground">
                       Review the exact drill load before you enter the lesson. Each selected topic still needs its own problem prep and explicit Specialist confirmation before launch.
                     </p>
@@ -2981,24 +3038,53 @@ export default function StudentTopicConditioningDialog({
                               {requiresTargetedRediagnosis ? "Re-Diagnosis Prep" : prepPlan.drillType}
                             </p>
                           </div>
-                          <ul className="text-xs text-muted-foreground space-y-1">
-                            {prepPlan.setPlans.map((setPlan) => (
-                              <li key={`${topic}-${setPlan.label}`}>
-                                {setPlan.label}: {setPlan.problems} problems · {setPlan.difficulty}
-                              </li>
-                            ))}
-                          </ul>
-                          <div>
-                            <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Prep Rules</p>
-                            <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-                              {prepPlan.prepNotes.map((note) => (
-                                <li key={`${topic}-prep-note-${note}`} className="flex items-start gap-1.5">
-                                  <span className="mt-0.5 shrink-0 text-foreground/40">•</span>
-                                  <span>{note}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
+                          {isSandboxMode && selectedSessionTopics.size === 1 &&
+                            sandboxMapPreparationQuery.data?.captureActive &&
+                            sandboxMapPreparationQuery.data.status === "rep_ready" ? (
+                            <div className="rounded-md border bg-muted/20 p-3 text-xs space-y-2">
+                              <p className="font-medium">
+                                Current Sandbox prescription: {sandboxMapPreparationQuery.data.prescribedPhase}
+                              </p>
+                              <p className="text-muted-foreground">
+                                These are the actual system-prescribed sets for this confirmed lesson.
+                                They replace any historical Map projection; no simulated student response is shown.
+                              </p>
+                              <ul className="space-y-2">
+                                {(sandboxMapPreparationQuery.data.sets || []).map(set => (
+                                  <li key={set.setId}>
+                                    <p className="font-medium">{set.setName}: {set.reps} problems
+                                      {set.modelingOnly ? " (modeling, not scored evidence)" : ""}
+                                    </p>
+                                    <p className="text-muted-foreground">
+                                      {Object.entries(set.constraints).map(([name, value]) =>
+                                        `${name.replaceAll("_", " ")}: ${String(value)}`).join(" · ")}
+                                    </p>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : (
+                            <>
+                              <ul className="text-xs text-muted-foreground space-y-1">
+                                {prepPlan.setPlans.map((setPlan) => (
+                                  <li key={`${topic}-${setPlan.label}`}>
+                                    {setPlan.label}: {setPlan.problems} problems · {setPlan.difficulty}
+                                  </li>
+                                ))}
+                              </ul>
+                              <div>
+                                <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Prep Rules</p>
+                                <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                                  {prepPlan.prepNotes.map((note) => (
+                                    <li key={`${topic}-prep-note-${note}`} className="flex items-start gap-1.5">
+                                      <span className="mt-0.5 shrink-0 text-foreground/40">•</span>
+                                      <span>{note}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </>
+                          )}
                           <label className="flex items-start gap-2 rounded-md border border-primary/15 bg-primary/5 px-3 py-2 text-xs text-foreground">
                             <input
                               type="checkbox"
@@ -3012,7 +3098,16 @@ export default function StudentTopicConditioningDialog({
                               className="mt-0.5 rounded border-gray-300"
                             />
                             <span>
-                              {requiresTargetedRediagnosis ? (
+                              {isSandboxMode && selectedSessionTopics.size === 1 &&
+                                sandboxMapPreparationQuery.data?.captureActive &&
+                                sandboxMapPreparationQuery.data.status === "rep_ready" ? (
+                                <>
+                                  I have prepared the prescribed Sandbox problems and reviewed the exact
+                                  conditions above for <span className="font-medium">{topic}</span>.
+                                  I understand what to observe and how to record evidence without prompting,
+                                  manufacturing, or replacing the student's actual response.
+                                </>
+                              ) : requiresTargetedRediagnosis ? (
                                 <>
                                   I prepared only the current system-selected evidence opportunity for <span className="font-medium">{topic}</span>, and I will preserve the displayed diagnosis conditions without teaching, cueing, rescuing, or adding constraints unless the system asks for them.
                                 </>
@@ -3046,7 +3141,10 @@ export default function StudentTopicConditioningDialog({
                   <Button
                     className="w-full sm:w-auto"
                     onClick={handleStartTrainingSession}
-                    disabled={selectedSessionTopics.size === 0 || !sessionPrepChecklistComplete || sandboxPreparationPending}
+                    disabled={selectedSessionTopics.size === 0 || !sessionPrepChecklistComplete ||
+                      sandboxPreparationPending ||
+                      (isSandboxMode && selectedSessionTopics.size === 1 &&
+                        (sandboxMapPreparationQuery.isPending || sandboxMapPreparationQuery.isError))}
                   >
                     {sandboxPreparationPending ? "Verifying preparation..." : `${selectedSessionStartLabel} (${selectedSessionTopics.size} topics)`}
                   </Button>
