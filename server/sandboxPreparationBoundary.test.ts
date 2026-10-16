@@ -4,6 +4,7 @@ import {readFileSync} from "node:fs";
 const server=readFileSync(new URL("./sandboxEnvironment.ts",import.meta.url),"utf8");
 const route=readFileSync(new URL("./routes/sandboxEnvironment.ts",import.meta.url),"utf8");
 const client=readFileSync(new URL("../client/src/pages/operational/tutor/sandbox-simulation.tsx",import.meta.url),"utf8");
+const map=readFileSync(new URL("../client/src/components/tutor/StudentTopicConditioningDialog.tsx",import.meta.url),"utf8");
 const sql=readFileSync(new URL("../docs/migration-proposals/20261015_sandbox_coverage_crossmode_evidence.sql",import.meta.url),"utf8");
 
 test("preparation capture stays dormant without explicit Proof-approved feature activation",()=>{
@@ -15,8 +16,10 @@ test("preparation capture stays dormant without explicit Proof-approved feature 
 });
 test("first Sandbox rep cannot start without the exact native preparation plan",()=>{
  assert.match(server,/planned\.completedInSession === 0/);
- assert.match(server,/form\.eventFormId !== input\.eventFormId/);
- assert.match(server,/form\.rep\.setId !== input\.attestedSetId/);
+ assert.match(server,/form\.rep\.repNumber !== 1/);
+ assert.match(server,/form\.prescribedPhase !== input\.attestedPhase/);
+ assert.match(server,/actualFingerprint !== input\.planFingerprint/);
+ assert.match(server,/form\.eventFormId/);
  assert.match(server,/condition_contract_sha256=\$11/);
  assert.match(server,/Confirm the prescribed pre-session plan before the first Sandbox rep/);
 });
@@ -26,12 +29,28 @@ test("no simulated student behavior is exposed before preparation is accepted",(
  assert.match(server,/\? ""\s*:\s*planned\.selected\.studentBehavior/);
 });
 
-test("preparation UI captures explicit checks and protected tables do not expose private canonical truth",()=>{
+test("existing Map is the only preparation confirmation; Sandbox runner never repeats the checkbox",()=>{
+ assert.match(map,/sessionPrepChecks/);
+ assert.match(map,/\/api\/tutor\/sandbox-environment\/preparation"/);
+ assert.match(map,/sandboxMapPreparationQuery/);
+ assert.match(map,/planFingerprint: plan\.planFingerprint/);
+ assert.doesNotMatch(client,/setPrepProblemReady|setPrepConditionsReady|recordPreparation\.mutate/);
+ assert.doesNotMatch(client,/\/api\/tutor\/sandbox-environment\/preparation"/);
+ assert.match(client,/Return to Pod and Map/);
  assert.match(client,/form\.preparationCaptureEnabled/);
  assert.match(client,/form\.preparationRecorded/);
- assert.match(client,/\/api\/tutor\/sandbox-environment\/preparation/);
  assert.match(sql,/CREATE TABLE IF NOT EXISTS public\.specialist_sandbox_preparation_events/);
  assert.match(sql,/ENABLE ROW LEVEL SECURITY/);
  assert.match(sql,/REVOKE ALL ON TABLE public\.specialist_sandbox_preparation_events FROM PUBLIC, anon, authenticated/);
  assert.doesNotMatch(sql,/GRANT SELECT ON .*specialist_sandbox_preparation_events TO authenticated/);
+});
+
+test("Map preparation receipt requires assigned Sandbox mode and rejects browser-supplied rep lineage",()=>{
+ assert.match(route,/authority\.mode !== "sandbox"/);
+ assert.match(route,/tutorAssignmentId: authority\.assignmentId/);
+ assert.match(route,/preparationPreviewSchema\.parse\(req\.query\)/);
+ assert.match(route,/planFingerprint: z\.string\(\)\.regex/);
+ assert.match(server,/sandboxPreparationFingerprint\(\{/);
+ assert.match(map,/setSessionPrepChecks\(\{\}\)/);
+ assert.match(map,/sandboxPreparationPending/);
 });
