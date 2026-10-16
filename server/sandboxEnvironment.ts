@@ -1821,6 +1821,42 @@ export async function prepareSandboxEnvironment(input: {
 }
 
 /**
+ * The existing Map pre-session flow consumes this read-only prescription.
+ * Never return simulated behavior, hidden observations or canonical answers.
+ */
+export async function getSandboxSessionPreparationPreview(input: {
+  tutorAssignmentId: string; tutorId: string; studentId: string;
+  scheduledSessionId: string; topic: string;
+}) {
+  if (process.env.RI_SANDBOX_PREPARATION_CAPTURE_V1 !== "true") {
+    return { captureActive: false as const, status: "inactive" as const };
+  }
+  const form = await prepareSandboxEnvironment(input);
+  if (form.status !== "rep_ready" || !form.rep) {
+    return { captureActive: true as const, status: form.status, preparationRequired: false as const };
+  }
+  const schema = getDrillSchemaDefinitionByVersion(
+    "training", form.prescribedPhase,
+    trainingSchemaVersionForSandboxBank(form.bankVersion),
+  );
+  if (!schema) throw httpError(503, "No matching approved preparation schema for this Sandbox phase.");
+  return {
+    captureActive: true as const,
+    status: "rep_ready" as const,
+    prescribedPhase: form.prescribedPhase,
+    preparationRecorded: form.preparationRecorded === true,
+    sessionNumber: form.sessionNumber,
+    sets: schema.sets.map(set => ({
+      setId: set.setId, setName: set.setName, reps: set.reps,
+      modelingOnly: set.modelingOnly === true,
+      constraints: { ...set.constraints },
+    })),
+    // Only the prescribed conditions and count. No student behavior, hidden
+    // progression state, canonical answer, outcome or future profile.
+  };
+}
+
+/**
  * First-rep preparation is explicitly submitted BEFORE delivery. Its receipt
  * does not qualify on its own: the evidence adapter requires the matching
  * later first rep, preserved conditions and private canonical alignment.
