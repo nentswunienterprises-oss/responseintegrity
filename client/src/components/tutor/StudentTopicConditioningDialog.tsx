@@ -382,6 +382,7 @@ type SandboxMapPreparationPlan = {
   status: "inactive" | "rep_ready" | "targeted_rediagnosis_required" | "session_complete";
   prescribedPhase?: string;
   planFingerprint?: string;
+  completedReps?: number;
   preparationRequired?: boolean;
   preparationRecorded?: boolean;
   sessionNumber?: number;
@@ -1238,7 +1239,7 @@ export default function StudentTopicConditioningDialog({
         // A targeted re-diagnosis uses its own prescribed evidence opportunity.
         // Otherwise persist this one Map confirmation against the actual
         // server-authoritative phase, not a guess from a historical Map state.
-        if (plan.captureActive && plan.status === "rep_ready") {
+        if (plan.captureActive && plan.status === "rep_ready" && (plan.completedReps ?? 0) === 0) {
           const attestedPhase = String(plan.prescribedPhase || "");
           if (!plan.planFingerprint ||
               !["Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability"].includes(attestedPhase)) {
@@ -3148,7 +3149,14 @@ export default function StudentTopicConditioningDialog({
                       (isSandboxMode && selectedSessionTopics.size === 1 &&
                         (sandboxMapPreparationQuery.isPending || sandboxMapPreparationQuery.isError))}
                   >
-                    {sandboxPreparationPending ? "Verifying preparation..." : `${selectedSessionStartLabel} (${selectedSessionTopics.size} topics)`}
+                    {sandboxPreparationPending ? "Verifying preparation..." :
+                      isSandboxMode && sandboxMapPreparationQuery.data?.captureActive &&
+                      sandboxMapPreparationQuery.data.status === "rep_ready" ?
+                        `${(sandboxMapPreparationQuery.data.completedReps ?? 0) > 0 ? "Resume" : "Start"} Sandbox Training (${selectedSessionTopics.size} topic)` :
+                      isSandboxMode && sandboxMapPreparationQuery.data?.captureActive &&
+                      sandboxMapPreparationQuery.data.status === "targeted_rediagnosis_required" ?
+                        "Start Targeted Re-Diagnosis" :
+                        `${selectedSessionStartLabel} (${selectedSessionTopics.size} topics)`}
                   </Button>
                 </div>
               </DialogContent>
