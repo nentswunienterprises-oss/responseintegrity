@@ -18,7 +18,7 @@ Its authored storage fixtures test:
 These are synthetic source records seeded inside an ephemeral database. They are not
 evidence of a human Specialist's competence and do not prove the deployed UI or native
 runner submission paths. No Proof/Production data, credentials, policy activation,
-TD sign-off or stage transition is changed.
+real TD sign-off or stage transition is changed.
 
 The deployed native journey remains a separate gate. At the 16 October preflight,
 the controlled Proof Specialist had 25 Training evaluations, zero preparation receipts
@@ -35,3 +35,18 @@ native Diagnosis/Training/Handover/re-diagnosis and actual evidence submissions;
 all prior records. Evaluate actual observed responses, not private future answer keys.
 Only independently reviewed proof can support later bank/policy activation and TD
 readiness decisions.
+
+## Evidence-bound TD approval acceptance
+
+The same entry loader used by the application is exercised against persisted synthetic
+TD assessment rows. Tests establish positive assigned-TD approval for current evidence,
+former-TD exclusion (including a newer row), ownership denial, TD reassignment denial,
+stale evidence rejection while the expanded evidence still qualifies, refreshed approval,
+latest remediation precedence, wrong-bank denial and subsequent material-error denial.
+Historical assessment rows remain intact and the assignment remains in Sandbox.
+
+The server fingerprint now binds every qualification-event field, including phase,
+profile, opportunity identity, observed status, canonical presence and condition integrity.
+It normalizes query/object/tag order. Fingerprint format version 2 deliberately invalidates
+any earlier fingerprint: an old TD approval must be reviewed again against current evidence.
+This is isolated persisted approval-consumption proof, not a deployed TD submission PASS.

@@ -1,3 +1,4 @@
+import { sandboxQualificationEvidenceFingerprint } from "./sandboxQualificationFingerprint";
 import { createHash, createHmac } from "crypto";
 import { pool } from "./db";
 import { sandboxPreparationFingerprint } from "./sandboxPreparationFingerprint";
@@ -1281,14 +1282,9 @@ async function readinessFor(input: {
     qualification = evaluateSandboxQualification(evidenceTimeline.events, { activated: true });
     // Bound TD approval to the exact immutable evidence readback, not only
     // a numeric session total. New errors/evidence invalidate old approvals.
-    evidenceFingerprint = createHash("sha256").update(JSON.stringify({
-      policyId: qualification.policyId, policyVersion: qualification.policyVersion,
-      evidence: evidenceTimeline.events.map(e => [
-        e.id, e.occurredAt, e.mode, e.sourceId, e.bankVersion, e.outcomeVersion,
-        e.technicallyValid, e.complete, e.materialError, e.observationExact,
-        e.evidenceExact, e.authorityAligned, e.stateAligned,
-      ]).sort((a,b) => String(a[0]).localeCompare(String(b[0]))),
-    })).digest("hex");
+    evidenceFingerprint = sandboxQualificationEvidenceFingerprint(
+      qualification.policyId, qualification.policyVersion, evidenceTimeline.events,
+    );
     if (qualificationSourceGaps.length) {
       qualification = {
         ...qualification, qualificationReady: false,

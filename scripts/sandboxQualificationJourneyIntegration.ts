@@ -7,6 +7,8 @@ import {evaluateSandboxQualification,SANDBOX_QUALIFICATION_V1} from "../shared/s
 import {getDrillSchemaDefinitionByVersion} from "../shared/responseIntegrityDrillRegistry";
 import {resolveSandboxBehaviorProfile} from "../shared/sandboxBehaviorProfiles";
 import {DIAGNOSIS_OBSERVATION_MATRIX} from "../shared/diagnosisObservationMatrix";
+import {loadPracticalEntryStatus} from "../server/practicalEntryStatus";
+import {sandboxQualificationEvidenceFingerprint} from "../server/sandboxQualificationFingerprint";
 import {createTdSandboxQualificationReview} from "../server/sandboxQualificationReview";
 
 // Synthetic storage-contract integration only. Never connect to Proof or Production.
@@ -35,9 +37,10 @@ CREATE ROLE anon NOLOGIN;
 CREATE ROLE authenticated NOLOGIN;
 `;
 const tables=[
+ ["public.tutor_sandbox_mock_assessments","id varchar PRIMARY KEY,tutor_id varchar,tutor_assignment_id varchar,assessed_by_user_id varchar,decision varchar,checklist jsonb,assessed_at timestamptz"],
  ["public.users","id varchar PRIMARY KEY"],
  ["public.pods","id varchar PRIMARY KEY,td_id varchar"],
- ["public.tutor_assignments","id varchar PRIMARY KEY,tutor_id varchar,pod_id varchar,created_at timestamptz"],
+ ["public.tutor_assignments","id varchar PRIMARY KEY,tutor_id varchar,pod_id varchar,operational_mode varchar,created_at timestamptz"],
  ["public.specialist_sandbox_trajectories","id varchar PRIMARY KEY,tutor_assignment_id varchar,tutor_id varchar,student_id varchar,bank_version int,bank_key varchar"],
  ["private.specialist_sandbox_trajectory_truth","trajectory_id varchar PRIMARY KEY,trajectory_seed varchar"],
  ["public.specialist_sandbox_rep_events","id varchar PRIMARY KEY,tutor_assignment_id varchar,tutor_id varchar,trajectory_id varchar,student_id varchar,session_number int,phase varchar,topic_key varchar,set_id varchar,rep_number int,outcome_ref varchar,student_behavior text,condition_kept boolean,observation_exact boolean,evidence_exact boolean,completed_at timestamptz"],
@@ -119,7 +122,7 @@ try{
  await db.query(readFileSync(new URL("../docs/migration-proposals/20261015_sandbox_coverage_crossmode_evidence.sql",import.meta.url),"utf8"));
  await put("public.users",{id:tutor});await put("public.users",{id:td});
  await put("public.pods",{id:"ci-pod",td_id:td});
- await put("public.tutor_assignments",{id:assignment,tutor_id:tutor,pod_id:"ci-pod",created_at:stamp()});
+ await put("public.tutor_assignments",{id:assignment,tutor_id:tutor,pod_id:"ci-pod",operational_mode:"sandbox",created_at:stamp()});
  for(let index=0;index<fixtureProfiles.length;index++){
   const profile=fixtureProfiles[index];
   let seed="";
@@ -225,6 +228,60 @@ try{
   }
  }
  console.log("JOURNEY_POSTGRES_TD_SCOPE_AND_DEFAULT_OFF=PASS");
+ // Persisted TD approval consumption: no real TD decisions or stage changes.
+ const readiness=async()=>{
+  const {loaded,status}=await project();
+  return {
+   practicalsReady:status.qualificationReady,policyStatus:"approved",policyVersion:1,
+   bankKey:"sandbox_stateful_environment",bankVersion:1,
+   qualification:{policyId:status.policyId,policyVersion:status.policyVersion,
+    qualificationReady:status.qualificationReady,
+    evidenceFingerprint:sandboxQualificationEvidenceFingerprint(status.policyId,status.policyVersion,loaded.events)},
+  };
+ };
+ const entry=()=>loadPracticalEntryStatus(db,readiness,assignment,tutor);
+ const approve=async(id:string,assessor=td,decision="passed",snapshot:any=null)=>{
+  await put("public.tutor_sandbox_mock_assessments",{
+   id,tutor_id:tutor,tutor_assignment_id:assignment,assessed_by_user_id:assessor,decision,
+   checklist:{assessment_version:2,assessment_owner:"td",next_stage:"practicals",
+    capability_snapshot:snapshot||await readiness()},assessed_at:stamp(),
+  });
+ };
+ assert.equal((await entry()).ready,false,"No approval never grants entry");
+ await approve("ci-former-only","ci-former-td");
+ assert.equal((await entry()).ready,false,"Former TD cannot authorize entry");
+ await approve("ci-assigned");
+ assert.equal((await entry()).ready,true,"Assigned TD may approve current qualified synthetic evidence");
+ await approve("ci-former-newer","ci-former-td","remediation");
+ assert.equal((await entry()).signoffId,"ci-assigned","Newer former-TD row is not assigned authority");
+ assert.equal((await entry()).ready,true);
+ await assert.rejects(loadPracticalEntryStatus(db,readiness,assignment,"ci-other-specialist"),{status:403});
+ await db.query("UPDATE pods SET td_id='ci-replacement-td' WHERE id='ci-pod'");
+ assert.equal((await entry()).ready,false,"TD reassignment invalidates prior authority");
+ await db.query("UPDATE pods SET td_id=$1 WHERE id='ci-pod'",[td]);
+ const signedFingerprint=(await readiness()).qualification.evidenceFingerprint;
+ await session(trajectories[0],"Clarity",9);
+ const extended=await readiness();
+ assert.equal(extended.practicalsReady,true,"The new clean evidence itself still qualifies");
+ assert.notEqual(extended.qualification.evidenceFingerprint,signedFingerprint);
+ const stale=await entry();
+ assert.equal(stale.ready,false,"Changed persisted evidence invalidates approval even while qualified");
+ assert.ok(stale.blockers.some(b=>b.includes("fingerprint")));
+ await approve("ci-refreshed");
+ assert.equal((await entry()).ready,true);
+ await approve("ci-remediation",td,"remediation");
+ assert.equal((await entry()).ready,false,"Latest assigned TD remediation supersedes a pass");
+ await approve("ci-wrong-bank",td,"passed",{...await readiness(),bankVersion:2});
+ assert.equal((await entry()).ready,false,"Approval for another bank cannot grant entry");
+ await approve("ci-last-current");
+ assert.equal((await entry()).ready,true);
+ await db.query("UPDATE public.specialist_sandbox_rep_events SET observation_exact=false WHERE id=(SELECT id FROM public.specialist_sandbox_rep_events ORDER BY completed_at DESC LIMIT 1)");
+ assert.equal((await entry()).ready,false,"A later material error invalidates prior approval");
+ assert.equal((await db.query("SELECT count(*)::int AS n FROM tutor_sandbox_mock_assessments")).rows[0].n,7,"History is preserved");
+ assert.equal((await db.query("SELECT operational_mode FROM tutor_assignments WHERE id=$1",[assignment])).rows[0].operational_mode,"sandbox","The test never promotes an assignment");
+ console.log("JOURNEY_POSTGRES_EVIDENCE_BOUND_TD_APPROVAL=PASS");
+ console.log("JOURNEY_POSTGRES_STALE_APPROVAL_AND_REASSIGNMENT_DENIAL=PASS");
+
  console.log("SYNTHETIC_POSTGRES_QUALIFICATION_PIPELINE=PASS");
  console.log("LIVE_NATIVE_JOURNEY_ACCEPTANCE=NOT_RUN");
 }finally{await db.end();}

@@ -1,7 +1,7 @@
 import { pool } from "./db";
 import { getSandboxCapabilityReadiness } from "./sandboxEnvironment";
 import { derivePracticalCompletionGate } from "@shared/practicalCompletionGate";
-import { evaluatePracticalEntryGate } from "@shared/practicalEntryGate";
+import { loadPracticalEntryStatus } from "./practicalEntryStatus";
 import { assertCompletedExecuteChallenge, getExecuteChallengeForTd } from "./practicalExecuteChallenge";
 import {
   CAPABILITY_PRACTICAL_PROOFS,
@@ -518,29 +518,7 @@ export async function reviewPracticalCapabilityEvidence(input: {
 
 
 export async function getPracticalEntryStatus(tutorAssignmentId: string, tutorId: string) {
-  const assignment = await assertTutorAssignmentOwnership(tutorAssignmentId, tutorId);
-  const result = await pool.query(
-    `SELECT id, decision, checklist FROM public.tutor_sandbox_mock_assessments
-      WHERE tutor_assignment_id=$1 AND tutor_id=$2
-        AND assessed_by_user_id=$3
-        AND checklist->>'assessment_version'='2'
-        AND checklist->>'assessment_owner'='td'
-        AND checklist->>'next_stage'='practicals'
-      ORDER BY assessed_at DESC, id DESC LIMIT 1`,
-    [tutorAssignmentId, tutorId, String(assignment.td_id || "")],
-  );
-  const signoff = result.rows[0] || null;
-  const readiness = await getSandboxCapabilityReadiness({ tutorAssignmentId, tutorId });
-  const gate = evaluatePracticalEntryGate({
-    operationalMode: assignment.operational_mode,
-    assignedTdId: String(assignment.td_id || "") || null,
-    latestAssignedTdSignoff: signoff ? {
-      decision: signoff.decision,
-      capabilitySnapshot: signoff.checklist?.capability_snapshot || null,
-    } : null,
-    currentReadiness: readiness,
-  });
-  return { ...gate, signoffId: signoff?.id || null };
+  return loadPracticalEntryStatus(pool, getSandboxCapabilityReadiness, tutorAssignmentId, tutorId);
 }
 
 async function assertPracticalEntry(tutorAssignmentId: string, tutorId: string) {

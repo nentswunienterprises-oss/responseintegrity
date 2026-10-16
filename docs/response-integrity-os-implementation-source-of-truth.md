@@ -2960,3 +2960,15 @@ The clean-window evaluator remains a foundation only: live readiness currently p
 ## 2026-10-16 protected Preview preparation query boundary
 
 Map preparation queries exclude Vercel routing metadata (`path`, `host`, `__previewPath`) before strict domain validation. Student, scheduled lesson and topic remain required; browser-declared authority, rep lineage, invalid session UUIDs and duplicate domain values remain rejected. The Specialist assignment is still derived server-side. This routing fix does not grant readiness, activate capture flags or establish authenticated acceptance.
+
+## 2026-10-16 Sandbox qualification approval binding
+
+Practicals entry consumes only the latest version-2 Practicals-readiness decision by
+the Specialist's currently assigned TD. Current qualification must remain ready and
+the signed policy, bank and evidence fingerprint must match. Fingerprint format 2
+binds every historical qualification-event field, including coverage inputs and source
+lineage; changing phase, observed profile, opportunity identity or condition evidence
+invalidates an earlier approval as well as new errors or new events. Ordering alone
+does not invalidate approval. Prior-format fingerprints require fresh TD review.
+Isolated PostgreSQL acceptance covers persisted sign-off consumption and stale approval;
+it does not establish a deployed native journey or permit automatic stage transition.
