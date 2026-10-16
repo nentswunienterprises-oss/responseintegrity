@@ -15,6 +15,7 @@ permissions:
 jobs:
   protected-proof:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment: capability-proof-acceptance
     steps:
       # Protected-environment approval must pin the SHA/URL independently.
@@ -41,6 +42,8 @@ jobs:
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
         run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Verify acceptance runner failure boundaries without credentials
+        run: node --test scripts/sandboxQualificationProtectedAcceptance.test.mjs
       - name: Read-only authenticated Specialist and TD acceptance
         env:
           PROOF_BASE_URL: ${{ inputs.preview_url }}
