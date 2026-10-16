@@ -1225,7 +1225,7 @@ export default function StudentTopicConditioningDialog({
       // The existing Map preparation checkbox is the single confirmation.
       // The server derives phase, form, first set, bank and constraints; the
       // browser never supplies canonical rep identifiers or answer material.
-      if (isSandboxMode) {
+      if (isSandboxMode && topicState.hasObservedState && !topicState.requiresTargetedRediagnosis) {
         const plan = sandboxMapPreparationQuery.data;
         if (!plan || sandboxMapPreparationQuery.isError || !sessionId) {
           setSandboxPreparationError("The current Sandbox preparation prescription could not be verified. Refresh this Map before launching.");
@@ -1722,9 +1722,11 @@ export default function StudentTopicConditioningDialog({
 
   const selectedSandboxPrepTopic = selectedSessionTopics.size === 1
     ? Array.from(selectedSessionTopics)[0] : null;
+  const sandboxTrainingPreparationRequired = isSandboxMode && selectedSessionPrepPlans.length === 1 &&
+    selectedSessionUnknownTopics.length === 0 && selectedSessionRediagnosisTopics.length === 0;
   const sandboxMapPreparationQuery = useQuery<SandboxMapPreparationPlan>({
     queryKey: ["sandbox-map-preparation-plan", studentId, activeTrainingSession?.id, selectedSandboxPrepTopic],
-    enabled: isSandboxMode && sessionTopicsModalOpen && Boolean(
+    enabled: sandboxTrainingPreparationRequired && sessionTopicsModalOpen && Boolean(
       studentId && activeTrainingSession?.id && selectedSandboxPrepTopic,
     ),
     staleTime: 0,
@@ -2996,10 +2998,10 @@ export default function StudentTopicConditioningDialog({
                 {selectedSessionPrepPlans.length > 0 ? (
                   <div className="rounded-md border border-primary/20 bg-primary/5 p-3 space-y-3">
                     <p className="text-sm font-medium">Prep Rules For Selected Topics</p>
-                    {isSandboxMode && selectedSessionTopics.size === 1 && sandboxMapPreparationQuery.isPending ? (
+                    {sandboxTrainingPreparationRequired && sandboxMapPreparationQuery.isPending ? (
                       <p className="text-xs text-muted-foreground">Loading the current Sandbox prescription...</p>
                     ) : null}
-                    {isSandboxMode && selectedSessionTopics.size === 1 && sandboxMapPreparationQuery.isError ? (
+                    {sandboxTrainingPreparationRequired && sandboxMapPreparationQuery.isError ? (
                       <p role="alert" className="text-xs text-destructive">
                         The prescribed Sandbox conditions are unavailable. Launch remains blocked until they can be verified.
                       </p>
@@ -3041,7 +3043,7 @@ export default function StudentTopicConditioningDialog({
                               {requiresTargetedRediagnosis ? "Re-Diagnosis Prep" : prepPlan.drillType}
                             </p>
                           </div>
-                          {isSandboxMode && selectedSessionTopics.size === 1 &&
+                          {sandboxTrainingPreparationRequired &&
                             sandboxMapPreparationQuery.data?.captureActive &&
                             sandboxMapPreparationQuery.data.status === "rep_ready" ? (
                             <div className="rounded-md border bg-muted/20 p-3 text-xs space-y-2">
@@ -3101,7 +3103,7 @@ export default function StudentTopicConditioningDialog({
                               className="mt-0.5 rounded border-gray-300"
                             />
                             <span>
-                              {isSandboxMode && selectedSessionTopics.size === 1 &&
+                              {sandboxTrainingPreparationRequired &&
                                 sandboxMapPreparationQuery.data?.captureActive &&
                                 sandboxMapPreparationQuery.data.status === "rep_ready" ? (
                                 <>
@@ -3146,14 +3148,14 @@ export default function StudentTopicConditioningDialog({
                     onClick={handleStartTrainingSession}
                     disabled={selectedSessionTopics.size === 0 || !sessionPrepChecklistComplete ||
                       sandboxPreparationPending ||
-                      (isSandboxMode && selectedSessionTopics.size === 1 &&
+                      (sandboxTrainingPreparationRequired &&
                         (sandboxMapPreparationQuery.isPending || sandboxMapPreparationQuery.isError))}
                   >
                     {sandboxPreparationPending ? "Verifying preparation..." :
-                      isSandboxMode && sandboxMapPreparationQuery.data?.captureActive &&
+                      sandboxTrainingPreparationRequired && sandboxMapPreparationQuery.data?.captureActive &&
                       sandboxMapPreparationQuery.data.status === "rep_ready" ?
                         `${(sandboxMapPreparationQuery.data.completedReps ?? 0) > 0 ? "Resume" : "Start"} Sandbox Training (${selectedSessionTopics.size} topic)` :
-                      isSandboxMode && sandboxMapPreparationQuery.data?.captureActive &&
+                      sandboxTrainingPreparationRequired && sandboxMapPreparationQuery.data?.captureActive &&
                       sandboxMapPreparationQuery.data.status === "targeted_rediagnosis_required" ?
                         "Start Targeted Re-Diagnosis" :
                         `${selectedSessionStartLabel} (${selectedSessionTopics.size} topics)`}
