@@ -2,6 +2,8 @@
 
 ## Native Preview checkpoint — 16 October 2026
 
+The native Clarity Handover runner exposed a further protocol mismatch: it inherited legacy recognition-only/no-execution rules while requiring immediate application among its four evidence dimensions. Its displayed instruction now reuses the established recognition execution protocol, including the first independent application, without teaching or progressing the student. The inspected opportunity was left unsubmitted; it is not claimed as clean Handover evidence. The corrected protocol must be verified before a fresh delivered opportunity is submitted.
+
 Continuation: the native scheduled-training re-diagnosis completed at 12:16:30 UTC with Clarity/High. Its captured recognition opportunity has four of four exact observations and preserved conditions. Native source status is completed. The Map preparation UI now keeps diagnosis preparation distinct from Training prescriptions, and the Sessions page opens the existing Map for scheduled Sandbox students. Native continuation then exposed an unintended two-hour age filter in the Specialist lesson list: it hid confirmed Sandbox bookings despite Sandbox having no live launch window. Both database paths now retain unfinished owned Sandbox bookings; other modes retain the live time filter. Scheduling, quota and confirmation checks remain in force. Full qualification acceptance remains outstanding.
 
 - The controlled Clarity lesson completed through all six native reps. Persisted observation, evidence and condition checks all pass; session authority and state tracks align. Reopening the completed lesson on the fixed Preview returns its saved response snapshot.

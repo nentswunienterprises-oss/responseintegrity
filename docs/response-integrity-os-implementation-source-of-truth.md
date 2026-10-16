@@ -30,6 +30,10 @@ Read this file with these rules:
 
 ## 2026-10-13 Founder-Approved Evidence-Exception Doctrine
 
+### Native Clarity Handover protocol correction — 16 October 2026
+
+Clarity Handover observes vocabulary, method, reason and immediate use of understanding. Its live opportunity must elicit all four: ask what the student sees, which method fits, why it fits and how they would start. Reuse the established Clarity recognition execution protocol without teaching, hints, first-step confirmation, rescue or time pressure. Legacy recognition-only/no-execution instructions cannot be shown beside an immediate-application observation requirement. This remains a continuity check of the inherited phase; it does not restart Diagnosis or train the student forward.
+
 This section supersedes earlier derivative examples that scripted missing observations, forgotten explanations, camera freezes or interruptions as ordinary simulated student behaviour. It applies across Specialist Deep Dives, Mastery, Retrieval, Transfer, Sandbox, Diagnosis, Handover and Practicals content, without rewriting historical attempts.
 
 - **Observed capability is the default.** Present the prescribed mathematical problem, method, step order, timing and support condition, and record the response actually seen. Normal hesitation, collapse, partial recovery and independent execution are not evidence-integrity exceptions.

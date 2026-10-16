@@ -59,6 +59,7 @@ import {
   trainingRawObservationRequiresPrerequisiteSentinel,
 } from "@shared/trainingEvidenceEvaluator";
 import { evaluateHandoverVerificationEvidence } from "@shared/handoverEvidenceEvaluator";
+import { DIAGNOSIS_PROBE_EXECUTION_PROTOCOLS } from "@shared/evidenceCompleteDiagnosis";
 import {
   PASSIVE_EXECUTION_ATTEMPT_WIRE_KEY,
   PASSIVE_EXECUTION_TIMING_WIRE_KEY,
@@ -858,7 +859,13 @@ function buildDrillStructure(mode: DrillMode, phase: PhaseLabel) {
       ...inheritedProbe,
       reps: HANDOVER_VERIFICATION_MAX_OPPORTUNITIES,
       purpose: `Continuity verification only. Verify whether the inherited ${phase} state remains trustworthy without training or progressing the student.`,
-      repInstruction: "Present one clean continuity opportunity under the inherited phase conditions. Observe the response without teaching through it.",
+      repInstruction: phase === "Clarity"
+        ? DIAGNOSIS_PROBE_EXECUTION_PROTOCOLS["clarity.recognition"].liveSteps
+            .map(step => `${step.kind}: ${step.text}`).join("\n")
+        : "Present one clean continuity opportunity under the inherited phase conditions. Observe the response without teaching through it.",
+      activeRules: phase === "Clarity"
+        ? ["Recognition and one independent first application", "No teaching, hints, step confirmation or rescue", "No time pressure"]
+        : inheritedProbe.activeRules,
     }];
   }
   return DIAGNOSIS_SETS_BY_PHASE[phase];
