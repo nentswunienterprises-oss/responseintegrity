@@ -17,6 +17,19 @@ jobs:
     runs-on: ubuntu-latest
     environment: capability-proof-acceptance
     steps:
+      # Protected-environment approval must pin the SHA/URL independently.
+      # Never checkout arbitrary workflow_dispatch code with role secrets.
+      - name: Verify protected reviewer-approved commit and deployment
+        env:
+          REQUESTED_SHA: ${{ inputs.expected_sha }}
+          REQUESTED_URL: ${{ inputs.preview_url }}
+          APPROVED_SHA: ${{ vars.RI_PROOF_APPROVED_SHA }}
+          APPROVED_URL: ${{ vars.RI_PROOF_APPROVED_URL }}
+        run: |
+          test -n "$APPROVED_SHA"
+          test -n "$APPROVED_URL"
+          test "$REQUESTED_SHA" = "$APPROVED_SHA"
+          test "$REQUESTED_URL" = "$APPROVED_URL"
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.expected_sha }}
