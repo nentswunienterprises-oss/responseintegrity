@@ -381,6 +381,7 @@ type SandboxMapPreparationPlan = {
   captureActive: boolean;
   status: "inactive" | "rep_ready" | "targeted_rediagnosis_required" | "session_complete";
   prescribedPhase?: string;
+  planFingerprint?: string;
   preparationRequired?: boolean;
   preparationRecorded?: boolean;
   sessionNumber?: number;
@@ -1239,7 +1240,8 @@ export default function StudentTopicConditioningDialog({
         // server-authoritative phase, not a guess from a historical Map state.
         if (plan.captureActive && plan.status === "rep_ready") {
           const attestedPhase = String(plan.prescribedPhase || "");
-          if (!["Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability"].includes(attestedPhase)) {
+          if (!plan.planFingerprint ||
+              !["Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability"].includes(attestedPhase)) {
             setSandboxPreparationError("The current Sandbox phase is not established. Do not launch with assumed conditions.");
             return;
           }
@@ -1248,7 +1250,7 @@ export default function StudentTopicConditioningDialog({
           try {
             await apiRequest("POST", "/api/tutor/sandbox-environment/preparation", {
               studentId, scheduledSessionId: sessionId, topic: topicState.topic,
-              attestedPhase, problemPrepared: true,
+              attestedPhase, planFingerprint: plan.planFingerprint, problemPrepared: true,
               conditionsReviewed: true, evidencePlanReviewed: true,
             });
           } catch (error) {
