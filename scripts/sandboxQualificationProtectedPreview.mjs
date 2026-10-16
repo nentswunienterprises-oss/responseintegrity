@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 const base = new URL(process.env.PROOF_BASE_URL);
 assert.equal(base.protocol, "https:");
 assert.equal(base.pathname, "/");
-assert.match(base.hostname, /^[a-z0-9-]+\\.vercel\\.app$/);
+assert.match(base.hostname, /^[a-z0-9-]+\.vercel\.app$/);
 const sha = process.env.PROOF_EXPECTED_SHA;
 const proofProject = process.env.PROOF_EXPECTED_PROJECT;
 assert.match(sha, /^[0-9a-f]{40}$/);
@@ -18,7 +18,7 @@ const fetchApi = async(path,options={}) => {
 };
 const readJson = async (r,label) => {
   const type=r.headers.get("content-type")||"";
-  assert.match(type,/application\\/json/,label+" was not a JSON API result");
+  assert.match(type,/application\/json/,label+" was not a JSON API result");
   return r.json();
 };
 const provenanceResponse=await fetchApi("/api/proof-environment");
