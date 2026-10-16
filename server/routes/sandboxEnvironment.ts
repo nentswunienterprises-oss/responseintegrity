@@ -5,6 +5,7 @@ import {
   getSandboxEnvironmentHistory,
   prepareSandboxEnvironment,
   recordSandboxPreparation,
+  getSandboxSessionPreparationPreview,
   submitSandboxEnvironmentRep,
 } from "../sandboxEnvironment";
 import {
@@ -55,6 +56,12 @@ const repSubmissionSchema = z.object({
   }),
 });
 
+
+const preparationPreviewSchema = z.object({
+  studentId: z.string().trim().min(1),
+  scheduledSessionId: z.string().trim().uuid(),
+  topic: z.string().trim().min(1).max(200),
+}).strict();
 
 const preparationSubmissionSchema = z.object({
   studentId: z.string().trim().min(1),
@@ -284,6 +291,26 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
       return res.json(environment);
     } catch (error) {
       return sendError(res, error, "Failed to prepare the Sandbox environment.");
+    }
+  });
+
+  app.get("/api/tutor/sandbox-environment/preparation-plan", isAuthenticated, async (req, res) => {
+    try {
+      const user = requireSpecialist(req, res);
+      if (!user) return;
+      const payload = preparationPreviewSchema.parse(req.query);
+      const authority = await loadTutorOperationalModeAuthorityForTutor(String(user.id));
+      if (!authority || authority.mode !== "sandbox" || !authority.assignmentId) {
+        return res.status(403).json({ message: "Active assigned Sandbox mode is required." });
+      }
+      res.setHeader("Cache-Control", "no-store, max-age=0");
+      return res.json(await getSandboxSessionPreparationPreview({
+        ...payload,
+        tutorAssignmentId: authority.assignmentId,
+        tutorId: String(user.id),
+      }));
+    } catch (error) {
+      return sendError(res, error, "Unable to load the current Sandbox preparation plan.");
     }
   });
 
