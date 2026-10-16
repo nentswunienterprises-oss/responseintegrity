@@ -1829,20 +1829,16 @@ export async function recordSandboxPreparation(input: {
   tutorAssignmentId: string;
   tutorId: string;
   studentId: string;
-  bankVersion: number;
-  trajectoryId: string;
-  sessionNumber: number;
   scheduledSessionId: string;
   topic: string;
-  eventFormId: string;
   attestedPhase: string;
-  attestedSetId: string;
   problemPrepared: boolean;
   conditionsReviewed: boolean;
   evidencePlanReviewed: boolean;
 }) {
   if (process.env.RI_SANDBOX_PREPARATION_CAPTURE_V1 !== "true") {
-    throw httpError(409, "Protected Sandbox preparation evidence capture is not active.");
+    // Legacy/Production Sandbox remains usable while Proof capture is dormant.
+    return { recorded: false as const, captureInactive: true as const, evidenceScope: "sandbox" as const };
   }
   if (!input.problemPrepared || !input.conditionsReviewed || !input.evidencePlanReviewed) {
     throw httpError(400, "All three pre-session preparation confirmations are required.");
@@ -1851,24 +1847,23 @@ export async function recordSandboxPreparation(input: {
     tutorAssignmentId: input.tutorAssignmentId,
     tutorId: input.tutorId,
     studentId: input.studentId,
-    requestedSessionNumber: input.sessionNumber,
     scheduledSessionId: input.scheduledSessionId,
     topic: input.topic,
   });
   if (form.status !== "rep_ready" || form.sessionProgress?.completedReps !== 0 ||
-      !form.rep || form.trajectoryId !== input.trajectoryId ||
-      form.bankVersion !== input.bankVersion || form.sessionNumber !== input.sessionNumber ||
-      form.eventFormId !== input.eventFormId ||
+      !form.rep || form.rep.repNumber !== 1 ||
+      !form.eventFormId || !form.trajectoryId ||
       form.prescribedPhase !== input.attestedPhase ||
-      form.rep.setId !== input.attestedSetId ||
       !sandboxTopicKey(input.topic)) {
     throw httpError(409, "Pre-session preparation does not match the current unstarted Sandbox lesson.");
   }
   const contractHash = createHash("sha256")
     .update(JSON.stringify(form.rep.constraints)).digest("hex");
-  const values = [input.tutorAssignmentId,input.tutorId,input.trajectoryId,input.studentId,
-    input.sessionNumber,sandboxTopicKey(input.topic),input.bankVersion,
-    input.attestedPhase,input.attestedSetId,input.eventFormId,contractHash];
+  // Every identity and condition is resolved from the verified server-side
+  // Sandbox environment, never declared by the browser's prep checkbox.
+  const values = [input.tutorAssignmentId,input.tutorId,form.trajectoryId,input.studentId,
+    form.sessionNumber,sandboxTopicKey(input.topic),form.bankVersion,
+    form.prescribedPhase,form.rep.setId,form.eventFormId,contractHash];
   const saved = await pool.query(
     `INSERT INTO public.specialist_sandbox_preparation_events
       (tutor_assignment_id,tutor_id,trajectory_id,student_id,session_number,
