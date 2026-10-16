@@ -1,0 +1,43 @@
+name: Sandbox Qualification Protected Acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact reviewed commit
+        required: true
+        type: string
+      preview_url:
+        description: Exact HTTPS Preview URL
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  protected-proof:
+    runs-on: ubuntu-latest
+    environment: capability-proof-acceptance
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.expected_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify checkout matches approved exact commit
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Read-only authenticated Specialist and TD acceptance
+        env:
+          PROOF_BASE_URL: ${{ inputs.preview_url }}
+          PROOF_EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RI_PROOF_SPECIALIST_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
+          RI_PROOF_SPECIALIST_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+          RI_PROOF_TD_EMAIL: ${{ secrets.RI_PROOF_TD_EMAIL }}
+          RI_PROOF_TD_PASSWORD: ${{ secrets.RI_PROOF_TD_PASSWORD }}
+          RI_PROOF_TUTOR_ID: ${{ vars.RI_PROOF_TUTOR_ID }}
+          RI_PROOF_STUDENT_ID: ${{ vars.RI_PROOF_STUDENT_ID }}
+          RI_PROOF_SESSION_ID: ${{ vars.RI_PROOF_SESSION_ID }}
+          RI_PROOF_TOPIC: ${{ vars.RI_PROOF_TOPIC }}
+        run: node scripts/sandboxQualificationProtectedAcceptance.mjs
