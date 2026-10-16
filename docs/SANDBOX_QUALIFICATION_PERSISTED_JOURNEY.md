@@ -2,6 +2,8 @@
 
 ## Native Preview checkpoint — 16 October 2026
 
+Continuation: the native scheduled-training re-diagnosis completed at 12:16:30 UTC with Clarity/High. Its captured recognition opportunity has four of four exact observations and preserved conditions. Native source status is completed. The Map preparation UI now keeps diagnosis preparation distinct from Training prescriptions, and the Sessions page opens the existing Map for scheduled Sandbox students. Native continuation then exposed an unintended two-hour age filter in the Specialist lesson list: it hid confirmed Sandbox bookings despite Sandbox having no live launch window. Both database paths now retain unfinished owned Sandbox bookings; other modes retain the live time filter. Scheduling, quota and confirmation checks remain in force. Full qualification acceptance remains outstanding.
+
 - The controlled Clarity lesson completed through all six native reps. Persisted observation, evidence and condition checks all pass; session authority and state tracks align. Reopening the completed lesson on the fixed Preview returns its saved response snapshot.
 - The scheduled-session UUID binding fix passed the real PostgreSQL contract and all ten PR workflows. The Map-launched targeted re-diagnosis now opens and accepts its first opportunity.
 - That first opportunity preceded cross-mode capture activation and has no qualification capture row. Preserve it as native run history; do not count it as captured qualification evidence or backfill it.

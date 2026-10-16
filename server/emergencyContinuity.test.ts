@@ -1279,6 +1279,10 @@ test("training session reads preserve current authority before bounded history",
     tutorSource,
     /\.eq\("status", "completed"\)[\s\S]*\.limit\(1\)/,
   );
+  assert.match(tutorSource, /OR \$3::boolean/);
+  assert.match(tutorSource, /\[tutorId, studentId, operationalMode === "sandbox"\]/);
+  assert.match(tutorSource, /if \(operationalMode !== "sandbox"\) \{[\s\S]*currentSessionsQuery = currentSessionsQuery\.gte/);
+
 });
 test("preview training sessions use the direct Proof database without enabling emergency auth", () => {
   const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
