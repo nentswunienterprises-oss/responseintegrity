@@ -1,6 +1,13 @@
 name: Sandbox Qualification Protected Preview Acceptance
 
 on:
+  # Register/run the exact reviewed workflow from PR #202 without first
+  # merging its unaccepted Sandbox application changes to default main.
+  pull_request:
+    types: [synchronize]
+    branches: [main]
+    paths:
+      - ".github/workflows/sandbox-qualification-protected-preview.yml"
   workflow_dispatch:
 
 permissions:
@@ -8,6 +15,15 @@ permissions:
 
 jobs:
   authenticated-readonly:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'pull_request' &&
+        github.event.pull_request.number == 202 &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.head.ref == 'feature/sandbox-td-zero-divergence-gate-20261015' &&
+        github.event.pull_request.base.ref == 'main'
+      )
     runs-on: ubuntu-latest
     environment: capability-proof-acceptance
     timeout-minutes: 15
