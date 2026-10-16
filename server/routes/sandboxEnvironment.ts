@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { z } from "zod";
+import { parseSandboxPreparationQuery } from "../sandboxPreparationQuery";
 import { isAuthenticated } from "../supabaseAuth";
 import {
   getSandboxEnvironmentHistory,
@@ -56,12 +57,6 @@ const repSubmissionSchema = z.object({
   }),
 });
 
-
-const preparationPreviewSchema = z.object({
-  studentId: z.string().trim().min(1),
-  scheduledSessionId: z.string().trim().uuid(),
-  topic: z.string().trim().min(1).max(200),
-}).strict();
 
 const preparationSubmissionSchema = z.object({
   studentId: z.string().trim().min(1),
@@ -299,7 +294,7 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
     try {
       const user = requireSpecialist(req, res);
       if (!user) return;
-      const payload = preparationPreviewSchema.parse(req.query);
+      const payload = parseSandboxPreparationQuery(req.query);
       const authority = await loadTutorOperationalModeAuthorityForTutor(String(user.id));
       if (!authority || authority.mode !== "sandbox" || !authority.assignmentId) {
         return res.status(403).json({ message: "Active assigned Sandbox mode is required." });

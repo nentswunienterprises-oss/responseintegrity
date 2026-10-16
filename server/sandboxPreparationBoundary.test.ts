@@ -48,7 +48,7 @@ test("existing Map is the only preparation confirmation; Sandbox runner never re
 test("Map preparation receipt requires assigned Sandbox mode and rejects browser-supplied rep lineage",()=>{
  assert.match(route,/authority\.mode !== "sandbox"/);
  assert.match(route,/tutorAssignmentId: authority\.assignmentId/);
- assert.match(route,/preparationPreviewSchema\.parse\(req\.query\)/);
+ assert.match(route,/parseSandboxPreparationQuery\(req\.query\)/);
  assert.match(route,/planFingerprint: z\.string\(\)\.regex/);
  assert.match(server,/sandboxPreparationFingerprint\(\{/);
  assert.match(map,/setSessionPrepChecks\(\{\}\)/);
