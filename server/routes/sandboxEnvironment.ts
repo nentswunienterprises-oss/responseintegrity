@@ -70,6 +70,7 @@ const preparationSubmissionSchema = z.object({
   // The existing Map preparation checkbox affirms this displayed phase.
   // The server must independently verify it against the active Sandbox set.
   attestedPhase: z.enum(["Clarity","Structured Execution","Controlled Discomfort","Time Pressure Stability"]),
+  planFingerprint: z.string().regex(/^[0-9a-f]{64}$/),
   problemPrepared: z.literal(true),
   conditionsReviewed: z.literal(true),
   evidencePlanReviewed: z.literal(true),
