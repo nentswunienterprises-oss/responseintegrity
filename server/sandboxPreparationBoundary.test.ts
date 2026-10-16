@@ -54,3 +54,18 @@ test("Map preparation receipt requires assigned Sandbox mode and rejects browser
  assert.match(map,/setSessionPrepChecks\(\{\}\)/);
  assert.match(map,/sandboxPreparationPending/);
 });
+
+test("partially completed Sandbox lessons resume without a new preparation receipt",()=>{
+ assert.match(server,/completedReps: form\.sessionProgress\.completedReps/);
+ assert.match(map,/plan\.status === "rep_ready" && \(plan\.completedReps \?\? 0\) === 0/);
+ assert.match(map,/Resume.*Sandbox Training/);
+ assert.match(map,/setSessionPrepChecks\(\{\}\)/);
+});
+test("Map uses safe current prescribed sets, not historical projected phase as evidence truth",()=>{
+ assert.match(route,/getSandboxSessionPreparationPreview/);
+ assert.match(server,/getSandboxSessionPreparationPreview\(input:/);
+ assert.match(server,/sets: schema\.sets\.map\(set =>/);
+ assert.match(map,/Current Sandbox prescription/);
+ assert.match(map,/sandboxMapPreparationQuery\.data\.prescribedPhase/);
+ assert.doesNotMatch(map,/studentBehavior:.*sandboxMapPreparationQuery/);
+});
