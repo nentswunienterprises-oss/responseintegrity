@@ -1855,6 +1855,7 @@ export async function getSandboxSessionPreparationPreview(input: {
       constraints: form.rep.constraints,
     }),
     preparationRecorded: form.preparationRecorded === true,
+    completedReps: form.sessionProgress.completedReps,
     sessionNumber: form.sessionNumber,
     sets: schema.sets.map(set => ({
       setId: set.setId, setName: set.setName, reps: set.reps,
