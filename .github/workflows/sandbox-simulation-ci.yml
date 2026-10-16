@@ -22,6 +22,7 @@ on:
       - "client/src/App.tsx"
       - "client/src/lib/queryPersistence*.ts"
       - "scripts/sandboxQualificationNativePreparationAcceptance*.mjs"
+      - "scripts/sandboxQualificationNativeFirstClarityRep*.mjs"
       - "package.json"
       - ".github/workflows/sandbox-simulation-ci.yml"
   push:
@@ -48,6 +49,7 @@ on:
       - "client/src/App.tsx"
       - "client/src/lib/queryPersistence*.ts"
       - "scripts/sandboxQualificationNativePreparationAcceptance*.mjs"
+      - "scripts/sandboxQualificationNativeFirstClarityRep*.mjs"
       - "package.json"
       - ".github/workflows/sandbox-simulation-ci.yml"
 
@@ -65,6 +67,8 @@ jobs:
         run: npm run test:sandbox
       - name: Native controlled Proof acceptance runner regressions (no credentials)
         run: node --test scripts/sandboxQualificationNativePreparationAcceptance.test.mjs
+      - name: Native first Clarity rep protected manifest regressions (no credentials)
+        run: node --test scripts/sandboxQualificationNativeFirstClarityRep.test.mjs
       - name: Frontend live-runner bundle
         run: npx vite build
       - name: Preview API bundle
