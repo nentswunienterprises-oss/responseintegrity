@@ -4,6 +4,10 @@ on:
     paths:
       - "docs/migration-proposals/20261015_sandbox_coverage_crossmode_evidence.sql"
       - "scripts/sandboxQualificationDbContract.mjs"
+      - "scripts/sandboxQualificationJourneyIntegration.ts"
+      - "server/sandboxQualificationEvidence.ts"
+      - "server/sandboxQualificationReview.ts"
+      - "shared/sandboxQualificationPolicy.ts"
       - ".github/workflows/sandbox-qualification-db-contract.yml"
   workflow_dispatch:
 
@@ -38,3 +42,6 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Run isolated protected-schema migration and RLS contract
         run: node scripts/sandboxQualificationDbContract.mjs
+
+      - name: Verify persisted synthetic qualification journey against real PostgreSQL
+        run: node --import tsx scripts/sandboxQualificationJourneyIntegration.ts
