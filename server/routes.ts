@@ -14,7 +14,7 @@ import { EGP_ONBOARDING_DOCUMENTS, getEgpOnboardingDocumentDefinition, loadEgpOn
 import { TD_ONBOARDING_DOCUMENTS, getTdOnboardingDocumentDefinition, loadTdOnboardingDocument } from "./tdOnboardingDocuments";
 import { isAuthenticated } from "./supabaseAuth";
 import { pool } from "./db";
-import { isEmergencyDbMode } from "./emergencyMode";
+import { isEmergencyDbMode, isTheHubDatabaseRuntime } from "./emergencyMode";
 import { ensurePreviewSandboxFixtureCommercialState } from "./proofSandboxCommercialState";
 import { buildEmergencyEnrollmentStatusFilter } from "./emergencyPodQuery";
 import {
@@ -1918,18 +1918,30 @@ function isSandboxEnrollmentForTutor(enrollment: any, tutorId?: string) {
 async function loadTutorAssignmentLoadStats(tutorId: string) {
   let data: any[] | null = null;
   let error: any = null;
-  {
+  if (isTheHubDatabaseRuntime()) {
+    // This COO-only server projection must not use the publishable-key
+    // PostgREST transport. The protected Hub tables are intentionally not
+    // readable through anonymous credentials.
+    const result = await pool.query(
+      `SELECT id, status, current_step, is_sandbox_account, assignment_lane,
+              parent_full_name, parent_email, student_full_name
+         FROM public.parent_enrollments
+        WHERE assigned_tutor_id = $1::uuid
+          AND status = ANY($2::enrollment_status[])`,
+      [tutorId, [...new Set([...ACTIVE_PARENT_ENROLLMENT_STATUSES, "awaiting_tutor_acceptance"])]],
+    );
+    data = result.rows;
+  } else {
     const initial = await supabase
       .from("parent_enrollments")
       .select("id, status, current_step, is_sandbox_account, assignment_lane, parent_full_name, parent_email, student_full_name")
       .eq("assigned_tutor_id", tutorId)
       .in("status", [...ACTIVE_PARENT_ENROLLMENT_STATUSES, "awaiting_tutor_acceptance"]);
-
     data = initial.data as any;
     error = initial.error as any;
   }
 
-  if (error && isMissingSandboxAccountColumnError(error)) {
+  if (!isTheHubDatabaseRuntime() && error && isMissingSandboxAccountColumnError(error)) {
     const fallback = await supabase
       .from("parent_enrollments")
       .select("id, status, current_step, parent_full_name, parent_email, student_full_name")
