@@ -38,6 +38,8 @@ import {
 import { getSandboxEnvironmentHistory } from "./sandboxEnvironment";
 import { SANDBOX_DIAGNOSIS_EXCEPTION_NARRATIVE_VERSION } from "@shared/sandboxDiagnosisExceptionNarrativesV2";
 
+import { projectSandboxNativeDiagnosisOutcome, SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION } from "./sandboxNativeDiagnosisProjection";
+
 const BANK_KEY = "sandbox_stateful_environment";
 
 type TrajectoryRow = {
@@ -621,7 +623,7 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
     input.scope,
     input.sourceContextId,
   ].join(":");
-  const selected = selectSandboxDiagnosisOutcome({
+  const selected = projectSandboxNativeDiagnosisOutcome(selectSandboxDiagnosisOutcome({
     seed,
     profileSeed: truth.trajectory_seed,
     outcomes: outcomes.map((item) => item.definition),
@@ -633,7 +635,7 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
       recentOutcomeKeys: [],
       behaviorModelVersion: truth.behavior_model_version,
     },
-  });
+  }));
   const selectedRecord = outcomes.find(
     (item) =>
       item.definition.key === selected.key &&
@@ -646,6 +648,7 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
   const formId = digest(
     [
       "sandbox-live-evidence-v1",
+      "native-protocol-v" + SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION,
       trajectory.id,
       input.scope,
       input.sourceContextId,
@@ -716,7 +719,7 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
   // Preparation and submission must select the *same* versioned outcome.
   // Re-evaluating a V2 Profile through V1 weighting can silently score the
   // Specialist against a student response they were never shown.
-  const selected = selectSandboxDiagnosisOutcome({
+  const selected = projectSandboxNativeDiagnosisOutcome(selectSandboxDiagnosisOutcome({
     seed: [truth.trajectory_seed, input.scope, input.sourceContextId].join(":"),
     profileSeed: truth.trajectory_seed,
     outcomes: outcomes.map((item) => item.definition),
@@ -728,7 +731,7 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
       recentOutcomeKeys: [],
       behaviorModelVersion: truth.behavior_model_version,
     },
-  });
+  }));
 
   // Handover observes only its own phase, and only dimensions actually
   // created by the prescribed probe. In particular, an immediate execution

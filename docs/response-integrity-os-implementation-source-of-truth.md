@@ -30,6 +30,10 @@ Read this file with these rules:
 
 ## 2026-10-13 Founder-Approved Evidence-Exception Doctrine
 
+### Native Diagnosis observation contract — 16 October 2026
+
+The independent normal Diagnosis probe requests independent solving and expressly prohibits eliciting mathematical vocabulary or a reason for the method. Its simulated canonical observations must therefore retain `clarity.vocabulary` and `clarity.reason` as `not_observed`; successful working alone cannot establish either. This is a prescribed observation boundary, not a fictional missing-evidence learner profile. A later recognition opportunity elicits those dimensions. Newly issued native Diagnosis/Handover simulations describe the evidence for each dimension, rather than asking an operator to infer a specific step drift or help-seeking pattern from an abstract overall judgment. Native protocol version 2 is included in the form fingerprint; stale forms fail rather than acquiring altered truth. Existing submitted evidence is preserved.
+
 ### Native Clarity Handover protocol correction — 16 October 2026
 
 Clarity Handover observes vocabulary, method, reason and immediate use of understanding. Its live opportunity must elicit all four: ask what the student sees, which method fits, why it fits and how they would start. Reuse the established Clarity recognition execution protocol without teaching, hints, first-step confirmation, rescue or time pressure. Legacy recognition-only/no-execution instructions cannot be shown beside an immediate-application observation requirement. This remains a continuity check of the inherited phase; it does not restart Diagnosis or train the student forward.
