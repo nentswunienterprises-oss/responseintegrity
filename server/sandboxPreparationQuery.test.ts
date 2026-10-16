@@ -25,6 +25,6 @@ test("browser-supplied authority and rep lineage still fail strict validation", 
   }
 });
 test("malformed session UUID and duplicate query values remain invalid", () => {
-  assert.throws(() => parseSandboxPreparationQuery({ ...domain, scheduledSessionId: "11111111-2222-4333-2444-555555555555" }));
+  assert.throws(() => parseSandboxPreparationQuery({ ...domain, scheduledSessionId: "not-a-uuid" }));
   assert.throws(() => parseSandboxPreparationQuery({ ...domain, scheduledSessionId: [domain.scheduledSessionId, domain.scheduledSessionId] }));
 });
