@@ -8,6 +8,21 @@ const sha = process.env.PROOF_EXPECTED_SHA;
 const proofProject = process.env.PROOF_EXPECTED_PROJECT;
 assert.match(sha, /^[0-9a-f]{40}$/);
 assert.equal(proofProject, "jftlxeacphvbnhbsbpxc");
+// Fail before any network request when the protected acceptance environment
+// is missing its controlled credentials or Preview bypass.
+const requiredSecrets = [
+  "RI_PROOF_EMAIL", "RI_PROOF_PASSWORD",
+  "RI_PROOF_TD_EMAIL", "RI_PROOF_TD_PASSWORD",
+  "VERCEL_AUTOMATION_BYPASS_SECRET",
+];
+const missingSecrets = requiredSecrets.filter(key => !String(process.env[key] || "").trim());
+if (missingSecrets.length) {
+  throw new Error(
+    "Protected acceptance blocked: configure GitHub environment " +
+    "capability-proof-acceptance secrets: " + missingSecrets.join(", ") +
+    ". Do not use Production identities or disable Vercel deployment protection."
+  );
+}
 const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET || "";
 const bypassHeader = bypass ? {"x-vercel-protection-bypass":bypass} : {};
 const fetchApi = async(path,options={}) => {
@@ -22,6 +37,14 @@ const readJson = async (r,label) => {
   return r.json();
 };
 const provenanceResponse=await fetchApi("/api/proof-environment");
+if (provenanceResponse.status === 302 || provenanceResponse.status === 401 ||
+    provenanceResponse.status === 403) {
+  throw new Error(
+    "Protected Preview refused the read-only provenance check (HTTP " +
+    provenanceResponse.status + "). Verify the Vercel automation bypass " +
+    "environment secret and preview URL; do not weaken Preview protection."
+  );
+}
 assert.equal(provenanceResponse.status,200,"Preview protected provenance failed");
 const provenance=await readJson(provenanceResponse,"provenance");
 assert.equal(provenance.vercelEnv,"preview","No Production calls permitted");
