@@ -1114,6 +1114,8 @@ export default function StudentTopicConditioningDialog({
   const [sessionTopicsModalOpen, setSessionTopicsModalOpen] = useState(false);
   const [selectedSessionTopics, setSelectedSessionTopics] = useState<Set<string>>(new Set());
   const [sessionPrepChecks, setSessionPrepChecks] = useState<Record<string, boolean>>({});
+  const [sandboxPreparationPending, setSandboxPreparationPending] = useState(false);
+  const [sandboxPreparationError, setSandboxPreparationError] = useState<string | null>(null);
   const [trainingSessionMeetMessage, setTrainingSessionMeetMessage] = useState<string | null>(null);
   const [editingTrainingSessionId, setEditingTrainingSessionId] = useState<string | null>(null);
   const [adjustedTrainingSessionTime, setAdjustedTrainingSessionTime] = useState("");
@@ -1165,7 +1167,7 @@ export default function StudentTopicConditioningDialog({
     }
   };
 
-  const launchTrainingSession = (sessionId?: string | null) => {
+  const launchTrainingSession = async (sessionId?: string | null) => {
     const selectedTopics = Array.from(selectedSessionTopics);
     if (selectedTopics.length === 0) return;
 
@@ -1192,9 +1194,50 @@ export default function StudentTopicConditioningDialog({
       return;
     }
 
+    if (isSandboxMode && selectedTopics.length !== 1) {
+      // The stateful Sandbox currently maintains one active topic per
+      // confirmed lesson, with a separate evidence track for each topic.
+      setSandboxPreparationError(
+        "Select one topic for this Sandbox lesson. Its preparation and observed evidence must remain traceable.",
+      );
+      return;
+    }
+
     if (selectedTopics.length === 1) {
       const topicState = topics.find((topic) => topic.topic === selectedTopics[0]);
       if (!topicState) return;
+
+      // The existing Map preparation checkbox is the single confirmation.
+      // The server derives phase, form, first set, bank and constraints; the
+      // browser never supplies canonical rep identifiers or answer material.
+      if (isSandboxMode && topicState.hasObservedState && !topicState.requiresTargetedRediagnosis) {
+        if (!sessionId || !sessionPrepChecklistComplete) {
+          setSandboxPreparationError("Confirm preparation for the scheduled Sandbox lesson first.");
+          return;
+        }
+        const plan = selectedSessionPrepPlans.find(row => row.topic === topicState.topic);
+        const attestedPhase = String(plan?.prepPlan.drillType || "").replace(/ Drill$/, "");
+        if (!["Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability"].includes(attestedPhase)) {
+          setSandboxPreparationError("The prescribed phase could not be verified from the Map. Refresh preparation first.");
+          return;
+        }
+        setSandboxPreparationPending(true);
+        setSandboxPreparationError(null);
+        try {
+          await apiRequest("POST", "/api/tutor/sandbox-environment/preparation", {
+            studentId, scheduledSessionId: sessionId, topic: topicState.topic,
+            attestedPhase, problemPrepared: true,
+            conditionsReviewed: true, evidencePlanReviewed: true,
+          });
+        } catch (error) {
+          setSandboxPreparationError(
+            error instanceof Error ? error.message : "The prepared Sandbox conditions could not be verified.",
+          );
+          return;
+        } finally {
+          setSandboxPreparationPending(false);
+        }
+      }
       const topicParam = encodeURIComponent(topicState.topic);
       const phaseParam = encodeURIComponent(topicState.phase);
       const stabilityParam = encodeURIComponent(topicState.stability);
@@ -1223,7 +1266,7 @@ export default function StudentTopicConditioningDialog({
     navigate(`/specialist/intro-session/${studentId}?mode=session&topics=${topicsParam}${sessionParam}`);
   };
 
-  const handleStartTrainingSession = () => {
+  const handleStartTrainingSession = async () => {
     if (!assignmentAccepted) return;
     if (!canonicalTopicStateReady) {
       setTrainingSessionMeetMessage(
@@ -1233,10 +1276,10 @@ export default function StudentTopicConditioningDialog({
       );
       return;
     }
-    if (selectedSessionTopics.size === 0) return;
+    if (selectedSessionTopics.size === 0 || !sessionPrepChecklistComplete || sandboxPreparationPending) return;
     const activeSession = activeTrainingSession;
     if (activeSession) {
-      launchTrainingSession(activeSession.id);
+      await launchTrainingSession(activeSession.id);
       return;
     }
     const pendingParentSession = trainingSessionsData?.sessions?.find((session: any) => session.status === "pending_parent_confirmation");
@@ -2975,7 +3018,7 @@ export default function StudentTopicConditioningDialog({
                                 </>
                               ) : (
                                 <>
-                                  I prepared the full drill set for <span className="font-medium">{topic}</span> and I am ready to run this weekly training lesson.
+                                  I prepared the prescribed drill set for <span className="font-medium">{topic}</span>, reviewed the support, pressure, difficulty, timing and evidence-recording conditions, and am ready to run this lesson.
                                 </>
                               )}
                             </span>
@@ -2986,6 +3029,9 @@ export default function StudentTopicConditioningDialog({
                   </div>
                 ) : null}
 
+                {sandboxPreparationError ? (
+                  <p role="alert" className="text-sm text-destructive">{sandboxPreparationError}</p>
+                ) : null}
                 <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <Button
                     className="w-full sm:w-auto"
@@ -3000,9 +3046,9 @@ export default function StudentTopicConditioningDialog({
                   <Button
                     className="w-full sm:w-auto"
                     onClick={handleStartTrainingSession}
-                    disabled={selectedSessionTopics.size === 0 || !sessionPrepChecklistComplete}
+                    disabled={selectedSessionTopics.size === 0 || !sessionPrepChecklistComplete || sandboxPreparationPending}
                   >
-                    {selectedSessionStartLabel} ({selectedSessionTopics.size} topics)
+                    {sandboxPreparationPending ? "Verifying preparation..." : `${selectedSessionStartLabel} (${selectedSessionTopics.size} topics)`}
                   </Button>
                 </div>
               </DialogContent>
