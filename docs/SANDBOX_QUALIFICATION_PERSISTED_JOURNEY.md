@@ -1,5 +1,13 @@
 # Persisted qualification pipeline integration
 
+## Native Preview checkpoint — 16 October 2026
+
+- The controlled Clarity lesson completed through all six native reps. Persisted observation, evidence and condition checks all pass; session authority and state tracks align. Reopening the completed lesson on the fixed Preview returns its saved response snapshot.
+- The scheduled-session UUID binding fix passed the real PostgreSQL contract and all ten PR workflows. The Map-launched targeted re-diagnosis now opens and accepts its first opportunity.
+- That first opportunity preceded cross-mode capture activation and has no qualification capture row. Preserve it as native run history; do not count it as captured qualification evidence or backfill it.
+- Cross-mode capture is now configured only for this PR's Preview branch (`RI_SANDBOX_CROSSMODE_CAPTURE_V1=true`). A fresh deployment is required before further submissions; unchanged-commit redeploys were skipped by the repository's ignored-build rule.
+- The full native development coverage, eight consecutive clean sessions and deployed assigned-TD approval/stale rejection remain unproved. Qualification activation and bank promotion are not established by this checkpoint.
+
 16 October deployed continuation: the controlled Specialist completed one native six-rep Clarity lesson after the persisted Map preparation. All six rows have exact observations/evidence and intact conditions; session authority and state tracks align, with Sandbox-only evidence and no student-authoritative promotion. The next native Map-launched targeted re-diagnosis exposed `operator does not exist: uuid = integer`: scheduled-session lookup interpolated the binding index as a SQL integer. Both explicit-session and latest-kind lookups now bind `$3`; the isolated PostgreSQL contract verifies actual UUID lookup and cross-Specialist denial. Re-deployed native re-diagnosis acceptance remains required. This is not full qualification acceptance.
 
 `scripts/sandboxQualificationJourneyIntegration.ts` runs after the protected schema contract
