@@ -74,5 +74,5 @@ jobs:
           RI_PROOF_SESSION_ID: ${{ vars.RI_PROOF_SESSION_ID }}
           RI_PROOF_TOPIC: ${{ vars.RI_PROOF_TOPIC }}
           RI_PROOF_EXPECTED_SET_ID: clarity.identification
-          RI_PROOF_FIRST_REP_DECISION_JSON: ${{ secrets.RI_PROOF_FIRST_REP_DECISION_JSON }}
+          RI_PROOF_FIRST_REP_DECISION_JSON: ${{ inputs.scope == 'CONTROLLED_PROOF_FIRST_CLARITY_REP_SUBMIT' && secrets.RI_PROOF_FIRST_REP_DECISION_JSON || '' }}
         run: node scripts/sandboxQualificationNativeFirstClarityRep.mjs
