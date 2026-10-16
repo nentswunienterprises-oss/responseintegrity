@@ -5,9 +5,18 @@ for(const k of ["PROOF_BASE_URL","PROOF_EXPECTED_SHA","RI_PROOF_SPECIALIST_EMAIL
  assert.ok(e[k],k+" is required from protected environment");
 const base=new URL(e.PROOF_BASE_URL);
 assert.equal(base.protocol,"https:");
+assert.equal(base.pathname,"/");
 assert.ok(base.hostname.endsWith(".vercel.app"));
+assert.match(e.PROOF_EXPECTED_SHA,/^[0-9a-f]{40}$/);
+assert.ok(e.VERCEL_AUTOMATION_BYPASS_SECRET,
+ "Protected Preview bypass credential is required. Never disable Vercel protection.");
 async function request(path,options={}){
- const response=await fetch(new URL(path,base),{redirect:"manual",...options});
+ assert.ok(path.startsWith("/api/"),"Only explicitly scoped API checks are allowed");
+ const headers={
+   "x-vercel-protection-bypass":e.VERCEL_AUTOMATION_BYPASS_SECRET,
+   ...options.headers,
+ };
+ const response=await fetch(new URL(path,base),{...options,redirect:"manual",headers});
  return {response,json:async()=>{try{return await response.json()}catch{return null}}};
 }
 const provenance=await request("/api/proof-environment");
@@ -26,7 +35,9 @@ console.log("ANONYMOUS_DENIAL=PASS");
 async function signIn(email,password,role){
  const result=await request("/api/auth/signin",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email,password,expectedRole:role})});
  assert.equal(result.response.status,200,"Proof "+role+" sign-in failed");
- const cookie=(result.response.headers.get("set-cookie")||"").split(";")[0];
+ const allCookies=result.response.headers.getSetCookie?.() ||
+   [result.response.headers.get("set-cookie")||""];
+ const cookie=allCookies.filter(Boolean).map(c=>c.split(";")[0]).join("; ");
  assert.ok(cookie,"No isolated session cookie");
  return cookie;
 }
