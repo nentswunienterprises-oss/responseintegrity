@@ -15,6 +15,7 @@ import { EGP_ONBOARDING_DOCUMENTS, getEgpOnboardingDocumentDefinition, loadEgpOn
 import { TD_ONBOARDING_DOCUMENTS, getTdOnboardingDocumentDefinition, loadTdOnboardingDocument } from "./tdOnboardingDocuments";
 import { isAuthenticated } from "./supabaseAuth";
 import { pool } from "./db";
+import { withSandboxProvisionLock } from "./sandboxProvisionLock";
 import { isEmergencyDbMode } from "./emergencyMode";
 import { ensurePreviewSandboxFixtureCommercialState } from "./proofSandboxCommercialState";
 import { buildEmergencyEnrollmentStatusFilter } from "./emergencyPodQuery";
@@ -1398,7 +1399,7 @@ async function reactivateDetachedSandboxEnrollment(enrollment: any, tutorId: str
   return data;
 }
 
-async function autoProvisionSandboxAccountsForTutor(
+async function autoProvisionSandboxAccountsForTutorUnlocked(
   tutorId: string,
   minimumCount = SANDBOX_REQUIRED_ACCOUNT_COUNT,
 ) {
@@ -1729,6 +1730,15 @@ async function autoProvisionSandboxAccountsForTutor(
   }
 
   return { certificationMode, createdAccounts };
+}
+
+async function autoProvisionSandboxAccountsForTutor(
+  tutorId: string,
+  minimumCount = SANDBOX_REQUIRED_ACCOUNT_COUNT,
+) {
+  return withSandboxProvisionLock(pool, tutorId, () =>
+    autoProvisionSandboxAccountsForTutorUnlocked(tutorId, minimumCount),
+  );
 }
 
 async function ensureVisibleSandboxStudentsForTutor(

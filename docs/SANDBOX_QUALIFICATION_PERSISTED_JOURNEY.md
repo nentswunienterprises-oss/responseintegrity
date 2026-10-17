@@ -122,3 +122,28 @@ The following QA02 targeted re-diagnosis completed at 19:06:18 UTC with 4/4 exac
 QA09 continued through its existing native topic re-diagnosis. The independent normal probe preserved unelicited vocabulary and explanation as not observed; the following recognition opportunity showed a phase-defining Clarity breakdown. The native result is Clarity/Low with strong evidence confidence. This does not establish the outstanding Training profile-signature coverage. QA10 has one unused confirmed booking; no completed booking was replayed.
 
 The acceptance remains blocked by the three missing profile signatures, the final eight-session phase-balanced run, current/stale positive TD approval and the historical source-integrity blockers. Additional clean evidence cannot remove the latter under the approved policy. Do not silently redefine the evidence scope or erase older records to obtain a positive result.
+
+
+### Isolated positive-path Specialist and provisioning race
+
+The documentation-only deployment for `23305a331b97c357ad4aed39db3c32ae04abd436`
+is READY and owns the stable Preview alias. Readback also confirms that the QA09 booking is
+completed while the QA02 follow-up and QA10 bookings remain confirmed and unused.
+
+Because the original Specialist's missing September identity cannot be repaired from an
+authoritative source, an explicitly approved separate Capability Proof Specialist was created
+for the positive/current-versus-stale TD path. User
+`b8448bbf-e01b-4f7b-bf6a-baf3ddb5d0bc` has Sandbox assignment
+`2c4c5f87-dd82-41fc-bfdb-515d633b8b7e` in the same Pod and under the same TD. Its onboarding
+row is labelled as a synthetic PR #202 fixture and contains no reviewer identity, qualification
+evidence, score or TD approval. Proof DB signup did not create the `auth.users` identity required
+by the enrollment foreign key; the user explicitly authorized one guarded same-ID synthetic Auth
+mirror so the existing application provisioner could continue.
+
+Concurrent Pod requests then exposed a provisioning race: eleven Sandbox enrollments were
+created instead of the required six because multiple deferred provisioners counted zero before
+any insert committed. None has been accepted and no lesson, observation or qualification evidence
+exists for this account. Preserve the eleven rows pending an explicit cleanup decision. Sandbox
+account provisioning is now serialized by a per-Specialist PostgreSQL advisory lock held across
+the count and creation work, with focused success and failure-release regressions. Deployed
+verification of the lock remains required before the isolated acceptance journey continues.
