@@ -35,6 +35,7 @@ type CapabilityReadiness = {
   breadthReady: boolean;
   longitudinalReady: boolean;
   reason: string;
+  cleanWindow?: { qualified: boolean; completeCleanSessions: number; requiredCleanSessions: number | null; reason: string };
   exposure?: {
     distinctPhases: number;
     distinctSets: number;
@@ -65,6 +66,34 @@ type SandboxReadinessPayload = {
     nextStage: "practicals";
     automaticTransition: false;
   };
+};
+
+type SandboxQualificationReview = {
+  assignedByProfile: Record<string,number>;
+  sourceGaps: string[];
+  qualification: {
+    policyId:string;policyVersion:number;activated:boolean;
+    developmentCoverageReady:boolean;qualificationReady:boolean;
+    qualifyingSessions:number;requiredSessions:number;
+    technicalBlockers:string[];materialErrorsSinceCoverage:number;
+    reason:string;requirements:Array<{
+      key:string;required:number;encountered:number;correct:number;distinctCorrect:number;
+      priorErrors:number;recoveredAfterError:boolean;met:boolean;
+    }>;
+  };
+  evidence:Array<{id:string;mode:string;phase:string|null;profile:string|null;
+    occurredAt:string;materialError:boolean;technicallyValid:boolean}>;
+};
+
+type SandboxDossier = {
+  reps: Array<{id:string; sessionNumber:number; phase:string; setId:string; repNumber:number;
+    studentBehavior:string; observationExact:boolean|null; evidenceExact:boolean|null;
+    conditionKept:boolean|null; truthPresent:boolean; comparisons:Array<{
+      fieldKey:string; recorded:{optionId:string;evidenceStatus?:string}|null;
+      expected:{optionId:string;evidenceStatus?:string}|null; matched:boolean;
+    }> }>;
+  sessions:Array<{id:string;sessionNumber:number;phase:string;authorityAligned:boolean;
+    stateTrackAligned:boolean;truthPresent:boolean;specialistAuthority:any;canonicalAuthority:any}>;
 };
 
 const CAPABILITY_LABELS: Record<string, string> = {
@@ -153,6 +182,30 @@ export function SandboxReadinessAssessmentCard({
           error?.message || "Failed to record the Sandbox readiness assessment.",
         variant: "destructive",
       }),
+  });
+
+  const [showCoverage, setShowCoverage] = useState(false);
+  const { data: coverageReview, isFetching: coverageLoading, isError: coverageError } = useQuery<SandboxQualificationReview>({
+    queryKey: ["/api/td/tutors", tutorId, "sandbox-qualification-review"],
+    enabled: !!tutorId && showCoverage && isSandbox,
+    gcTime: 0, staleTime: 0, networkMode: "always",
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/td/tutors/${encodeURIComponent(tutorId)}/sandbox-qualification-review`);
+      return response.json();
+    },
+  });
+
+  const [showDossier, setShowDossier] = useState(false);
+  const { data: dossier, isFetching: dossierLoading, isError: dossierError } = useQuery<SandboxDossier>({
+    queryKey: ["/api/td/tutors", tutorId, "sandbox-evidence-dossier"],
+    enabled: !!tutorId && showDossier && isSandbox,
+    gcTime: 0,
+    staleTime: 0,
+    networkMode: "always",
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/td/tutors/${encodeURIComponent(tutorId)}/sandbox-evidence-dossier`);
+      return response.json();
+    },
   });
 
   if (!isSandbox) return null;
@@ -254,6 +307,117 @@ export function SandboxReadinessAssessmentCard({
                     : "Still developing"}
                 </p>
               </div>
+            </div>
+          ) : null}
+
+          <div className="rounded-lg border bg-background p-3 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold">Development coverage and qualification</p>
+                <p className="text-xs text-muted-foreground">TD-only evidence: encountered behavior, correct decisions, independent repetition and recovery.</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setShowCoverage(value => !value)}>
+                {showCoverage ? "Hide coverage" : "Inspect coverage"}
+              </Button>
+            </div>
+            {showCoverage && coverageLoading ? <p className="text-sm">Loading protected coverage evidence...</p> : null}
+            {showCoverage && coverageError ? <p className="text-sm text-destructive">Coverage evidence unavailable. Readiness remains blocked.</p> : null}
+            {showCoverage && !coverageLoading && !coverageError && coverageReview ? (
+              <div className="space-y-3">
+                <p className="text-sm font-medium">{coverageReview.qualification.reason}</p>
+                <p className="text-xs text-muted-foreground">
+                  Final clean sessions: {coverageReview.qualification.qualifyingSessions}/{coverageReview.qualification.requiredSessions}.
+                  Policy v{coverageReview.qualification.policyVersion}.
+                  {coverageReview.qualification.activated ? " Controlled activation on." : " Production qualification inactive."}
+                </p>
+                {coverageReview.sourceGaps.length > 0 ? <p className="text-xs text-destructive">
+                  Unresolved evidence sources: {coverageReview.sourceGaps.join("; ")}
+                </p> : null}
+                {coverageReview.qualification.technicalBlockers.length > 0 ? <div className="text-xs text-destructive" role="status">
+                  <p className="font-medium">Evidence needing review</p>
+                  <ul className="list-disc pl-4">
+                    {coverageReview.qualification.technicalBlockers.map(blocker => <li key={blocker}>{blocker}</li>)}
+                  </ul>
+                  <p>Additional clean sessions do not resolve missing historical evidence.</p>
+                </div> : null}
+                <div className="max-h-[450px] overflow-y-auto space-y-2">
+                  {coverageReview.qualification.requirements.map(requirement => (
+                    <div key={requirement.key} className="rounded border p-2 text-xs">
+                      <p className="font-medium">{requirement.key.replace(":", ": ").replaceAll("_", " ")} — {requirement.met ? "Established" : "Not established"}</p>
+                      <p className="text-muted-foreground">
+                        Encountered {requirement.encountered} · Correct {requirement.correct} ·
+                        Distinct clean opportunities {requirement.distinctCorrect}/{requirement.required}
+                        {requirement.priorErrors > 0 ? ` · Prior errors ${requirement.priorErrors}` : ""}
+                        {requirement.recoveredAfterError ? " · Fresh recovery observed" : ""}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="rounded-lg border bg-background p-3 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold">Recorded-vs-canonical evidence dossier</p>
+                <p className="text-xs text-muted-foreground">TD-only historical observations and state consequences; no future scenario truth.</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setShowDossier(value => !value)}>
+                {showDossier ? "Hide evidence" : "Inspect evidence"}
+              </Button>
+            </div>
+            {showDossier && dossierLoading ? <p className="text-sm">Loading committed Sandbox evidence...</p> : null}
+            {showDossier && dossierError ? <p className="text-sm text-destructive">Evidence unavailable; readiness must not be inferred.</p> : null}
+            {showDossier && !dossierLoading && !dossierError && dossier ? (
+              <div className="space-y-3 max-h-[650px] overflow-y-auto">
+                <p className="text-xs font-medium">Completed sessions ({dossier.sessions.length})</p>
+                {dossier.sessions.map(session => (
+                  <details key={session.id} className="rounded-md border p-2">
+                    <summary className="cursor-pointer text-sm font-medium">
+                      Session {session.sessionNumber} · {session.phase} · {session.truthPresent && session.authorityAligned && session.stateTrackAligned ? "Aligned" : "Diverged / incomplete"}
+                    </summary>
+                    <div className="mt-2 text-xs space-y-2">
+                      <p>Authority aligned: {String(session.authorityAligned)} · State aligned: {String(session.stateTrackAligned)} · Canonical evidence available: {String(session.truthPresent)}</p>
+                      <p><strong>Specialist authority:</strong> <code className="break-all">{JSON.stringify(session.specialistAuthority)}</code></p>
+                      <p><strong>Canonical authority:</strong> <code className="break-all">{JSON.stringify(session.canonicalAuthority)}</code></p>
+                    </div>
+                  </details>
+                ))}
+                <p className="text-xs font-medium">Completed rep evidence ({dossier.reps.length})</p>
+                {dossier.reps.map(rep => (
+                  <details key={rep.id} className="rounded-md border p-2">
+                    <summary className="cursor-pointer text-sm font-medium">
+                      Session {rep.sessionNumber} · {rep.phase} · {rep.setId} · Rep {rep.repNumber} · {rep.truthPresent && rep.observationExact && rep.evidenceExact && rep.conditionKept === true ? "Aligned" : "Review divergence"}
+                    </summary>
+                    <div className="mt-2 space-y-2 text-xs">
+                      <p><strong>Student behavior:</strong> {rep.studentBehavior}</p>
+                      <p>Condition preserved: {String(rep.conditionKept)} · Canonical evidence available: {String(rep.truthPresent)}</p>
+                      {rep.comparisons.map(c => <div key={c.fieldKey} className="rounded border p-2">
+                        <strong>{c.fieldKey} — {c.matched ? "Aligned" : "Diverged"}</strong>
+                        <p>Recorded: {JSON.stringify(c.recorded)}</p>
+                        <p>Expected: {JSON.stringify(c.expected)}</p>
+                      </div>)}
+                    </div>
+                  </details>
+                ))}
+                {dossier.reps.length === 0 && dossier.sessions.length === 0 ? <p className="text-sm">No completed Sandbox evaluation evidence.</p> : null}
+              </div>
+            ) : null}
+          </div>
+
+          {readiness?.cleanWindow ? (
+            <div className="rounded-lg border bg-background p-3">
+              <p className="text-sm font-semibold">Zero-divergence graduation gate</p>
+              <p className="mt-1 text-sm">
+                {readiness.cleanWindow.qualified ? "Qualifying evidence established" : "Not yet qualified"}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {readiness.cleanWindow.requiredCleanSessions === null
+                  ? "Consecutive clean-session requirement awaits Founder-approved calibration."
+                  : `${readiness.cleanWindow.completeCleanSessions}/${readiness.cleanWindow.requiredCleanSessions} consecutive clean sessions`}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">{readiness.cleanWindow.reason}</p>
             </div>
           ) : null}
 

@@ -3,6 +3,7 @@ import { isAuthenticated } from "./supabaseAuth";
 import { storage, supabase } from "./storage";
 import { pool } from "./db";
 import { isEmergencyDbMode } from "./emergencyMode";
+import { diagnosisScheduledSessionQuery } from "./diagnosisScheduledSessionQuery";
 import {
   NEXT_ACTION_ENGINE,
   tryParsePhase,
@@ -408,19 +409,9 @@ async function loadScheduledSession(input: {
   scheduledSessionId?: string | null;
   requestedKind: "intro" | "training" | "handover";
 }): Promise<ScheduledSession | null> {
-  const { tutorId, studentId, scheduledSessionId, requestedKind } = input;
-  const values: unknown[] = [tutorId, studentId];
-  let sql = `SELECT id, tutor_id, student_id, type, status, scheduled_time
-               FROM public.scheduled_sessions
-              WHERE tutor_id = $1 AND student_id = $2`;
-  if (scheduledSessionId) {
-    values.push(scheduledSessionId);
-    sql += ` AND id = ${values.length}`;
-  } else {
-    values.push(requestedKind);
-    sql += ` AND type = ${values.length} ORDER BY scheduled_time DESC, created_at DESC LIMIT 20`;
-  }
-  const result = await pool.query(sql, values);
+  const { scheduledSessionId, requestedKind } = input;
+  const query = diagnosisScheduledSessionQuery(input);
+  const result = await pool.query(query.text, query.values);
   if (scheduledSessionId) return (result.rows[0] as ScheduledSession | undefined) || null;
   return (result.rows.find((row: any) =>
     isLaunchableDiagnosisSessionStatus(row.status, requestedKind)

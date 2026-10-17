@@ -38,6 +38,8 @@ import {
 import { getSandboxEnvironmentHistory } from "./sandboxEnvironment";
 import { SANDBOX_DIAGNOSIS_EXCEPTION_NARRATIVE_VERSION } from "@shared/sandboxDiagnosisExceptionNarrativesV2";
 
+import { projectSandboxNativeDiagnosisOutcome, SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION } from "./sandboxNativeDiagnosisProjection";
+
 const BANK_KEY = "sandbox_stateful_environment";
 
 type TrajectoryRow = {
@@ -396,7 +398,7 @@ async function plan(input: {
     probeId: canonicalDecision.nextProbeId,
   });
   const history = await getSandboxEnvironmentHistory(input);
-  const selected = selectSandboxDiagnosisOutcome({
+  const selected = projectSandboxNativeDiagnosisOutcome(selectSandboxDiagnosisOutcome({
     seed: truth.trajectory_seed,
     profileSeed: truth.trajectory_seed,
     outcomes: outcomes.map((item) => item.definition),
@@ -411,7 +413,7 @@ async function plan(input: {
       recentOutcomeKeys: diagnosisTruth.recent_outcome_keys,
       behaviorModelVersion: truth.behavior_model_version,
     },
-  });
+  }));
   const selectedRecord = outcomes.find(
     (item) => item.definition.key === selected.key && item.definition.version === selected.version,
   );
@@ -421,6 +423,7 @@ async function plan(input: {
   const turnFormId = digest(
     [
       "sandbox-rediagnosis-turn-v1",
+      "native-protocol-v" + SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION,
       run.id,
       sequenceNumber,
       selectedRecord.publicRef,
@@ -621,7 +624,7 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
     input.scope,
     input.sourceContextId,
   ].join(":");
-  const selected = selectSandboxDiagnosisOutcome({
+  const selected = projectSandboxNativeDiagnosisOutcome(selectSandboxDiagnosisOutcome({
     seed,
     profileSeed: truth.trajectory_seed,
     outcomes: outcomes.map((item) => item.definition),
@@ -633,7 +636,7 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
       recentOutcomeKeys: [],
       behaviorModelVersion: truth.behavior_model_version,
     },
-  });
+  }));
   const selectedRecord = outcomes.find(
     (item) =>
       item.definition.key === selected.key &&
@@ -646,6 +649,7 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
   const formId = digest(
     [
       "sandbox-live-evidence-v1",
+      "native-protocol-v" + SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION,
       trajectory.id,
       input.scope,
       input.sourceContextId,
@@ -716,7 +720,7 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
   // Preparation and submission must select the *same* versioned outcome.
   // Re-evaluating a V2 Profile through V1 weighting can silently score the
   // Specialist against a student response they were never shown.
-  const selected = selectSandboxDiagnosisOutcome({
+  const selected = projectSandboxNativeDiagnosisOutcome(selectSandboxDiagnosisOutcome({
     seed: [truth.trajectory_seed, input.scope, input.sourceContextId].join(":"),
     profileSeed: truth.trajectory_seed,
     outcomes: outcomes.map((item) => item.definition),
@@ -728,7 +732,7 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
       recentOutcomeKeys: [],
       behaviorModelVersion: truth.behavior_model_version,
     },
-  });
+  }));
 
   // Handover observes only its own phase, and only dimensions actually
   // created by the prescribed probe. In particular, an immediate execution
@@ -811,6 +815,71 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
     reason,
   });
 
+
+
+  // Historical, submitted simulation only. Protected Proof schema + explicit flag required.
+  // A simulation observation never claims native Diagnosis/Handover authority.
+  if (process.env.RI_SANDBOX_CROSSMODE_CAPTURE_V1 === "true") {
+    const selectedRecord = outcomes.find(record =>
+      record.definition.key === selected.key && record.definition.version === selected.version);
+    if (!selectedRecord) throw new Error("Sandbox canonical lineage is missing.");
+    const stored = await pool.query(
+      `WITH recorded AS (
+        INSERT INTO public.specialist_sandbox_live_evidence_turns (
+          tutor_assignment_id,tutor_id,trajectory_id,student_id,scope,source_context_id,
+          form_id,sequence_number,phase,probe_id,bank_version,behavior_model_version,
+          student_behavior,specialist_submission,condition_conformed,observation_exact,
+          matching_observations,total_observations
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15,$16,$17,$18)
+        ON CONFLICT (tutor_assignment_id,form_id) DO NOTHING
+        RETURNING id
+      )
+      INSERT INTO private.specialist_sandbox_live_evidence_truth (
+        event_id,outcome_ref,outcome_key,outcome_version,canonical_observations,
+        trajectory_class,actual_support_event
+      ) SELECT recorded.id,$19,$20,$21,$22::jsonb,$23,$24 FROM recorded`,
+      [input.tutorAssignmentId,input.tutorId,trajectory.id,input.studentId,input.scope,
+       input.sourceContextId,prepared.formId,input.sequenceNumber,input.startingPhase,
+       prepared.probeId,prepared.bankVersion,truth.behavior_model_version,
+       prepared.studentBehavior,JSON.stringify({supportEvent:input.supportEvent,observations:input.observations}),
+       conditionConformed,observationExact,matchingObservations,expectedDimensionIds.length,
+       selectedRecord.publicRef,selected.key,selected.version,
+       JSON.stringify(selected.canonicalObservations),selected.trajectoryClass,input.supportEvent],
+    );
+    if (!stored.rowCount) {
+      // A replay is allowed only when the originally committed public record
+      // AND its private canonical truth match every decision-relevant field.
+      // Never overwrite or reinterpret the first committed observation.
+      const previouslyStored = await pool.query(
+        `SELECT e.id FROM public.specialist_sandbox_live_evidence_turns e
+           JOIN private.specialist_sandbox_live_evidence_truth t ON t.event_id=e.id
+          WHERE e.tutor_assignment_id=$1 AND e.tutor_id=$2
+            AND e.trajectory_id=$3 AND e.student_id=$4
+            AND e.scope=$5 AND e.source_context_id=$6 AND e.form_id=$7
+            AND e.sequence_number=$8 AND e.phase=$9 AND e.probe_id=$10
+            AND e.bank_version=$11 AND e.behavior_model_version=$12
+            AND e.student_behavior=$13 AND e.specialist_submission=$14::jsonb
+            AND e.condition_conformed=$15 AND e.observation_exact=$16
+            AND e.matching_observations=$17 AND e.total_observations=$18
+            AND t.outcome_ref=$19 AND t.outcome_key=$20 AND t.outcome_version=$21
+            AND t.canonical_observations=$22::jsonb
+            AND t.trajectory_class=$23 AND t.actual_support_event=$24
+          LIMIT 1`,
+        [input.tutorAssignmentId,input.tutorId,trajectory.id,input.studentId,input.scope,
+         input.sourceContextId,prepared.formId,input.sequenceNumber,input.startingPhase,
+         prepared.probeId,prepared.bankVersion,truth.behavior_model_version,
+         prepared.studentBehavior,JSON.stringify({supportEvent:input.supportEvent,observations:input.observations}),
+         conditionConformed,observationExact,matchingObservations,expectedDimensionIds.length,
+         selectedRecord.publicRef,selected.key,selected.version,
+         JSON.stringify(selected.canonicalObservations),selected.trajectoryClass,input.supportEvent],
+      );
+      if (!previouslyStored.rows[0]) {
+        throw httpError(409, "The previous Sandbox evidence record conflicts with this submission. Preserve the original and escalate for evidence review.");
+      }
+    }
+  }
+  // Record qualification capability only AFTER immutable capture validation.
+  // A conflicting replay must never write a fresh capability occurrence.
   await insertCapabilityEvidence({
     trajectory,
     sourceType: "turn",

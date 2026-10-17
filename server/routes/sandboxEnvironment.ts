@@ -1,9 +1,12 @@
 import type { Express, Request, Response } from "express";
 import { z } from "zod";
+import { parseSandboxPreparationQuery } from "../sandboxPreparationQuery";
 import { isAuthenticated } from "../supabaseAuth";
 import {
   getSandboxEnvironmentHistory,
   prepareSandboxEnvironment,
+  recordSandboxPreparation,
+  getSandboxSessionPreparationPreview,
   submitSandboxEnvironmentRep,
 } from "../sandboxEnvironment";
 import {
@@ -54,6 +57,19 @@ const repSubmissionSchema = z.object({
   }),
 });
 
+
+const preparationSubmissionSchema = z.object({
+  studentId: z.string().trim().min(1),
+  scheduledSessionId: z.string().trim().uuid(),
+  topic: z.string().trim().min(1).max(200),
+  // The existing Map preparation checkbox affirms this displayed phase.
+  // The server must independently verify it against the active Sandbox set.
+  attestedPhase: z.enum(["Clarity","Structured Execution","Controlled Discomfort","Time Pressure Stability"]),
+  planFingerprint: z.string().regex(/^[0-9a-f]{64}$/),
+  problemPrepared: z.literal(true),
+  conditionsReviewed: z.literal(true),
+  evidencePlanReviewed: z.literal(true),
+}).strict();
 
 const sandboxLiveEvidenceQuerySchema = z.object({
   tutorAssignmentId: z.string().trim().min(1),
@@ -271,6 +287,47 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
       return res.json(environment);
     } catch (error) {
       return sendError(res, error, "Failed to prepare the Sandbox environment.");
+    }
+  });
+
+  app.get("/api/tutor/sandbox-environment/preparation-plan", isAuthenticated, async (req, res) => {
+    try {
+      const user = requireSpecialist(req, res);
+      if (!user) return;
+      const payload = parseSandboxPreparationQuery(req.query);
+      const authority = await loadTutorOperationalModeAuthorityForTutor(String(user.id));
+      if (!authority || authority.mode !== "sandbox" || !authority.assignmentId) {
+        return res.status(403).json({ message: "Active assigned Sandbox mode is required." });
+      }
+      res.setHeader("Cache-Control", "no-store, max-age=0");
+      return res.json(await getSandboxSessionPreparationPreview({
+        ...payload,
+        tutorAssignmentId: authority.assignmentId,
+        tutorId: String(user.id),
+      }));
+    } catch (error) {
+      return sendError(res, error, "Unable to load the current Sandbox preparation plan.");
+    }
+  });
+
+  app.post("/api/tutor/sandbox-environment/preparation", isAuthenticated, async (req, res) => {
+    try {
+      const user = requireSpecialist(req, res);
+      if (!user) return;
+      const payload = preparationSubmissionSchema.parse(req.body);
+      const authority = await loadTutorOperationalModeAuthorityForTutor(String(user.id));
+      if (!authority || authority.mode !== "sandbox" || !authority.assignmentId) {
+        return res.status(403).json({ message: "Active assigned Sandbox mode is required." });
+      }
+      const result = await recordSandboxPreparation({
+        ...payload,
+        tutorAssignmentId: authority.assignmentId,
+        tutorId: String(user.id),
+      });
+      res.setHeader("Cache-Control", "no-store, max-age=0");
+      return res.status(result.recorded ? 201 : 200).json(result);
+    } catch (error) {
+      return sendError(res, error, "Unable to verify Sandbox session preparation.");
     }
   });
 

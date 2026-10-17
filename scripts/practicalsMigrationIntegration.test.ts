@@ -123,6 +123,11 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
     const approvedSnapshot={
       practicalsReady:true, policyStatus:"approved", policyVersion:2,
       bankKey:"sandbox-ci-only", bankVersion:3,
+      // Test-only lineage fixture. No actual Specialist qualification is asserted.
+      qualification:{
+        policyId:"ri-sandbox-qualification",policyVersion:1,
+        qualificationReady:true,evidenceFingerprint:"isolated-fixture-fingerprint",
+      },
     };
     await db.query(`INSERT INTO public.tutor_sandbox_mock_assessments
       (tutor_id,tutor_assignment_id,decision,checklist,evidence_note,assessed_by_user_id)

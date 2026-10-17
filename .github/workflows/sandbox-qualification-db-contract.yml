@@ -1,0 +1,57 @@
+name: Sandbox Qualification DB Contract
+on:
+  pull_request:
+    paths:
+      - "server/diagnosisScheduledSessionQuery.ts"
+      - "server/evidenceCompleteDiagnosisRoutes.ts"
+      - "docs/migration-proposals/20261015_sandbox_coverage_crossmode_evidence.sql"
+      - "scripts/sandboxQualificationDbContract.mjs"
+      - "scripts/sandboxQualificationJourneyIntegration.ts"
+      - "server/sandboxQualificationEvidence.ts"
+      - "server/sandboxQualificationReview.ts"
+      - "shared/sandboxQualificationPolicy.ts"
+      - "shared/practicalEntryGate.ts"
+      - "server/sandboxQualificationFingerprint.ts"
+      - "server/practicalEntryStatus.ts"
+      - "server/capabilityPracticalEvidence.ts"
+      - "server/sandboxEnvironment.ts"
+      - ".github/workflows/sandbox-qualification-db-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-postgres-contract:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: sandbox_ci_only
+          POSTGRES_DB: sandbox_qualification_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sandbox_qualification_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 6
+    env:
+      QUALIFICATION_TEST_DATABASE_URL: postgresql://postgres:sandbox_ci_only@127.0.0.1:5432/sandbox_qualification_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Run isolated protected-schema migration and RLS contract
+        run: node scripts/sandboxQualificationDbContract.mjs
+
+      - name: Verify complete qualification fingerprint
+        run: node --import tsx --test server/sandboxQualificationFingerprint.test.ts
+
+      - name: Verify persisted synthetic qualification journey against real PostgreSQL
+        run: node --import tsx scripts/sandboxQualificationJourneyIntegration.ts

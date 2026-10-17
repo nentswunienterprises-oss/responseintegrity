@@ -1,3 +1,4 @@
+import { registerProofTrainingBooking } from "./proofTrainingBooking";
 import { captureDemandParent } from "./demandCapture";
 import { registerDemandProductionRoutes } from "./demandProduction";
 import { demandAssignmentBlock, resolveEntryType } from "../shared/demandProduction";
@@ -4737,6 +4738,7 @@ async function getPendingTrainingConfirmationSession(tutorId: string, studentId:
 
 export async function registerRoutes(app: Express): Promise<Server> {
   registerDemandProductionRoutes(app, { client: supabase, isAuthenticated, requireRole });
+  registerProofTrainingBooking(app, { pool, isAuthenticated, requireTutor: requireRole(["tutor"]) });
 
   app.post(
     "/api/proof/personas/provision",
@@ -13405,9 +13407,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   AND student_id = $2
                   AND type = 'training'
                   AND status NOT IN ('completed', 'flagged')
-                  AND scheduled_time >= NOW() - INTERVAL '2 hours'
+                  AND (scheduled_time >= NOW() - INTERVAL '2 hours' OR $3::boolean)
                 ORDER BY scheduled_time ASC`,
-              [tutorId, studentId],
+              [tutorId, studentId, operationalMode === "sandbox"],
             ),
             pool.query(
               `SELECT ${SCHEDULED_SESSION_SELECT}
@@ -13494,16 +13496,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const currentTrainingSessionFloor = new Date(
           Date.now() - 2 * 60 * 60 * 1000,
         ).toISOString();
+        // Sandbox keeps booked, unfinished practice available without a live launch window.
+        let currentSessionsQuery = supabase
+          .from("scheduled_sessions")
+          .select(SCHEDULED_SESSION_SELECT)
+          .eq("tutor_id", tutorId)
+          .eq("student_id", studentId)
+          .eq("type", "training")
+          .not("status", "in", "(completed,flagged)");
+        if (operationalMode !== "sandbox") {
+          currentSessionsQuery = currentSessionsQuery.gte("scheduled_time", currentTrainingSessionFloor);
+        }
         const [currentSessionsResult, latestCompletedSessionResult] = await Promise.all([
-          supabase
-            .from("scheduled_sessions")
-            .select(SCHEDULED_SESSION_SELECT)
-            .eq("tutor_id", tutorId)
-            .eq("student_id", studentId)
-            .eq("type", "training")
-            .not("status", "in", "(completed,flagged)")
-            .gte("scheduled_time", currentTrainingSessionFloor)
-            .order("scheduled_time", { ascending: true }),
+          currentSessionsQuery.order("scheduled_time", { ascending: true }),
           supabase
             .from("scheduled_sessions")
             .select(SCHEDULED_SESSION_SELECT)
@@ -32645,6 +32650,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               phase: latest.phase,
               stability: latest.stability,
               lastUpdated: latest.date,
+              history: normalizedHistory,
+              progressionAuthority: entry?.progressionAuthority || null,
               topicReference: parseStoredTopicReference(entry?.topicReference),
               requiresTargetedRediagnosis,
               targetedRediagnosisStartPhase,

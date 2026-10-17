@@ -30,6 +30,28 @@ Read this file with these rules:
 
 ## 2026-10-13 Founder-Approved Evidence-Exception Doctrine
 
+### Controlled Preview continuation — 17 October 2026
+
+The controlled native Training setup creates or reuses one confirmed booking for the three existing QA 02/09/10 students owned by the acceptance Specialist. The server requires Preview and the exact Capability Proof project, authenticated tutor ownership and an actual Sandbox enrollment. It never resets topic state, marks Handover complete, changes enrollment, creates scored evidence or activates qualification. Current native Map gates remain authoritative. Concurrent setup clicks serialize and reuse an unfinished confirmed booking.
+
+TD coverage displays historical technical blockers separately from missing source-query results and development coverage. Additional clean sessions cannot repair missing historical identity or incomplete source evidence. Existing history remains intact; qualification fails closed until a supported evidence disposition exists.
+
+### Native Handover historical source storage — 17 October 2026
+
+The owned Specialist topic-state read model includes normalized observed history and explicit progression authority. The Sessions Map has no Pod snapshot and must receive that history to distinguish a completed Diagnosis from an activated, unobserved topic. A fallback last-updated timestamp is never fabricated into observation history. Reading the Map does not rewrite state or evidence.
+
+Completed native Handover drills may store their payload as a JSON object or a JSON-encoded object string. Qualification reads both representations without rewriting evidence. Invalid JSON strings, arrays and scalar values do not qualify. Existing owner, student, completed booking, exact Handover mode/phase, timestamp and rep-observation lineage checks remain mandatory. A persisted native completion must not disappear from TD review solely because of the storage representation.
+
+### Native Diagnosis observation contract — 16 October 2026
+
+This protocol projection also governs newly issued stateful Sandbox targeted re-diagnosis turns. The turn fingerprint includes the protocol version; previously issued forms become stale rather than receiving changed scoring. The Map must show targeted re-diagnosis preparation whenever the current Sandbox prescription requires it, even when the historical student topic displays a Training phase. No Training preparation receipt is created for a re-diagnosis turn.
+
+The independent normal Diagnosis probe requests independent solving and expressly prohibits eliciting mathematical vocabulary or a reason for the method. Its simulated canonical observations must therefore retain `clarity.vocabulary` and `clarity.reason` as `not_observed`; successful working alone cannot establish either. This is a prescribed observation boundary, not a fictional missing-evidence learner profile. A later recognition opportunity elicits those dimensions. Newly issued native Diagnosis/Handover simulations describe the evidence for each dimension, rather than asking an operator to infer a specific step drift or help-seeking pattern from an abstract overall judgment. Native protocol version 2 is included in the form fingerprint; stale forms fail rather than acquiring altered truth. Existing submitted evidence is preserved.
+
+### Native Clarity Handover protocol correction — 16 October 2026
+
+Clarity Handover observes vocabulary, method, reason and immediate use of understanding. Its live opportunity must elicit all four: ask what the student sees, which method fits, why it fits and how they would start. Reuse the established Clarity recognition execution protocol without teaching, hints, first-step confirmation, rescue or time pressure. Legacy recognition-only/no-execution instructions cannot be shown beside an immediate-application observation requirement. This remains a continuity check of the inherited phase; it does not restart Diagnosis or train the student forward.
+
 This section supersedes earlier derivative examples that scripted missing observations, forgotten explanations, camera freezes or interruptions as ordinary simulated student behaviour. It applies across Specialist Deep Dives, Mastery, Retrieval, Transfer, Sandbox, Diagnosis, Handover and Practicals content, without rewriting historical attempts.
 
 - **Observed capability is the default.** Present the prescribed mathematical problem, method, step order, timing and support condition, and record the response actually seen. Normal hesitation, collapse, partial recovery and independent execution are not evidence-integrity exceptions.
@@ -2950,3 +2972,25 @@ Any change to the live Response Integrity-OS algorithm, reporting logic, drill s
 4. Update any derivative docs whose screenshots, examples, or instructions are now visibly stale.
 
 Do not ship Response Integrity-OS logic changes without updating this file.
+
+## 2026-10-15 Sandbox TD dossier validation boundary (PR #202)
+
+The TD evidence dossier reads committed rep events and session evaluations, with canonical truth joined only by those historical event IDs. Authentication, TD role and ownership of the Specialist's latest assignment are required before any private evidence read. Former-Pod and cross-Pod TDs are denied. Responses disable shared/browser caching; canonical dossiers are excluded from offline query persistence and withheld during revalidation or request failure. Missing canonical truth or missing condition evidence never establishes alignment. The bounded view returns up to 180 reps and 90 session evaluations; it is not the complete longitudinal qualification input.
+
+The clean-window evaluator remains a foundation only: live readiness currently passes no approved policy or persisted session evidence, so Practicals qualification fails closed. Numeric policy approval, persisted longitudinal integration, and authenticated Preview/Proof acceptance remain outstanding. Focused tests do not establish deployed credentials, grants or RLS acceptance.
+
+## 2026-10-16 protected Preview preparation query boundary
+
+Map preparation queries exclude Vercel routing metadata (`path`, `host`, `__previewPath`) before strict domain validation. Student, scheduled lesson and topic remain required; browser-declared authority, rep lineage, invalid session UUIDs and duplicate domain values remain rejected. The Specialist assignment is still derived server-side. This routing fix does not grant readiness, activate capture flags or establish authenticated acceptance.
+
+## 2026-10-16 Sandbox qualification approval binding
+
+Practicals entry consumes only the latest version-2 Practicals-readiness decision by
+the Specialist's currently assigned TD. Current qualification must remain ready and
+the signed policy, bank and evidence fingerprint must match. Fingerprint format 2
+binds every historical qualification-event field, including coverage inputs and source
+lineage; changing phase, observed profile, opportunity identity or condition evidence
+invalidates an earlier approval as well as new errors or new events. Ordering alone
+does not invalidate approval. Prior-format fingerprints require fresh TD review.
+Isolated PostgreSQL acceptance covers persisted sign-off consumption and stale approval;
+it does not establish a deployed native journey or permit automatic stage transition.

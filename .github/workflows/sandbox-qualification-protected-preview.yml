@@ -1,0 +1,36 @@
+name: Sandbox Qualification Protected Preview Acceptance
+
+on:
+  # Only a deliberate protected invocation may receive Proof credentials.
+  # Never expose the authenticated job to a PR/push trigger.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  authenticated-readonly:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: capability-proof-acceptance
+    timeout-minutes: 15
+    env:
+      PROOF_BASE_URL: https://tt-confidence-6u4foon23-relief-works-technologies.vercel.app
+      PROOF_EXPECTED_SHA: e361ea3db5965c23cf919930860c65f8b61294d8
+      PROOF_EXPECTED_PROJECT: jftlxeacphvbnhbsbpxc
+      RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
+      RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+      RI_PROOF_TD_EMAIL: ${{ secrets.RI_PROOF_TD_EMAIL }}
+      RI_PROOF_TD_PASSWORD: ${{ secrets.RI_PROOF_TD_PASSWORD }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Verify current Preview deployment and authenticated read-only authorization
+        run: node scripts/sandboxQualificationProtectedPreview.mjs
