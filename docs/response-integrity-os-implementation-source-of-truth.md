@@ -30,6 +30,12 @@ Read this file with these rules:
 
 ## 2026-10-13 Founder-Approved Evidence-Exception Doctrine
 
+### Controlled Preview continuation — 17 October 2026
+
+The controlled native Training setup creates or reuses one confirmed booking for the three existing QA 02/09/10 students owned by the acceptance Specialist. The server requires Preview and the exact Capability Proof project, authenticated tutor ownership and an actual Sandbox enrollment. It never resets topic state, marks Handover complete, changes enrollment, creates scored evidence or activates qualification. Current native Map gates remain authoritative. Concurrent setup clicks serialize and reuse an unfinished confirmed booking.
+
+TD coverage displays historical technical blockers separately from missing source-query results and development coverage. Additional clean sessions cannot repair missing historical identity or incomplete source evidence. Existing history remains intact; qualification fails closed until a supported evidence disposition exists.
+
 ### Native Handover historical source storage — 17 October 2026
 
 The owned Specialist topic-state read model includes normalized observed history and explicit progression authority. The Sessions Map has no Pod snapshot and must receive that history to distinguish a completed Diagnosis from an activated, unobserved topic. A fallback last-updated timestamp is never fabricated into observation history. Reading the Map does not rewrite state or evidence.

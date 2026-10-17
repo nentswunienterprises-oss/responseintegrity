@@ -333,6 +333,13 @@ export function SandboxReadinessAssessmentCard({
                 {coverageReview.sourceGaps.length > 0 ? <p className="text-xs text-destructive">
                   Unresolved evidence sources: {coverageReview.sourceGaps.join("; ")}
                 </p> : null}
+                {coverageReview.qualification.technicalBlockers.length > 0 ? <div className="text-xs text-destructive" role="status">
+                  <p className="font-medium">Evidence needing review</p>
+                  <ul className="list-disc pl-4">
+                    {coverageReview.qualification.technicalBlockers.map(blocker => <li key={blocker}>{blocker}</li>)}
+                  </ul>
+                  <p>Additional clean sessions do not resolve missing historical evidence.</p>
+                </div> : null}
                 <div className="max-h-[450px] overflow-y-auto space-y-2">
                   {coverageReview.qualification.requirements.map(requirement => (
                     <div key={requirement.key} className="rounded border p-2 text-xs">

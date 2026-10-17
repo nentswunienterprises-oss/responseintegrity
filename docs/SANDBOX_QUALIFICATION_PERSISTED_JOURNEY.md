@@ -102,3 +102,12 @@ profile, opportunity identity, observed status, canonical presence and condition
 It normalizes query/object/tag order. Fingerprint format version 2 deliberately invalidates
 any earlier fingerprint: an old TD approval must be reviewed again against current evidence.
 This is isolated persisted approval-consumption proof, not a deployed TD submission PASS.
+
+
+### 17 October continuation: coverage and historical blockers
+
+Fresh authenticated TD readback after the nine-rep QA10 session establishes all seven modes and all eight situations, including independent execution (3 distinct clean opportunities), prerequisite (9) and routing (6). Reassurance-seeker, pressure-fragile and fast-recovery remain at 0/2 clean profile signature opportunities each. Final phase-balanced sessions remain 0/8. The corrected stateful targeted runs for SS1 and QA10 completed with 7/7 independent and 4/4 recognition observations, preserved conditions and aligned authority; their submissions are no longer pending.
+
+The TD response also reports `Missing source identity or chronology` and `Missing or invalid historical evidence`, although source-query gaps are empty. Two September 25 targeted turns lack student identity at turn, run and trajectory level. Older incomplete/blocked native runs and captures remain historical evidence. Further clean sessions alone cannot clear these blockers. Do not invent identity, delete older evidence, reset the assignment, or silently exclude history to obtain a positive qualification result.
+
+The TD coverage card now exposes these technical blockers. `/proof/native-training` adds a bounded booking-only setup for QA02, QA09 and QA10 in the exact Capability Proof Preview. It reuses a confirmed unfinished booking or creates one synthetic booking; it preserves all learning state and evidence. Native Diagnosis/Handover/preparation requirements still apply. Focused route tests cover environment and actor denial, owned Sandbox scope, booking reuse, transaction rollback and absence of learning-state mutations. Deployed setup and subsequent native session acceptance remain pending.
