@@ -195,6 +195,15 @@ try{
  for(const phase of phases)assert.equal(qualified.status.phaseCounts[phase],2);
  assert.equal(evaluateSandboxQualification(qualified.loaded.events,{activated:false}).qualificationReady,false);
  console.log("JOURNEY_PERSISTED_EIGHT_CLEAN_PHASE_BALANCED=PASS");
+ // Live native storage also JSON-encodes the drill inside its JSONB column.
+ // The completed source join must accept it without changing stored history.
+ await db.query("BEGIN");
+ await db.query("UPDATE public.intro_session_drills SET drill=to_jsonb(drill::text)");
+ const nativeString = await project();
+ assert.equal(nativeString.status.qualificationReady,true);
+ console.log("JOURNEY_NATIVE_JSON_STRING_HANDOVER_SOURCE=PASS");
+ await db.query("ROLLBACK");
+
  await db.query("BEGIN");
  await negative("MISSING_CANONICAL_TRUTH","DELETE FROM private.specialist_sandbox_rep_event_truth WHERE event_id=(SELECT id FROM public.specialist_sandbox_rep_events ORDER BY completed_at DESC LIMIT 1)",r=>{
   assert.equal(r.status.qualificationReady,false);assert.ok(r.status.technicalBlockers.length);

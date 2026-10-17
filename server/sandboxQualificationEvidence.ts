@@ -8,6 +8,7 @@ import type { SandboxTrajectoryClass } from "@shared/sandboxEnvironment";
 import type { TopicPhase } from "@shared/topicConditioningEngine";
 import type { SandboxQualificationEvidence as Event } from "@shared/sandboxQualificationPolicy";
 import { DIAGNOSIS_OBSERVATION_MATRIX, type DiagnosisDimensionId } from "@shared/diagnosisObservationMatrix";
+import { SANDBOX_NATIVE_DRILL_PAYLOAD_SQL } from "./sandboxNativeDrillPayload";
 
 type Queryable={query:(sql:string,values?:any[])=>Promise<{rows:any[]}>};
 
@@ -115,16 +116,17 @@ const CROSS_MODE=[
  "LEFT JOIN private.specialist_sandbox_trajectory_truth hidden ON hidden.trajectory_id=r.trajectory_id",
  "LEFT JOIN private.specialist_sandbox_live_evidence_truth t ON t.event_id=r.id",
  "LEFT JOIN LATERAL (",
- "  SELECT h.id,h.drill FROM public.intro_session_drills h",
+ "  SELECT h.id,native_payload.drill FROM public.intro_session_drills h",
+ `  CROSS JOIN LATERAL (SELECT ${SANDBOX_NATIVE_DRILL_PAYLOAD_SQL} AS drill) native_payload`,
  "  JOIN public.scheduled_sessions native_session ON native_session.id=h.scheduled_session_id",
  "  WHERE h.tutor_id::text=r.tutor_id::text AND h.student_id::text=r.student_id::text",
  "    AND h.scheduled_session_id::text=r.source_context_id",
  "    AND native_session.tutor_id::text=r.tutor_id::text",
  "    AND native_session.student_id::text=r.student_id::text",
  "    AND native_session.type='handover' AND native_session.status='completed'",
- "    AND h.drill->>'drillType'='handover_verification'",
- "    AND h.drill->>'handoverMode'='verification'",
- "    AND h.drill->>'phase'=r.phase AND h.submitted_at>=r.completed_at",
+ "    AND native_payload.drill->>'drillType'='handover_verification'",
+ "    AND native_payload.drill->>'handoverMode'='verification'",
+ "    AND native_payload.drill->>'phase'=r.phase AND h.submitted_at>=r.completed_at",
  "  ORDER BY h.submitted_at DESC,h.id DESC LIMIT 1",
  ") native_handover ON r.scope='handover'",
  "WHERE r.tutor_assignment_id=$1 AND r.tutor_id=$2",

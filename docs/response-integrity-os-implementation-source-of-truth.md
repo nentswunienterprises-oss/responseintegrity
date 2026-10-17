@@ -30,6 +30,10 @@ Read this file with these rules:
 
 ## 2026-10-13 Founder-Approved Evidence-Exception Doctrine
 
+### Native Handover historical source storage — 17 October 2026
+
+Completed native Handover drills may store their payload as a JSON object or a JSON-encoded object string. Qualification reads both representations without rewriting evidence. Invalid JSON strings, arrays and scalar values do not qualify. Existing owner, student, completed booking, exact Handover mode/phase, timestamp and rep-observation lineage checks remain mandatory. A persisted native completion must not disappear from TD review solely because of the storage representation.
+
 ### Native Diagnosis observation contract — 16 October 2026
 
 The independent normal Diagnosis probe requests independent solving and expressly prohibits eliciting mathematical vocabulary or a reason for the method. Its simulated canonical observations must therefore retain `clarity.vocabulary` and `clarity.reason` as `not_observed`; successful working alone cannot establish either. This is a prescribed observation boundary, not a fictional missing-evidence learner profile. A later recognition opportunity elicits those dimensions. Newly issued native Diagnosis/Handover simulations describe the evidence for each dimension, rather than asking an operator to infer a specific step drift or help-seeking pattern from an abstract overall judgment. Native protocol version 2 is included in the form fingerprint; stale forms fail rather than acquiring altered truth. Existing submitted evidence is preserved.
