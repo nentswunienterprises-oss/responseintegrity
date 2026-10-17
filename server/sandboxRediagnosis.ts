@@ -398,7 +398,7 @@ async function plan(input: {
     probeId: canonicalDecision.nextProbeId,
   });
   const history = await getSandboxEnvironmentHistory(input);
-  const selected = selectSandboxDiagnosisOutcome({
+  const selected = projectSandboxNativeDiagnosisOutcome(selectSandboxDiagnosisOutcome({
     seed: truth.trajectory_seed,
     profileSeed: truth.trajectory_seed,
     outcomes: outcomes.map((item) => item.definition),
@@ -413,7 +413,7 @@ async function plan(input: {
       recentOutcomeKeys: diagnosisTruth.recent_outcome_keys,
       behaviorModelVersion: truth.behavior_model_version,
     },
-  });
+  }));
   const selectedRecord = outcomes.find(
     (item) => item.definition.key === selected.key && item.definition.version === selected.version,
   );
@@ -423,6 +423,7 @@ async function plan(input: {
   const turnFormId = digest(
     [
       "sandbox-rediagnosis-turn-v1",
+      "native-protocol-v" + SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION,
       run.id,
       sequenceNumber,
       selectedRecord.publicRef,

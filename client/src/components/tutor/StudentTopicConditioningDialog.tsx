@@ -1745,6 +1745,9 @@ export default function StudentTopicConditioningDialog({
     },
   });
 
+  const sandboxTargetedPreparationRequired = sandboxTrainingPreparationRequired &&
+    sandboxMapPreparationQuery.data?.captureActive === true &&
+    sandboxMapPreparationQuery.data.status === "targeted_rediagnosis_required";
   const showTopicManagement = !readOnly && !mapOnly;
 
   const studentNameHasGrade = /\bgrade\b/i.test(studentName || "");
@@ -3022,7 +3025,11 @@ export default function StudentTopicConditioningDialog({
                         <div key={`session-prep-${topic}`} className="rounded-md border border-primary/20 bg-background p-3 space-y-2">
                           <div>
                             <p className="font-medium text-sm">{topic}</p>
-                            {requiresTargetedRediagnosis ? (
+                            {sandboxTargetedPreparationRequired ? (
+                              <p className="text-xs font-medium text-amber-800">
+                                Sandbox requires targeted re-diagnosis before this topic can resume Training.
+                              </p>
+                            ) : requiresTargetedRediagnosis ? (
                               <>
                                 <p className="text-xs font-medium text-amber-800">
                                   Targeted re-diagnosis required · starting signal {targetedRediagnosisStartPhase}
@@ -3040,10 +3047,15 @@ export default function StudentTopicConditioningDialog({
                               </p>
                             )}
                             <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                              {requiresTargetedRediagnosis ? "Re-Diagnosis Prep" : prepPlan.drillType}
+                              {requiresTargetedRediagnosis || sandboxTargetedPreparationRequired ? "Re-Diagnosis Prep" : prepPlan.drillType}
                             </p>
                           </div>
-                          {sandboxTrainingPreparationRequired &&
+                          {sandboxTargetedPreparationRequired ? (
+                            <div className="rounded-md border bg-muted/20 p-3 text-xs space-y-2">
+                              <p>Prepare only the current system-selected evidence opportunity in the runner. Do not prepare or run the historical Training set shown on the Map.</p>
+                              <p>Follow the displayed probe conditions without teaching, cueing, rescuing, or adding difficulty or pressure unless the probe requires it. Prepare another comparable problem only if the system selects another opportunity.</p>
+                            </div>
+                          ) : sandboxTrainingPreparationRequired &&
                             sandboxMapPreparationQuery.data?.captureActive &&
                             sandboxMapPreparationQuery.data.status === "rep_ready" ? (
                             <div className="rounded-md border bg-muted/20 p-3 text-xs space-y-2">
@@ -3103,7 +3115,11 @@ export default function StudentTopicConditioningDialog({
                               className="mt-0.5 rounded border-gray-300"
                             />
                             <span>
-                              {sandboxTrainingPreparationRequired &&
+                              {sandboxTargetedPreparationRequired ? (
+                                <>
+                                  I reviewed that Sandbox requires targeted re-diagnosis for <span className="font-medium">{topic}</span>. I will prepare only the system-selected evidence opportunity in the runner and preserve its displayed conditions.
+                                </>
+                              ) : sandboxTrainingPreparationRequired &&
                                 sandboxMapPreparationQuery.data?.captureActive &&
                                 sandboxMapPreparationQuery.data.status === "rep_ready" ? (
                                 <>

@@ -5,6 +5,7 @@ import { DIAGNOSIS_PROBES, DIAGNOSIS_PROBE_EXECUTION_PROTOCOLS } from "../shared
 import { DIAGNOSIS_OBSERVATION_MATRIX } from "../shared/diagnosisObservationMatrix";
 import type { SandboxDiagnosisOutcomeDefinition } from "../shared/sandboxDiagnosisEnvironment";
 import { projectSandboxNativeDiagnosisOutcome } from "./sandboxNativeDiagnosisProjection";
+import { compareSandboxDiagnosisProbe } from "../shared/sandboxDiagnosisEnvironment";
 
 function fixture(probeId: SandboxDiagnosisOutcomeDefinition["probeId"], behaviorClass = "supported") {
   return {
@@ -55,4 +56,20 @@ test("prepare and submit share projected truth and invalidate older issued forms
   assert.equal((native.match(/projectSandboxNativeDiagnosisOutcome\(selectSandboxDiagnosisOutcome\(/g) || []).length, 2);
   assert.match(native, /"native-protocol-v" \+ SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION/);
   assert.match(native, /prepared.formId !== input.formId[\s\S]*opportunity is stale/);
+});
+
+test("stateful targeted re-diagnosis scores honest protocol boundaries and versions its form", () => {
+  const original = fixture("stack.normal_independent", "near_stable");
+  const projected = projectSandboxNativeDiagnosisOutcome(original);
+  const result = compareSandboxDiagnosisProbe({
+    sequenceNumber: 1, sessionNumber: 5, phase: "Structured Execution", outcome: projected,
+    submitted: { probeId: original.probeId, supportEvent: "none", observations: projected.canonicalObservations },
+  });
+  assert.equal(result.observationExact, true);
+  assert.equal(result.conditionConformed, true);
+  assert.equal(result.matchingObservations, 7);
+  const source = readFileSync(new URL("./sandboxRediagnosis.ts", import.meta.url), "utf8");
+  const planner = source.slice(source.indexOf("async function plan("), source.indexOf("function projectProbe("));
+  assert.match(planner, /projectSandboxNativeDiagnosisOutcome\(selectSandboxDiagnosisOutcome\(/);
+  assert.match(planner, /"native-protocol-v" \+ SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION/);
 });

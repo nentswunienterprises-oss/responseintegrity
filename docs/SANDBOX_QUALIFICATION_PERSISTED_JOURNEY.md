@@ -2,6 +2,8 @@
 
 ## Native Preview checkpoint — 16 October 2026
 
+The native Handover acknowledgement was subsequently saved through the Pod's “Mark Continuity Check Complete” action. Readback shows Active Training and the topic systems unlocked. Opening a confirmed Geometry lesson selected stateful Sandbox targeted re-diagnosis at Structured Execution. That separate selector still used the older generic narrative and expected unelicited vocabulary/reason; the displayed opportunity was left unsubmitted. Newly issued stateful turns now share the already-tested protocol projection and versioned form binding. Map preparation also shows the current re-diagnosis requirement instead of a historical TPS problem quota. Deployed verification is pending.
+
 17 October authenticated continuation on `1e4778e3`: the corrected assigned-TD coverage UI recognizes Handover as established (seven encountered, five correct, three distinct clean opportunities); all seven modes are established. An updated remediation note persisted at 12:10:43 UTC. Practicals remains disabled and the final clean run remains 0/8 while profile/situation coverage is incomplete.
 
 Native Algebra Training for controlled Sandbox Student 4 completed at 12:16:13 UTC (booking `002fb9b3-d86f-49c6-9cee-45b411c29b12`, evaluation `6ddb5a42-d6f4-4614-8ea5-adeabed267ec`). All six reps match: 21/21 observations, exact evidence statuses, preserved conditions, authority and state aligned. Clarity/Medium held. This precedes full coverage and is not counted as the final qualifying run.
