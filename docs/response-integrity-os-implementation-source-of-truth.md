@@ -32,6 +32,8 @@ Read this file with these rules:
 
 ### Native Handover historical source storage — 17 October 2026
 
+The owned Specialist topic-state read model includes normalized observed history and explicit progression authority. The Sessions Map has no Pod snapshot and must receive that history to distinguish a completed Diagnosis from an activated, unobserved topic. A fallback last-updated timestamp is never fabricated into observation history. Reading the Map does not rewrite state or evidence.
+
 Completed native Handover drills may store their payload as a JSON object or a JSON-encoded object string. Qualification reads both representations without rewriting evidence. Invalid JSON strings, arrays and scalar values do not qualify. Existing owner, student, completed booking, exact Handover mode/phase, timestamp and rep-observation lineage checks remain mandatory. A persisted native completion must not disappear from TD review solely because of the storage representation.
 
 ### Native Diagnosis observation contract — 16 October 2026

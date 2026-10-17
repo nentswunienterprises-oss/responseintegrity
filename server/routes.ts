@@ -32648,6 +32648,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               phase: latest.phase,
               stability: latest.stability,
               lastUpdated: latest.date,
+              history: normalizedHistory,
+              progressionAuthority: entry?.progressionAuthority || null,
               topicReference: parseStoredTopicReference(entry?.topicReference),
               requiresTargetedRediagnosis,
               targetedRediagnosisStartPhase,
