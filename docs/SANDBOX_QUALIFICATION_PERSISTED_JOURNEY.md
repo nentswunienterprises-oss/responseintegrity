@@ -2,6 +2,24 @@
 
 ## Native Preview checkpoint — 16 October 2026
 
+17 October 16:54 UTC continuation on Preview `68a6e34d`: controlled fixture
+`a8ce613e-7f91-48d1-5097-2e34923dbacf` completed the remaining three Variation Control
+opportunities in its nine-rep Structured Execution lesson. Each opportunity preserved the
+prescribed condition, matched all observable evidence (3/3, 4/4 and 4/4), and independently
+confirmed through the stripped-constraint sentinel that Clarity did not hold. Evaluation
+`83ac28b4-066b-45ed-a3ea-09f7969a0949` is authority- and state-aligned. Persisted readback
+advanced the trajectory to session 3 with `route=targeted_rediagnosis` and
+`targetPhase=Clarity`; ordinary Training did not resume.
+
+The completion screen's Response Snapshot correctly reported “targeted re-diagnosis
+required”, but its System Direction derived ordinary “Run Structured Execution drill” copy
+from the preserved Structured Execution/High checkpoint. The UI now treats targeted
+re-diagnosis authority as a fail-closed route override: it labels that state as the recorded
+checkpoint and directs the next confirmed lesson to evidence-native re-diagnosis beginning
+at Clarity. Focused regression coverage is part of the Sandbox suite. Deployed verification
+of this presentation correction remains required; this checkpoint does not establish full
+qualification acceptance.
+
 The native Handover acknowledgement was subsequently saved through the Pod's “Mark Continuity Check Complete” action. Readback shows Active Training and the topic systems unlocked. Opening a confirmed Geometry lesson selected stateful Sandbox targeted re-diagnosis at Structured Execution. That separate selector still used the older generic narrative and expected unelicited vocabulary/reason; the displayed opportunity was left unsubmitted. Newly issued stateful turns now share the already-tested protocol projection and versioned form binding. Map preparation also shows the current re-diagnosis requirement instead of a historical TPS problem quota. Deployed verification is pending.
 
 17 October authenticated continuation on `1e4778e3`: the corrected assigned-TD coverage UI recognizes Handover as established (seven encountered, five correct, three distinct clean opportunities); all seven modes are established. An updated remediation note persisted at 12:10:43 UTC. Practicals remains disabled and the final clean run remains 0/8 while profile/situation coverage is incomplete.

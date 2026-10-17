@@ -35,6 +35,7 @@ import {
 import { ResponseSnapshotCard } from "@/components/tutor/ResponseSnapshotCard";
 import type { ResponseSnapshotV1 } from "@shared/responseSnapshot";
 import { sandboxRequiresPrerequisiteSentinel } from "@shared/sandboxPrerequisiteProbe";
+import { sandboxTargetedRediagnosisCopy } from "@shared/sandboxCompletionDirection";
 import { displayTopicStability, topicStabilityConfirmationLabel } from "@shared/topicStabilityPresentation";
 import {
   NEXT_ACTION_ENGINE,
@@ -158,6 +159,7 @@ type EnvironmentForm = {
       nextStability: string;
       targetPhase: string | null;
       reason: string;
+      transitionReason?: string | null;
     };
     authorityAligned: boolean;
     stateTrackAligned: boolean;
@@ -806,21 +808,29 @@ export default function SpecialistSandboxSimulation({
       phaseBefore === phaseAfter &&
       stabilityBefore === "High" &&
       stabilityAfter === "High Maintenance";
-    const nextFocusLabel = enteredMaintenanceCheckpoint
-      ? "Immediate Next Drill"
-      : "Next Session Focus";
-    const nextFocus = enteredMaintenanceCheckpoint
-      ? nextActionData?.nextActions?.[0] ||
-        nextActionData?.primaryAction ||
-        "Not recorded"
-      : nextActionData?.primaryAction || "Not recorded";
-    const nextConstraint = nextActionData?.rules?.[0] || null;
+    const targetedRediagnosisCopy = sandboxTargetedRediagnosisCopy({
+      topic: routeTopic,
+      authority,
+    });
+    const nextFocusLabel =
+      targetedRediagnosisCopy?.nextFocusLabel ||
+      (enteredMaintenanceCheckpoint ? "Immediate Next Drill" : "Next Session Focus");
+    const nextFocus =
+      targetedRediagnosisCopy?.nextFocus ||
+      (enteredMaintenanceCheckpoint
+        ? nextActionData?.nextActions?.[0] ||
+          nextActionData?.primaryAction ||
+          "Not recorded"
+        : nextActionData?.primaryAction || "Not recorded");
+    const nextConstraint =
+      targetedRediagnosisCopy?.nextConstraint || nextActionData?.rules?.[0] || null;
     const formatState = (phase?: string | null, stability?: string | null) =>
       phase && stability
         ? `${phase} · ${displayTopicStability(stability)}${topicStabilityConfirmationLabel(stability, phase) ? " · Confirmation required" : ""}`
         : phase || displayTopicStability(stability) || "Not recorded";
     const sessionResult =
-      phaseAfter && stabilityAfter
+      targetedRediagnosisCopy?.sessionResult ||
+      (phaseAfter && stabilityAfter
         ? transitionReason === "stability advance"
           ? `${routeTopic}: stability improved to ${displayTopicStability(stabilityAfter)} in ${phaseAfter}`
           : transitionReason === "stability regress"
@@ -828,7 +838,7 @@ export default function SpecialistSandboxSimulation({
             : transitionReason === "phase progress"
               ? `${routeTopic}: phase advanced to ${phaseAfter} at ${displayTopicStability(stabilityAfter)} stability`
               : `${routeTopic}: stability held at ${displayTopicStability(stabilityAfter)} in ${phaseAfter}${topicStabilityConfirmationLabel(stabilityAfter, phaseAfter) ? "; separate confirmation required" : ""}`
-        : `${routeTopic}: session evidence recorded`;
+        : `${routeTopic}: session evidence recorded`);
     return (
       <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
         <div>
@@ -863,7 +873,9 @@ export default function SpecialistSandboxSimulation({
                 </span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Now</span>
+                <span className="text-muted-foreground">
+                  {targetedRediagnosisCopy?.currentStateLabel || "Now"}
+                </span>
                 <span className="font-medium">
                   {formatState(phaseAfter, stabilityAfter)}
                 </span>
@@ -888,7 +900,8 @@ export default function SpecialistSandboxSimulation({
             Return to Pod
           </Button>
           <p className="w-full text-xs text-muted-foreground">
-            The next Sandbox session starts from the next confirmed weekly lesson.
+            {targetedRediagnosisCopy?.footer ||
+              "The next Sandbox session starts from the next confirmed weekly lesson."}
           </p>
         </div>
       </div>
