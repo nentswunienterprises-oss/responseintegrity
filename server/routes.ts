@@ -1,3 +1,4 @@
+import { registerProofTrainingBooking } from "./proofTrainingBooking";
 import { captureDemandParent } from "./demandCapture";
 import { registerDemandProductionRoutes } from "./demandProduction";
 import { demandAssignmentBlock, resolveEntryType } from "../shared/demandProduction";
@@ -4737,6 +4738,7 @@ async function getPendingTrainingConfirmationSession(tutorId: string, studentId:
 
 export async function registerRoutes(app: Express): Promise<Server> {
   registerDemandProductionRoutes(app, { client: supabase, isAuthenticated, requireRole });
+  registerProofTrainingBooking(app, { pool, isAuthenticated, requireTutor: requireRole(["tutor"]) });
 
   app.post(
     "/api/proof/personas/provision",
