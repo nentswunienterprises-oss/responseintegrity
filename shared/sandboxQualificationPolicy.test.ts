@@ -41,3 +41,25 @@ test("mere profile identity without actual observable signature is not coverage"
  const result=evaluateSandboxQualification([...a,...final(a.length+1)],{activated:true});
  assert.equal(result.developmentCoverageReady,false);
 });
+
+test("older incomplete evidence blocks qualification after full coverage and eight fresh clean sessions",()=>{
+ const a=coverage(), f=final(a.length+1);
+ const older=event(0,{mode:"targeted_rediagnosis",complete:false});
+ const result=evaluateSandboxQualification([older,...a,...f],{activated:true});
+ assert.equal(result.developmentCoverageReady,true);
+ assert.equal(result.qualifyingSessions,8);
+ assert.equal(result.qualificationReady,false);
+ assert.ok(result.technicalBlockers.includes("Missing or invalid historical evidence"));
+ assert.equal(older.complete,false);
+});
+
+test("later linked evidence cannot manufacture an older missing student identity",()=>{
+ const a=coverage(), f=final(a.length+1);
+ const older=event(0,{mode:"targeted_rediagnosis",studentId:""});
+ const result=evaluateSandboxQualification([...a,...f,older],{activated:true});
+ assert.equal(result.developmentCoverageReady,true);
+ assert.equal(result.qualifyingSessions,8);
+ assert.equal(result.qualificationReady,false);
+ assert.ok(result.technicalBlockers.includes("Missing source identity or chronology"));
+ assert.equal(older.studentId,"");
+});
