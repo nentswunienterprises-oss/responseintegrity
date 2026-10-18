@@ -17,6 +17,8 @@ export type SandboxQualificationEvidence={
   canonicalPresent:boolean;conditionKept:boolean;observationExact:boolean;
   evidenceExact:boolean;authorityAligned:boolean;stateAligned:boolean;
   materialError:boolean;technicallyValid:boolean;sourceId:string;sourceType:string;
+  /** Valid captured evidence can await placement; it never establishes completion. */
+  placementPending?:boolean;
   bankVersion:number|null;outcomeVersion:number|null;
 };
 export type QualificationRequirement={key:string;required:number;encountered:number;correct:number;distinctCorrect:number;priorErrors:number;recoveredAfterError:boolean;met:boolean};
@@ -25,7 +27,7 @@ export type SandboxQualificationStatus={
   developmentCoverageReady:boolean;qualificationReady:boolean;
   qualifyingSessions:number;requiredSessions:number;cleanSessionIds:string[];
   phaseCounts:Record<string,number>;requirements:QualificationRequirement[];
-  technicalBlockers:string[];materialErrorsSinceCoverage:number;
+  technicalBlockers:string[];materialErrorsSinceCoverage:number;pendingPlacements?:number;
   firstCoverageEventId:string|null;reason:string;
 };
 const phases=Object.keys(SANDBOX_QUALIFICATION_V1.phaseMinimums);
@@ -56,7 +58,7 @@ export function evaluateSandboxQualification(events:SandboxQualificationEvidence
   ids.add(e.id);
   if(!e.studentId||!e.trajectoryId||!e.sourceId||!e.opportunityKey||!e.occurredAt||!Number.isFinite(Date.parse(e.occurredAt)))
    blockers.push("Missing source identity or chronology");
-  if(!e.technicallyValid||!e.canonicalPresent||!e.complete)blockers.push("Missing or invalid historical evidence");
+  if(!e.technicallyValid||!e.canonicalPresent||(!e.complete&&!e.placementPending))blockers.push("Missing or invalid historical evidence");
  }
  const ordered=[...events].sort((a,b)=>Date.parse(a.occurredAt)-Date.parse(b.occurredAt)||
   (a.kind===b.kind?a.id.localeCompare(b.id):a.kind==="opportunity"?-1:1));
@@ -74,15 +76,17 @@ export function evaluateSandboxQualification(events:SandboxQualificationEvidence
  }
  const phaseCounts=Object.fromEntries(phases.map(p=>[p,clean.filter(e=>e.phase===p).length]));
  const phaseReady=phases.every(p=>phaseCounts[p]>=policy.phaseMinimums[p as keyof typeof policy.phaseMinimums]);
- const qualificationReady=options.activated&&boundary>=0&&blockers.length===0&&clean.length>=policy.minConsecutiveSessions&&phaseReady;
+ const pendingPlacements=events.filter(e=>e.placementPending&&!e.complete).length;
+ const qualificationReady=options.activated&&boundary>=0&&blockers.length===0&&pendingPlacements===0&&clean.length>=policy.minConsecutiveSessions&&phaseReady;
  const reason=!options.activated?"Approved qualification policy awaits controlled acceptance and activation."
   :blockers.length?"Qualification blocked by incomplete or technically invalid evidence."
+  :pendingPlacements>0?"Evidence gathering awaits the prescribed continuation; placement is not complete."
   :boundary<0?"Sandbox development coverage is incomplete."
   :!phaseReady||clean.length<policy.minConsecutiveSessions?"Clean final qualification run or phase repetition is incomplete."
   :"Approved coverage and clean-run evidence established; assigned TD approval still required.";
  return {policyId:policy.id,policyVersion:policy.version,approved:true,activated:options.activated,
   developmentCoverageReady:boundary>=0,qualificationReady,qualifyingSessions:clean.length,
   requiredSessions:policy.minConsecutiveSessions,cleanSessionIds:clean.map(e=>e.id),
-  phaseCounts,requirements,technicalBlockers:[...new Set(blockers)],
+  phaseCounts,requirements,pendingPlacements,technicalBlockers:[...new Set(blockers)],
   materialErrorsSinceCoverage:materialErrors,firstCoverageEventId:boundary<0?null:ordered[boundary].id,reason};
 }

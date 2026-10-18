@@ -11,6 +11,8 @@ import {loadPracticalEntryStatus} from "../server/practicalEntryStatus";
 import {sandboxQualificationEvidenceFingerprint} from "../server/sandboxQualificationFingerprint";
 import {createTdSandboxQualificationReview} from "../server/sandboxQualificationReview";
 import {diagnosisScheduledSessionQuery} from "../server/diagnosisScheduledSessionQuery";
+import {authorizeDiagnosisContinuation} from "../server/diagnosisContinuation";
+import {createEvidenceCompleteDiagnosisState,evaluateEvidenceCompleteDiagnosis} from "../shared/evidenceCompleteDiagnosis";
 
 // Synthetic storage-contract integration only. Never connect to Proof or Production.
 // Native source fixtures below are explicitly authored test records, not user qualification.
@@ -53,7 +55,7 @@ const tables=[
  ["public.specialist_sandbox_rediagnosis_turns","id varchar PRIMARY KEY,tutor_assignment_id varchar,tutor_id varchar,trajectory_id varchar,student_id varchar,rediagnosis_run_id varchar,phase varchar,probe_id varchar,student_behavior text,condition_conformed boolean,observation_exact boolean,authority_aligned boolean,completed_at timestamptz"],
  ["private.specialist_sandbox_rediagnosis_turn_truth","rediagnosis_turn_id varchar PRIMARY KEY,outcome_key varchar,outcome_version int,trajectory_class varchar,canonical_observations jsonb"],
  ["public.session_billing_events","session_id varchar,metadata jsonb,actor_id varchar,is_sandbox boolean,event_type varchar,created_at timestamptz"],
- ["public.response_integrity_diagnosis_runs","id varchar PRIMARY KEY,tutor_id varchar,student_id varchar,status varchar,session_context varchar,probe_history jsonb"],
+ ["public.response_integrity_diagnosis_runs","id varchar PRIMARY KEY,tutor_id varchar,student_id varchar,status varchar,session_context varchar,probe_history jsonb,decision jsonb"],
  ["public.scheduled_sessions","id varchar PRIMARY KEY,tutor_id varchar,student_id varchar,type varchar,status varchar"],
  ["public.intro_session_drills","id varchar PRIMARY KEY,tutor_id varchar,student_id varchar,scheduled_session_id varchar,drill jsonb,submitted_at timestamptz"],
 ];
@@ -195,6 +197,18 @@ try{
  for(const phase of phases)assert.equal(qualified.status.phaseCounts[phase],2);
  assert.equal(evaluateSandboxQualification(qualified.loaded.events,{activated:false}).qualificationReady,false);
  console.log("JOURNEY_PERSISTED_EIGHT_CLEAN_PHASE_BALANCED=PASS");
+ await db.query("BEGIN");
+ try {
+  await db.query("UPDATE public.specialist_sandbox_rediagnosis_runs SET status='blocked',specialist_decision='{\"complete\":false}'::jsonb WHERE id='ci-rediagnosis-1'");
+  await db.query("UPDATE private.specialist_sandbox_rediagnosis_truth SET canonical_decision='{\"complete\":false}'::jsonb WHERE rediagnosis_run_id='ci-rediagnosis-1'");
+  const pending=await project();
+  assert.equal(pending.status.qualificationReady,false);
+  assert.equal(pending.status.pendingPlacements,1);
+  assert.deepEqual(pending.status.technicalBlockers,[]);
+ } finally { await db.query("ROLLBACK"); }
+ assert.equal((await project()).status.qualificationReady,true);
+ console.log("JOURNEY_PENDING_PLACEMENT_SEPARATE_FROM_INVALID_EVIDENCE=PASS");
+
  // Live native storage also JSON-encodes the drill inside its JSONB column.
  // The completed source join must accept it without changing stored history.
  await db.query("BEGIN");
@@ -307,8 +321,22 @@ try{
    const denied=diagnosisScheduledSessionQuery({...identities,scheduledSessionId,tutorId:"44444444-4444-4444-8444-444444444444"});
    assert.equal((await db.query(denied.text,denied.values)).rows.length,0);
   }
+  const nextId="55555555-5555-4555-8555-555555555555";
+  await db.query("INSERT INTO public.scheduled_sessions VALUES ($1,$2,$3,'training','confirmed',now()+interval '1 day',now())",[nextId,identities.tutorId,identities.studentId]);
+  const paused={...evaluateEvidenceCompleteDiagnosis(createEvidenceCompleteDiagnosisState("Clarity")),nextProbeId:null,
+    continuation:{nextProbeId:"clarity.recognition" as const,parentMessage:"Next session checks recognition."}};
+  const continuation={tutorId:identities.tutorId,studentId:identities.studentId,scheduledSessionId:nextId,
+    context:{legacyPrefixLength:0,sessions:[{scheduledSessionId:identities.scheduledSessionId,startProbeIndex:0}]},historyLength:2,decision:paused};
+  const continued=await authorizeDiagnosisContinuation(continuation,db);
+  assert.equal(continued.sessions[1].scheduledSessionId,nextId);
+  assert.equal(continued.sessions[1].startProbeIndex,2);
+  await assert.rejects(authorizeDiagnosisContinuation({...continuation,scheduledSessionId:identities.scheduledSessionId},db),/cannot be reset/);
+  await assert.rejects(authorizeDiagnosisContinuation({...continuation,tutorId:"44444444-4444-4444-8444-444444444444"},db),/later confirmed lesson/);
+  await db.query("UPDATE public.scheduled_sessions SET status='cancelled' WHERE id=$1",[nextId]);
+  await assert.rejects(authorizeDiagnosisContinuation(continuation,db),/later confirmed lesson/);
  } finally { await db.query("ROLLBACK"); }
  console.log("NATIVE_DIAGNOSIS_SCHEDULED_UUID_BINDINGS_AND_OWNERSHIP=PASS");
+ console.log("DIAGNOSIS_CONTINUATION_UUID_BINDING_AND_OWNERSHIP=PASS");
  console.log("SYNTHETIC_POSTGRES_QUALIFICATION_PIPELINE=PASS");
  console.log("LIVE_NATIVE_JOURNEY_ACCEPTANCE=NOT_RUN");
 }finally{await db.end();}

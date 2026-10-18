@@ -265,3 +265,10 @@ active runs. No observations were submitted to that replacement. Episode selecti
 preserves the current session's blocked run ahead of a newer empty active run. Both rows
 and all earlier evidence remain intact; no retry or score is fabricated. Qualification
 cannot be claimed while the approved all-history policy reports this unresolved evidence.
+
+
+### 18 October approved decision-policy correction
+
+The founder clarified that mixed clean performance is evidence of instability and session limits cannot create dead ends. Decision policy 2 removes the absorbing supported/unsupported conflict. Missing or contaminated evidence receives a specific continuation prescription after the current session budget; a later confirmed owned booking resumes the same history with server-controlled boundaries. This does not invent a placement, baseline, timer, clean session or TD approval.
+
+The existing five-probe Student 4 episode will be re-evaluated from its saved observations through an explicit native result application, preserving its previous decision. Its 23 observations and all earlier evidence must remain intact. Deployed application and public-row readback remain required. Valid placement-pending records are no longer labeled technically invalid, but continue to prevent readiness until their native run completes. Missing truth and broken identity remain technical blockers.

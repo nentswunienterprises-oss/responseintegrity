@@ -110,7 +110,14 @@ const CROSS_MODE=[
  "      WHERE native_probe->>'probeId'=r.probe_id",
  "      AND native_probe->'observations'=r.specialist_submission->'observations'",
  "      AND COALESCE(native_probe->>'supportEvent','none')=r.specialist_submission->>'supportEvent')",
- ") THEN true ELSE false END AS native_proof_verified",
+ ") THEN true ELSE false END AS native_proof_verified,",
+ "EXISTS (SELECT 1 FROM public.response_integrity_diagnosis_runs pending",
+ " WHERE r.scope='diagnosis' AND pending.id::text=r.source_context_id",
+ " AND pending.tutor_id::text=r.tutor_id::text AND pending.student_id::text=r.student_id::text",
+ " AND pending.status IN ('in_progress','blocked') AND pending.decision->>'complete'='false'",
+ " AND EXISTS (SELECT 1 FROM jsonb_array_elements(pending.probe_history) p",
+ " WHERE p->>'probeId'=r.probe_id AND p->'observations'=r.specialist_submission->'observations'",
+ " AND COALESCE(p->>'supportEvent','none')=r.specialist_submission->>'supportEvent')) AS native_placement_pending",
  "FROM public.specialist_sandbox_live_evidence_turns r",
  "JOIN public.specialist_sandbox_trajectories tr ON tr.id=r.trajectory_id",
  "LEFT JOIN private.specialist_sandbox_trajectory_truth hidden ON hidden.trajectory_id=r.trajectory_id",
@@ -265,6 +272,8 @@ export async function loadSandboxQualificationEvidence(
     specialistDecision.placementPhase===canonicalDecision.placementPhase &&
     specialistDecision.stability===canonicalDecision.stability;
   item.complete=item.technicallyValid&&runAligned;
+  item.placementPending=item.technicallyValid && ["active","blocked"].includes(r.rediagnosis_status) &&
+    specialistDecision?.complete===false && canonicalDecision?.complete===false;
   item.conditionKept=r.condition_conformed===true;item.observationExact=r.observation_exact===true;
   item.evidenceExact=item.observationExact;item.authorityAligned=r.authority_aligned===true&&runAligned;
   item.stateAligned=item.authorityAligned;
@@ -297,6 +306,7 @@ export async function loadSandboxQualificationEvidence(
       nativeHandoverRepMatches(r.native_handover_sets,r.specialist_submission,Number(r.sequence_number));
   if (nativeVerified) item.sourceId=[r.id,r.scope==="diagnosis"?r.source_context_id:r.native_handover_drill_id].join(":");
   item.complete=item.technicallyValid&&nativeVerified;
+  item.placementPending=item.technicallyValid&&r.scope==="diagnosis"&&r.native_placement_pending===true;
   item.conditionKept=r.condition_conformed===true;item.observationExact=r.observation_exact===true;
   item.evidenceExact=item.observationExact;item.authorityAligned=nativeVerified;
   item.stateAligned=item.authorityAligned;

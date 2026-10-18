@@ -12,6 +12,8 @@ import {
 import {
   prepareSandboxLiveEvidenceSimulation,
   prepareSandboxRediagnosis,
+  resolveSandboxRecordedDiagnosis,
+  continueSandboxDiagnosis,
   submitSandboxLiveEvidenceSimulation,
   submitSandboxRediagnosisProbe,
 } from "../sandboxRediagnosis";
@@ -133,6 +135,7 @@ const sandboxLiveEvidenceSubmissionSchema = z.object({
 const rediagnosisSubmissionSchema = z.object({
   tutorAssignmentId: z.string().trim().min(1),
   studentId: z.string().trim().min(1),
+  scheduledSessionId: z.string().trim().uuid().optional(),
   bankVersion: z.number().int().positive(),
   trajectoryId: z.string().trim().min(1),
   rediagnosisRunId: z.string().trim().min(1),
@@ -271,6 +274,7 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
       });
       if (environment.status === "targeted_rediagnosis_required") {
         const rediagnosis = await prepareSandboxRediagnosis({
+          scheduledSessionId,
           tutorAssignmentId,
           tutorId: String(user.id),
           studentId,
@@ -355,12 +359,24 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
   });
 
 
+  for (const [action, handler] of [["resolve", resolveSandboxRecordedDiagnosis], ["continue", continueSandboxDiagnosis]] as const) {
+    app.post(`/api/tutor/sandbox-environment/rediagnosis/${action}`, isAuthenticated, async (req, res) => {
+      try {
+        const user = requireSpecialist(req, res); if (!user) return;
+        const payload = z.object({ tutorAssignmentId: z.string().min(1), studentId: z.string().min(1),
+          rediagnosisRunId: z.string().uuid(), scheduledSessionId: z.string().uuid() }).strict().parse(req.body);
+        return res.json(await handler({ ...payload, tutorId: String(user.id) }));
+      } catch (error) { return sendError(res, error, "The prescribed diagnosis continuation could not be applied."); }
+    });
+  }
+
   app.post("/api/tutor/sandbox-environment/rediagnosis", isAuthenticated, async (req, res) => {
     try {
       const user = requireSpecialist(req, res);
       if (!user) return;
       const payload = rediagnosisSubmissionSchema.parse(req.body);
       const result = await submitSandboxRediagnosisProbe({
+        scheduledSessionId: payload.scheduledSessionId,
         tutorAssignmentId: payload.tutorAssignmentId,
         tutorId: String(user.id),
         studentId: payload.studentId,

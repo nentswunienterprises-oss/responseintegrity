@@ -63,3 +63,16 @@ test("later linked evidence cannot manufacture an older missing student identity
  assert.ok(result.technicalBlockers.includes("Missing source identity or chronology"));
  assert.equal(older.studentId,"");
 });
+
+test("valid placement pending does not poison future qualification or establish coverage",()=>{
+ const a=coverage(), f=final(a.length+1);
+ const pending=event(0,{mode:"targeted_rediagnosis",complete:false,placementPending:true});
+ const result=evaluateSandboxQualification([pending,...a,...f],{activated:true});
+ assert.equal(result.qualificationReady,false);
+ assert.deepEqual(result.technicalBlockers,[]);
+ assert.equal(result.pendingPlacements,1);
+ assert.equal(evaluateSandboxQualification([{...pending,complete:true,placementPending:false},...a,...f],{activated:true}).qualificationReady,true);
+ assert.equal(evaluateSandboxQualification([pending],{activated:true}).developmentCoverageReady,false);
+ assert.equal(evaluateSandboxQualification([{...pending,canonicalPresent:false},...a,...f],{activated:true}).qualificationReady,false);
+ assert.equal(evaluateSandboxQualification([{...pending,studentId:""},...a,...f],{activated:true}).qualificationReady,false);
+});

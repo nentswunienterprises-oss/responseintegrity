@@ -144,7 +144,9 @@ type EnvironmentForm = {
     | "session_complete"
     | "targeted_rediagnosis_required"
     | "rediagnosis_probe_ready"
-    | "rediagnosis_blocked";
+    | "rediagnosis_blocked"
+    | "rediagnosis_resolution_ready";
+  canContinue?: boolean;
   prescribedPhase: string;
   prescribedStability: string;
   targetPhase?: string | null;
@@ -560,6 +562,21 @@ export default function SpecialistSandboxSimulation({
     });
   };
 
+  const applyDiagnosisRoute = useMutation({
+    mutationFn: async (action: "resolve" | "continue") => {
+      const response = await apiRequest("POST", `/api/tutor/sandbox-environment/rediagnosis/${action}`, {
+        tutorAssignmentId, studentId, rediagnosisRunId: form?.rediagnosisRunId, scheduledSessionId,
+      });
+      return response.json();
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["sandbox-environment", tutorAssignmentId, studentId] }),
+        queryClient.invalidateQueries({ queryKey: ["sandbox-environment-history", tutorAssignmentId, studentId] }),
+      ]);
+    },
+  });
+
   const submitDiagnosisProbe = useMutation({
     mutationFn: async () => {
       if (
@@ -582,6 +599,7 @@ export default function SpecialistSandboxSimulation({
           studentId,
           bankVersion: form.bankVersion,
           trajectoryId: form.trajectoryId,
+          scheduledSessionId,
           rediagnosisRunId: form.rediagnosisRunId,
           sequenceNumber: form.sequenceNumber,
           turnFormId: form.turnFormId,
@@ -1094,14 +1112,19 @@ export default function SpecialistSandboxSimulation({
               </Alert>
             )}
           </>
-        ) : form.status === "rediagnosis_blocked" ? (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              {form.reason ||
-                "The permitted clean diagnosis probes did not resolve the simulated prerequisite. Training remains paused rather than guessing a placement."}
-            </AlertDescription>
-          </Alert>
+        ) : form.status === "rediagnosis_blocked" || form.status === "rediagnosis_resolution_ready" ? (
+          <Card>
+            <CardHeader><CardTitle>{form.status === "rediagnosis_resolution_ready" ? "Recorded diagnosis result ready" : "Continue evidence gathering next session"}</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <p>{form.reason}</p>
+              {form.status === "rediagnosis_resolution_ready" ? (
+                <Button disabled={applyDiagnosisRoute.isPending} onClick={() => applyDiagnosisRoute.mutate("resolve")}>Apply recorded diagnosis result</Button>
+              ) : form.canContinue ? (
+                <Button disabled={applyDiagnosisRoute.isPending} onClick={() => applyDiagnosisRoute.mutate("continue")}>Continue in this confirmed lesson</Button>
+              ) : <Button onClick={() => navigate("/specialist/sessions")}>Open Sessions for the next confirmed lesson</Button>}
+              {applyDiagnosisRoute.error && <p role="alert">{applyDiagnosisRoute.error instanceof Error ? applyDiagnosisRoute.error.message : "The diagnosis route could not be applied."}</p>}
+            </CardContent>
+          </Card>
         ) : form.status === "targeted_rediagnosis_required" ? (
           <Alert>
             <ShieldCheck className="h-4 w-4" />
@@ -1689,19 +1712,17 @@ export default function SpecialistSandboxSimulation({
               </Alert>
             )}
           </>
-        ) : form.status === "rediagnosis_blocked" ? (
+        ) : form.status === "rediagnosis_blocked" || form.status === "rediagnosis_resolution_ready" ? (
           <Card>
-            <CardHeader>
-              <CardTitle>Targeted re-diagnosis requires evidence review</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  {form.reason ||
-                    "The permitted clean diagnosis probes did not resolve the simulated prerequisite. Training remains paused rather than guessing a placement."}
-                </AlertDescription>
-              </Alert>
+            <CardHeader><CardTitle>{form.status === "rediagnosis_resolution_ready" ? "Recorded diagnosis result ready" : "Continue evidence gathering next session"}</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <p>{form.reason}</p>
+              {form.status === "rediagnosis_resolution_ready" ? (
+                <Button disabled={applyDiagnosisRoute.isPending} onClick={() => applyDiagnosisRoute.mutate("resolve")}>Apply recorded diagnosis result</Button>
+              ) : form.canContinue ? (
+                <Button disabled={applyDiagnosisRoute.isPending} onClick={() => applyDiagnosisRoute.mutate("continue")}>Continue in this confirmed lesson</Button>
+              ) : <Button onClick={() => navigate("/specialist/sessions")}>Open Sessions for the next confirmed lesson</Button>}
+              {applyDiagnosisRoute.error && <p role="alert">{applyDiagnosisRoute.error instanceof Error ? applyDiagnosisRoute.error.message : "The diagnosis route could not be applied."}</p>}
             </CardContent>
           </Card>
         ) : form.status === "targeted_rediagnosis_required" ? (

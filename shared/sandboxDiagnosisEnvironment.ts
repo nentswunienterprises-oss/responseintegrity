@@ -421,12 +421,14 @@ export function buildSandboxDiagnosisProbeResult(input: {
 export function rebuildSandboxDiagnosisState(input: {
   startingPhase: TopicPhase;
   history: DiagnosisProbeResult[];
+  sessionStartProbeIndex?: number;
   inheritedTimingBaselineSeconds?: number | null;
 }): EvidenceCompleteDiagnosisState {
   let state = createEvidenceCompleteDiagnosisState(
     input.startingPhase,
     input.inheritedTimingBaselineSeconds || null,
   );
+  state.sessionStartProbeIndex = input.sessionStartProbeIndex || 0;
   for (const result of input.history) {
     state = recordEvidenceCompleteDiagnosisProbe(state, result);
   }

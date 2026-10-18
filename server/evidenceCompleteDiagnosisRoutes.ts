@@ -1,4 +1,5 @@
 import type { Express, Request, Response } from "express";
+import { diagnosisContinuationContext, diagnosisDecisionWithContext, authorizeDiagnosisContinuation } from "./diagnosisContinuation";
 import { isAuthenticated } from "./supabaseAuth";
 import { storage, supabase } from "./storage";
 import { pool } from "./db";
@@ -1016,6 +1017,19 @@ const responseForReplay = (
 };
 
 export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
+  app.get("/api/tutor/evidence-complete-diagnosis/pending", isAuthenticated, async (req, res) => {
+    try {
+      const tutorId = requireTutor(req, res); if (!tutorId) return;
+      const studentId = String(req.query.studentId || "").trim();
+      const topic = String(req.query.topic || "").trim();
+      if (!studentId || !topic) return res.status(400).json({ message: "Student and topic are required." });
+      const result = await pool.query(`SELECT id, starting_phase FROM ${RUN_TABLE}
+        WHERE tutor_id::text=$1 AND student_id::text=$2 AND lower(topic)=lower($3)
+          AND status IN ('in_progress','blocked') ORDER BY created_at ASC LIMIT 1`, [tutorId,studentId,topic]);
+      return res.json({ runId: result.rows[0]?.id || null, startingPhase: result.rows[0]?.starting_phase || null });
+    } catch (error) { return res.status(500).json({ message: "The pending diagnosis could not be restored." }); }
+  });
+
   app.get(
     "/api/tutor/evidence-complete-diagnosis/:runId",
     isAuthenticated,
@@ -1032,7 +1046,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           return res.status(403).json({ message: "Diagnosis run does not belong to this specialist" });
         }
 
-        if (run.status === "completed" && run.timing_policy_version !== 1) {
+        if (run.status === "completed") {
           return res.json(responseForLegacyCompletedRun(run));
         }
 
@@ -1047,6 +1061,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           run.starting_phase,
           history,
           boundContract?.baselineSeconds ?? boundTimingBaselineSeconds(run),
+          (() => { const context = diagnosisContinuationContext(parseJsonValue(run.decision, null), history.length, run.scheduled_session_id || null); return { legacyPrefixLength: context.legacyPrefixLength, sessionStarts: context.sessions.map(s => s.startProbeIndex) }; })(),
         );
         if (replay.ok === false) {
           return res.status(409).json({ message: `Stored diagnosis evidence is invalid: ${replay.error}` });
@@ -1055,7 +1070,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
         return res.json(responseForReplay(
           run.id,
           replay,
-          run.status === "completed",
+          false,
           run.source_drill_id,
           boundContract?.contractId || run.timing_authority_contract_id || null,
         ));
@@ -1116,6 +1131,16 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
         }
 
         const existingRun = await loadDiagnosisRun(runId);
+        if (!existingRun) {
+          const pending = await pool.query(`SELECT id FROM ${RUN_TABLE} WHERE tutor_id::text=$1 AND student_id::text=$2
+            AND lower(topic)=lower($3) AND status IN ('in_progress','blocked') AND id<>$4 ORDER BY created_at ASC LIMIT 1`, [tutorId,studentId,topic,runId]);
+          if (pending.rows[0]) return res.status(409).json({ message: "Resume the existing diagnosis and its preserved evidence before starting another run.", runId: pending.rows[0].id });
+        }
+        const storedHistoryForReplay = existingRun ? parseJsonValue<DiagnosisProbeResult[]>(existingRun.probe_history, []) : [];
+        const previousDecision = existingRun ? parseJsonValue<any>(existingRun.decision, null) : null;
+        let continuationContext = diagnosisContinuationContext(previousDecision, storedHistoryForReplay.length, existingRun?.scheduled_session_id || scheduledSessionId);
+        const currentSessionId = continuationContext.sessions.at(-1)?.scheduledSessionId || null;
+        const continuingInNewSession = !!existingRun && !!scheduledSessionId && scheduledSessionId !== currentSessionId;
         if (existingRun) {
           const identityMismatch =
             String(existingRun.student_id) !== studentId ||
@@ -1125,21 +1150,14 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           if (identityMismatch) {
             return res.status(409).json({ message: "Diagnosis run identity cannot be reassigned" });
           }
-          if (
-            scheduledSessionId &&
-            existingRun.scheduled_session_id &&
-            String(existingRun.scheduled_session_id) !== scheduledSessionId
-          ) {
-            return res.status(409).json({ message: "Diagnosis run session lineage cannot be reassigned" });
+          if (existingRun.status === "completed" && scheduledSessionId && scheduledSessionId !== currentSessionId) {
+            return res.status(409).json({ message: "A completed diagnosis cannot be reassigned to another lesson." });
           }
           const submittedContext = String(req.body?.sessionContextKind || "").trim().toLowerCase();
-          if (
-            submittedContext &&
-            ((existingRun.session_context === "active_training" && submittedContext !== "training") ||
-              (existingRun.session_context === "handover_verification" && submittedContext !== "handover") ||
-              (existingRun.session_context === "intro" && submittedContext !== "intro"))
-          ) {
-            return res.status(409).json({ message: "Diagnosis run session context cannot be reassigned" });
+          const expectedContext = continuationContext.sessions.at(-1)?.sessionKind ||
+            (existingRun.session_context === "active_training" ? "training" : existingRun.session_context === "handover_verification" ? "handover" : "intro");
+          if (submittedContext && !continuingInNewSession && submittedContext !== expectedContext) {
+            return res.status(409).json({ message: "Diagnosis session context cannot be reassigned." });
           }
 
           if (existingRun.status === "completed") {
@@ -1154,34 +1172,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
                 completedAt: existingRun.completed_at || null,
               });
             }
-            if (existingRun.timing_policy_version !== 1) {
-              return res.json(responseForLegacyCompletedRun(existingRun));
-            }
-            const storedHistory = parseJsonValue<DiagnosisProbeResult[]>(existingRun.probe_history, []);
-            const completedBoundContract = await resolveBoundTimingAuthority({
-              run: existingRun,
-              studentId,
-              topic,
-              startingPhase,
-            });
-            const storedReplay = replayEvidenceCompleteDiagnosis(
-              existingRun.starting_phase,
-              storedHistory,
-              completedBoundContract?.baselineSeconds ??
-                boundTimingBaselineSeconds(existingRun),
-            );
-            if (storedReplay.ok === false) {
-              return res.status(409).json({ message: "Completed diagnosis evidence is internally inconsistent" });
-            }
-            return res.json(responseForReplay(
-              runId,
-              storedReplay,
-              true,
-              existingRun.source_drill_id || runId,
-              completedBoundContract?.contractId ||
-                existingRun.timing_authority_contract_id ||
-                null,
-            ));
+            return res.json(responseForLegacyCompletedRun(existingRun));
           }
         }
 
@@ -1191,11 +1182,22 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           topic,
           startingPhase,
         });
+        if (continuingInNewSession) {
+          const prior = replayEvidenceCompleteDiagnosis(startingPhase, storedHistoryForReplay,
+            preexistingTimingContract?.baselineSeconds ?? boundTimingBaselineSeconds(existingRun),
+            { legacyPrefixLength: continuationContext.legacyPrefixLength, sessionStarts: continuationContext.sessions.map(s => s.startProbeIndex) });
+          if (prior.ok === false) return res.status(409).json({ message: prior.error });
+          // Opening a new lesson does not append a response or manufacture a placement.
+          if (!prior.decision.complete) continuationContext = await authorizeDiagnosisContinuation({ tutorId, studentId,
+            scheduledSessionId: scheduledSessionId!, context: continuationContext,
+            historyLength: storedHistoryForReplay.length, decision: prior.decision }, pool);
+        }
         const replay = replayEvidenceCompleteDiagnosis(
           startingPhase,
           req.body?.probeHistory || [],
           preexistingTimingContract?.baselineSeconds ??
             boundTimingBaselineSeconds(existingRun),
+          { legacyPrefixLength: continuationContext.legacyPrefixLength, sessionStarts: continuationContext.sessions.map(s => s.startProbeIndex) },
         );
         if (replay.ok === false) {
           return res.status(400).json({
@@ -1258,9 +1260,9 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           boundTimingBaselineSeconds(existingRun);
 
         const effectiveScheduledSessionId =
-          String(existingRun?.scheduled_session_id || scheduledSessionId || "").trim() || null;
+          String(continuationContext.sessions.at(-1)?.scheduledSessionId || existingRun?.scheduled_session_id || scheduledSessionId || "").trim() || null;
         const effectiveRequestedKind =
-          existingRun?.session_container === "handover_session" ||
+          continuationContext.sessions.length > 1 ? (continuationContext.sessions.at(-1)?.sessionKind || requestedKind) : existingRun?.session_container === "handover_session" ||
           existingRun?.session_context === "handover_verification"
             ? "handover" as const
             : existingRun?.session_container === "scheduled_training_session" ||
@@ -1293,11 +1295,11 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           tutorId,
           topic,
           startingPhase,
-          scheduledSessionId: sessionResult.scheduledSessionId,
-          sessionContext: sessionResult.sessionContext,
+          scheduledSessionId: existingRun?.scheduled_session_id || sessionResult.scheduledSessionId,
+          sessionContext: existingRun?.session_context || sessionResult.sessionContext,
           status: runStatus,
           probeHistory: replay.state.probeHistory,
-          decision: replay.decision as unknown as Record<string, unknown>,
+          decision: diagnosisDecisionWithContext(replay.decision, continuationContext, previousDecision),
           timingPolicyVersion: 1,
           timingAuthorityContractId: effectiveTimingContractId,
           timingAuthorityBaselineSeconds: effectiveTimingBaselineSeconds,
@@ -1333,11 +1335,11 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           tutorId,
           topic,
           startingPhase,
-          scheduledSessionId: sessionResult.scheduledSessionId,
-          sessionContext: sessionResult.sessionContext,
+          scheduledSessionId: existingRun?.scheduled_session_id || sessionResult.scheduledSessionId,
+          sessionContext: existingRun?.session_context || sessionResult.sessionContext,
           status: "completed",
           probeHistory: replay.state.probeHistory,
-          decision: replay.decision as unknown as Record<string, unknown>,
+          decision: diagnosisDecisionWithContext(replay.decision, continuationContext, previousDecision),
           sourceDrillId: runId,
           completedAt: finalized.observedAt,
           timingPolicyVersion: 1,
@@ -1370,7 +1372,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
         });
       } catch (error) {
         console.error("[EVIDENCE_DIAGNOSIS] submission failed", error);
-        return res.status(500).json({
+        return res.status((error as any)?.status || 500).json({
           message: error instanceof Error ? error.message : "Failed to process diagnosis evidence",
         });
       }

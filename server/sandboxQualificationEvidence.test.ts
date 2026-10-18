@@ -102,8 +102,8 @@ test("native Diagnosis SQL projection has one legal column terminator before FRO
  }};
  await loadSandboxQualificationEvidence({tutorAssignmentId:"assignment",tutorId:"specialist"},spy);
  assert.ok(projection);
- assert.match(projection!,/END AS native_proof_verified\s+FROM public\.specialist_sandbox_live_evidence_turns/);
- assert.doesNotMatch(projection!,/native_proof_verified,\s+FROM/);
+ assert.match(projection!,/AS native_placement_pending\s+FROM public\.specialist_sandbox_live_evidence_turns/);
+ assert.doesNotMatch(projection!,/native_placement_pending,\s+FROM/);
 });
 
 test("targeted re-diagnosis cannot count a clean probe as completed mode before final canonical placement",async()=>{

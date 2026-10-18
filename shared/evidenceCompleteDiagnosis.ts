@@ -138,6 +138,9 @@ export type DiagnosisPhaseSupportEvidence = {
 };
 
 export type EvidenceCompleteDiagnosisState = {
+  /** Attempt budgets apply to this session; earlier evidence is retained. */
+  sessionStartProbeIndex?: number;
+  decisionPolicyVersion?: 1 | 2;
   recommendedStartingPhase: TopicPhase | null;
   inheritedTimingBaselineSeconds: number | null;
   evidence: DiagnosisEvidenceEvent[];
@@ -153,6 +156,8 @@ export type DiagnosisTimingBaselineStatus = {
 };
 
 export type EvidenceCompleteDiagnosisDecision = {
+  decisionPolicyVersion?: 1 | 2;
+  continuation?: { nextProbeId: DiagnosisProbeId; parentMessage: string };
   complete: boolean;
   placementPhase: TopicPhase | null;
   stability: Exclude<TopicStability, "High Maintenance"> | null;
@@ -639,6 +644,7 @@ export function recordEvidenceCompleteDiagnosisProbe(
 function dimensionState(
   dimensionId: DiagnosisDimensionId,
   evidence: DiagnosisEvidenceEvent[],
+  policyVersion: 1 | 2 = 2,
 ): DiagnosisDimensionState {
   const definition = DIAGNOSIS_OBSERVATION_MATRIX[dimensionId];
   const all = evidence.filter((event) => event.dimensionId === dimensionId);
@@ -655,7 +661,7 @@ function dimensionState(
   const conflict = supportedCount > 0 && unsupportedCount > 0;
 
   let status: DiagnosisEvidenceStatus = "unresolved";
-  if (conflict) {
+  if (conflict && policyVersion === 1) {
     status = "unresolved";
   } else if (unsupportedCount > 0) {
     status = "unsupported";
@@ -716,8 +722,9 @@ export function getDiagnosisPhaseSupportEvidence(
 function phaseState(
   phase: TopicPhase,
   evidence: DiagnosisEvidenceEvent[],
+  policyVersion: 1 | 2 = 2,
 ): DiagnosisPhaseState {
-  const dimensions = BY_PHASE[phase].map((id) => dimensionState(id, evidence));
+  const dimensions = BY_PHASE[phase].map((id) => dimensionState(id, evidence, policyVersion));
   let status: DiagnosisEvidenceStatus = "unresolved";
 
   if (dimensions.some((item) => item.status === "unsupported")) {
@@ -812,10 +819,16 @@ function safeNextProbe(
   state: EvidenceCompleteDiagnosisState,
   proposed: DiagnosisProbeId,
 ): DiagnosisProbeId | null {
-  const used = state.probeHistory.filter(
-    (item) => item.probeId === proposed && !contaminated(item.supportEvent || "none"),
+  if (state.decisionPolicyVersion === 1) {
+    const used = state.probeHistory.filter(item => item.probeId === proposed && !contaminated(item.supportEvent || "none")).length;
+    return used < DIAGNOSIS_PROBES[proposed].maxCleanAttempts ? proposed : null;
+  }
+  const session = state.probeHistory.slice(state.sessionStartProbeIndex || 0);
+  const used = session.filter(
+    (item) => item.probeId === proposed,
   ).length;
-  return used < DIAGNOSIS_PROBES[proposed].maxCleanAttempts ? proposed : null;
+  // Invalid/assisted attempts cannot permit unbounded testing in one session.
+  return session.length < 12 && used < DIAGNOSIS_PROBES[proposed].maxCleanAttempts ? proposed : null;
 }
 
 function nextBaselineMeasurementProbe(
@@ -894,13 +907,15 @@ function unsupportedReason(
 export function evaluateEvidenceCompleteDiagnosis(
   state: EvidenceCompleteDiagnosisState,
 ): EvidenceCompleteDiagnosisDecision {
-  const phaseStates = PHASES.map((phase) => phaseState(phase, state.evidence));
+  const policyVersion = state.decisionPolicyVersion || 2;
+  const phaseStates = PHASES.map((phase) => phaseState(phase, state.evidence, policyVersion));
   const cleanProbeCount = state.probeHistory.filter(
     (item) => !contaminated(item.supportEvent || "none"),
   ).length;
   const contaminatedProbeCount = state.probeHistory.length - cleanProbeCount;
   const timingBaseline = getDiagnosisTimingBaselineStatus(state);
   const base = {
+    decisionPolicyVersion: policyVersion,
     phaseStates,
     cleanProbeCount,
     contaminatedProbeCount,
@@ -952,7 +967,8 @@ export function evaluateEvidenceCompleteDiagnosis(
         nextProbeId,
         reason: nextProbeId
           ? `${phase} cannot be interpreted yet because ${firstEarlierNotSupported.phase} is not cleanly supported. The system is stripping constraints or requesting the smallest confirmation needed to resolve that earlier layer.`
-          : `${firstEarlierNotSupported.phase} remains unresolved after the permitted clean probes. Do not guess a placement; block for evidence review.`,
+          : `${firstEarlierNotSupported.phase} remains unresolved after the permitted clean probes. Do not guess a placement. Continue the named evidence question at the next confirmed session.`,
+        ...(!nextProbeId ? { continuation: { nextProbeId: resolutionProbe(firstEarlierNotSupported.phase, firstEarlierNotSupported), parentMessage: "We need another focused observation before confirming the starting point. The next session will check the earlier response layer without added pressure." } } : {}),
         placementEvidence: [],
       };
     }
@@ -972,7 +988,8 @@ export function evaluateEvidenceCompleteDiagnosis(
         nextProbeId,
         reason: nextProbeId
           ? `Structured Execution is cleanly supported, but individualized timing authority is still incomplete (${timingBaseline.sampleCount}/${timingBaseline.requiredSampleCount} clean comparable independent executions). The next untimed opportunity exists only to complete that diagnosis-readiness question before above-Structured-Execution placement or timed evidence can be authoritative.`
-          : "Structured Execution is supported but individualized timing authority remains incomplete after the permitted clean comparable opportunities. Do not invent a timer or finalize an above-Structured-Execution placement; block for evidence review.",
+          : "Structured Execution is supported but individualized timing authority remains incomplete after the permitted clean comparable opportunities. Do not invent a timer or finalize placement. Continue untimed baseline collection at the next confirmed session.",
+        ...(!nextProbeId ? { continuation: { nextProbeId: "execution.repeatability" as const, parentMessage: "We need more comparable independent execution to set an individual timing reference. The next session will begin without time pressure." } } : {}),
         placementEvidence: [],
       };
     }
@@ -1003,7 +1020,8 @@ export function evaluateEvidenceCompleteDiagnosis(
         nextProbeId,
         reason: nextProbeId
           ? `${phase} is still ${current.status}. The next probe exists only to answer the remaining behavioral evidence question.`
-          : `${phase} remains ${current.status} after the permitted clean probes. Do not convert missing or contaminated evidence into a score; block for evidence review.`,
+          : `${phase} remains ${current.status} after the permitted clean probes. Do not convert missing or contaminated evidence into a score. Continue the named evidence question at the next confirmed session.`,
+        ...(!nextProbeId ? { continuation: { nextProbeId: resolutionProbe(phase, current), parentMessage: "We need another focused observation before confirming the starting point. The next session will address the remaining response question." } } : {}),
         placementEvidence: [],
       };
     }

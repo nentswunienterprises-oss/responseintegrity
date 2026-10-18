@@ -75,7 +75,7 @@ type SandboxQualificationReview = {
     policyId:string;policyVersion:number;activated:boolean;
     developmentCoverageReady:boolean;qualificationReady:boolean;
     qualifyingSessions:number;requiredSessions:number;
-    technicalBlockers:string[];materialErrorsSinceCoverage:number;
+    technicalBlockers:string[];materialErrorsSinceCoverage:number;pendingPlacements?:number;
     reason:string;requirements:Array<{
       key:string;required:number;encountered:number;correct:number;distinctCorrect:number;
       priorErrors:number;recoveredAfterError:boolean;met:boolean;
@@ -330,6 +330,7 @@ export function SandboxReadinessAssessmentCard({
                   Policy v{coverageReview.qualification.policyVersion}.
                   {coverageReview.qualification.activated ? " Controlled activation on." : " Production qualification inactive."}
                 </p>
+                {!!coverageReview.qualification.pendingPlacements && <p className="text-xs" role="status">Evidence gathering is pending. Resume the prescribed Diagnosis or re-diagnosis through the next confirmed lesson before readiness can be established.</p>}
                 {coverageReview.sourceGaps.length > 0 ? <p className="text-xs text-destructive">
                   Unresolved evidence sources: {coverageReview.sourceGaps.join("; ")}
                 </p> : null}

@@ -351,3 +351,37 @@ test("canonical evidence comparison ignores jsonb object-key reordering but pres
     }),
   );
 });
+
+test("persisted pre-fix mixed episode can resolve without discarding later historical observations",()=>{
+ const history=[
+  full("clarity.recognition",claritySupported),
+  full("stack.normal_independent",{...claritySupported,...executionImmediateSupported}),
+  full("execution.repeatability",{...executionSupported,"execution.start":"guessing_or_disordered_start"}),
+  full("execution.repeatability",executionSupported),
+  full("execution.repeatability",{...executionSupported,"execution.start":"valid_start_after_hesitation","execution.repeatability":"repeat_with_minor_drift"}),
+ ];
+ const snapshot=JSON.stringify(history);
+ const restored=replayEvidenceCompleteDiagnosis("Clarity",history,null,{legacyPrefixLength:history.length});
+ assert.equal(restored.ok,true);
+ if(!restored.ok)return;
+ assert.equal(restored.decision.complete,true);
+ assert.equal(restored.decision.placementPhase,"Structured Execution");
+ assert.equal(restored.decision.stability,"Medium");
+ assert.equal(restored.state.probeHistory.length,5);
+ assert.equal(JSON.stringify(history),snapshot);
+ // A new client cannot submit extra responses after placement is already known.
+ assert.equal(replayEvidenceCompleteDiagnosis("Clarity",history).ok,false);
+});
+
+test("server session boundaries resume the precise missing question while retaining prior observations",()=>{
+ const missing=full("clarity.recognition",{...claritySupported,"clarity.reason":"not_observed"});
+ const history=[missing,missing,full("clarity.recognition",{...claritySupported,"clarity.reason":"partial_reason"})];
+ assert.equal(replayEvidenceCompleteDiagnosis("Clarity",history).ok,false);
+ const resumed=replayEvidenceCompleteDiagnosis("Clarity",history,null,{sessionStarts:[0,2]});
+ assert.equal(resumed.ok,true);
+ if(!resumed.ok)return;
+ assert.equal(resumed.decision.complete,true);
+ assert.equal(resumed.decision.stability,"Medium");
+ assert.equal(resumed.state.probeHistory.length,3);
+ assert.equal(replayEvidenceCompleteDiagnosis("Clarity",history,null,{sessionStarts:[0,0]}).ok,false);
+});
