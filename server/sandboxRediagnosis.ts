@@ -36,6 +36,7 @@ import {
   type PersistedTpsTimerContract,
 } from "./tpsTimingAuthority";
 import { getSandboxEnvironmentHistory, initializeSandboxNativeEvidenceTrajectory } from "./sandboxEnvironment";
+import { resolveSandboxRediagnosisEpisodeRun } from "./sandboxRediagnosisEpisode";
 import { SANDBOX_DIAGNOSIS_EXCEPTION_NARRATIVE_VERSION } from "@shared/sandboxDiagnosisExceptionNarrativesV2";
 
 import { projectSandboxNativeDiagnosisOutcome, SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION } from "./sandboxNativeDiagnosisProjection";
@@ -226,12 +227,14 @@ async function ensureRediagnosisRun(input: {
        JOIN private.specialist_sandbox_rediagnosis_truth truth
          ON truth.rediagnosis_run_id = r.id
       WHERE r.trajectory_id = $1
-        AND r.status = 'active'
-      LIMIT 1`,
-    [input.trajectory.id],
+        AND r.started_session_number = $2
+        AND r.status IN ('active', 'blocked')
+      ORDER BY r.created_at DESC`,
+    [input.trajectory.id, input.trajectory.session_number],
   );
-  if (existing.rows[0]) {
-    const row = existing.rows[0];
+  const episodeRun = resolveSandboxRediagnosisEpisodeRun(existing.rows, input.trajectory.session_number);
+  if (episodeRun) {
+    const row = episodeRun;
     return {
       run: {
         ...row,

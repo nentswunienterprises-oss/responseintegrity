@@ -248,3 +248,20 @@ correctly forbids an untriggered sentinel. V2 projection now uses that same appl
 rule for canonical auxiliary fields; inherited rescue is scoped to TPS. Protocol version 2
 changes pending form identities. Historical V1 definitions and persisted truth remain intact.
 The next native rep must verify the correction after deployment.
+
+Commit `68c0ae84d0c863b31b7edd0bd53c743fcb41d71b` deployed READY with all ten CI
+workflows passing and 240 local Sandbox tests passing. Student 4 completed the nine-rep
+lesson. All nine observations were exact with conditions preserved; the first pre-fix
+integrity failure remains, while the subsequent eight reps have exact evidence. Final
+authority and state alignment are true; the required next route is Clarity-start targeted
+re-diagnosis. Five other next lessons were booked natively and remain confirmed. Student 1's
+pending pre-deployment form was correctly rejected as stale without a rep being appended.
+
+Student 4's targeted re-diagnosis recorded five exact, condition-preserved probes (4, 7,
+4, 4 and 4 observations). Genuine conflict among execution attempts exhausted the allowed
+clean probes, leaving Structured Execution unresolved and the run blocked for review.
+The UI then silently opened a fresh active run on refresh because the server only selected
+active runs. No observations were submitted to that replacement. Episode selection now
+preserves the current session's blocked run ahead of a newer empty active run. Both rows
+and all earlier evidence remain intact; no retry or score is fabricated. Qualification
+cannot be claimed while the approved all-history policy reports this unresolved evidence.
