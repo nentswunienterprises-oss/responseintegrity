@@ -55,6 +55,17 @@ try {
  "VALUES('ci-assignment','ci-tutor','ci-trajectory','ci-student',1,",
  "'fractions',1,'Clarity','identification','different-form',repeat('b',64),true,true,true)"
  ].join(" ")),e=>e.code==="23505","Conflicting second preparation receipt must fail");
+ await db.query(readFileSync(new URL("../supabase/migrations/20261018194835_sandbox_preparation_plan_revisions.sql",import.meta.url),"utf8"));
+ const revisedInsert=`INSERT INTO public.specialist_sandbox_preparation_events
+ (tutor_assignment_id,tutor_id,trajectory_id,student_id,session_number,topic_key,bank_version,
+ phase,set_id,event_form_id,condition_contract_sha256,problem_prepared,conditions_reviewed,evidence_plan_reviewed)
+ VALUES('ci-assignment','ci-tutor','ci-trajectory','ci-student',1,'fractions',1,'Clarity',
+ 'identification','different-form',repeat('b',64),true,true,true) RETURNING id`;
+ const revised=await db.query(revisedInsert);
+ assert.notEqual(revised.rows[0].id,prepared.rows[0].id,"Re-review appends a distinct receipt");
+ await assert.rejects(()=>db.query(revisedInsert),e=>e.code==="23505","Same plan remains idempotent");
+ const retained=await db.query("SELECT event_form_id FROM public.specialist_sandbox_preparation_events ORDER BY event_form_id");
+ assert.deepEqual(retained.rows.map(r=>r.event_form_id),["different-form","form-one"],"Original preparation is preserved");
  const event=await db.query([
  "INSERT INTO public.specialist_sandbox_live_evidence_turns",
  "(tutor_assignment_id,tutor_id,trajectory_id,student_id,scope,source_context_id,",

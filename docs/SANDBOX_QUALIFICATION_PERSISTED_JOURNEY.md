@@ -283,3 +283,12 @@ separate stale Map snapshot: the trajectory is Medium but the older student topi
 still says High. The Map now overlays a newer completed, owned Sandbox re-diagnosis from the
 current topic/session without rewriting history or changing live students. Native verification
 of that projection remains required. All overall qualification gates remain pending.
+
+
+18 October continuation: isolated Student 4 completed Training session 2 with nine exact repetitions, preserved conditions, authority alignment and state alignment; booking cba05513-8c97-4666-8b80-0eb211441bf6 is completed. The system moved Structured Execution/Medium to High. The reconstructed closing card incorrectly used the earlier Training outcome (High) as Before, skipping the intervening completed re-diagnosis; this display defect remains outstanding.
+
+Student 1's next launch exposed a stale preparation receipt after the observation protocol changed. Preparation now supports additive per-form/condition receipts. Map still checks the exact current fingerprint and an unstarted lesson before saving. The original receipt remains immutable. Qualification uses the latest owned confirmation before first delivery, while later confirmations cannot erase earlier delivery evidence. The migration changes only the preparation uniqueness constraint; no learning state, observations, scores or privileges change. Deployed acceptance remains required.
+
+The controlled Handover setup now offers the isolated Student 1 alongside the historical fixture. Server ownership and actual Sandbox enrollment still govern the existing endpoint; restoreCanonicalState remains false. No cross-account evidence is pooled. Native acceptance remains outstanding.
+
+Publication checkpoint: 249 local Sandbox tests and focused preparation/qualification checks pass; Preview API and Handover UI bundles pass. The new real PostgreSQL revision tests are authored but not run locally (PostgreSQL is unavailable). The migration is not applied and changes are not committed or deployed. Automatic review rejected GitHub tree creation twice, citing operational/account identifiers and an unverified destination; authenticated PR metadata and git origin both identify nentswunienterprises-oss/responseintegrity PR 202, but the second rejection still requires explicit approval before upload. Student 1 remains paused at the native Map preparation error with no new rep submitted.

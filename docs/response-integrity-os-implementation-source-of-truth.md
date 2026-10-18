@@ -30,6 +30,10 @@ Read this file with these rules:
 
 ## 2026-10-13 Founder-Approved Evidence-Exception Doctrine
 
+### Preparation plan continuation — 18 October 2026
+
+A changed unstarted Sandbox plan can be reviewed again in the native Map and saved as an additive preparation receipt. Current fingerprint, actor/student/topic ownership, prescribed phase, conditions and zero delivered repetitions remain required. Earlier receipts remain on the audit ledger. Qualification projects only the last owned confirmation before the first delivered repetition; a later confirmation cannot repair or conceal submitted evidence. Preparation alone grants no observed capability, score, placement or qualification.
+
 ### Controlled Preview continuation — 17 October 2026
 
 The Sandbox Map loads server-owned Training bookings and package capacity once the Specialist accepts the assignment. It does not wait for a simulated proposal to be accepted before reading that data. Server ownership, package capacity, confirmation and native Diagnosis/Handover/preparation requirements continue to govern launch; reading a confirmed booking grants no learning state or qualification evidence.

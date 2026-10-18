@@ -56,6 +56,14 @@ const PREPARATION=[
  "  AND r.topic_key=p.topic_key AND r.set_id=p.set_id AND r.rep_number=1",
  "LEFT JOIN private.specialist_sandbox_rep_event_truth truth ON truth.event_id=r.id",
  "WHERE p.tutor_assignment_id=$1 AND p.tutor_id=$2",
+ // A changed, unstarted plan is reviewed again in Map. Preserve every receipt,
+ // but only the latest confirmation before delivery represents that first rep.
+ "AND NOT EXISTS (SELECT 1 FROM public.specialist_sandbox_preparation_events newer",
+ " WHERE newer.trajectory_id=p.trajectory_id AND newer.session_number=p.session_number",
+ " AND newer.topic_key=p.topic_key AND newer.tutor_assignment_id=p.tutor_assignment_id",
+ " AND newer.tutor_id=p.tutor_id AND newer.student_id=p.student_id",
+ " AND (newer.recorded_at,newer.id)>(p.recorded_at,p.id)",
+ " AND newer.recorded_at<r.completed_at)",
  "ORDER BY p.recorded_at ASC,p.id ASC LIMIT 5000",
 ].join(" ");
 const TRAINING_REPS=[

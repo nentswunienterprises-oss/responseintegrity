@@ -123,6 +123,7 @@ try{
  await db.query(ddl.replace("CREATE ROLE anon NOLOGIN;","").replace("CREATE ROLE authenticated NOLOGIN;",""));
  for(const [table,columns]of tables)await db.query("CREATE TABLE "+table+" ("+columns+")");
  await db.query(readFileSync(new URL("../docs/migration-proposals/20261015_sandbox_coverage_crossmode_evidence.sql",import.meta.url),"utf8"));
+ await db.query(readFileSync(new URL("../supabase/migrations/20261018194835_sandbox_preparation_plan_revisions.sql",import.meta.url),"utf8"));
  await put("public.users",{id:tutor});await put("public.users",{id:td});
  await put("public.pods",{id:"ci-pod",td_id:td});
  await put("public.tutor_assignments",{id:assignment,tutor_id:tutor,pod_id:"ci-pod",operational_mode:"sandbox",created_at:stamp()});
@@ -197,6 +198,23 @@ try{
  for(const phase of phases)assert.equal(qualified.status.phaseCounts[phase],2);
  assert.equal(evaluateSandboxQualification(qualified.loaded.events,{activated:false}).qualificationReady,false);
  console.log("JOURNEY_PERSISTED_EIGHT_CLEAN_PHASE_BALANCED=PASS");
+ await db.query("BEGIN");
+ try {
+  await db.query(`INSERT INTO public.specialist_sandbox_preparation_events
+   (tutor_assignment_id,tutor_id,trajectory_id,student_id,session_number,topic_key,bank_version,
+    phase,set_id,event_form_id,condition_contract_sha256,problem_prepared,conditions_reviewed,evidence_plan_reviewed,recorded_at)
+   SELECT tutor_assignment_id,tutor_id,trajectory_id,student_id,session_number,topic_key,bank_version,
+    phase,set_id,'superseded-form',repeat('0',64),true,true,true,recorded_at-interval '1 second'
+   FROM public.specialist_sandbox_preparation_events LIMIT 1`);
+  const revised=await project();
+  assert.equal(revised.status.qualificationReady,true,"Unstarted re-reviewed plan preserves qualification lineage");
+  assert.equal(revised.loaded.events.filter(e=>e.mode==="preparation").length,
+   qualified.loaded.events.filter(e=>e.mode==="preparation").length,"Superseded receipt earns no additional evidence");
+  assert.equal(Number((await db.query("SELECT count(*) AS n FROM public.specialist_sandbox_preparation_events WHERE event_form_id='superseded-form'")).rows[0].n),1,"Audit receipt retained");
+  await db.query("UPDATE public.specialist_sandbox_preparation_events SET recorded_at='2030-01-01' WHERE event_form_id='superseded-form'");
+  assert.equal((await project()).status.qualificationReady,false,"Post-delivery confirmation cannot hide or repair evidence");
+ } finally {await db.query("ROLLBACK");}
+ console.log("JOURNEY_PREPARATION_REVISION_PRESERVES_HISTORY_AND_DELIVERY_BOUNDARY=PASS");
  await db.query("BEGIN");
  try {
   await db.query("UPDATE public.specialist_sandbox_rediagnosis_runs SET status='blocked',specialist_decision='{\"complete\":false}'::jsonb WHERE id='ci-rediagnosis-1'");

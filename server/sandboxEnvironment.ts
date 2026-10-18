@@ -1928,7 +1928,7 @@ export async function recordSandboxPreparation(input: {
        topic_key,bank_version,phase,set_id,event_form_id,condition_contract_sha256,
        problem_prepared,conditions_reviewed,evidence_plan_reviewed)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true,true,true)
-      ON CONFLICT (trajectory_id,session_number,topic_key) DO NOTHING RETURNING id`,
+      ON CONFLICT (trajectory_id,session_number,topic_key,event_form_id,condition_contract_sha256) DO NOTHING RETURNING id`,
     values,
   );
   if (!saved.rows[0]) {

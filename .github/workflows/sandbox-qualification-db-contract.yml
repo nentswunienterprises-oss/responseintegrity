@@ -15,6 +15,7 @@ on:
       - "server/practicalEntryStatus.ts"
       - "server/capabilityPracticalEvidence.ts"
       - "server/sandboxEnvironment.ts"
+      - "supabase/migrations/20261018194835_sandbox_preparation_plan_revisions.sql"
       - ".github/workflows/sandbox-qualification-db-contract.yml"
   workflow_dispatch:
 
