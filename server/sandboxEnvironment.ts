@@ -36,6 +36,7 @@ import {
   parseSandboxCapabilityReadinessPolicy,
   isAuthoredSandboxOutcomeEligible,
   projectSandboxOutcomeToCurrentTrainingContract,
+  SANDBOX_TRAINING_OBSERVATION_PROTOCOL_VERSION,
   selectSandboxOutcome,
   validateSandboxOutcomeDefinition,
   type SandboxCapabilityLayer,
@@ -1553,7 +1554,8 @@ async function planNextRep(input: {
       eventSequence,
       selectedRecord.publicRef,
       ...(input.bundle.truth.behavior_model_version === 2
-        ? ["narrative-v" + SANDBOX_BEHAVIOR_NARRATIVE_VERSION]
+        ? ["narrative-v" + SANDBOX_BEHAVIOR_NARRATIVE_VERSION,
+            "observation-protocol-v" + SANDBOX_TRAINING_OBSERVATION_PROTOCOL_VERSION]
         : ["v1-retired-fictional-exceptions-v1"]),
     ].join(":"),
   ).slice(0, 32);

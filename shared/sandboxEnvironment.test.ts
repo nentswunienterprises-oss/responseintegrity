@@ -1007,6 +1007,37 @@ test("V2 renders 231 credible outcomes and excludes all invented not-observed en
   }),null,"V2 may not author a missing-observation incident");
 });
 
+test("V2 does not grade an unrequested prerequisite check after conditional execution", () => {
+  const phase = "Structured Execution" as const;
+  const setId = "structured_execution.required_structure";
+  const sourceSet = getDrillSchemaDefinitionByVersion("training", phase, 1)!.sets.find(s => s.setId === setId)!;
+  for (const pattern of [4, 6]) {
+    const original: SandboxOutcomeDefinition = {
+      key: `${setId}.rep_1.pattern_${pattern}`, version: 1, phase, setId, repNumber: 1,
+      studentBehavior: "Synthetic historical response.", trajectoryClass: "conditional", weight: 1,
+      canonicalPrerequisiteSentinel: "contradicted",
+      canonicalInheritedRescueSignal: "none",
+      canonicalObservations: Object.fromEntries(sourceSet.fields.map(field => [field.fieldKey, {
+        optionId: `${getRepPurposeId(sourceSet,0)}.${field.dimensionId}.option_1`,
+        evidenceStatus: "observed" as const,
+      }])),
+    };
+    const projected = projectSandboxOutcomeToCurrentTrainingContract(original, 1, 2);
+    assert.equal(projected.canonicalPrerequisiteSentinel, pattern === 6 ? "contradicted" : undefined);
+    assert.equal(projected.canonicalInheritedRescueSignal, undefined);
+    const compared = compareSandboxTurn({
+      sequenceNumber:1,sessionNumber:1,phase,setId,repNumber:1,outcome:projected,
+      specialistObservations:projected.canonicalObservations,
+      actualInterventionEvent:"none",recordedInterventionEvent:"none",conditionConformed:true,
+      ...(pattern === 6 ? {specialistPrerequisiteSentinel:"contradicted" as const} : {}),
+    });
+    assert.equal(compared.observationExact, true);
+    assert.equal(compared.evidenceExact, true, "Exact observations must not fail for a check the runner forbids submitting");
+    assert.equal(original.canonicalPrerequisiteSentinel, "contradicted", "Preserve authored/historical source truth");
+    assert.equal(projectSandboxOutcomeToCurrentTrainingContract(original,1,1).canonicalPrerequisiteSentinel,"contradicted");
+  }
+});
+
 test("V2 rep-to-rep conduct changes even when the same pattern repeats", () => {
   for(const [phase,setId] of [
     ["Clarity","clarity.identification"],

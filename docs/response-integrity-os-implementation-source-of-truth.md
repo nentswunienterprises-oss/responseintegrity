@@ -2855,6 +2855,8 @@ V2 Training response narration version 5 includes a behavioral description for e
 
 Native Diagnosis may be the first Sandbox operating surface opened for a newly assigned student. Its simulated-response preparation initializes the ordinary assignment/student trajectory through the same owned synthetic-student and active-bank guards as the Sandbox environment. It does not require an earlier Training/history visit, submit observations, or award capability evidence.
 
+V2 Training observation protocol 2 grades auxiliary checks only when the current rep exposes them. A prerequisite sentinel applies only after an observed current-phase breakdown under the same eligibility rule used by the form and submission validator. Conditional execution alone cannot require an unoffered sentinel. The inherited rescue signal applies only in Time Pressure Stability. Historical V1 definitions and persisted event truth remain unchanged, including earlier failed integrity checks; pending V2 forms acquire a new protocol fingerprint.
+
 For simulated Diagnosis and Handover opportunities, the execution boundary remains:
 
 `Ready -> Observe simulated student response -> Student Finished -> Record -> Confirm`

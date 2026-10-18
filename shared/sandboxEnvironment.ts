@@ -24,6 +24,7 @@ import {
   evaluateTrainingEvidence,
   resolveTrainingEvidenceAuthorityRoute,
   trainingEvidenceClassForRawBehavior,
+  trainingRawObservationRequiresPrerequisiteSentinel,
   type TrainingEvidenceAuthorityRoute,
 } from "./trainingEvidenceEvaluator";
 import {
@@ -49,6 +50,8 @@ export const SANDBOX_CAPABILITY_LAYERS = [
   "authority_integrity",
   "continuity_integrity",
 ] as const;
+
+export const SANDBOX_TRAINING_OBSERVATION_PROTOCOL_VERSION = 2;
 
 export type SandboxCapabilityLayer = typeof SANDBOX_CAPABILITY_LAYERS[number];
 export type SandboxTrajectoryClass = ResponseEvidenceClass;
@@ -497,12 +500,38 @@ export function projectSandboxOutcomeToCurrentTrainingContract(
     continuityTags.delete("recent_breakdown");
   }
 
+  const requiresPrerequisiteCheck = currentFields.some(field => {
+    const canonical = canonicalObservations[field.fieldKey];
+    const resolved = resolveEvidenceSelection({
+      mode: "training", phase: definition.phase, setId: definition.setId,
+      repIndex, fieldKey: field.fieldKey, optionId: canonical.optionId,
+      schemaVersion: currentSchema.schemaVersion,
+    });
+    return Boolean(resolved && trainingRawObservationRequiresPrerequisiteSentinel({
+      phase: definition.phase, fieldKey: field.fieldKey,
+      rawOption: resolved.field.optionLabels?.[resolved.optionIndex] || "",
+      explicitStatus: canonical.evidenceStatus,
+    }));
+  });
+
   return {
     ...definition,
     studentBehavior: [auditedStudentBehavior || definition.studentBehavior, ...observationDetails].join("\n\n"),
     canonicalObservations,
     trajectoryClass: auditedTrajectoryClass,
     emitsContinuityTags: [...continuityTags],
+    ...(behaviorModelVersion === 2 ? {
+      // A historical bank auxiliary result is not an observation opportunity.
+      // Match the current runner's applicability; preserve V1 and stored events.
+      ...(definition.canonicalPrerequisiteSentinel !== undefined ? {
+        canonicalPrerequisiteSentinel: requiresPrerequisiteCheck
+          ? definition.canonicalPrerequisiteSentinel : undefined,
+      } : {}),
+      ...(definition.canonicalInheritedRescueSignal !== undefined ? {
+        canonicalInheritedRescueSignal: definition.phase === "Time Pressure Stability"
+          ? definition.canonicalInheritedRescueSignal : undefined,
+      } : {}),
+    } : {}),
   };
 }
 

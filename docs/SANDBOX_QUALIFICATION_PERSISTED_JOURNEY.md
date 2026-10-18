@@ -224,3 +224,27 @@ dependency on a prior Sandbox environment/history visit: no active trajectory ex
 Native simulation preparation now initializes that ordinary trajectory under existing
 assignment, ownership, synthetic-student and active-bank guards. It records no observation
 or score. Student 2 remains at the unopened Diagnosis opportunity pending deployed verification.
+
+### 18 October afternoon continuation
+
+Commit `980d0b3dd9bf7f942aa84468922a9ffe9e862651` deployed READY and all ten CI
+workflows passed. All six isolated students completed native Diagnosis. Students 1, 2,
+3, 5 and 6 each have one 4/4 exact, condition-preserved opportunity. Student 4 has two
+opportunities: 4/4 exact followed by 6/7 exact, with conditions preserved. The latter
+observation mismatch remains in history and cannot count as clean evidence. Students 2
+and 3 placed at Clarity/Medium; Students 5 and 6 at Clarity/High; Student 4 at Structured
+Execution/High. The completed native Diagnoses consumed their confirmed bookings.
+
+The next Student 4 booking was created natively and independently verified as confirmed
+for the exact isolated actor/student pairing. Map preparation prescribed nine Structured
+Execution reps. The first Required Structure rep persisted all four observations exactly
+with conditions preserved, but evidence integrity was false. No historical evidence was
+edited or deleted. The lesson is paused before Required Structure rep 2.
+
+A synthetic regression reproduced an auxiliary-check applicability defect: legacy outcome
+metadata could demand a prerequisite result even when the current observations were
+conditional rather than breakdown and the runner offered no check. The submission validator
+correctly forbids an untriggered sentinel. V2 projection now uses that same applicability
+rule for canonical auxiliary fields; inherited rescue is scoped to TPS. Protocol version 2
+changes pending form identities. Historical V1 definitions and persisted truth remain intact.
+The next native rep must verify the correction after deployment.
