@@ -147,3 +147,22 @@ exists for this account. Preserve the eleven rows pending an explicit cleanup de
 account provisioning is now serialized by a per-Specialist PostgreSQL advisory lock held across
 the count and creation work, with focused success and failure-release regressions. Deployed
 verification of the lock remains required before the isolated acceptance journey continues.
+
+Commit `47c7ee2768924156945a654d674521bf0e742ab7` deployed READY with all ten CI
+workflows passing. After a dependency audit showed zero sessions, bookings, observations,
+evaluations, trajectories, reports, commitments, messages, proposals or placements, the user
+explicitly approved removal of the five race-created extras. The guarded transaction removed
+exactly five pending enrollments, three linked student rows and five matching synthetic
+public/Auth parent identities. Readback now shows exactly six pending Sandbox enrollments and
+six linked students; the intended first six were preserved.
+
+The first isolated-account login then exposed a separate Proof DB identity-bridge defect. The
+same-ID `auth.users` mirror is deliberately passwordless while the signup password remains a
+bcrypt credential in `private.emergency_auth_credentials`. Authentication treated the mirror's
+presence as authoritative and returned `account_unavailable` without checking that valid private
+credential; repeated attempts then reached the ten-minute throttle. Proof DB session mirrors that
+are active, non-anonymous, unbanned, same-ID, and explicitly tagged `proof-db-session` now fall
+through to the private credential verifier. Other passwordless, deleted, anonymous, banned,
+unconfirmed or ID-mismatched Auth users remain fail-closed. A focused regression exercises the
+passwordless-mirror/private-credential path. Deployed login verification remains required before
+the isolated native journey begins.
