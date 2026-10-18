@@ -4756,7 +4756,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     provisionProfileCoverage: async (tutorId) => {
       const result = await ensureVisibleSandboxStudentsForTutor(tutorId, 8);
       const students = await pool.query(
-        `SELECT s.id, s.full_name AS label
+        `SELECT s.id, s.name AS label
            FROM public.students s
            JOIN public.parent_enrollments e ON e.id = s.parent_enrollment_id
           WHERE s.tutor_id = $1 AND e.is_sandbox_account = TRUE

@@ -30,6 +30,12 @@ Read this file with these rules:
 
 ## 2026-10-13 Founder-Approved Evidence-Exception Doctrine
 
+### Sandbox profile breadth — 18 October 2026
+
+First-use trajectory allocation fills unrepresented behavior profiles within the same Specialist assignment and bank before repeating a profile. Allocation is serialized. Existing seeds, completed observations and identity remain authoritative and are never rewritten. Profile assignment alone earns no signature coverage; qualifying observed Training behavior is still required.
+
+The isolated Capability Proof acceptance setup can add the two missing practice students, up to eight in that controlled account. It reuses the ordinary provisioning workflow and owner-bound booking path. Current Diagnosis, Handover, preparation and qualification requirements remain in force.
+
 ### Preparation plan continuation — 18 October 2026
 
 A changed unstarted Sandbox plan can be reviewed again in the native Map and saved as an additive preparation receipt. Current fingerprint, actor/student/topic ownership, prescribed phase, conditions and zero delivered repetitions remain required. Earlier receipts remain on the audit ledger. Qualification projects only the last owned confirmation before the first delivered repetition; a later confirmation cannot repair or conceal submitted evidence. Preparation alone grants no observed capability, score, placement or qualification.
