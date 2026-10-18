@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { proofSandboxProfileCoverageHandler, proofTrainingBookingHandler } from "./proofTrainingBooking";
+import { proofSandboxCoverageReceipt, proofSandboxProfileCoverageHandler, proofTrainingBookingHandler } from "./proofTrainingBooking";
 const tutor = "77977298-7ac9-41f9-a726-9d5fd634540f";
 const student = "657994af-a9c4-a7ae-dd13-54cdd462f2ab";
 const isolatedTutor = "b8448bbf-e01b-4f7b-bf6a-baf3ddb5d0bc";
@@ -79,4 +79,21 @@ test("profile coverage setup is isolated to the approved Specialist and Capabili
 test("profile coverage setup fails closed when provisioning fails",async()=>{
   const result=await invokeCoverage({fail:true});
   assert.equal(result.status,500);assert.equal(result.body.message,"Could not prepare controlled profile coverage.");
+});
+
+
+test("existing eight-student roster loads without entering provisioning or changing accounts",async()=>{
+ const students=Array.from({length:8},(_,i)=>({id:`student-${i}`,label:`Student ${i}`}));
+ const receipt=await proofSandboxCoverageReceipt({loadStudents:async()=>students,
+  provision:async()=>{throw new Error("Provisioning must not run for an existing roster");}});
+ assert.equal(receipt.createdAccounts,0);assert.equal(receipt.studentCount,8);assert.deepEqual(receipt.students,students);
+});
+test("incomplete coverage provisions once and verifies the resulting owned roster",async()=>{
+ const students=Array.from({length:8},(_,i)=>({id:`student-${i}`,label:`Student ${i}`}));
+ let loads=0,calls=0;
+ const receipt=await proofSandboxCoverageReceipt({loadStudents:async()=>++loads===1?students.slice(0,6):students,
+  provision:async()=>{calls++;return {createdAccounts:["new-7","new-8"]};}});
+ assert.equal(calls,1);assert.equal(receipt.createdAccounts,2);assert.equal(receipt.studentCount,8);
+ await assert.rejects(()=>proofSandboxCoverageReceipt({loadStudents:async()=>students.slice(0,6),
+  provision:async()=>({createdAccounts:[]})}),/incomplete/);
 });

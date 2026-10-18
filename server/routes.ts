@@ -1,6 +1,6 @@
 import { tutorScheduleWeekRange } from "./tutorScheduleWeek";
 import { overlaySandboxDiagnosisTopicPlacement } from "./sandboxDiagnosisTopicProjection";
-import { registerProofTrainingBooking } from "./proofTrainingBooking";
+import { registerProofTrainingBooking, proofSandboxCoverageReceipt } from "./proofTrainingBooking";
 import { captureDemandParent } from "./demandCapture";
 import { registerDemandProductionRoutes } from "./demandProduction";
 import { demandAssignmentBlock, resolveEntryType } from "../shared/demandProduction";
@@ -4754,22 +4754,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     pool,
     isAuthenticated,
     requireTutor: requireRole(["tutor"]),
-    provisionProfileCoverage: async (tutorId) => {
-      const result = await ensureVisibleSandboxStudentsForTutor(tutorId, 8);
-      const students = await pool.query(
-        `SELECT s.id, s.name AS label
-           FROM public.students s
-           JOIN public.parent_enrollments e ON e.id = s.parent_enrollment_id
-          WHERE s.tutor_id = $1 AND e.is_sandbox_account = TRUE
-          ORDER BY e.created_at ASC, s.id ASC`,
-        [tutorId],
-      );
-      return {
-        createdAccounts: result.createdAccounts.length,
-        studentCount: students.rows.length,
-        students: students.rows.map(row => ({id:String(row.id),label:String(row.label)})),
-      };
-    },
+    provisionProfileCoverage: async (tutorId) => proofSandboxCoverageReceipt({
+      provision: () => ensureVisibleSandboxStudentsForTutor(tutorId, 8),
+      loadStudents: async () => {
+        const students = await pool.query(
+          `SELECT s.id, s.name AS label
+             FROM public.students s
+             JOIN public.parent_enrollments e ON e.id=s.parent_enrollment_id
+            WHERE s.tutor_id=$1 AND e.is_sandbox_account=TRUE
+            ORDER BY e.created_at ASC,s.id ASC`, [tutorId],
+        );
+        return students.rows.map(row=>({id:String(row.id),label:String(row.label)}));
+      },
+    }),
   });
 
   app.post(

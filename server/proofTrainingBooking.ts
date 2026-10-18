@@ -86,6 +86,21 @@ export function proofTrainingBookingHandler(pool: Pick<Pool, "connect">, env = p
   };
 }
 
+/** Once the fixture roster exists, booking setup must remain a read-only load. */
+export async function proofSandboxCoverageReceipt(dependencies: {
+  loadStudents: () => Promise<Array<{id:string;label:string}>>;
+  provision: () => Promise<{createdAccounts: unknown[]}>;
+}) {
+  let students = await dependencies.loadStudents();
+  let createdAccounts = 0;
+  if (students.length < 8) {
+    createdAccounts = (await dependencies.provision()).createdAccounts.length;
+    students = await dependencies.loadStudents();
+  }
+  if (students.length < 8) throw new Error("Controlled profile roster is incomplete");
+  return {createdAccounts, studentCount: students.length, students};
+}
+
 export function proofSandboxProfileCoverageHandler(
   provision: (tutorId:string)=>Promise<unknown>,
   env = process.env,
