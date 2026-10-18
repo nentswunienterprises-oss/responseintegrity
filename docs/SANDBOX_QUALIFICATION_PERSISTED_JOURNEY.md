@@ -166,3 +166,17 @@ through to the private credential verifier. Other passwordless, deleted, anonymo
 unconfirmed or ID-mismatched Auth users remain fail-closed. A focused regression exercises the
 passwordless-mirror/private-credential path. Deployed login verification remains required before
 the isolated native journey begins.
+
+Commit `9d683fe2d1e5144abd24800c4224ba4420f45b19` deployed READY with all ten CI
+workflows passing. The isolated Specialist then authenticated through the repaired bridge, and
+runtime logs identified the exact isolated user rather than the historical account. Native Pod
+readback showed exactly the six preserved synthetic students. All six assignment acceptances were
+submitted through the Specialist UI and independently read back as `assigned`; no onboarding
+acceptance, qualification evidence, score or TD decision was fabricated.
+
+Direct Sandbox entry correctly failed closed without a confirmed weekly lesson. The existing
+Preview-only booking helper was still actor-bound to the historical Specialist and three older QA
+students. Its explicit actor-to-student allowlist now also includes the approved isolated
+Specialist and only its six published synthetic students. Cross-account student pairing remains
+denied before a database connection. The helper remains booking-only: it reuses or inserts one
+confirmed session and does not alter Diagnosis, Handover, preparation, learning state or evidence.

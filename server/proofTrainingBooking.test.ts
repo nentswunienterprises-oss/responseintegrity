@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { proofTrainingBookingHandler } from "./proofTrainingBooking";
 const tutor = "77977298-7ac9-41f9-a726-9d5fd634540f";
 const student = "657994af-a9c4-a7ae-dd13-54cdd462f2ab";
+const isolatedTutor = "b8448bbf-e01b-4f7b-bf6a-baf3ddb5d0bc";
+const isolatedStudent = "b093523e-6227-4ebb-9894-b3be775dfcf3";
 const env = { VERCEL_ENV: "preview", SUPABASE_URL: "https://jftlxeacphvbnhbsbpxc.supabase.co", DATABASE_URL: "postgres://postgres.jftlxeacphvbnhbsbpxc:synthetic@aws-1-eu-central-2.pooler.supabase.com:6543/postgres" };
 async function invoke({environment=env, actor=tutor, studentId=student, owned=true, existing=false, fail=false}={}) {
   const queries: string[] = []; let released = false; let connected = false;
@@ -28,6 +30,16 @@ test("booking setup denies Production and other projects before connecting",asyn
 });
 test("booking setup rejects other actors and students before connecting",async()=>{
   for (const input of [{actor:"other"},{studentId:"other"}]) {const result=await invoke(input);assert.equal(result.status,403);assert.equal(result.connected,false);}
+});
+test("booking setup binds each controlled student allowlist to its exact Specialist",async()=>{
+  const isolated=await invoke({actor:isolatedTutor,studentId:isolatedStudent});
+  assert.equal(isolated.status,200);assert.equal(isolated.body.studentId,isolatedStudent);
+  for (const input of [
+    {actor:tutor,studentId:isolatedStudent},
+    {actor:isolatedTutor,studentId:student},
+  ]) {
+    const result=await invoke(input);assert.equal(result.status,403);assert.equal(result.connected,false);
+  }
 });
 test("booking setup requires actual owned Sandbox student",async()=>{
   const result=await invoke({owned:false});assert.equal(result.status,404);assert.ok(result.queries.includes("ROLLBACK"));assert.equal(result.released,true);

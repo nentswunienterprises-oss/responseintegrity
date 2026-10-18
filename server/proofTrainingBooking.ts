@@ -1,11 +1,20 @@
 import type { Express, Request, RequestHandler, Response } from "express";
 import type { Pool, PoolClient } from "pg";
 
-const SPECIALIST = "77977298-7ac9-41f9-a726-9d5fd634540f";
-const STUDENTS = new Set([
-  "657994af-a9c4-a7ae-dd13-54cdd462f2ab",
-  "f94d1bbe-76ae-11d5-34ee-2990fe4d0aa5",
-  "a8ce613e-7f91-48d1-5097-2e34923dbacf",
+const SPECIALIST_STUDENTS = new Map<string, ReadonlySet<string>>([
+  ["77977298-7ac9-41f9-a726-9d5fd634540f", new Set([
+    "657994af-a9c4-a7ae-dd13-54cdd462f2ab",
+    "f94d1bbe-76ae-11d5-34ee-2990fe4d0aa5",
+    "a8ce613e-7f91-48d1-5097-2e34923dbacf",
+  ])],
+  ["b8448bbf-e01b-4f7b-bf6a-baf3ddb5d0bc", new Set([
+    "b093523e-6227-4ebb-9894-b3be775dfcf3",
+    "38118d0f-a812-4936-b069-91c3d2eec209",
+    "0ed81956-c61c-42af-a9a5-09ebda094935",
+    "263c1256-2131-4a76-a0ad-5404dd25ed99",
+    "e86d6442-44dc-4fcf-8d38-e327d54ea8c0",
+    "483bf620-251b-4db3-a2eb-88ee85d2c858",
+  ])],
 ]);
 
 export function proofTrainingBookingHandler(pool: Pick<Pool, "connect">, env = process.env) {
@@ -24,7 +33,7 @@ export function proofTrainingBookingHandler(pool: Pick<Pool, "connect">, env = p
     }
     const tutorId = String((req as any).dbUser?.id || "");
     const studentId = String(req.body?.studentId || "");
-    if (tutorId !== SPECIALIST || !STUDENTS.has(studentId)) {
+    if (!SPECIALIST_STUDENTS.get(tutorId)?.has(studentId)) {
       return res.status(403).json({ message: "This controlled booking is unavailable." });
     }
     let client: PoolClient | null = null;

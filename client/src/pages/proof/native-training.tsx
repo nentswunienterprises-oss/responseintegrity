@@ -8,6 +8,12 @@ const students = [
   { id: "657994af-a9c4-a7ae-dd13-54cdd462f2ab", label: "QA 02" },
   { id: "f94d1bbe-76ae-11d5-34ee-2990fe4d0aa5", label: "QA 09" },
   { id: "a8ce613e-7f91-48d1-5097-2e34923dbacf", label: "QA 10" },
+  { id: "b093523e-6227-4ebb-9894-b3be775dfcf3", label: "Isolated 1" },
+  { id: "38118d0f-a812-4936-b069-91c3d2eec209", label: "Isolated 2" },
+  { id: "0ed81956-c61c-42af-a9a5-09ebda094935", label: "Isolated 3" },
+  { id: "263c1256-2131-4a76-a0ad-5404dd25ed99", label: "Isolated 4" },
+  { id: "e86d6442-44dc-4fcf-8d38-e327d54ea8c0", label: "Isolated 5" },
+  { id: "483bf620-251b-4db3-a2eb-88ee85d2c858", label: "Isolated 6" },
 ];
 type Receipt = { studentId: string; session: { id: string }; reused: boolean; restoredCanonicalState: boolean };
 export default function NativeTrainingProofSetup() {
