@@ -15,7 +15,7 @@ import {
  * 231 distinct set/rep/outcome narratives. V2 does not fabricate missing
  * observations; historical V1 narration remains untouched.
  */
-export const SANDBOX_BEHAVIOR_NARRATIVE_VERSION = 4 as const;
+export const SANDBOX_BEHAVIOR_NARRATIVE_VERSION = 5 as const;
 
 const SET_SCENES: Record<string, readonly [string, string, string]> = {
   "clarity.identification": [

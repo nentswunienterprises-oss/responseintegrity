@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { DIAGNOSIS_OBSERVATION_MATRIX, type DiagnosisDimensionId } from "./diagnosisObservationMatrix";
 import {
   SANDBOX_CAPABILITY_LAYERS,
   compareSandboxTurn,
@@ -889,7 +890,7 @@ test("all four Training phases evaluate V4 rep-specific Sandbox observations wit
 
 
 test("V2 renders 231 credible outcomes and excludes all invented not-observed encounters while V1 is unchanged", () => {
-  assert.equal(SANDBOX_BEHAVIOR_NARRATIVE_VERSION, 4);
+  assert.equal(SANDBOX_BEHAVIOR_NARRATIVE_VERSION, 5);
   const seen = new Map<string, string>();
   const counts: Record<string, number> = {};
   for (const trainingPhase of [
@@ -924,10 +925,15 @@ test("V2 renders 231 credible outcomes and excludes all invented not-observed en
           const legacy = projectSandboxOutcomeToCurrentTrainingContract(authored,1,1);
           const v2 = projectSandboxOutcomeToCurrentTrainingContract(authored,1,2);
           assert.notEqual(legacy.studentBehavior,v2.studentBehavior,key+" did not change");
-          assert.equal(v2.studentBehavior,
+          assert.ok(v2.studentBehavior.startsWith(
             renderSandboxBehaviorNarrativeV2({
               phase:trainingPhase,setId:set.setId,outcomeKey:key,repNumber:rep,
-            }));
+            })!));
+          for (const field of getFieldDefinitionsForRep(set, rep - 1)) {
+            const dimension = DIAGNOSIS_OBSERVATION_MATRIX[field.dimensionId as DiagnosisDimensionId];
+            assert.ok(v2.studentBehavior.includes(dimension?.label || field.observationQuestion!),
+              key + " omitted visible evidence for " + field.dimensionId);
+          }
           // Except for downstream evidence also contaminated by a rare
           // reference cue, canonical meaning must remain byte-for-byte equal.
           // V1 has no overrides; the six ordinary outcome patterns are intact.
@@ -970,7 +976,7 @@ test("V2 renders 231 credible outcomes and excludes all invented not-observed en
             key+" altered state, selected options or capability authority",
           );
           const text = v2.studentBehavior;
-          assert.ok(text.length >= 100 && text.length < 850,key+" has an unsuitable length");
+          assert.ok(text.length >= 100 && text.length < 2400,key+" has an unsuitable length");
           assert.ok(!/\b(?:outcome[_ ]key|pattern_\d|rep_\d|evidence class|not_observed|confounded|near_stable|high maintenance)\b/i.test(text),
             key+" exposed implementation or scoring language");
           const previous = seen.get(text);

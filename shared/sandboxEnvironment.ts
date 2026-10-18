@@ -34,6 +34,8 @@ import {
 import type { TrainingDimensionId } from "./trainingEvidenceContract";
 import { isSandboxBehaviorTransitionPlausible, sandboxBehaviorProfileMultiplier, sandboxBehaviorTransitionMultiplier } from "./sandboxBehaviorProfiles";
 import { renderSandboxBehaviorNarrativeV2 } from "./sandboxBehaviorNarrativesV2";
+import { DIAGNOSIS_OBSERVATION_MATRIX, type DiagnosisDimensionId } from "./diagnosisObservationMatrix";
+import { getTrainingObservationDefinitionV2 } from "./trainingObservationContractV2";
 import {
   getLegacyStatefulSandboxV1RequiredStructureStepPlanAudit,
   getLegacyStatefulSandboxV1ScenarioTruthAudit,
@@ -460,6 +462,34 @@ export function projectSandboxOutcomeToCurrentTrainingContract(
     );
   }
 
+  // A scene alone can omit a dimension the runner requires (for example,
+  // immediate application in Light Apply). Describe every exposed observation
+  // without publishing private option IDs or changing its scoring truth.
+  const observationDetails = behaviorModelVersion === 2
+    ? currentFields.map(field => {
+        const canonical = canonicalObservations[field.fieldKey];
+        const resolved = resolveEvidenceSelection({
+          mode: "training", phase: definition.phase, setId: definition.setId,
+          repIndex, fieldKey: field.fieldKey, optionId: canonical.optionId,
+          schemaVersion: currentSchema.schemaVersion,
+        });
+        if (!resolved) throw new Error("Sandbox response has unknown observation truth.");
+        const dimension = getTrainingObservationDefinitionV2(field.dimensionId as TrainingDimensionId);
+        const label = resolved.field.optionLabels?.[resolved.optionIndex];
+        const status = normalizeStatus(canonical.evidenceStatus);
+        const detail = status === "observed"
+          ? (label && (resolved.field.optionDetails?.[label] ||
+              dimension?.options.find(option => option.label === label)?.detail))
+          : (DIAGNOSIS_OBSERVATION_MATRIX[field.dimensionId as DiagnosisDimensionId]
+              ?.options.find(option => option.id === status)?.detail ||
+              (field.dimensionId === "condition.required_structure.step_plan_accuracy" && status === "confounded"
+                ? "A visible worked example supplied the step plan; independent planning cannot be established."
+                : null));
+        if (!detail) throw new Error("Sandbox response has no observable behavior description.");
+        return `${dimension?.label || field.observationQuestion}: ${detail}`;
+      })
+    : [];
+
   const continuityTags = new Set(definition.emitsContinuityTags || []);
   if (auditedTrajectoryClass === "breakdown") {
     continuityTags.add("recent_breakdown");
@@ -469,7 +499,7 @@ export function projectSandboxOutcomeToCurrentTrainingContract(
 
   return {
     ...definition,
-    studentBehavior: auditedStudentBehavior || definition.studentBehavior,
+    studentBehavior: [auditedStudentBehavior || definition.studentBehavior, ...observationDetails].join("\n\n"),
     canonicalObservations,
     trajectoryClass: auditedTrajectoryClass,
     emitsContinuityTags: [...continuityTags],

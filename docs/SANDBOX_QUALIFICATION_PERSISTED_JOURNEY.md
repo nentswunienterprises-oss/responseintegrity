@@ -193,3 +193,20 @@ after proposal acceptance, although an accepted Sandbox assignment can have a co
 lesson before a simulated proposal exists. The Map now enables that read for an accepted
 Sandbox assignment. Other modes retain the proposal gate, and server package capacity,
 ownership and native launch checks remain authoritative. Deployed verification is pending.
+
+Commit `ec8842d1b9d5439d963d37c936138ba89330d677` deployed READY with all ten CI
+workflows passing; 238 local Sandbox tests and the frontend build passed. On the stable
+Preview, the isolated account's Map loaded its confirmed booking and opened Diagnosis.
+Student 1 completed its first native Fractions Diagnosis: Clarity/High, sufficient
+confidence, with 4/4 exact recognition observations and preserved conditions independently
+read back from persisted live evidence. This consumed the first booking. A second native
+booking was created without changing learning evidence, and Map preparation launched
+the first six-rep Clarity Training lesson.
+
+Three identification reps were submitted. The first Light Apply response then omitted
+immediate application from its narrative even though the form required that observation.
+No answer was guessed for that field. V2 narration now appends behavior descriptions
+for every exposed rep field, using the existing observation definitions and preserving
+canonical truth. Narrative version 5 invalidates pending older forms. Synthetic regression
+coverage checks all 231 authored set/rep patterns, field visibility, historical V1 stability
+and unchanged canonical observation/authority. Native continuation awaits this deployment.

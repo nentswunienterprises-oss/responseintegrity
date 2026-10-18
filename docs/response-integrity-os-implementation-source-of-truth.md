@@ -2851,6 +2851,8 @@ The runner and authority do not change merely because the Specialist is in Sandb
 
 The Specialist may see the simulated student response required to perform the operating task. The canonical observation record remains private. Hidden canonical truth never becomes authoritative real-student evidence.
 
+V2 Training response narration version 5 includes a behavioral description for every field exposed by the current rep, including Light Apply's immediate application and Required Structure's plan check. A scene that merely asks for a response cannot substitute for describing what the simulated student did. Public descriptions contain no private option IDs, profile keys or scoring classes. Canonical observations and historical submissions remain unchanged; the narrative version changes the pending form fingerprint.
+
 For simulated Diagnosis and Handover opportunities, the execution boundary remains:
 
 `Ready -> Observe simulated student response -> Student Finished -> Record -> Confirm`
