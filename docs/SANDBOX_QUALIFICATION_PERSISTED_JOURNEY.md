@@ -180,3 +180,16 @@ students. Its explicit actor-to-student allowlist now also includes the approved
 Specialist and only its six published synthetic students. Cross-account student pairing remains
 denied before a database connection. The helper remains booking-only: it reuses or inserts one
 confirmed session and does not alter Diagnosis, Handover, preparation, learning state or evidence.
+
+### 18 October isolated native launch
+
+The isolated Specialist signed in on the current `6671869e` Preview. Student 1 has one
+confirmed booking. Fractions was activated through the native Map with an explicit
+synthetic acceptance note; its state remains Unknown and requires evidence-complete
+Diagnosis. No scored evidence was created by topic activation.
+
+The Training tab then exposed a first-use deadlock: its booking query was enabled only
+after proposal acceptance, although an accepted Sandbox assignment can have a confirmed
+lesson before a simulated proposal exists. The Map now enables that read for an accepted
+Sandbox assignment. Other modes retain the proposal gate, and server package capacity,
+ownership and native launch checks remain authoritative. Deployed verification is pending.

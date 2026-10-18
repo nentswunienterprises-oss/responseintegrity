@@ -32,6 +32,8 @@ Read this file with these rules:
 
 ### Controlled Preview continuation — 17 October 2026
 
+The Sandbox Map loads server-owned Training bookings and package capacity once the Specialist accepts the assignment. It does not wait for a simulated proposal to be accepted before reading that data. Server ownership, package capacity, confirmation and native Diagnosis/Handover/preparation requirements continue to govern launch; reading a confirmed booking grants no learning state or qualification evidence.
+
 The controlled native Training setup creates or reuses one confirmed booking for the three existing QA 02/09/10 students owned by the acceptance Specialist. The server requires Preview and the exact Capability Proof project, authenticated tutor ownership and an actual Sandbox enrollment. It never resets topic state, marks Handover complete, changes enrollment, creates scored evidence or activates qualification. Current native Map gates remain authoritative. Concurrent setup clicks serialize and reuse an unfinished confirmed booking.
 
 TD coverage displays historical technical blockers separately from missing source-query results and development coverage. Additional clean sessions cannot repair missing historical identity or incomplete source evidence. Existing history remains intact; qualification fails closed until a supported evidence disposition exists.

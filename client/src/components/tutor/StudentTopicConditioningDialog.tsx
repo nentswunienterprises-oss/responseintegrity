@@ -1134,7 +1134,12 @@ export default function StudentTopicConditioningDialog({
   const [trainingSessionMeetMessage, setTrainingSessionMeetMessage] = useState<string | null>(null);
   const [editingTrainingSessionId, setEditingTrainingSessionId] = useState<string | null>(null);
   const [adjustedTrainingSessionTime, setAdjustedTrainingSessionTime] = useState("");
-  const { data: trainingSessionsData } = useTrainingSessions(studentId, !!workflow?.proposalAccepted);
+  // Sandbox starts with an accepted assignment, before a simulated proposal exists.
+  // Read the server's booking/quota decision; it still controls launch eligibility.
+  const { data: trainingSessionsData } = useTrainingSessions(
+    studentId,
+    isSandboxMode ? workflow?.assignmentAccepted === true : !!workflow?.proposalAccepted,
+  );
   const trainingPackageQuotaDecision = evaluateTrainingPackageQuota(
     operationalMode,
     trainingSessionsData?.monthlyQuota || null,
