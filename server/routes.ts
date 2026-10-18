@@ -4749,7 +4749,27 @@ async function getPendingTrainingConfirmationSession(tutorId: string, studentId:
 
 export async function registerRoutes(app: Express): Promise<Server> {
   registerDemandProductionRoutes(app, { client: supabase, isAuthenticated, requireRole });
-  registerProofTrainingBooking(app, { pool, isAuthenticated, requireTutor: requireRole(["tutor"]) });
+  registerProofTrainingBooking(app, {
+    pool,
+    isAuthenticated,
+    requireTutor: requireRole(["tutor"]),
+    provisionProfileCoverage: async (tutorId) => {
+      const result = await ensureVisibleSandboxStudentsForTutor(tutorId, 8);
+      const students = await pool.query(
+        `SELECT s.id, s.full_name AS label
+           FROM public.students s
+           JOIN public.parent_enrollments e ON e.id = s.parent_enrollment_id
+          WHERE s.tutor_id = $1 AND e.is_sandbox_account = TRUE
+          ORDER BY e.created_at ASC, s.id ASC`,
+        [tutorId],
+      );
+      return {
+        createdAccounts: result.createdAccounts.length,
+        studentCount: students.rows.length,
+        students: students.rows.map(row => ({id:String(row.id),label:String(row.label)})),
+      };
+    },
+  });
 
   app.post(
     "/api/proof/personas/provision",

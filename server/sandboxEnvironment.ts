@@ -52,6 +52,7 @@ import { sandboxRequiresPrerequisiteSentinel, renderSandboxPrerequisiteFollowUp 
 import type { TopicPhase, TopicStability } from "@shared/topicConditioningEngine";
 import { normalizeCapabilityProgressionState, type ProgressionAuthority } from "@shared/capabilityProgressionAuthority";
 import { SANDBOX_BEHAVIOR_NARRATIVE_VERSION } from "@shared/sandboxBehaviorNarrativesV2";
+import { selectSandboxBehaviorProfileSeed } from "@shared/sandboxBehaviorProfiles";
 import {
   sandboxTopicKey,
   deriveSandboxSameTopicSnapshotBefore,
@@ -744,6 +745,15 @@ async function ensureTrajectory(input: {
   try {
     await client.query("BEGIN");
 
+    // Profile breadth is an account-level qualification contract. Serialize
+    // first-time trajectory allocation so concurrent students cannot both
+    // claim the same still-missing behavior profile.
+    await client.query(
+      "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+      [["sandbox-profile-allocation", input.tutorAssignmentId, input.tutorId,
+        input.bank.bankKey, input.bank.bankVersion].join(":")],
+    );
+
     const lockIdentity = [
       input.tutorAssignmentId,
       input.tutorId,
@@ -787,7 +797,7 @@ async function ensureTrajectory(input: {
       selectParams,
     );
     const trajectory = created.rows[0] as SandboxTrajectoryRow;
-    const trajectorySeed = digest(
+    const baseTrajectorySeed = digest(
       [
         "sandbox-trajectory-v3",
         trajectory.id,
@@ -796,6 +806,23 @@ async function ensureTrajectory(input: {
         input.bank.bankVersion,
       ].join(":"),
     );
+    const existingProfileSeeds = await client.query(
+      `SELECT truth.trajectory_seed
+         FROM public.specialist_sandbox_trajectories existing
+         JOIN private.specialist_sandbox_trajectory_truth truth
+           ON truth.trajectory_id = existing.id
+        WHERE existing.tutor_assignment_id = $1
+          AND existing.tutor_id = $2
+          AND existing.bank_key = $3
+          AND existing.bank_version = $4
+          AND existing.id <> $5`,
+      [input.tutorAssignmentId, input.tutorId, input.bank.bankKey,
+       input.bank.bankVersion, trajectory.id],
+    );
+    const trajectorySeed = selectSandboxBehaviorProfileSeed({
+      baseSeed: baseTrajectorySeed,
+      existingSeeds: existingProfileSeeds.rows.map(row => String(row.trajectory_seed)),
+    });
     await client.query(
       `INSERT INTO private.specialist_sandbox_trajectory_truth (
          trajectory_id,

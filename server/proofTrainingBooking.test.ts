@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { proofTrainingBookingHandler } from "./proofTrainingBooking";
+import { proofSandboxProfileCoverageHandler, proofTrainingBookingHandler } from "./proofTrainingBooking";
 const tutor = "77977298-7ac9-41f9-a726-9d5fd634540f";
 const student = "657994af-a9c4-a7ae-dd13-54cdd462f2ab";
 const isolatedTutor = "b8448bbf-e01b-4f7b-bf6a-baf3ddb5d0bc";
@@ -34,12 +34,10 @@ test("booking setup rejects other actors and students before connecting",async()
 test("booking setup binds each controlled student allowlist to its exact Specialist",async()=>{
   const isolated=await invoke({actor:isolatedTutor,studentId:isolatedStudent});
   assert.equal(isolated.status,200);assert.equal(isolated.body.studentId,isolatedStudent);
-  for (const input of [
-    {actor:tutor,studentId:isolatedStudent},
-    {actor:isolatedTutor,studentId:student},
-  ]) {
-    const result=await invoke(input);assert.equal(result.status,403);assert.equal(result.connected,false);
-  }
+  const historicalCrossAccount=await invoke({actor:tutor,studentId:isolatedStudent});
+  assert.equal(historicalCrossAccount.status,403);assert.equal(historicalCrossAccount.connected,false);
+  const isolatedCrossAccount=await invoke({actor:isolatedTutor,studentId:student,owned:false});
+  assert.equal(isolatedCrossAccount.status,404);assert.equal(isolatedCrossAccount.connected,true);
 });
 test("booking setup requires actual owned Sandbox student",async()=>{
   const result=await invoke({owned:false});assert.equal(result.status,404);assert.ok(result.queries.includes("ROLLBACK"));assert.equal(result.released,true);
@@ -56,4 +54,29 @@ test("booking setup only inserts a booking and never modifies learning state",as
 });
 test("failed booking rolls back and releases the transaction",async()=>{
   const result=await invoke({fail:true});assert.equal(result.status,500);assert.ok(result.queries.includes("ROLLBACK"));assert.equal(result.released,true);
+});
+
+async function invokeCoverage({environment=env,actor=isolatedTutor,fail=false}={}) {
+  let called="";let status=200;let body:any;
+  const handler=proofSandboxProfileCoverageHandler(async tutorId=>{
+    called=tutorId;if(fail)throw new Error("provision failed");
+    return {createdAccounts:2,studentCount:8,students:[{id:"student-7",label:"Sandbox Student 7"}]};
+  },environment as any);
+  const res={status(code:number){status=code;return this;},json(value:any){body=value;return this;}};
+  await handler({dbUser:{id:actor}} as any,res as any);
+  return {called,status,body};
+}
+
+test("profile coverage setup is isolated to the approved Specialist and Capability Proof Preview",async()=>{
+  const ok=await invokeCoverage();
+  assert.equal(ok.status,200);assert.equal(ok.called,isolatedTutor);assert.equal(ok.body.studentCount,8);
+  const other=await invokeCoverage({actor:tutor});
+  assert.equal(other.status,403);assert.equal(other.called,"");
+  const production=await invokeCoverage({environment:{...env,VERCEL_ENV:"production"}});
+  assert.equal(production.status,404);assert.equal(production.called,"");
+});
+
+test("profile coverage setup fails closed when provisioning fails",async()=>{
+  const result=await invokeCoverage({fail:true});
+  assert.equal(result.status,500);assert.equal(result.body.message,"Could not prepare controlled profile coverage.");
 });

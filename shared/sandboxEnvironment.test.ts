@@ -27,7 +27,7 @@ import {
   resolveEvidenceSelection,
 } from "./responseIntegrityDrillRegistry";
 import type { TopicPhase } from "./topicConditioningEngine";
-import { SANDBOX_BEHAVIOR_PROFILE_MODEL_VERSION, isSandboxBehaviorTransitionPlausible, resolveSandboxBehaviorProfile, sandboxBehaviorObservableSignatureMultiplier, sandboxBehaviorProfileMultiplier, sandboxBehaviorTransitionMultiplier } from "./sandboxBehaviorProfiles";
+import { SANDBOX_BEHAVIOR_PROFILE_IDS_V1, SANDBOX_BEHAVIOR_PROFILE_MODEL_VERSION, isSandboxBehaviorTransitionPlausible, resolveSandboxBehaviorProfile, sandboxBehaviorObservableSignatureMultiplier, sandboxBehaviorProfileMultiplier, sandboxBehaviorTransitionMultiplier, selectSandboxBehaviorProfileSeed } from "./sandboxBehaviorProfiles";
 import { SANDBOX_BEHAVIOR_NARRATIVE_VERSION, renderSandboxBehaviorNarrativeV2 } from "./sandboxBehaviorNarrativesV2";
 import {
   getLegacyStatefulSandboxV1ScenarioTruthAudit,
@@ -695,6 +695,33 @@ test("versioned Sandbox behavioural continuity preserves legacy assignments and 
       context: { ...ctx, behaviorModelVersion: 1 } }).key,
     supported.key,
   );
+});
+
+test("new trajectory seeds fill every missing behavior profile before repeating", () => {
+  const allocated: string[] = [];
+  for (let index = 0; index < SANDBOX_BEHAVIOR_PROFILE_IDS_V1.length; index += 1) {
+    allocated.push(selectSandboxBehaviorProfileSeed({
+      baseSeed: `new-trajectory-${index}`,
+      existingSeeds: allocated,
+    }));
+  }
+
+  assert.deepEqual(
+    new Set(allocated.map(resolveSandboxBehaviorProfile)),
+    new Set(SANDBOX_BEHAVIOR_PROFILE_IDS_V1),
+  );
+  const baseSeed = "seventh-trajectory";
+  assert.equal(selectSandboxBehaviorProfileSeed({
+    baseSeed,
+    existingSeeds: allocated,
+  }), baseSeed);
+});
+
+test("profile seed allocation preserves every previously persisted assignment", () => {
+  const persisted = ["identity-v1-0", "identity-v1-4"];
+  const before = persisted.map(resolveSandboxBehaviorProfile);
+  selectSandboxBehaviorProfileSeed({baseSeed:"new-trajectory",existingSeeds:persisted});
+  assert.deepEqual(persisted.map(resolveSandboxBehaviorProfile), before);
 });
 
 test("V2 Sandbox cannot erase a breakdown without an observable intermediate response", () => {

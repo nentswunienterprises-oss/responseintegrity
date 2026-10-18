@@ -525,6 +525,14 @@ test("Sandbox trajectory initialization is serialized across environment and his
     sandboxEnvironmentSource,
     /Both the environment form and history can initialize at the same time/,
   );
+  assert.match(
+    sandboxEnvironmentSource,
+    /sandbox-profile-allocation[\s\S]*selectSandboxBehaviorProfileSeed/,
+  );
+  assert.match(
+    sandboxEnvironmentSource,
+    /existing\.tutor_assignment_id = \$1[\s\S]*existing\.id <> \$5/,
+  );
 });
 
 test("stateful Sandbox surfaces the actual environment request failure", () => {

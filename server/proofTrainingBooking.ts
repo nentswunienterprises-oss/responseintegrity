@@ -16,24 +16,33 @@ const SPECIALIST_STUDENTS = new Map<string, ReadonlySet<string>>([
     "483bf620-251b-4db3-a2eb-88ee85d2c858",
   ])],
 ]);
+const ISOLATED_ACCEPTANCE_SPECIALIST = "b8448bbf-e01b-4f7b-bf6a-baf3ddb5d0bc";
+const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+
+function isCapabilityProofPreview(env: NodeJS.ProcessEnv | Record<string,string|undefined>) {
+  let project = "";
+  let databaseMatches = false;
+  try { project = new URL(env.SUPABASE_URL || "").hostname; } catch { /* fail closed */ }
+  try {
+    const database = new URL(env.DATABASE_URL || "");
+    databaseMatches = database.hostname === "db.jftlxeacphvbnhbsbpxc.supabase.co" ||
+      (database.hostname.endsWith(".pooler.supabase.com") &&
+       decodeURIComponent(database.username) === "postgres.jftlxeacphvbnhbsbpxc");
+  } catch { /* fail closed */ }
+  return databaseMatches && env.VERCEL_ENV === "preview" &&
+    project === "jftlxeacphvbnhbsbpxc.supabase.co";
+}
 
 export function proofTrainingBookingHandler(pool: Pick<Pool, "connect">, env = process.env) {
   return async (req: Request, res: Response) => {
-    let project = "";
-    let databaseMatches = false;
-    try { project = new URL(env.SUPABASE_URL || "").hostname; } catch { /* fail closed */ }
-    try {
-      const database = new URL(env.DATABASE_URL || "");
-      databaseMatches = database.hostname === "db.jftlxeacphvbnhbsbpxc.supabase.co" ||
-        (database.hostname.endsWith(".pooler.supabase.com") &&
-         decodeURIComponent(database.username) === "postgres.jftlxeacphvbnhbsbpxc");
-    } catch { /* fail closed */ }
-    if (!databaseMatches || env.VERCEL_ENV !== "preview" || project !== "jftlxeacphvbnhbsbpxc.supabase.co") {
+    if (!isCapabilityProofPreview(env)) {
       return res.status(404).json({ message: "Not found" });
     }
     const tutorId = String((req as any).dbUser?.id || "");
     const studentId = String(req.body?.studentId || "");
-    if (!SPECIALIST_STUDENTS.get(tutorId)?.has(studentId)) {
+    const publishedFixture = SPECIALIST_STUDENTS.get(tutorId)?.has(studentId);
+    const isolatedOwnedFixture = tutorId === ISOLATED_ACCEPTANCE_SPECIALIST && UUID.test(studentId);
+    if (!publishedFixture && !isolatedOwnedFixture) {
       return res.status(403).json({ message: "This controlled booking is unavailable." });
     }
     let client: PoolClient | null = null;
@@ -77,9 +86,31 @@ export function proofTrainingBookingHandler(pool: Pick<Pool, "connect">, env = p
   };
 }
 
+export function proofSandboxProfileCoverageHandler(
+  provision: (tutorId:string)=>Promise<unknown>,
+  env = process.env,
+) {
+  return async (req:Request,res:Response) => {
+    if (!isCapabilityProofPreview(env)) return res.status(404).json({message:"Not found"});
+    const tutorId=String((req as any).dbUser?.id||"");
+    if (tutorId!==ISOLATED_ACCEPTANCE_SPECIALIST)
+      return res.status(403).json({message:"This controlled coverage setup is unavailable."});
+    try {
+      return res.json(await provision(tutorId));
+    } catch(error) {
+      console.error("[PROOF] Sandbox profile coverage provisioning failed",error);
+      return res.status(500).json({message:"Could not prepare controlled profile coverage."});
+    }
+  };
+}
+
 export function registerProofTrainingBooking(app: Express, dependencies: {
   pool: Pick<Pool, "connect">; isAuthenticated: RequestHandler; requireTutor: RequestHandler;
+  provisionProfileCoverage: (tutorId:string)=>Promise<unknown>;
 }) {
   app.post("/api/proof/training-booking", dependencies.isAuthenticated,
     dependencies.requireTutor, proofTrainingBookingHandler(dependencies.pool));
+  app.post("/api/proof/sandbox-profile-coverage", dependencies.isAuthenticated,
+    dependencies.requireTutor,
+    proofSandboxProfileCoverageHandler(dependencies.provisionProfileCoverage));
 }
