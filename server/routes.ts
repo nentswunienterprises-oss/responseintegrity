@@ -1,3 +1,4 @@
+import { tutorScheduleWeekRange } from "./tutorScheduleWeek";
 import { overlaySandboxDiagnosisTopicPlacement } from "./sandboxDiagnosisTopicProjection";
 import { registerProofTrainingBooking } from "./proofTrainingBooking";
 import { captureDemandParent } from "./demandCapture";
@@ -12901,19 +12902,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const operationalMode = await getTutorOperationalMode(tutorId);
         const weekStartParam = String(req.query.weekStart || "").trim();
 
-        const baseDate = weekStartParam ? new Date(`${weekStartParam}T00:00:00`) : new Date();
-        if (Number.isNaN(baseDate.getTime())) {
-          return res.status(400).json({ message: "Invalid weekStart" });
+        let weekStart: Date;
+        let weekEnd: Date;
+        try {
+          ({weekStart, weekEnd} = tutorScheduleWeekRange({
+            weekStart: weekStartParam,
+            weekStartUtc: String(req.query.weekStartUtc || "").trim(),
+            weekEndUtc: String(req.query.weekEndUtc || "").trim(),
+          }));
+        } catch {
+          return res.status(400).json({message: "Invalid calendar week boundaries"});
         }
-
-        const weekStart = new Date(baseDate);
-        const mondayOffset = (weekStart.getDay() + 6) % 7;
-        weekStart.setHours(0, 0, 0, 0);
-        weekStart.setDate(weekStart.getDate() - mondayOffset);
-
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekEnd.getDate() + 6);
-        weekEnd.setHours(23, 59, 59, 999);
 
         if (usesDirectProofSessionDatabase()) {
           const scheduleResult = await pool.query(

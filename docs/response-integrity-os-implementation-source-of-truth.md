@@ -3020,3 +3020,7 @@ invalidates an earlier approval as well as new errors or new events. Ordering al
 does not invalidate approval. Prior-format fingerprints require fresh TD review.
 Isolated PostgreSQL acceptance covers persisted sign-off consumption and stale approval;
 it does not establish a deployed native journey or permit automatic stage transition.
+
+### Specialist calendar week boundaries — 19 October 2026
+
+The Specialist Sessions page supplies the UTC instants bounding its displayed local calendar week. The authenticated owner-bound schedule endpoint validates those boundaries and uses them for both database paths. This keeps early Monday lessons in UTC-positive zones and daylight-saving transitions visible in the same week the page renders. Existing callers without boundary instants retain the UTC fallback. Scheduling and learning state are unchanged.

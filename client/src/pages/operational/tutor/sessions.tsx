@@ -144,9 +144,9 @@ export default function TutorSessions() {
 
   const weekKey = format(weekStart, "yyyy-MM-dd");
   const { data, isLoading } = useQuery<TutorWeeklyScheduleResponse>({
-    queryKey: ["/api/tutor/weekly-schedule", weekKey],
+    queryKey: ["/api/tutor/weekly-schedule", weekKey, weekStart.toISOString()],
     queryFn: async () => {
-      const response = await apiRequest("GET", `/api/tutor/weekly-schedule?weekStart=${weekKey}`);
+      const response = await apiRequest("GET", `/api/tutor/weekly-schedule?${new URLSearchParams({weekStart: weekKey, weekStartUtc: weekStart.toISOString(), weekEndUtc: addDays(weekStart, 7).toISOString()})}`);
       return response.json();
     },
     refetchInterval: emergencyDbMode ? false : 15000,
