@@ -35,7 +35,7 @@ import {
   persistTpsTimerContract,
   type PersistedTpsTimerContract,
 } from "./tpsTimingAuthority";
-import { getSandboxEnvironmentHistory } from "./sandboxEnvironment";
+import { getSandboxEnvironmentHistory, initializeSandboxNativeEvidenceTrajectory } from "./sandboxEnvironment";
 import { SANDBOX_DIAGNOSIS_EXCEPTION_NARRATIVE_VERSION } from "@shared/sandboxDiagnosisExceptionNarrativesV2";
 
 import { projectSandboxNativeDiagnosisOutcome, SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION } from "./sandboxNativeDiagnosisProjection";
@@ -587,6 +587,7 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
   probeId?: DiagnosisProbeId | null;
 }) {
   await assertSandboxAccess(input);
+  if (input.scope === "diagnosis") await initializeSandboxNativeEvidenceTrajectory(input);
   const { trajectory, truth } = await loadTrajectory(input);
 
   const timerContract =

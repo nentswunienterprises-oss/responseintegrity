@@ -2853,6 +2853,8 @@ The Specialist may see the simulated student response required to perform the op
 
 V2 Training response narration version 5 includes a behavioral description for every field exposed by the current rep, including Light Apply's immediate application and Required Structure's plan check. A scene that merely asks for a response cannot substitute for describing what the simulated student did. Public descriptions contain no private option IDs, profile keys or scoring classes. Canonical observations and historical submissions remain unchanged; the narrative version changes the pending form fingerprint.
 
+Native Diagnosis may be the first Sandbox operating surface opened for a newly assigned student. Its simulated-response preparation initializes the ordinary assignment/student trajectory through the same owned synthetic-student and active-bank guards as the Sandbox environment. It does not require an earlier Training/history visit, submit observations, or award capability evidence.
+
 For simulated Diagnosis and Handover opportunities, the execution boundary remains:
 
 `Ready -> Observe simulated student response -> Student Finished -> Record -> Confirm`

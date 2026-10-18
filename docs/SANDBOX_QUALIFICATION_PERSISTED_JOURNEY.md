@@ -210,3 +210,17 @@ for every exposed rep field, using the existing observation definitions and pres
 canonical truth. Narrative version 5 invalidates pending older forms. Synthetic regression
 coverage checks all 231 authored set/rep patterns, field visibility, historical V1 stability
 and unchanged canonical observation/authority. Native continuation awaits this deployment.
+
+Commit `7efea58d7309ae98ade1947f051fec18c4810f04` deployed READY with all ten CI
+workflows passing and 238 local Sandbox tests passing. The pending Light Apply rep
+resumed with all four behavioral dimensions visible. Student 1 completed all six reps;
+persisted readback confirms exact observation/evidence, preserved conditions, and both
+authority and state-track alignment. The actual result regressed to Clarity/Medium;
+no stronger state was manufactured.
+
+Students 2 and 3 now have confirmed synthetic bookings. Student 2's Linear equations
+topic was activated natively as unobserved. Its first Diagnosis exposed an initialization
+dependency on a prior Sandbox environment/history visit: no active trajectory existed.
+Native simulation preparation now initializes that ordinary trajectory under existing
+assignment, ownership, synthetic-student and active-bank guards. It records no observation
+or score. Student 2 remains at the unopened Diagnosis opportunity pending deployed verification.

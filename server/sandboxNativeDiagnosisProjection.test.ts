@@ -58,6 +58,18 @@ test("prepare and submit share projected truth and invalidate older issued forms
   assert.match(native, /prepared.formId !== input.formId[\s\S]*opportunity is stale/);
 });
 
+test("first native Diagnosis initializes only an owned Sandbox trajectory before loading it", () => {
+  const source = readFileSync(new URL("./sandboxRediagnosis.ts", import.meta.url), "utf8");
+  const native = source.slice(source.indexOf("export async function prepareSandboxLiveEvidenceSimulation"));
+  assert.match(native, /await assertSandboxAccess\(input\);\s+if \(input.scope === "diagnosis"\) await initializeSandboxNativeEvidenceTrajectory\(input\);\s+const \{ trajectory, truth \} = await loadTrajectory\(input\)/);
+  const environment = readFileSync(new URL("./sandboxEnvironment.ts", import.meta.url), "utf8");
+  const initialize = environment.slice(environment.indexOf("export async function initializeSandboxNativeEvidenceTrajectory"), environment.indexOf("export async function getSandboxEnvironmentHistory"));
+  assert.match(initialize, /await assertSandboxAccess\(input\)/);
+  assert.match(initialize, /loadActiveEnvironmentBank/);
+  assert.match(initialize, /await ensureTrajectory\(\{ \.\.\.input, bank \}\)/);
+  assert.ok(!/INSERT|UPDATE|DELETE|recordSandbox|submitSandbox/.test(initialize));
+});
+
 test("stateful targeted re-diagnosis scores honest protocol boundaries and versions its form", () => {
   const original = fixture("stack.normal_independent", "near_stable");
   const projected = projectSandboxNativeDiagnosisOutcome(original);

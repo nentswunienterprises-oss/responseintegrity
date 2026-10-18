@@ -2583,6 +2583,19 @@ export async function submitSandboxEnvironmentRep(input: {
   };
 }
 
+export async function initializeSandboxNativeEvidenceTrajectory(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+  studentId: string;
+}) {
+  await assertSandboxAccess(input);
+  const bank = await loadActiveEnvironmentBank();
+  if (!bank) throw httpError(404, "No active stateful Sandbox environment bank is available.");
+  // Native Diagnosis can be the first operating surface a new student opens.
+  // Create only its ordinary trajectory; no response or score is recorded.
+  await ensureTrajectory({ ...input, bank });
+}
+
 export async function getSandboxEnvironmentHistory(input: {
   tutorAssignmentId: string;
   tutorId: string;
