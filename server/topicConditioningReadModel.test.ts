@@ -17,6 +17,8 @@ async function readMap(student: any, tutorId = "specialist") {
     app: { get: (...args: any[]) => { handler = args.at(-1); } },
     isAuthenticated: () => {}, requireRole: () => () => {},
     storage: { getStudent: async () => student },
+    pool: {}, isHeuristicSandboxStudent: () => false,
+    overlaySandboxDiagnosisTopicPlacement: async ({topics}:any) => topics,
     tryParsePhase: (value: string) => value || null,
     normalizeStability: (value: string) => value,
     parseStoredTopicReference: () => null,

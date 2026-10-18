@@ -1,3 +1,4 @@
+import { overlaySandboxDiagnosisTopicPlacement } from "./sandboxDiagnosisTopicProjection";
 import { registerProofTrainingBooking } from "./proofTrainingBooking";
 import { captureDemandParent } from "./demandCapture";
 import { registerDemandProductionRoutes } from "./demandProduction";
@@ -32585,10 +32586,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         conceptMastery.topicConditioning && typeof conceptMastery.topicConditioning === "object"
           ? conceptMastery.topicConditioning
           : {};
-      const topicsStore: Record<string, any> =
+      const storedTopics: Record<string, any> =
         topicConditioningStore.topics && typeof topicConditioningStore.topics === "object"
           ? topicConditioningStore.topics
           : {};
+
+      const topicsStore = isHeuristicSandboxStudent(student, tutorId)
+        ? await overlaySandboxDiagnosisTopicPlacement({ tutorId, studentId, topics: storedTopics }, pool)
+        : storedTopics;
 
       const topics = (
         await Promise.all(

@@ -272,3 +272,14 @@ cannot be claimed while the approved all-history policy reports this unresolved 
 The founder clarified that mixed clean performance is evidence of instability and session limits cannot create dead ends. Decision policy 2 removes the absorbing supported/unsupported conflict. Missing or contaminated evidence receives a specific continuation prescription after the current session budget; a later confirmed owned booking resumes the same history with server-controlled boundaries. This does not invent a placement, baseline, timer, clean session or TD approval.
 
 The existing five-probe Student 4 episode will be re-evaluated from its saved observations through an explicit native result application, preserving its previous decision. Its 23 observations and all earlier evidence must remain intact. Deployed application and public-row readback remain required. Valid placement-pending records are no longer labeled technically invalid, but continue to prevent readiness until their native run completes. Missing truth and broken identity remain technical blockers.
+
+
+Commit `b531f005` deployed READY with all ten CI workflows passing. Native application of
+Student 4's original five-probe episode resolved Structured Execution / Medium and restored
+normal Training. Public readback confirms the same 23 exact, condition-preserved observations
+and unchanged submission fingerprint; the previous blocked decision and timestamp remain in
+its resolution audit. The empty replacement has no submissions. The next launch exposed a
+separate stale Map snapshot: the trajectory is Medium but the older student topic mirror
+still says High. The Map now overlays a newer completed, owned Sandbox re-diagnosis from the
+current topic/session without rewriting history or changing live students. Native verification
+of that projection remains required. All overall qualification gates remain pending.
