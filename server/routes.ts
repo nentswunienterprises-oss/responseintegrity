@@ -21477,24 +21477,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/coo/all-tutor-assignments",
     isAuthenticated,
     requireRole(["coo"]),
-    async (req: Request, res: Response) => {
+    async (_req: Request, res: Response) => {
       try {
-        const { data: assignments } = await supabase
-          .from("tutor_assignments")
-          .select("tutor_id");
-        
-        console.log("📋 Raw assignments from DB:", assignments);
-        
-        if (!assignments) {
-          console.log("📋 No assignments found, returning empty array");
-          return res.json([]);
+        let assignedTutorIds: string[];
+        if (isTheHubDatabaseRuntime()) {
+          // Server-side authority: revoked client grants must not erase assignments.
+          const result = await pool.query(
+            "SELECT tutor_id FROM public.tutor_assignments ORDER BY created_at ASC",
+          );
+          assignedTutorIds = result.rows.map((row: any) => String(row.tutor_id));
+        } else {
+          const { data, error } = await supabase
+            .from("tutor_assignments")
+            .select("tutor_id");
+          if (error) throw new Error(`Failed to load all tutor assignments: ${error.message}`);
+          if (!Array.isArray(data)) throw new Error("Invalid tutor assignments response");
+          assignedTutorIds = data.map((row: any) => String(row.tutor_id));
         }
-        
-        // Transform snake_case to camelCase (tutor_id -> tutorId)
-        // Return just the tutor IDs to check against
-        const tutorIds = assignments.map((a: any) => a.tutor_id);
-        console.log("📋 All assigned tutor IDs:", tutorIds);
-        res.json(tutorIds);
+        res.json(assignedTutorIds);
       } catch (error) {
         console.error("Error fetching all tutor assignments:", error);
         res.status(500).json({ message: "Failed to fetch tutor assignments" });
@@ -21513,35 +21513,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const assignments = await storage.getTutorAssignmentsByPod(podId);
         const tutorIds = assignments.map((a: any) => a.tutorId).filter(Boolean);
         const activeEnrollmentStatuses = ["assigned", "proposal_sent", "session_booked", "report_received", "confirmed"];
-        
-        // Calculate statistics
+
         const totalTutors = assignments.length;
         let totalStudents = 0;
-
-        if (tutorIds.length > 0) {
-          const { count } = await supabase
-            .from("parent_enrollments")
-            .select("id", { count: "exact", head: true })
-            .in("assigned_tutor_id", tutorIds)
-            .in("status", activeEnrollmentStatuses);
-          totalStudents = count || 0;
-        }
-
         let sessionsCompleted = 0;
-        if (tutorIds.length > 0) {
-          const { count } = await supabase
-            .from("scheduled_sessions")
-            .select("id", { count: "exact", head: true })
-            .in("tutor_id", tutorIds)
-            .eq("status", "completed");
-          sessionsCompleted = count || 0;
+        if (tutorIds.length > 0 && isTheHubDatabaseRuntime()) {
+          const [enrollments, sessions] = await Promise.all([
+            pool.query(
+              `SELECT COUNT(*)::integer AS total
+                 FROM public.parent_enrollments
+                WHERE assigned_tutor_id = ANY($1::uuid[])
+                  AND status = ANY($2::enrollment_status[])`,
+              [tutorIds, activeEnrollmentStatuses],
+            ),
+            pool.query(
+              `SELECT COUNT(*)::integer AS total
+                 FROM public.scheduled_sessions
+                WHERE tutor_id = ANY($1::text[])
+                  AND status = 'completed'`,
+              [tutorIds],
+            ),
+          ]);
+          totalStudents = Number(enrollments.rows[0]?.total ?? 0);
+          sessionsCompleted = Number(sessions.rows[0]?.total ?? 0);
+        } else if (tutorIds.length > 0) {
+          const [enrollments, sessions] = await Promise.all([
+            supabase.from("parent_enrollments")
+              .select("id", { count: "exact", head: true })
+              .in("assigned_tutor_id", tutorIds)
+              .in("status", activeEnrollmentStatuses),
+            supabase.from("scheduled_sessions")
+              .select("id", { count: "exact", head: true })
+              .in("tutor_id", tutorIds)
+              .eq("status", "completed"),
+          ]);
+          if (enrollments.error) {
+            throw new Error(`Failed to count assigned enrollments: ${enrollments.error.message}`);
+          }
+          if (sessions.error) {
+            throw new Error(`Failed to count completed sessions: ${sessions.error.message}`);
+          }
+          totalStudents = enrollments.count ?? 0;
+          sessionsCompleted = sessions.count ?? 0;
         }
-        
-        res.json({
-          totalTutors,
-          totalStudents,
-          sessionsCompleted
-        });
+        res.json({ totalTutors, totalStudents, sessionsCompleted });
       } catch (error) {
         console.error("Error fetching pod statistics:", error);
         res.status(500).json({ message: "Failed to fetch pod statistics" });
