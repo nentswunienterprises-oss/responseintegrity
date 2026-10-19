@@ -371,6 +371,40 @@ test("V2 capability targeting cannot starve observable uneven performance after 
   assert.ok(selected.has("breakdown"), "capability challenge must remain eligible");
 });
 
+test("V2 capability targeting keeps phase-specific profile signatures eligible", () => {
+  const template = outcomeFor({
+    setId: "clarity.identification", repNumber: 1, key: "template",
+  });
+  const candidates = [
+    { ...template, phase: "Structured Execution" as const,
+      setId: "structured_execution.required_structure", key: "structured.required.pattern_1",
+      trajectoryClass: "breakdown" as const, challengeCapabilities: ["continuity_integrity" as const] },
+    { ...template, phase: "Structured Execution" as const,
+      setId: "structured_execution.required_structure", key: "structured.required.pattern_3",
+      trajectoryClass: "conditional" as const, challengeCapabilities: [] },
+    { ...template, phase: "Structured Execution" as const,
+      setId: "structured_execution.required_structure", key: "structured.required.pattern_2",
+      trajectoryClass: "supported" as const, challengeCapabilities: [] },
+  ];
+  const seed = Array.from({ length: 128 }, (_, index) => `synthetic-reassurance-${index}`)
+    .find((candidate) => resolveSandboxBehaviorProfile(candidate) === "reassurance_seeker");
+  assert.ok(seed);
+  const selected = new Set(Array.from({ length: 96 }, (_, index) =>
+    selectSandboxOutcome({ seed: seed!, outcomes: candidates, context: {
+      canonicalPhase: "Structured Execution", canonicalStability: "Medium",
+      prescribedPhase: "Structured Execution",
+      setId: "structured_execution.required_structure", repNumber: 1,
+      sequenceNumber: index + 1,
+      earliestUnsupportedCapability: "continuity_integrity",
+      previousTrajectoryClass: "near_stable", behaviorModelVersion: 2,
+    } }).key,
+  ));
+  assert.ok(selected.has("structured.required.pattern_3"),
+    "hard targeting must preserve the profile's observable signature scene");
+  assert.ok(selected.has("structured.required.pattern_1"),
+    "capability challenge must remain eligible");
+});
+
 test("Sandbox student behavior profile is deterministic and changes phase tendencies without suppressing evidence anomalies", () => {
   const seed = "student-profile-seed";
   const first = resolveSandboxBehaviorProfile(seed);
