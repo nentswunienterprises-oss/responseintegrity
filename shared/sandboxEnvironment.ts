@@ -33,7 +33,7 @@ import {
   type ResponseEvidenceDimensionState,
 } from "./responseEvidenceModel";
 import type { TrainingDimensionId } from "./trainingEvidenceContract";
-import { isSandboxBehaviorTransitionPlausible, sandboxBehaviorProfileMultiplier, sandboxBehaviorTransitionMultiplier } from "./sandboxBehaviorProfiles";
+import { isSandboxBehaviorTransitionPlausible, sandboxBehaviorObservableSignatureMultiplier, sandboxBehaviorProfileMultiplier, sandboxBehaviorTransitionMultiplier } from "./sandboxBehaviorProfiles";
 import { renderSandboxBehaviorNarrativeV2 } from "./sandboxBehaviorNarrativesV2";
 import { DIAGNOSIS_OBSERVATION_MATRIX, type DiagnosisDimensionId } from "./diagnosisObservationMatrix";
 import { getTrainingObservationDefinitionV2 } from "./trainingObservationContractV2";
@@ -736,8 +736,20 @@ export function selectSandboxOutcome(input: {
         return false;
       })
     : [];
+  const profileSignatureCandidates = input.context.behaviorModelVersion === 2
+    ? repetitionEligible.filter((definition) =>
+        sandboxBehaviorObservableSignatureMultiplier({
+          seed: input.seed,
+          phase: definition.phase,
+          trajectoryClass: definition.trajectoryClass,
+          previousTrajectoryClass: input.context.previousTrajectoryClass,
+          continuityTags: input.context.continuityTags,
+          outcomeKey: definition.key,
+        }) > 1
+      )
+    : [];
   const candidates = targeted.length
-    ? [...new Set([...targeted, ...recoveryCandidates])]
+    ? [...new Set([...targeted, ...recoveryCandidates, ...profileSignatureCandidates])]
     : repetitionEligible;
 
   return [...candidates].sort((a, b) => {
