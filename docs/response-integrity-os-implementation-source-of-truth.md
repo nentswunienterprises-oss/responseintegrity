@@ -32,6 +32,8 @@ Read this file with these rules:
 
 ### Sandbox profile breadth — 18 October 2026
 
+V2 capability targeting keeps state-compatible intermediate recovery candidates eligible alongside the earliest unsupported Specialist capability challenge. After breakdown, conditional or near-stable responses may compete; after an observed intermediate, stronger responses may compete. This prevents challenge targeting from excluding every recovery path. Selection remains deterministic and profile-weighted, never guarantees recovery, and cannot bypass phase/stability compatibility, repetition rules or the ban on an immediate breakdown-to-supported jump. Historical V1 selection and submitted evidence remain unchanged.
+
 First-use trajectory allocation fills unrepresented behavior profiles within the same Specialist assignment and bank before repeating a profile. Allocation is serialized. Existing seeds, completed observations and identity remain authoritative and are never rewritten. Profile assignment alone earns no signature coverage; qualifying observed Training behavior is still required.
 
 The isolated Capability Proof acceptance setup can add the two missing practice students, up to eight in that controlled account. It reuses the ordinary provisioning workflow and owner-bound booking path. Current Diagnosis, Handover, preparation and qualification requirements remain in force.

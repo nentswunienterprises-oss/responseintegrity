@@ -311,6 +311,37 @@ test("constrained shuffle is deterministic and can target the earliest unsupport
   assert.notEqual(withoutRepeat.key, "b");
 });
 
+test("V2 capability targeting cannot starve intermediate recovery after a breakdown", () => {
+  const candidates = [
+    outcomeFor({ setId: "clarity.identification", repNumber: 1, key: "target.breakdown", trajectoryClass: "breakdown", challenge: "continuity_integrity" }),
+    outcomeFor({ setId: "clarity.identification", repNumber: 1, key: "intermediate", trajectoryClass: "near_stable" }),
+    outcomeFor({ setId: "clarity.identification", repNumber: 1, key: "clean", trajectoryClass: "supported" }),
+  ];
+  const context = {
+    canonicalPhase: phase, canonicalStability: "Low" as const,
+    prescribedPhase: phase, setId: "clarity.identification", repNumber: 1,
+    sequenceNumber: 7, earliestUnsupportedCapability: "continuity_integrity" as const,
+    previousTrajectoryClass: "breakdown" as const, behaviorModelVersion: 2 as const,
+  };
+  const selected = new Set(Array.from({ length: 64 }, (_, index) => {
+    const input = { seed: `synthetic-recovery-${index}`, outcomes: candidates, context };
+    const first = selectSandboxOutcome(input);
+    assert.equal(first.key, selectSandboxOutcome(input).key);
+    assert.notEqual(first.key, "clean", "immediate breakdown-to-supported remains forbidden");
+    return first.key;
+  }));
+  assert.ok(selected.has("intermediate"), "a non-targeted intermediate must remain eligible");
+  assert.ok(selected.has("target.breakdown"), "recovery must not be guaranteed");
+  const afterIntermediate = new Set(Array.from({ length: 64 }, (_, index) =>
+    selectSandboxOutcome({ seed: `synthetic-recovery-${index}`, outcomes: candidates,
+      context: { ...context, previousTrajectoryClass: "near_stable" } }).key,
+  ));
+  assert.ok(afterIntermediate.has("clean"), "recovery can continue after an observed intermediate");
+  const incompatibleRecovery = { ...candidates[1], allowedCanonicalStabilities: ["High" as const] };
+  assert.equal(selectSandboxOutcome({ seed: "state-boundary", outcomes: [candidates[0], incompatibleRecovery, candidates[2]], context }).key, "target.breakdown", "recovery cannot bypass state compatibility");
+  assert.equal(selectSandboxOutcome({ seed: "legacy", outcomes: candidates, context: { ...context, behaviorModelVersion: 1 } }).key, "target.breakdown", "historical V1 targeting stays unchanged");
+});
+
 test("Sandbox student behavior profile is deterministic and changes phase tendencies without suppressing evidence anomalies", () => {
   const seed = "student-profile-seed";
   const first = resolveSandboxBehaviorProfile(seed);

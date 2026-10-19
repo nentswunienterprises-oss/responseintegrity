@@ -706,11 +706,26 @@ export function selectSandboxOutcome(input: {
         definition.challengeCapabilities?.includes(target)
       )
     : [];
-  // Capability targeting is an eligibility preference, not a weak score bonus.
-  // If a plausible non-repeated outcome can expose the earliest unsupported
-  // Specialist layer, choose within that pool. Only fall back to the wider
-  // plausible pool when this rep genuinely cannot expose the target.
-  const candidates = targeted.length ? targeted : repetitionEligible;
+  // Keep V2 intermediate recovery eligible beside capability challenges.
+  // Hard targeting must not suppress the very transitions that make recovery
+  // and subsequent phase development possible. State compatibility, repetition
+  // and the prohibition on an immediate breakdown-to-supported jump were
+  // already applied above. Eligibility never guarantees a recovery outcome.
+  const recoveryCandidates = input.context.behaviorModelVersion === 2
+    ? repetitionEligible.filter((definition) => {
+        const previous = input.context.previousTrajectoryClass;
+        if (previous === "breakdown") {
+          return definition.trajectoryClass === "conditional" || definition.trajectoryClass === "near_stable";
+        }
+        if (previous === "conditional") {
+          return definition.trajectoryClass === "near_stable" || definition.trajectoryClass === "supported";
+        }
+        return previous === "near_stable" && definition.trajectoryClass === "supported";
+      })
+    : [];
+  const candidates = targeted.length
+    ? [...new Set([...targeted, ...recoveryCandidates])]
+    : repetitionEligible;
 
   return [...candidates].sort((a, b) => {
     const scoreFor = (definition: SandboxOutcomeDefinition) =>
