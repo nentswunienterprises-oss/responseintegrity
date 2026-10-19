@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { resolveSandboxRediagnosisEpisodeRun } from "./sandboxRediagnosisEpisode";
+import { resolveSandboxRediagnosisEpisodeRun, canRetireSupersededEmptySandboxEpisode } from "./sandboxRediagnosisEpisode";
 
 const run = (id: string, status: string, session = 2, minute = 0) => ({
   id, status, started_session_number: session,
@@ -22,4 +22,17 @@ test("previous session blocks remain historical without replacing the current ep
   const current = run("current","active",3);
   assert.equal(resolveSandboxRediagnosisEpisodeRun([run("past","blocked",2),current],3),current);
   assert.equal(resolveSandboxRediagnosisEpisodeRun([],3),null);
+});
+
+test("only an empty older duplicate superseded by completed placement can retire", () => {
+  const empty={status:"active",started_session_number:2,specialist_probe_count:0,
+    canonical_probe_count:0,persisted_turn_count:0,completed_sibling:true,
+    specialist_complete:false,canonical_complete:false};
+  assert.equal(canRetireSupersededEmptySandboxEpisode(empty,4),true);
+  for(const change of [
+    {specialist_probe_count:1},{canonical_probe_count:1},{persisted_turn_count:1},
+    {specialist_probe_count:null},{canonical_probe_count:null},{completed_sibling:false},
+    {specialist_complete:true},{canonical_complete:true},{status:"blocked"},{status:"completed"},
+    {started_session_number:4},{started_session_number:5},{started_session_number:0},
+  ]) assert.equal(canRetireSupersededEmptySandboxEpisode({...empty,...change},4),false,JSON.stringify(change));
 });

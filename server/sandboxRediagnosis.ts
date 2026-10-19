@@ -37,7 +37,7 @@ import {
   type PersistedTpsTimerContract,
 } from "./tpsTimingAuthority";
 import { getSandboxEnvironmentHistory, initializeSandboxNativeEvidenceTrajectory } from "./sandboxEnvironment";
-import { resolveSandboxRediagnosisEpisodeRun } from "./sandboxRediagnosisEpisode";
+import { resolveSandboxRediagnosisEpisodeRun, canRetireSupersededEmptySandboxEpisode } from "./sandboxRediagnosisEpisode";
 import { SANDBOX_DIAGNOSIS_EXCEPTION_NARRATIVE_VERSION } from "@shared/sandboxDiagnosisExceptionNarrativesV2";
 
 import { projectSandboxNativeDiagnosisOutcome, SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION } from "./sandboxNativeDiagnosisProjection";
@@ -221,7 +221,7 @@ async function ensureRediagnosisRun(input: {
     throw httpError(409, "The Sandbox trajectory does not currently require targeted re-diagnosis.");
   }
 
-  const existing = await pool.query(
+  const loadExisting = (db: Pick<typeof pool, "query">) => db.query(
     `SELECT r.*, truth.canonical_probe_history, truth.canonical_decision,
             truth.recent_outcome_keys
        FROM specialist_sandbox_rediagnosis_runs r
@@ -233,6 +233,7 @@ async function ensureRediagnosisRun(input: {
       ORDER BY r.created_at DESC`,
     [input.trajectory.id, input.trajectory.session_number],
   );
+  const existing = await loadExisting(pool);
   const episodeRun = resolveSandboxRediagnosisEpisodeRun(existing.rows, input.trajectory.session_number);
   if (episodeRun) {
     const row = episodeRun;
@@ -253,6 +254,50 @@ async function ensureRediagnosisRun(input: {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    // Serialize creation and recheck after acquiring the trajectory lock: two
+    // concurrent runner opens must resume the same episode, not race the index.
+    const locked = await client.query(
+      `SELECT session_number FROM specialist_sandbox_trajectories
+        WHERE id=$1 AND tutor_assignment_id=$2 AND tutor_id=$3 AND student_id=$4 FOR UPDATE`,
+      [input.trajectory.id,input.trajectory.tutor_assignment_id,input.trajectory.tutor_id,input.trajectory.student_id],
+    );
+    if (Number(locked.rows[0]?.session_number) !== input.trajectory.session_number)
+      throw httpError(409,"The Sandbox session changed. Reload its prescribed route.");
+    const concurrent = resolveSandboxRediagnosisEpisodeRun((await loadExisting(client)).rows,input.trajectory.session_number);
+    if (concurrent) {
+      await client.query("COMMIT");
+      return { run: {...concurrent,specialist_probe_history:asArray<DiagnosisProbeResult>(concurrent.specialist_probe_history)} as RediagnosisRunRow,
+        truth:{rediagnosis_run_id:String(concurrent.id),canonical_probe_history:asArray<DiagnosisProbeResult>(concurrent.canonical_probe_history),
+          canonical_decision:concurrent.canonical_decision,recent_outcome_keys:asArray<string>(concurrent.recent_outcome_keys)} satisfies RediagnosisTruthRow };
+    }
+    const priorActive = await client.query(
+      `SELECT r.id,r.status,r.started_session_number,
+          jsonb_array_length(r.specialist_probe_history) AS specialist_probe_count,
+          jsonb_array_length(truth.canonical_probe_history) AS canonical_probe_count,
+          (SELECT count(*)::int FROM specialist_sandbox_rediagnosis_turns turn WHERE turn.rediagnosis_run_id=r.id) AS persisted_turn_count,
+          EXISTS (SELECT 1 FROM specialist_sandbox_rediagnosis_runs done
+            WHERE done.trajectory_id=r.trajectory_id AND done.tutor_assignment_id=r.tutor_assignment_id
+              AND done.tutor_id=r.tutor_id AND done.student_id=r.student_id
+              AND done.started_session_number=r.started_session_number
+              AND done.status='completed' AND done.specialist_decision->>'complete'='true') AS completed_sibling,
+          COALESCE(r.specialist_decision->>'complete','false')='true' AS specialist_complete,
+          COALESCE(truth.canonical_decision->>'complete','false')='true' AS canonical_complete
+       FROM specialist_sandbox_rediagnosis_runs r
+       JOIN private.specialist_sandbox_rediagnosis_truth truth ON truth.rediagnosis_run_id=r.id
+       WHERE r.trajectory_id=$1 AND r.status='active' FOR UPDATE OF r`,
+      [input.trajectory.id],
+    );
+    for (const prior of priorActive.rows) {
+      if (!canRetireSupersededEmptySandboxEpisode(prior,input.trajectory.session_number))
+        throw httpError(409,"An earlier re-diagnosis still contains unresolved evidence. Review that episode before starting another.");
+      await client.query(
+        `UPDATE specialist_sandbox_rediagnosis_runs SET status='blocked',
+          specialist_decision=COALESCE(specialist_decision,'{}'::jsonb) || jsonb_build_object(
+            'episodeRetirement',jsonb_build_object('reason','superseded_empty_episode',
+              'priorStatus',status,'retiredAt',now(),'nextSessionNumber',$2::int))
+          WHERE id=$1 AND status='active'`,[prior.id,input.trajectory.session_number],
+      );
+    }
     const created = await client.query(
       `INSERT INTO specialist_sandbox_rediagnosis_runs (
          trajectory_id, tutor_assignment_id, tutor_id, student_id, started_session_number,
