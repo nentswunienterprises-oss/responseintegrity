@@ -76,8 +76,77 @@ export function proofTrainingBookingHandler(pool: Pick<Pool, "connect">, env = p
           [String(owned.rows[0].parent_id), tutorId, studentId]);
         session = created.rows[0];
       }
+
+      // Long-running Preview qualification journeys can legitimately consume
+      // more than one package.  When the synthetic fixture has exhausted its
+      // current package, record an explicit Sandbox renewal boundary before
+      // returning the next confirmed booking.  This is commercial-state
+      // lineage only: learning state, evidence, history and enrollment stage
+      // remain untouched.
+      const membershipResult = await client.query(
+        `SELECT id, session_quota, sessions_remaining
+           FROM public.membership_months
+          WHERE parent_id::text = $1::text
+            AND student_id::text = $2::text
+            AND is_sandbox = TRUE
+            AND status = 'active'
+          ORDER BY month_start DESC, updated_at DESC
+          LIMIT 1
+          FOR UPDATE`,
+        [String(owned.rows[0].parent_id), studentId],
+      );
+      const membership = membershipResult.rows[0];
+      let renewedPackage = false;
+      if (membership && Number(membership.sessions_remaining || 0) <= 0) {
+        const renewalSessionId = `proof-renewal:${String(session.id)}`;
+        const renewal = await client.query(
+          `INSERT INTO public.session_billing_events (
+             session_id, parent_id, student_id, enrollment_id, event_type,
+             actor_role, actor_id, billing_impact, credits_delta,
+             reason_codes, reason_note, metadata, is_sandbox, effective_at, created_at
+           )
+           SELECT
+             $1, $2, $3, s.parent_enrollment_id::text, 'renewal_payment',
+             'system', $4, 'restore', 0,
+             '["proof_sandbox_package_renewal"]'::jsonb,
+             'Preview-only synthetic package renewal for controlled native acceptance',
+             jsonb_build_object(
+               'proof_fixture', true,
+               'processor_charge_occurred', false,
+               'scheduled_session_id', $5::text
+             ),
+             TRUE, NOW(), NOW()
+           FROM public.students s
+          WHERE s.id::text = $3::text
+            AND NOT EXISTS (
+              SELECT 1
+                FROM public.session_billing_events e
+               WHERE e.session_id = $1
+                 AND e.event_type = 'renewal_payment'
+            )
+           RETURNING id`,
+          [renewalSessionId, String(owned.rows[0].parent_id), studentId, tutorId, String(session.id)],
+        );
+        renewedPackage = Number(renewal.rowCount || 0) > 0;
+        if (renewedPackage) {
+          await client.query(
+            `UPDATE public.membership_months
+                SET sessions_used = 0,
+                    sessions_remaining = session_quota,
+                    updated_at = NOW()
+              WHERE id = $1`,
+            [membership.id],
+          );
+        }
+      }
       await client.query("COMMIT");
-      return res.json({ studentId, session, reused: existing.rows.length > 0, restoredCanonicalState: false });
+      return res.json({
+        studentId,
+        session,
+        reused: existing.rows.length > 0,
+        renewedPackage,
+        restoredCanonicalState: false,
+      });
     } catch (error) {
       if (client) await client.query("ROLLBACK").catch(() => undefined);
       console.error("[PROOF] Training booking failed", error);

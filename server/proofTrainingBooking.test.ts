@@ -6,7 +6,7 @@ const student = "657994af-a9c4-a7ae-dd13-54cdd462f2ab";
 const isolatedTutor = "b8448bbf-e01b-4f7b-bf6a-baf3ddb5d0bc";
 const isolatedStudent = "b093523e-6227-4ebb-9894-b3be775dfcf3";
 const env = { VERCEL_ENV: "preview", SUPABASE_URL: "https://jftlxeacphvbnhbsbpxc.supabase.co", DATABASE_URL: "postgres://postgres.jftlxeacphvbnhbsbpxc:synthetic@aws-1-eu-central-2.pooler.supabase.com:6543/postgres" };
-async function invoke({environment=env, actor=tutor, studentId=student, owned=true, existing=false, fail=false}={}) {
+async function invoke({environment=env, actor=tutor, studentId=student, owned=true, existing=false, exhausted=false, fail=false}={}) {
   const queries: string[] = []; let released = false; let connected = false;
   const pool = { connect: async () => {
     connected = true;
@@ -14,7 +14,9 @@ async function invoke({environment=env, actor=tutor, studentId=student, owned=tr
       queries.push(sql);
       if (sql.includes("SELECT s.parent_id")) return {rows: owned ? [{parent_id:"synthetic-parent"}] : []};
       if (sql.includes("SELECT id FROM")) return {rows: existing ? [{id:"prior-booking"}] : []};
-      if (sql.includes("INSERT INTO")) { if (fail) throw new Error("test insertion failed"); return {rows:[{id:"new-booking"}]}; }
+      if (sql.includes("SELECT id, session_quota")) return {rows:[{id:"membership",session_quota:8,sessions_remaining:exhausted?0:3}]};
+      if (sql.includes("INSERT INTO public.scheduled_sessions")) { if (fail) throw new Error("test insertion failed"); return {rows:[{id:"new-booking"}]}; }
+      if (sql.includes("INSERT INTO public.session_billing_events")) return {rows:[{id:"renewal-event"}],rowCount:1};
       return {rows:[]};
     }};
   }};
@@ -50,7 +52,16 @@ test("booking setup only inserts a booking and never modifies learning state",as
   const result=await invoke();assert.equal(result.status,200);assert.equal(result.body.restoredCanonicalState,false);
   assert.equal(result.queries.filter(sql=>sql.includes("INSERT INTO")).length,1);
   assert.ok(result.queries.some(sql=>sql.includes("pg_advisory_xact_lock")));
-  assert.ok(!result.queries.some(sql=>/UPDATE public|DELETE|concept_mastery|personal_profile/.test(sql)));assert.equal(result.released,true);
+  assert.ok(!result.queries.some(sql=>/DELETE|concept_mastery|personal_profile|training_session_runs|intro_session_drills/.test(sql)));assert.equal(result.released,true);
+});
+test("exhausted controlled fixture records an auditable package renewal without changing learning evidence",async()=>{
+  const result=await invoke({existing:true,exhausted:true});
+  assert.equal(result.status,200);assert.equal(result.body.reused,true);assert.equal(result.body.renewedPackage,true);
+  assert.ok(result.queries.some(sql=>sql.includes("'renewal_payment'")));
+  assert.ok(result.queries.some(sql=>sql.includes("'restore'")));
+  assert.ok(result.queries.some(sql=>sql.includes("processor_charge_occurred")));
+  assert.ok(result.queries.some(sql=>sql.includes("UPDATE public.membership_months")));
+  assert.ok(!result.queries.some(sql=>/concept_mastery|personal_profile|training_session_runs|intro_session_drills/.test(sql)));
 });
 test("failed booking rolls back and releases the transaction",async()=>{
   const result=await invoke({fail:true});assert.equal(result.status,500);assert.ok(result.queries.includes("ROLLBACK"));assert.equal(result.released,true);
