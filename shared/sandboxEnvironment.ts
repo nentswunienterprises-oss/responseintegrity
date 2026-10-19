@@ -706,7 +706,7 @@ export function selectSandboxOutcome(input: {
         definition.challengeCapabilities?.includes(target)
       )
     : [];
-  // Keep V2 intermediate recovery eligible beside capability challenges.
+  // Keep V2 recovery and retained support eligible beside capability challenges.
   // Hard targeting must not suppress the very transitions that make recovery
   // and subsequent phase development possible. State compatibility, repetition
   // and the prohibition on an immediate breakdown-to-supported jump were
@@ -720,7 +720,8 @@ export function selectSandboxOutcome(input: {
         if (previous === "conditional") {
           return definition.trajectoryClass === "near_stable" || definition.trajectoryClass === "supported";
         }
-        return previous === "near_stable" && definition.trajectoryClass === "supported";
+        return (previous === "near_stable" || previous === "supported") &&
+          definition.trajectoryClass === "supported";
       })
     : [];
   const candidates = targeted.length

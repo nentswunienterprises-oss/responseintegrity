@@ -337,6 +337,11 @@ test("V2 capability targeting cannot starve intermediate recovery after a breakd
       context: { ...context, previousTrajectoryClass: "near_stable" } }).key,
   ));
   assert.ok(afterIntermediate.has("clean"), "recovery can continue after an observed intermediate");
+  const afterSupported = new Set(Array.from({ length: 64 }, (_, index) =>
+    selectSandboxOutcome({ seed: `synthetic-retention-${index}`, outcomes: candidates,
+      context: { ...context, previousTrajectoryClass: "supported" } }).key,
+  ));
+  assert.ok(afterSupported.has("clean"), "hard targeting must not force relapse after recovery");
   const incompatibleRecovery = { ...candidates[1], allowedCanonicalStabilities: ["High" as const] };
   assert.equal(selectSandboxOutcome({ seed: "state-boundary", outcomes: [candidates[0], incompatibleRecovery, candidates[2]], context }).key, "target.breakdown", "recovery cannot bypass state compatibility");
   assert.equal(selectSandboxOutcome({ seed: "legacy", outcomes: candidates, context: { ...context, behaviorModelVersion: 1 } }).key, "target.breakdown", "historical V1 targeting stays unchanged");
