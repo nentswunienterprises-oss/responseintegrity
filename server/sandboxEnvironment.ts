@@ -439,6 +439,8 @@ async function persistSandboxStudentTopicState(input: {
   sessionEvaluationId: string;
   observedAt: string;
   reason: string;
+  route: "normal_training" | "targeted_rediagnosis";
+  targetedRediagnosisPhase: TopicPhase | null;
 }) {
   const topic = String(input.topic || "").trim();
   if (!topic) return;
@@ -497,8 +499,8 @@ async function persistSandboxStudentTopicState(input: {
     lastUpdated: input.observedAt,
     nextAction: input.reason,
     observationNotes: `Stateful Sandbox Training. ${input.reason}`,
-    requiresTargetedRediagnosis: false,
-    targetedRediagnosisStartPhase: null,
+    requiresTargetedRediagnosis: input.route === "targeted_rediagnosis",
+    targetedRediagnosisStartPhase: input.targetedRediagnosisPhase,
     history: history.slice(-60),
   };
   topicConditioning.topic = topic;
@@ -2331,6 +2333,8 @@ async function finalizeSandboxRecordedSession(input: {
       sessionEvaluationId: sessionId,
       observedAt: String(input.completedAt || new Date().toISOString()),
       reason: evaluation.specialistRoute.reason,
+      route: evaluation.specialistRoute.route,
+      targetedRediagnosisPhase: evaluation.specialistRoute.targetPhase,
     });
 
     sessionAuthority = {
