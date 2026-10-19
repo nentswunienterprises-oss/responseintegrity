@@ -81,3 +81,35 @@ test("zero returned rows never erase four authoritative assignments", () => {
   assert.ok(list.includes("Assigned Specialist roster is incomplete"));
   assert.ok(list.includes("podTutors.filter((assignment: any) => assignment && typeof assignment.id"));
 });
+
+test("all-assignment protection never treats a denied read as an empty set", () => {
+  const all = section(routes, "// Get all tutor assignments across all pods", "// Get pod statistics");
+  assert.ok(all.includes('requireRole(["coo"])'));
+  assert.ok(all.includes("if (isTheHubDatabaseRuntime())"));
+  assert.ok(all.includes("SELECT tutor_id FROM public.tutor_assignments"));
+  assert.ok(all.includes("if (error) throw new Error"));
+  assert.ok(all.includes("if (!Array.isArray(data)) throw new Error"));
+  assert.ok(all.includes('res.status(500).json({ message: "Failed to fetch tutor assignments" })'));
+  assert.ok(!all.includes("if (!assignments)"));
+});
+
+test("Pod stats count actual assignments and fail closed on missing sources", () => {
+  const stats = section(routes, "// Get pod statistics", "// Get students for a specific tutor (COO view)");
+  assert.ok(stats.includes('requireRole(["coo"])'));
+  assert.ok(stats.includes("const totalTutors = assignments.length"));
+  assert.ok(stats.includes("FROM public.parent_enrollments"));
+  assert.ok(stats.includes("FROM public.scheduled_sessions"));
+  assert.ok(stats.includes("assigned_tutor_id = ANY($1::uuid[])"));
+  assert.ok(stats.includes("status = ANY($2::enrollment_status[])"));
+  assert.ok(stats.includes("if (enrollments.error)"));
+  assert.ok(stats.includes("if (sessions.error)"));
+  assert.ok(stats.includes('res.status(500).json({ message: "Failed to fetch pod statistics" })'));
+});
+
+test("COO UI never offers empty roster capacity after a failed read", () => {
+  assert.ok(detail.includes("const canEditRoster = !podTutorsError && !podStatsError && !assignedTutorsError"));
+  assert.ok(detail.includes("podTutors.length === podStats.totalTutors"));
+  assert.ok(detail.includes("const availableSlots = canEditRoster ?"));
+  assert.ok(detail.includes('podStatsError ? "Unavailable"'));
+  assert.ok(detail.includes("podStats?.totalTutors"));
+});
