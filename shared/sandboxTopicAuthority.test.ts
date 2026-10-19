@@ -152,3 +152,32 @@ test("missing or corrupt same-topic evidence never invents a Before state", () =
     previousSpecialistAuthority: { nextPhase: "Clarity", nextStability: "High" },
   }), absent);
 });
+
+test("recorded Training start preserves an intervening Diagnosis instead of the older Training result", () => {
+  assert.deepEqual(deriveSandboxSameTopicSnapshotBefore({
+    completedTopicKey: "quadratic equations",
+    recordedBefore: { topicKey: "quadratic equations", phase: "Structured Execution", stability: "Medium" },
+    previousTopicKey: "quadratic equations",
+    previousSpecialistAuthority: { nextPhase: "Structured Execution", nextStability: "High" },
+  }), { phaseBefore: "Structured Execution", stabilityBefore: "Medium" });
+});
+
+test("first Training retains its observed Diagnosis start without prior Training", () => {
+  assert.deepEqual(deriveSandboxSameTopicSnapshotBefore({
+    completedTopicKey: "Percentages",
+    recordedBefore: { topicKey: "percentages", phase: "Clarity", stability: "Medium" },
+    previousTopicKey: null, previousSpecialistAuthority: null,
+  }), { phaseBefore: "Clarity", stabilityBefore: "Medium" });
+});
+
+test("invalid recorded boundaries remain unknown rather than falling back to stale Training", () => {
+  for (const recordedBefore of [
+    { topicKey: "other topic", phase: "Clarity", stability: "High" },
+    { topicKey: "geometry", phase: "Imaginary", stability: "High" },
+    { topicKey: "geometry", phase: "Clarity", stability: "Invented" },
+  ]) assert.deepEqual(deriveSandboxSameTopicSnapshotBefore({
+    completedTopicKey: "geometry", recordedBefore,
+    previousTopicKey: "geometry",
+    previousSpecialistAuthority: { nextPhase: "Clarity", nextStability: "High" },
+  }), { phaseBefore: null, stabilityBefore: null });
+});

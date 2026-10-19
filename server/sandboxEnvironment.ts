@@ -1101,12 +1101,44 @@ async function previousCompletedSessionBoundary(
             previous.specialist_authority AS previous_specialist_authority
        FROM specialist_sandbox_session_evaluations current
        LEFT JOIN LATERAL (
-         SELECT prior.topic_key, prior.specialist_authority
+         SELECT candidate.topic_key, candidate.specialist_authority
+         FROM (
+         SELECT prior.topic_key, prior.specialist_authority, prior.completed_at
            FROM specialist_sandbox_session_evaluations prior
           WHERE prior.trajectory_id = current.trajectory_id
             AND prior.topic_key = current.topic_key
             AND prior.session_number < current.session_number
-          ORDER BY prior.session_number DESC
+         UNION ALL
+         SELECT current.topic_key, jsonb_build_object(
+                  'nextPhase', diagnosis.decision->>'placementPhase',
+                  'nextStability', diagnosis.decision->>'stability'), diagnosis.completed_at
+           FROM public.response_integrity_diagnosis_runs diagnosis
+          WHERE diagnosis.student_id = current.student_id
+            AND diagnosis.tutor_id = current.tutor_id
+            AND lower(regexp_replace(trim(diagnosis.topic), '\\s+', ' ', 'g')) = current.topic_key
+            AND diagnosis.status = 'completed' AND diagnosis.decision->>'complete' = 'true'
+         UNION ALL
+         SELECT current.topic_key, jsonb_build_object(
+                  'nextPhase', diagnosis.specialist_decision->>'placementPhase',
+                  'nextStability', diagnosis.specialist_decision->>'stability'), diagnosis.completed_at
+           FROM public.specialist_sandbox_rediagnosis_runs diagnosis
+          WHERE diagnosis.trajectory_id = current.trajectory_id
+            AND diagnosis.tutor_assignment_id = current.tutor_assignment_id
+            AND diagnosis.tutor_id = current.tutor_id AND diagnosis.student_id = current.student_id
+            AND diagnosis.started_session_number = current.session_number
+            AND diagnosis.status = 'completed' AND diagnosis.specialist_decision->>'complete' = 'true'
+            -- Legacy re-diagnosis has no topic column. Require its preceding
+            -- Training boundary to prove the same topic; never infer from today's map.
+            AND current.topic_key = (SELECT prior.topic_key
+              FROM specialist_sandbox_session_evaluations prior
+              WHERE prior.trajectory_id = current.trajectory_id
+                AND prior.session_number < current.session_number
+              ORDER BY prior.session_number DESC LIMIT 1)
+         ) candidate
+         WHERE candidate.completed_at < (SELECT min(rep.created_at)
+           FROM specialist_sandbox_rep_events rep
+           WHERE rep.trajectory_id = current.trajectory_id AND rep.session_number = current.session_number)
+          ORDER BY candidate.completed_at DESC
           LIMIT 1
        ) previous ON true
       WHERE current.trajectory_id = $1
@@ -1128,10 +1160,11 @@ async function previousCompletedSessionBoundary(
     typeof row.previous_specialist_authority === "string"
       ? JSON.parse(row.previous_specialist_authority)
       : row.previous_specialist_authority;
-  // "Before" is not the previous session's unrelated topic, nor the drill
-  // phase itself. First visits without a prior same-topic evaluation are unknown.
+  // Recorded start state wins. Legacy reconstruction includes intervening
+  // completed Diagnosis, but only before delivery and with proven topic ownership.
   const { phaseBefore, stabilityBefore } = deriveSandboxSameTopicSnapshotBefore({
     completedTopicKey: row.topic_key,
+    recordedBefore: specialistAuthority?.snapshotBefore,
     previousTopicKey: row.previous_topic_key,
     previousSpecialistAuthority: previousAuthority,
   });
@@ -2197,7 +2230,11 @@ async function finalizeSandboxRecordedSession(input: {
         bundle.trajectory.student_id,
         bundle.trajectory.session_number,
         input.phase,
-        JSON.stringify(evaluation.specialistRoute),
+        JSON.stringify({ ...evaluation.specialistRoute, snapshotBefore: {
+          topicKey: sandboxTopicKey(bundle.trajectory.active_topic_key),
+          phase: bundle.trajectory.specialist_phase,
+          stability: bundle.trajectory.specialist_stability,
+        } }),
         evaluation.systemOutcomeMatched,
         evaluation.systemOutcomeMatched,
         stateChangeObserved,
