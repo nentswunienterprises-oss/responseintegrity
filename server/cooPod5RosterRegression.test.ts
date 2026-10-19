@@ -67,16 +67,17 @@ test("COO-only API boundary and Specialist names-only Pod Team remain separate",
   assert.doesNotMatch(podTeam, /podTeamData\.territoryDirector\.email/);
 });
 
-test("a failed operating overview never renders stale state metrics", () => {
+
+test("failed operating overview hides stale state metrics", () => {
   const operating = section(detail, "Pod Operating Model", "{/* Territory Director */}");
-  assert.match(operating, /!operatingOverviewError && operatingOverview\\?\\.operatingState\\?\\.key/);
-  assert.match(operating, /!operatingOverviewError && operatingOverview\\?\\.operatingState\\?\\.description/);
-  assert.match(operating, /operatingOverviewError[\\s\\S]*?"Unavailable"/);
+  assert.ok(operating.includes("!operatingOverviewError && operatingOverview?.operatingState?.key"));
+  assert.ok(operating.includes("!operatingOverviewError && operatingOverview?.operatingState?.description"));
+  assert.match(operating, /No state has been inferred/);
 });
 
-test("a roster query with zero rows cannot contradict four assigned users", () => {
+test("zero returned rows never erase four authoritative assignments", () => {
   const list = section(detail, "{/* Specialists List */}", "{/* Add Specialists Button */}");
-  assert.match(list, /podTutors\\.length === 0 && \\(podStats\\?\\.totalTutors \\|\\| 0\\) > 0/);
-  assert.match(list, /Assigned Specialist roster is incomplete/);
-  assert.match(list, /podTutors\\.filter\\(\\(assignment: any\\) => assignment && typeof assignment\\.id/);
+  assert.ok(list.includes("podTutors.length === 0 && (podStats?.totalTutors || 0) > 0"));
+  assert.ok(list.includes("Assigned Specialist roster is incomplete"));
+  assert.ok(list.includes("podTutors.filter((assignment: any) => assignment && typeof assignment.id"));
 });
