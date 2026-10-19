@@ -1,4 +1,5 @@
 import { PHASES, type TopicPhase, type TopicStability } from "./topicConditioningEngine";
+import { normalizeCapabilityProgressionState, type CapabilityStability, type ProgressionAuthority } from "./capabilityProgressionAuthority";
 import {
   getDrillSchemaDefinition,
   getDrillSchemaDefinitionByVersion,
@@ -31,6 +32,8 @@ import {
   type ResponseEvidenceDimensionState,
 } from "./responseEvidenceModel";
 import type { TrainingDimensionId } from "./trainingEvidenceContract";
+import { isSandboxBehaviorTransitionPlausible, sandboxBehaviorProfileMultiplier, sandboxBehaviorTransitionMultiplier } from "./sandboxBehaviorProfiles";
+import { renderSandboxBehaviorNarrativeV2 } from "./sandboxBehaviorNarrativesV2";
 import {
   getLegacyStatefulSandboxV1RequiredStructureStepPlanAudit,
   getLegacyStatefulSandboxV1ScenarioTruthAudit,
@@ -75,6 +78,23 @@ export type SandboxOutcomeDefinition = {
   challengeCapabilities?: SandboxCapabilityLayer[];
 };
 
+/**
+ * Eligibility for AUTHORING the next Sandbox rep. It must never be used to
+ * reinterpret or edit previously stored V1 evidence. V1's scripted
+ * non-observation and display-glitch confounds (patterns 7/8) are retired.
+ * V2 keeps only the rare, worked-example-based confound (pattern 8).
+ */
+export function isAuthoredSandboxOutcomeEligible(input: {
+  behaviorModelVersion: 1 | 2;
+  outcomeKey: string;
+  trajectoryClass: SandboxTrajectoryClass;
+}): boolean {
+  if (input.behaviorModelVersion === 1)
+    return !/\.pattern_[78]$/.test(input.outcomeKey);
+  return !/\.pattern_7$/.test(input.outcomeKey) &&
+    input.trajectoryClass !== "not_observed";
+}
+
 export type SandboxOutcomeSelectionContext = {
   canonicalPhase: TopicPhase;
   canonicalStability: TopicStability;
@@ -86,6 +106,8 @@ export type SandboxOutcomeSelectionContext = {
   continuityTags?: string[];
   earliestUnsupportedCapability?: SandboxCapabilityLayer | null;
   recentOutcomeKeys?: string[];
+  /** Legacy trajectories remain V1; new trajectories opt into V2. */
+  behaviorModelVersion?: 1 | 2;
 };
 
 export type SandboxSubmittedObservation = {
@@ -135,11 +157,13 @@ export type SandboxSessionEvaluation = {
   systemOutcomeMatched: boolean;
   canonicalNext: {
     phase: TopicPhase;
-    stability: TopicStability;
+    stability: CapabilityStability;
+    progressionAuthority: ProgressionAuthority;
   };
   specialistNext: {
     phase: TopicPhase;
-    stability: TopicStability;
+    stability: CapabilityStability;
+    progressionAuthority: ProgressionAuthority;
   };
   capabilityEvidence: SandboxCapabilityOccurrence[];
   studentStateAuthoritative: false;
@@ -216,6 +240,7 @@ const hashUnit = (value: string) => {
 export function projectSandboxOutcomeToCurrentTrainingContract(
   definition: SandboxOutcomeDefinition,
   sourceTrainingSchemaVersion: number,
+  behaviorModelVersion: 1 | 2 = 1,
 ): SandboxOutcomeDefinition {
   const currentSchema = getDrillSchemaDefinition("training", definition.phase);
   if (sourceTrainingSchemaVersion === currentSchema.schemaVersion) {
@@ -328,6 +353,24 @@ export function projectSandboxOutcomeToCurrentTrainingContract(
         );
       }
 
+      // A visible worked example can contaminate more than the immediately
+      // prompted step. V2 must not certify independent repetition or timed
+      // completion integrity from a response influenced by a reference cue.
+      // V1 historical truth and all six normal outcome patterns are immutable.
+      if (
+        behaviorModelVersion === 2 &&
+        /\.pattern_8$/.test(definition.key) &&
+        (
+          (definition.phase === "Structured Execution" &&
+            (currentField.dimensionId === "execution.repeatability" ||
+              currentField.dimensionId === "execution.independence")) ||
+          (definition.phase === "Time Pressure Stability" &&
+            currentField.dimensionId === "time.completion_integrity")
+        )
+      ) {
+        evidenceStatus = "confounded";
+      }
+
       const optionIndex =
         currentField.optionEvidenceClasses?.findIndex(
           (candidate) => candidate === evidenceClass,
@@ -396,13 +439,20 @@ export function projectSandboxOutcomeToCurrentTrainingContract(
 
   const auditedStudentBehavior =
     scenarioTruthAudit
-      ? renderLegacyStatefulSandboxV1StudentBehavior({
-          phase: definition.phase,
-          setId: definition.setId,
-          outcomeKey: definition.key,
-          repNumber: definition.repNumber,
-          repCount: currentSet.reps,
-        })
+      ? behaviorModelVersion === 2
+        ? renderSandboxBehaviorNarrativeV2({
+            phase: definition.phase,
+            setId: definition.setId,
+            outcomeKey: definition.key,
+            repNumber: definition.repNumber,
+          })
+        : renderLegacyStatefulSandboxV1StudentBehavior({
+            phase: definition.phase,
+            setId: definition.setId,
+            outcomeKey: definition.key,
+            repNumber: definition.repNumber,
+            repCount: currentSet.reps,
+          })
       : null;
   if (scenarioTruthAudit && !auditedStudentBehavior) {
     throw new Error(
@@ -542,9 +592,55 @@ export function selectSandboxOutcome(input: {
     );
   }
 
+  // V2 does not manufacture missing observations as simulated student
+  // personalities. Genuine missing evidence remains a possible observation
+  // status in the Specialist's evidence workflow, never a generated student
+  // outcome. V1 historical outcome selection is left unchanged.
+  //
+  // The only authored V2 evidence incident is a reference/worked example
+  // compromising independence. A deterministic 2% eligibility *window*
+  // allows it to compete with routine student behaviour exceptionally; it
+  // neither guarantees a 2% incidence nor describes real-world prevalence.
+  const v2ConfoundEligibilityWindow =
+    input.context.behaviorModelVersion === 2 &&
+    hashUnit([
+      "sandbox-v2-rare-evidence-integrity-v1",
+      input.seed,
+      input.context.sequenceNumber,
+      input.context.prescribedPhase,
+      input.context.setId,
+      input.context.repNumber,
+    ].join(":")) < 0.02;
+  const plausible = input.context.behaviorModelVersion === 2
+    ? compatible.filter((definition) => {
+        // Keep legacy pattern 7 in the historical bank, but never select it
+        // for a V2 student. There is no fabricated "not observed" scenario.
+        if (
+          /\.pattern_7$/.test(definition.key) ||
+          definition.trajectoryClass === "not_observed"
+        ) return false;
+
+        const confoundedIncident =
+          /\.pattern_8$/.test(definition.key) ||
+          definition.trajectoryClass === "confounded";
+        if (confoundedIncident && !v2ConfoundEligibilityWindow) return false;
+
+        return isSandboxBehaviorTransitionPlausible({
+          trajectoryClass: definition.trajectoryClass,
+          previousTrajectoryClass: input.context.previousTrajectoryClass,
+          continuityTags: input.context.continuityTags,
+        });
+      })
+    : compatible;
+  if (!plausible.length) {
+    throw new Error(
+      `Sandbox Outcome Matrix has no plausible behavioural continuation for ${input.context.prescribedPhase} / ${input.context.setId} / rep ${input.context.repNumber}.`,
+    );
+  }
+
   const recent = new Set(input.context.recentOutcomeKeys || []);
-  const nonRepeated = compatible.filter((definition) => !recent.has(definition.key));
-  const repetitionEligible = nonRepeated.length ? nonRepeated : compatible;
+  const nonRepeated = plausible.filter((definition) => !recent.has(definition.key));
+  const repetitionEligible = nonRepeated.length ? nonRepeated : plausible;
   const target = input.context.earliestUnsupportedCapability || null;
   const targeted = target
     ? repetitionEligible.filter((definition) =>
@@ -569,7 +665,23 @@ export function selectSandboxOutcome(input: {
           definition.key,
           definition.version,
         ].join(":"),
-      ) / Math.max(0.05, definition.weight);
+      ) / Math.max(
+        0.05,
+        definition.weight *
+          sandboxBehaviorProfileMultiplier({
+            seed: input.seed,
+            phase: definition.phase,
+            trajectoryClass: definition.trajectoryClass,
+          }) *
+          (input.context.behaviorModelVersion === 2 ? sandboxBehaviorTransitionMultiplier({
+            seed: input.seed,
+            phase: definition.phase,
+            trajectoryClass: definition.trajectoryClass,
+            previousTrajectoryClass: input.context.previousTrajectoryClass,
+            continuityTags: input.context.continuityTags,
+            outcomeKey: definition.key,
+          }) : 1),
+      );
     return scoreFor(a) - scoreFor(b) || a.key.localeCompare(b.key);
   })[0];
 }
@@ -705,8 +817,11 @@ const evidenceRowForTurn = (
   const observations =
     source === "canonical" ? turn.outcome.canonicalObservations : turn.specialistObservations;
 
-  for (const baseField of set.fields) {
-    const field = getFieldDefinitionForRep(set, repIndex, baseField.fieldKey) || baseField;
+  // Training V4 deliberately varies the observable dimensions by rep.
+  // The session evaluator must use the same eligible field set as the live
+  // rep form; falling back to the base set field would invent an observation
+  // (for example Structured Execution repeatability on opportunity 1).
+  for (const field of getFieldDefinitionsForRep(set, repIndex)) {
     const selected = observations[field.fieldKey];
     if (!selected?.optionId) {
       throw new Error(
@@ -799,12 +914,16 @@ const routesMatch = (
   a.route === b.route &&
   a.nextPhase === b.nextPhase &&
   a.nextStability === b.nextStability &&
+  a.nextCapabilityStability === b.nextCapabilityStability &&
+  a.nextProgressionAuthority === b.nextProgressionAuthority &&
   a.targetPhase === b.targetPhase;
 
 export function evaluateSandboxCompletedSession(input: {
   phase: TopicPhase;
   canonicalPreviousStability: TopicStability;
   specialistPreviousStability: TopicStability;
+  canonicalPreviousProgressionAuthority?: ProgressionAuthority | null;
+  specialistPreviousProgressionAuthority?: ProgressionAuthority | null;
   turns: SandboxCompletedTurn[];
   priorCompletedSessions: number;
   priorTracksDiverged: boolean;
@@ -823,11 +942,13 @@ export function evaluateSandboxCompletedSession(input: {
   const canonicalEvaluation = evaluateTrainingEvidence({
     phase: input.phase,
     previousStability: input.canonicalPreviousStability,
+    previousProgressionAuthority: input.canonicalPreviousProgressionAuthority,
     sets: canonicalEvidence,
   });
   const specialistEvaluation = evaluateTrainingEvidence({
     phase: input.phase,
     previousStability: input.specialistPreviousStability,
+    previousProgressionAuthority: input.specialistPreviousProgressionAuthority,
     sets: specialistEvidence,
   });
 
@@ -861,9 +982,18 @@ export function evaluateSandboxCompletedSession(input: {
     reason,
   });
 
+  // Compare independent state fields, not the legacy "High Maintenance" projection.
+  // The repeatability checkpoint is a meaningful longitudinal change, but
+  // holding that checkpoint in a later session is not a second state change.
+  const canonicalPreviousState = normalizeCapabilityProgressionState({
+    phase: input.phase,
+    stability: input.canonicalPreviousStability,
+    progression: input.canonicalPreviousProgressionAuthority,
+  });
   const canonicalStateChanged =
-    canonicalRoute.nextPhase !== input.phase ||
-    canonicalRoute.nextStability !== input.canonicalPreviousStability;
+    canonicalRoute.nextPhase !== canonicalPreviousState.phase ||
+    canonicalRoute.nextCapabilityStability !== canonicalPreviousState.stability ||
+    canonicalRoute.nextProgressionAuthority !== canonicalPreviousState.progression;
 
   const continuityClass: ResponseEvidenceClass =
     !systemOutcomeMatched
@@ -880,11 +1010,13 @@ export function evaluateSandboxCompletedSession(input: {
     systemOutcomeMatched,
     canonicalNext: {
       phase: canonicalRoute.nextPhase,
-      stability: canonicalRoute.nextStability,
+      stability: canonicalRoute.nextCapabilityStability,
+      progressionAuthority: canonicalRoute.nextProgressionAuthority,
     },
     specialistNext: {
       phase: specialistRoute.nextPhase,
-      stability: specialistRoute.nextStability,
+      stability: specialistRoute.nextCapabilityStability,
+      progressionAuthority: specialistRoute.nextProgressionAuthority,
     },
     capabilityEvidence: [
       occurrence(

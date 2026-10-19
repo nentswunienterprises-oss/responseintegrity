@@ -1,5 +1,6 @@
 import { createHmac } from "crypto";
 import { pool } from "./db";
+import { activateApprovedSandboxModelTransition } from "./sandboxModelTransition";
 import { loadTutorOperationalModeAuthority } from "./tutorOperationalModeAuthority";
 import {
   getDrillSchemaDefinition,
@@ -29,6 +30,7 @@ import {
   evaluateSandboxCompletedSession,
   nextSandboxContinuityState,
   parseSandboxCapabilityReadinessPolicy,
+  isAuthoredSandboxOutcomeEligible,
   projectSandboxOutcomeToCurrentTrainingContract,
   selectSandboxOutcome,
   validateSandboxOutcomeDefinition,
@@ -41,7 +43,20 @@ import {
   type SandboxTrajectoryClass,
 } from "@shared/sandboxEnvironment";
 import { trainingRawObservationRequiresPrerequisiteSentinel } from "@shared/trainingEvidenceEvaluator";
+import { sandboxRequiresPrerequisiteSentinel, renderSandboxPrerequisiteFollowUp } from "@shared/sandboxPrerequisiteProbe";
 import type { TopicPhase, TopicStability } from "@shared/topicConditioningEngine";
+import { normalizeCapabilityProgressionState, type ProgressionAuthority } from "@shared/capabilityProgressionAuthority";
+import { SANDBOX_BEHAVIOR_NARRATIVE_VERSION } from "@shared/sandboxBehaviorNarrativesV2";
+import {
+  sandboxTopicKey,
+  deriveSandboxSameTopicSnapshotBefore,
+  resolveSandboxTopicSeed,
+  persistedTopicLane,
+  normalizeSandboxTopicLane,
+  normalizeSandboxCanonicalLane,
+  type SandboxTopicLane,
+  type SandboxCanonicalTopicLane,
+} from "@shared/sandboxTopicAuthority";
 import { buildResponseSnapshotV1, type ResponseSnapshotV1 } from "@shared/responseSnapshot";
 
 export const DEFAULT_SANDBOX_ENVIRONMENT_BANK_KEY = "sandbox_stateful_environment";
@@ -81,6 +96,9 @@ type SandboxTrajectoryRow = {
   bank_version: number;
   specialist_phase: TopicPhase;
   specialist_stability: TopicStability;
+  specialist_progression_authority: ProgressionAuthority;
+  active_topic_key: string | null;
+  specialist_topic_states: Record<string, unknown>;
   specialist_route: "normal_training" | "targeted_rediagnosis";
   specialist_targeted_rediagnosis_phase: TopicPhase | null;
   session_number: number;
@@ -93,9 +111,12 @@ type SandboxTruthRow = {
   trajectory_id: string;
   canonical_phase: TopicPhase;
   canonical_stability: TopicStability;
+  canonical_progression_authority: ProgressionAuthority;
+  canonical_topic_states: Record<string, unknown>;
   canonical_route: "normal_training" | "targeted_rediagnosis";
   canonical_targeted_rediagnosis_phase: TopicPhase | null;
   trajectory_seed: string;
+  behavior_model_version: 1 | 2;
   previous_trajectory_class: SandboxTrajectoryClass | null;
   continuity_tags: string[];
   recent_outcome_keys: string[];
@@ -408,12 +429,14 @@ async function persistSandboxStudentTopicState(input: {
   topic: string;
   phase: TopicPhase;
   stability: TopicStability;
+  progressionAuthority: ProgressionAuthority;
   sessionEvaluationId: string;
   observedAt: string;
   reason: string;
 }) {
   const topic = String(input.topic || "").trim();
   if (!topic) return;
+  const separated = normalizeCapabilityProgressionState({phase: input.phase, stability: input.stability, progression: input.progressionAuthority});
 
   const result = await pool.query(
     `SELECT concept_mastery
@@ -446,7 +469,8 @@ async function persistSandboxStudentTopicState(input: {
     history.push({
       date: input.observedAt,
       phase: input.phase,
-      stability: input.stability,
+      stability: separated.stability,
+      progressionAuthority: separated.progression,
       nextAction: input.reason,
       observationNotes: `Stateful Sandbox Training. ${input.reason}`,
       structuredObservation: {
@@ -462,7 +486,8 @@ async function persistSandboxStudentTopicState(input: {
     ...existingTopic,
     topic,
     phase: input.phase,
-    stability: input.stability,
+    stability: separated.stability,
+    progressionAuthority: separated.progression,
     lastUpdated: input.observedAt,
     nextAction: input.reason,
     observationNotes: `Stateful Sandbox Training. ${input.reason}`,
@@ -472,7 +497,8 @@ async function persistSandboxStudentTopicState(input: {
   };
   topicConditioning.topic = topic;
   topicConditioning.entry_phase = input.phase;
-  topicConditioning.stability = input.stability;
+  topicConditioning.stability = separated.stability;
+  topicConditioning.progressionAuthority = separated.progression;
   topicConditioning.lastUpdatedAt = input.observedAt;
   topicConditioning.topics = topics;
   existing.topicConditioning = topicConditioning;
@@ -633,9 +659,12 @@ async function ensureTrajectory(input: {
     SELECT t.*,
            truth.canonical_phase,
            truth.canonical_stability,
+           truth.canonical_progression_authority,
+           truth.canonical_topic_states,
            truth.canonical_route,
            truth.canonical_targeted_rediagnosis_phase,
            truth.trajectory_seed,
+           truth.behavior_model_version,
            truth.previous_trajectory_class,
            truth.continuity_tags,
            truth.recent_outcome_keys,
@@ -666,12 +695,16 @@ async function ensureTrajectory(input: {
       trajectory_id: String(row.id),
       canonical_phase: String(row.canonical_phase) as TopicPhase,
       canonical_stability: String(row.canonical_stability) as TopicStability,
+      canonical_progression_authority: String(row.canonical_progression_authority) as ProgressionAuthority,
+      canonical_topic_states: row.canonical_topic_states && typeof row.canonical_topic_states === "object"
+        ? row.canonical_topic_states : {},
       canonical_route: String(row.canonical_route) as SandboxTruthRow["canonical_route"],
       canonical_targeted_rediagnosis_phase:
         row.canonical_targeted_rediagnosis_phase
           ? String(row.canonical_targeted_rediagnosis_phase) as TopicPhase
           : null,
       trajectory_seed: String(row.trajectory_seed),
+      behavior_model_version: Number(row.behavior_model_version) as 1 | 2,
       previous_trajectory_class: row.previous_trajectory_class
         ? String(row.previous_trajectory_class) as SandboxTrajectoryClass
         : null,
@@ -683,7 +716,23 @@ async function ensureTrajectory(input: {
 
   const existing = await pool.query(selectSql, selectParams);
   if (existing.rows[0]) {
-    return bundleFromRow(existing.rows[0]);
+    const bundle = bundleFromRow(existing.rows[0]);
+    const activated = await activateApprovedSandboxModelTransition({
+      id: bundle.trajectory.id,
+      tutor_assignment_id: bundle.trajectory.tutor_assignment_id,
+      tutor_id: bundle.trajectory.tutor_id,
+      student_id: bundle.trajectory.student_id,
+      session_number: bundle.trajectory.session_number,
+      behavior_model_version: bundle.truth.behavior_model_version,
+    });
+    if (activated) {
+      const refreshed = await pool.query(selectSql, selectParams);
+      if (!refreshed.rows[0]) {
+        throw httpError(409, "Sandbox upgraded but the authoritative trajectory was not available.");
+      }
+      return bundleFromRow(refreshed.rows[0]);
+    }
+    return bundle;
   }
 
   const client = await pool.connect();
@@ -720,6 +769,7 @@ async function ensureTrajectory(input: {
          bank_version,
          specialist_phase,
          specialist_stability,
+         specialist_progression_authority,
          specialist_route,
          session_number,
          completed_rep_count,
@@ -727,7 +777,7 @@ async function ensureTrajectory(input: {
          status,
          student_state_authoritative,
          evidence_scope
-       ) VALUES ($1,$2,$3,$4,$5,'Clarity','Low','normal_training',1,0,false,'active',false,'sandbox')
+       ) VALUES ($1,$2,$3,$4,$5,'Clarity','Low','building','normal_training',1,0,false,'active',false,'sandbox')
        RETURNING *`,
       selectParams,
     );
@@ -746,12 +796,14 @@ async function ensureTrajectory(input: {
          trajectory_id,
          canonical_phase,
          canonical_stability,
+         canonical_progression_authority,
          canonical_route,
          trajectory_seed,
+         behavior_model_version,
          continuity_tags,
          recent_outcome_keys,
          prior_tracks_diverged
-       ) VALUES ($1,'Clarity','Low','normal_training',$2,'[]'::jsonb,'[]'::jsonb,false)`,
+       ) VALUES ($1,'Clarity','Low','building','normal_training',$2,2,'[]'::jsonb,'[]'::jsonb,false)`,
       [trajectory.id, trajectorySeed],
     );
     await client.query("COMMIT");
@@ -761,9 +813,11 @@ async function ensureTrajectory(input: {
         trajectory_id: trajectory.id,
         canonical_phase: "Clarity",
         canonical_stability: "Low",
+        canonical_progression_authority: "building",
         canonical_route: "normal_training",
         canonical_targeted_rediagnosis_phase: null,
         trajectory_seed: trajectorySeed,
+        behavior_model_version: 2,
         previous_trajectory_class: null,
         continuity_tags: [],
         recent_outcome_keys: [],
@@ -791,6 +845,203 @@ function flattenedRepPlan(phase: TopicPhase) {
   );
 }
 
+/**
+ * Topic-specific simulated student truth inside ONE persistent Sandbox student
+ * trajectory. We never substitute the phase from the launch URL or share a
+ * prior topic's canonical state. Phase comes from previously observed topic
+ * evidence (first visit), then from the independent saved topic lane.
+ *
+ * Changing topic is forbidden after the first rep of the current session.
+ * The Specialist lane is public-but-server-owned; hidden canonical lanes stay
+ * in the private schema. Both tracks switch atomically under row locks.
+ */
+async function selectSandboxTopicTrajectory(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+  studentId: string;
+  bank: SandboxEnvironmentBank;
+  bundle: SandboxTrajectoryBundle;
+  topic?: string | null;
+}): Promise<SandboxTrajectoryBundle> {
+  const topicKey = sandboxTopicKey(input.topic);
+  if (!topicKey) {
+    throw httpError(409, "Select an observed topic before starting Sandbox Training.");
+  }
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const locked = await client.query(
+      `SELECT t.*, truth.canonical_phase, truth.canonical_stability,
+              truth.canonical_progression_authority, truth.canonical_route,
+              truth.canonical_targeted_rediagnosis_phase,
+              truth.canonical_topic_states,
+              truth.previous_trajectory_class, truth.continuity_tags,
+              truth.recent_outcome_keys, truth.prior_tracks_diverged
+         FROM public.specialist_sandbox_trajectories t
+         JOIN private.specialist_sandbox_trajectory_truth truth
+           ON truth.trajectory_id = t.id
+        WHERE t.id = $1 AND t.tutor_assignment_id = $2
+          AND t.tutor_id = $3 AND t.student_id = $4
+          AND t.status = 'active'
+        FOR UPDATE OF t, truth`,
+      [input.bundle.trajectory.id, input.tutorAssignmentId, input.tutorId, input.studentId],
+    );
+    const row = locked.rows[0];
+    if (!row) throw httpError(409, "Sandbox student trajectory changed. Reload the session.");
+    const activeKey = sandboxTopicKey(row.active_topic_key);
+    if (activeKey === topicKey) {
+      await client.query("COMMIT");
+      return ensureTrajectory(input);
+    }
+    const progress = await client.query(
+      `SELECT COUNT(*)::int AS count
+         FROM public.specialist_sandbox_rep_events
+        WHERE trajectory_id = $1 AND session_number = $2`,
+      [row.id, row.session_number],
+    );
+    if (Number(progress.rows[0]?.count || 0) > 0) {
+      throw httpError(
+        409,
+        "This Sandbox session has already started on another topic. Complete it before switching topics.",
+      );
+    }
+    if (!activeKey && Number(row.session_number) > 1) {
+      throw httpError(
+        409,
+        "The earlier Sandbox sessions cannot be safely attributed to a topic. Preserve the history and resolve its origin before selecting a different topic.",
+      );
+    }
+    const specialistStates: Record<string, unknown> =
+      row.specialist_topic_states && typeof row.specialist_topic_states === "object" &&
+      !Array.isArray(row.specialist_topic_states) ? { ...row.specialist_topic_states } : {};
+    const canonicalStates: Record<string, unknown> =
+      row.canonical_topic_states && typeof row.canonical_topic_states === "object" &&
+      !Array.isArray(row.canonical_topic_states) ? { ...row.canonical_topic_states } : {};
+
+    if (activeKey) {
+      const outgoingSpecialist = normalizeSandboxTopicLane({
+        phase: row.specialist_phase,
+        stability: row.specialist_stability,
+        progressionAuthority: row.specialist_progression_authority,
+        route: row.specialist_route,
+        targetedRediagnosisPhase: row.specialist_targeted_rediagnosis_phase,
+      });
+      const outgoingCanonical = normalizeSandboxCanonicalLane({
+        phase: row.canonical_phase,
+        stability: row.canonical_stability,
+        progressionAuthority: row.canonical_progression_authority,
+        route: row.canonical_route,
+        targetedRediagnosisPhase: row.canonical_targeted_rediagnosis_phase,
+        previousTrajectoryClass: row.previous_trajectory_class,
+        continuityTags: jsonStringArray(row.continuity_tags),
+        recentOutcomeKeys: jsonStringArray(row.recent_outcome_keys),
+        priorTracksDiverged: row.prior_tracks_diverged === true,
+      });
+      if (!outgoingSpecialist || !outgoingCanonical) {
+        throw httpError(409, "Stored Sandbox state is inconsistent; topic switching is blocked.");
+      }
+      specialistStates[activeKey] = {
+        ...outgoingSpecialist,
+        progressionAuthority: outgoingSpecialist.progression,
+        divergenceActive: row.divergence_active === true,
+      };
+      canonicalStates[activeKey] = {
+        ...outgoingCanonical,
+        progressionAuthority: outgoingCanonical.progression,
+      };
+    }
+
+    const specialistExists = Object.prototype.hasOwnProperty.call(specialistStates, topicKey);
+    const canonicalExists = Object.prototype.hasOwnProperty.call(canonicalStates, topicKey);
+    if (specialistExists !== canonicalExists) {
+      throw httpError(409, "One Sandbox topic evidence track is missing. Do not reset its hidden state.");
+    }
+    let specialist: SandboxTopicLane;
+    let canonical: SandboxCanonicalTopicLane;
+    let divergenceActive = false;
+
+    if (specialistExists) {
+      const s = persistedTopicLane(specialistStates, topicKey, false);
+      const t = persistedTopicLane(canonicalStates, topicKey, true);
+      if (!s || !t) throw httpError(409, "Stored Sandbox topic state is invalid; no reset was made.");
+      specialist = s;
+      canonical = t;
+      divergenceActive = (specialistStates[topicKey] as Record<string, unknown>).divergenceActive === true;
+    } else {
+      const student = await client.query(
+        `SELECT concept_mastery FROM public.students WHERE id::text = $1::text LIMIT 1`,
+        [input.studentId],
+      );
+      const seed = resolveSandboxTopicSeed(student.rows[0]?.concept_mastery, input.topic);
+      if (!seed) {
+        throw httpError(
+          409,
+          "The selected topic has no trustworthy observed Training state or needs re-diagnosis. Return to its topic map before starting Sandbox Training.",
+        );
+      }
+      specialist = seed.state;
+      // Sandbox students are synthetic. Initial hidden truth follows the
+      // previously observed training placement; subsequent hidden and
+      // Specialist states may diverge through independent rep evidence.
+      canonical = {
+        ...seed.state,
+        previousTrajectoryClass: null,
+        continuityTags: [],
+        recentOutcomeKeys: [],
+        priorTracksDiverged: false,
+      };
+    }
+
+    await client.query(
+      `UPDATE public.specialist_sandbox_trajectories
+          SET active_topic_key = $2,
+              specialist_topic_states = $3::jsonb,
+              specialist_phase = $4,
+              specialist_stability = $5,
+              specialist_progression_authority = $6,
+              specialist_route = $7,
+              specialist_targeted_rediagnosis_phase = $8,
+              divergence_active = $9,
+              updated_at = now()
+        WHERE id = $1`,
+      [
+        row.id, topicKey, JSON.stringify(specialistStates),
+        specialist.phase, specialist.stability, specialist.progression,
+        specialist.route, specialist.targetedRediagnosisPhase, divergenceActive,
+      ],
+    );
+    await client.query(
+      `UPDATE private.specialist_sandbox_trajectory_truth
+          SET canonical_topic_states = $2::jsonb,
+              canonical_phase = $3,
+              canonical_stability = $4,
+              canonical_progression_authority = $5,
+              canonical_route = $6,
+              canonical_targeted_rediagnosis_phase = $7,
+              previous_trajectory_class = $8,
+              continuity_tags = $9::jsonb,
+              recent_outcome_keys = $10::jsonb,
+              prior_tracks_diverged = $11,
+              updated_at = now()
+        WHERE trajectory_id = $1`,
+      [
+        row.id, JSON.stringify(canonicalStates),
+        canonical.phase, canonical.stability, canonical.progression,
+        canonical.route, canonical.targetedRediagnosisPhase,
+        canonical.previousTrajectoryClass, JSON.stringify(canonical.continuityTags),
+        JSON.stringify(canonical.recentOutcomeKeys), canonical.priorTracksDiverged,
+      ],
+    );
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+  return ensureTrajectory(input);
+}
+
 async function currentSessionEventCount(bundle: SandboxTrajectoryBundle) {
   const result = await pool.query(
     `SELECT COUNT(*)::int AS count
@@ -812,13 +1063,20 @@ async function previousCompletedSessionBoundary(
   if (currentCount > 0) return null;
 
   const result = await pool.query(
-    `SELECT current.id, current.session_number, current.phase, current.specialist_authority,
+    `SELECT current.id, current.session_number, current.phase, current.topic_key, current.specialist_authority,
             current.authority_aligned, current.state_track_aligned, current.completed_at,
+            previous.topic_key AS previous_topic_key,
             previous.specialist_authority AS previous_specialist_authority
        FROM specialist_sandbox_session_evaluations current
-       LEFT JOIN specialist_sandbox_session_evaluations previous
-         ON previous.trajectory_id = current.trajectory_id
-        AND previous.session_number = current.session_number - 1
+       LEFT JOIN LATERAL (
+         SELECT prior.topic_key, prior.specialist_authority
+           FROM specialist_sandbox_session_evaluations prior
+          WHERE prior.trajectory_id = current.trajectory_id
+            AND prior.topic_key = current.topic_key
+            AND prior.session_number < current.session_number
+          ORDER BY prior.session_number DESC
+          LIMIT 1
+       ) previous ON true
       WHERE current.trajectory_id = $1
         AND current.session_number = $2
       LIMIT 1`,
@@ -826,6 +1084,8 @@ async function previousCompletedSessionBoundary(
   );
   const row = result.rows[0];
   if (!row) return null;
+  // Never render the completed session of another topic as the selected one.
+  if (row.topic_key && row.topic_key !== sandboxTopicKey(topic)) return null;
 
   const specialistAuthority =
     typeof row.specialist_authority === "string"
@@ -836,11 +1096,13 @@ async function previousCompletedSessionBoundary(
     typeof row.previous_specialist_authority === "string"
       ? JSON.parse(row.previous_specialist_authority)
       : row.previous_specialist_authority;
-  const phaseBefore =
-    (previousAuthority?.nextPhase as TopicPhase | undefined) || completedPhase;
-  const stabilityBefore =
-    (previousAuthority?.nextStability as TopicStability | undefined) ||
-    (Number(row.session_number) === 1 ? "Low" : null);
+  // "Before" is not the previous session's unrelated topic, nor the drill
+  // phase itself. First visits without a prior same-topic evaluation are unknown.
+  const { phaseBefore, stabilityBefore } = deriveSandboxSameTopicSnapshotBefore({
+    completedTopicKey: row.topic_key,
+    previousTopicKey: row.previous_topic_key,
+    previousSpecialistAuthority: previousAuthority,
+  });
   const turns = await loadSessionTurns(bundle, Number(row.session_number));
   const responseSnapshot = buildSandboxResponseSnapshot({
     sourceDrillId: String(row.id),
@@ -1005,6 +1267,7 @@ async function loadRepOutcomes(input: {
   phase: TopicPhase;
   setId: string;
   repNumber: number;
+  behaviorModelVersion: 1 | 2;
 }): Promise<PrivateOutcomeRecord[]> {
   const result = await pool.query(
     `SELECT public_ref, definition
@@ -1038,20 +1301,38 @@ async function loadRepOutcomes(input: {
   const sourceTrainingSchemaVersion =
     trainingSchemaVersionForSandboxBank(input.bank.bankVersion);
 
-  return result.rows.map((row) => {
+  const outcomes = result.rows.flatMap((row): PrivateOutcomeRecord[] => {
     const storedDefinition = (
       typeof row.definition === "string" ? JSON.parse(row.definition) : row.definition
     ) as SandboxOutcomeDefinition;
+
+    // Reject superseded fictional outcomes only for newly authored reps.
+    // Previously recorded V1 reps and private truth remain immutable.
+    if (!isAuthoredSandboxOutcomeEligible({
+      behaviorModelVersion: input.behaviorModelVersion,
+      outcomeKey: storedDefinition.key,
+      trajectoryClass: storedDefinition.trajectoryClass,
+    })) return [];
+
     const definition = projectSandboxOutcomeToCurrentTrainingContract(
       storedDefinition,
       sourceTrainingSchemaVersion,
+      input.behaviorModelVersion,
     );
     validateSandboxOutcomeDefinition(definition);
-    return {
+    return [{
       publicRef: String(row.public_ref),
       definition,
-    };
+    }];
   });
+
+  if (!outcomes.length) {
+    throw httpError(
+      503,
+      `Sandbox Outcome Matrix contains no eligible V${input.behaviorModelVersion} response for ${input.phase} / ${input.setId} / rep ${input.repNumber}.`,
+    );
+  }
+  return outcomes;
 }
 
 function projectRepFields(phase: TopicPhase, set: EvidenceSetDefinition, repNumber: number) {
@@ -1127,6 +1408,7 @@ async function planNextRep(input: {
     phase,
     setId: position.set.setId,
     repNumber: position.repNumber,
+    behaviorModelVersion: input.bundle.truth.behavior_model_version,
   });
   const readiness = await readinessFor({
     tutorAssignmentId: input.tutorAssignmentId,
@@ -1144,6 +1426,7 @@ async function planNextRep(input: {
       repNumber: position.repNumber,
       sequenceNumber: input.bundle.trajectory.completed_rep_count + 1,
       previousTrajectoryClass: input.bundle.truth.previous_trajectory_class,
+      behaviorModelVersion: input.bundle.truth.behavior_model_version,
       continuityTags: input.bundle.truth.continuity_tags,
       earliestUnsupportedCapability:
         readiness.policyAvailable ? readiness.earliestUnsupportedCapability : null,
@@ -1156,6 +1439,9 @@ async function planNextRep(input: {
   if (!selectedRecord) throw new Error("Selected Sandbox outcome could not be resolved.");
 
   const eventSequence = input.bundle.trajectory.completed_rep_count + 1;
+  // Revisions to simulated student conduct must not reuse the form identity
+  // of a previously displayed response. Legacy V1 identities stay byte-for-byte
+  // unchanged; V2 forces a fresh form after a reviewed narrative revision.
   const eventFormId = digest(
     [
       "sandbox-rep-form-v2",
@@ -1163,6 +1449,9 @@ async function planNextRep(input: {
       input.bundle.trajectory.session_number,
       eventSequence,
       selectedRecord.publicRef,
+      ...(input.bundle.truth.behavior_model_version === 2
+        ? ["narrative-v" + SANDBOX_BEHAVIOR_NARRATIVE_VERSION]
+        : ["v1-retired-fictional-exceptions-v1"]),
     ].join(":"),
   ).slice(0, 32);
 
@@ -1195,7 +1484,7 @@ export async function prepareSandboxEnvironment(input: {
   const sandboxStudent = await assertSandboxAccess(input);
   const bank = await loadActiveEnvironmentBank(input.bankKey);
   if (!bank) throw httpError(404, "No active stateful Sandbox environment bank is available.");
-  const bundle = await ensureTrajectory({
+  const initialBundle = await ensureTrajectory({
     tutorAssignmentId: input.tutorAssignmentId,
     tutorId: input.tutorId,
     studentId: input.studentId,
@@ -1207,6 +1496,58 @@ export async function prepareSandboxEnvironment(input: {
     studentId: input.studentId,
     allowCompleted: true,
   });
+  // A completed booking may be reopened for read-only history, but must never
+  // move the simulated student to a different topic.
+  if (String(boundScheduledSession.status || "") === "completed" &&
+      sandboxTopicKey(initialBundle.trajectory.active_topic_key) !== sandboxTopicKey(input.topic)) {
+    throw httpError(409, "This completed Sandbox booking belongs to an earlier topic. Return to the Pod to select the next confirmed lesson.");
+  }
+  let bundle = await selectSandboxTopicTrajectory({
+    tutorAssignmentId: input.tutorAssignmentId,
+    tutorId: input.tutorId,
+    studentId: input.studentId,
+    bank,
+    bundle: initialBundle,
+    topic: input.topic,
+  });
+
+  // A failed finalization must never strand a complete set of accepted reps.
+  // V2 only: reconcile from the persisted event truth, without creating,
+  // deleting, or changing any previous observations. The normal finalizer
+  // carries the same evidence-native evaluation and booking authority.
+  if (bundle.truth.behavior_model_version === 2) {
+    const recorded = await currentSessionEventCount(bundle);
+    const plannedCount = flattenedRepPlan(bundle.truth.canonical_phase).length;
+    if (recorded === plannedCount) {
+      if (bundle.trajectory.completed_rep_count !== recorded) {
+        throw httpError(409,"Sandbox recorded rep count is inconsistent; preserve evidence for repair.");
+      }
+      const recordedLast = await pool.query(
+        "SELECT completed_at FROM public.specialist_sandbox_rep_events WHERE trajectory_id=$1 AND session_number=$2 ORDER BY event_sequence DESC LIMIT 1",
+        [bundle.trajectory.id,bundle.trajectory.session_number],
+      );
+      if (!recordedLast.rows[0]) {
+        throw httpError(409,"Completed Sandbox rep evidence cannot be read safely.");
+      }
+      await finalizeSandboxRecordedSession({
+        tutorAssignmentId:input.tutorAssignmentId,
+        tutorId:input.tutorId,
+        studentId:input.studentId,
+        scheduledSessionId:input.scheduledSessionId,
+        topic:input.topic,
+        phase:bundle.truth.canonical_phase,
+        completedAt:String(recordedLast.rows[0].completed_at),
+        bank,
+        bundle,
+      });
+      bundle=await ensureTrajectory({
+        tutorAssignmentId:input.tutorAssignmentId,
+        tutorId:input.tutorId,
+        studentId:input.studentId,
+        bank,
+      });
+    }
+  }
 
   const readiness = await readinessFor({
     tutorAssignmentId: input.tutorAssignmentId,
@@ -1320,6 +1661,10 @@ export async function prepareSandboxEnvironment(input: {
               targetPhase: definition.targetPhase,
               evidenceQuestion: definition.evidenceQuestion,
               specialistInstruction: definition.specialistInstruction,
+              simulatedFollowUp: renderSandboxPrerequisiteFollowUp(
+                planned.phase,
+                planned.selected.canonicalPrerequisiteSentinel,
+              ),
               options: [
                 { id: "held", label: definition.heldLabel },
                 { id: "contradicted", label: definition.contradictedLabel },
@@ -1453,6 +1798,240 @@ function sessionHasBreakdownRecovery(turns: SandboxCompletedTurn[]) {
     .some((turn) => turn.outcome.trajectoryClass === "supported");
 }
 
+type SandboxRecordedSessionCompletion = {
+  sessionAuthority: {
+    specialist: ReturnType<typeof evaluateSandboxCompletedSession>["specialistRoute"];
+    authorityAligned: boolean;
+    stateTrackAligned: boolean;
+  };
+  responseSnapshot: ResponseSnapshotV1;
+  completedScheduledSession: Awaited<ReturnType<typeof completeSandboxScheduledTrainingSession>>;
+};
+
+/**
+ * Recover an accepted complete set of Sandbox rep events without inventing a
+ * turn. A final-rep failure must not strand a synthetic student's session.
+ * The advisory lock serializes finalizers; the evidence count is a hard gate.
+ */
+async function finalizeSandboxRecordedSession(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+  studentId: string;
+  scheduledSessionId?: string | null;
+  topic?: string | null;
+  phase: TopicPhase;
+  completedAt: string;
+  bank: SandboxEnvironmentBank;
+  bundle: SandboxTrajectoryBundle;
+}): Promise<SandboxRecordedSessionCompletion> {
+  const {bundle,bank}=input;
+  const client=await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+      ["sandbox-complete:"+bundle.trajectory.id+":"+bundle.trajectory.session_number],
+    );
+    const current=await pool.query(
+      "SELECT session_number FROM public.specialist_sandbox_trajectories WHERE id=$1",
+      [bundle.trajectory.id],
+    );
+    if (Number(current.rows[0]?.session_number)!==bundle.trajectory.session_number){
+      throw httpError(409,"Sandbox session already advanced. Reload its history.");
+    }
+    const count=await currentSessionEventCount(bundle);
+    const expected=flattenedRepPlan(input.phase).length;
+    if(count!==expected){
+      throw httpError(409,"Sandbox session cannot be finalized until every actual rep is recorded.");
+    }
+    const existing=await pool.query(
+      "SELECT id FROM public.specialist_sandbox_session_evaluations WHERE trajectory_id=$1 AND session_number=$2 LIMIT 1",
+      [bundle.trajectory.id,bundle.trajectory.session_number],
+    );
+    if(existing.rows.length){
+      throw httpError(409,"Sandbox session evaluation already exists; reconcile its state before retrying.");
+    }
+
+  let sessionAuthority: {
+    specialist: ReturnType<typeof evaluateSandboxCompletedSession>["specialistRoute"];
+    authorityAligned: boolean;
+    stateTrackAligned: boolean;
+  } | null = null;
+  let responseSnapshot: ResponseSnapshotV1 | null = null;
+  let completedScheduledSession: {
+    id: string;
+    status: "completed";
+    completedAt: string;
+    parentId: string;
+    enrollmentId: string | null;
+  } | null = null;
+
+    const refreshedBundle = await ensureTrajectory({
+      tutorAssignmentId: input.tutorAssignmentId,
+      tutorId: input.tutorId,
+      studentId: input.studentId,
+      bank,
+    });
+    const turns = await loadCurrentSessionTurns(refreshedBundle);
+    const priorSessionCountResult = await pool.query(
+      `SELECT COUNT(*)::int AS count
+         FROM specialist_sandbox_session_evaluations
+        WHERE trajectory_id = $1 AND topic_key = $2`,
+      [bundle.trajectory.id, sandboxTopicKey(bundle.trajectory.active_topic_key)],
+    );
+    const priorCompletedSessions = Number(priorSessionCountResult.rows[0]?.count || 0);
+    const evaluation = evaluateSandboxCompletedSession({
+      phase: input.phase,
+      canonicalPreviousStability: bundle.truth.canonical_stability,
+      specialistPreviousStability: bundle.trajectory.specialist_stability,
+      canonicalPreviousProgressionAuthority: bundle.truth.canonical_progression_authority,
+      specialistPreviousProgressionAuthority: bundle.trajectory.specialist_progression_authority,
+      turns,
+      priorCompletedSessions,
+      priorTracksDiverged: bundle.truth.prior_tracks_diverged,
+    });
+
+    // Repeatability eligibility is a real longitudinal state change even
+    // when the student's capability stability remains High.
+    const stateChangeObserved =
+      evaluation.canonicalNext.phase !== bundle.truth.canonical_phase ||
+      evaluation.canonicalNext.stability !== bundle.truth.canonical_stability ||
+      evaluation.canonicalNext.progressionAuthority !== bundle.truth.canonical_progression_authority;
+    const breakdownRecoveryObserved = sessionHasBreakdownRecovery(turns);
+
+    const sessionInsert = await pool.query(
+      `INSERT INTO specialist_sandbox_session_evaluations (
+         trajectory_id, tutor_assignment_id, tutor_id, student_id, session_number,
+         phase, specialist_authority, authority_aligned, state_track_aligned,
+         state_change_observed, student_breakdown_recovery_observed,
+         student_state_authoritative, evidence_scope, topic_key
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,false,'sandbox',$12)
+       RETURNING id`,
+      [
+        bundle.trajectory.id,
+        input.tutorAssignmentId,
+        input.tutorId,
+        bundle.trajectory.student_id,
+        bundle.trajectory.session_number,
+        input.phase,
+        JSON.stringify(evaluation.specialistRoute),
+        evaluation.systemOutcomeMatched,
+        evaluation.systemOutcomeMatched,
+        stateChangeObserved,
+        breakdownRecoveryObserved,
+        sandboxTopicKey(bundle.trajectory.active_topic_key),
+      ],
+    );
+    const sessionId = String(sessionInsert.rows[0]?.id || "");
+    responseSnapshot = buildSandboxResponseSnapshot({
+      sourceDrillId: sessionId,
+      topic: String(input.topic || "Sandbox practice"),
+      phase: input.phase,
+      bankVersion: bank.bankVersion,
+      turns,
+      phaseBefore: bundle.trajectory.specialist_phase,
+      stabilityBefore: bundle.trajectory.specialist_stability,
+      authority: evaluation.specialistRoute,
+    });
+    completedScheduledSession = await completeSandboxScheduledTrainingSession({
+      scheduledSessionId: input.scheduledSessionId,
+      tutorId: input.tutorId,
+      studentId: input.studentId,
+      trajectoryId: bundle.trajectory.id,
+      sandboxSessionNumber: bundle.trajectory.session_number,
+    });
+
+    await pool.query(
+      `INSERT INTO private.specialist_sandbox_session_truth (
+         session_evaluation_id, canonical_authority
+       ) VALUES ($1,$2::jsonb)`,
+      [sessionId, JSON.stringify(evaluation.canonicalRoute)],
+    );
+
+    await insertCapabilityOccurrences({
+      tutorAssignmentId: input.tutorAssignmentId,
+      tutorId: input.tutorId,
+      studentId: bundle.trajectory.student_id,
+      trajectoryId: bundle.trajectory.id,
+      sourceType: "session",
+      sourceId: sessionId,
+      occurrences: evaluation.capabilityEvidence,
+    });
+
+    await Promise.all([
+      pool.query(
+        `UPDATE specialist_sandbox_trajectories
+            SET specialist_phase = $2,
+                specialist_stability = $3,
+                specialist_progression_authority = $7,
+                specialist_route = $4,
+                specialist_targeted_rediagnosis_phase = $5,
+                divergence_active = $6,
+                session_number = session_number + 1,
+                updated_at = now()
+          WHERE id = $1`,
+        [
+          bundle.trajectory.id,
+          evaluation.specialistRoute.nextPhase,
+          evaluation.specialistRoute.nextCapabilityStability,
+          evaluation.specialistRoute.route,
+          evaluation.specialistRoute.targetPhase,
+          !evaluation.systemOutcomeMatched,
+          evaluation.specialistRoute.nextProgressionAuthority,
+        ],
+      ),
+      pool.query(
+        `UPDATE private.specialist_sandbox_trajectory_truth
+            SET canonical_phase = $2,
+                canonical_stability = $3,
+                canonical_progression_authority = $7,
+                canonical_route = $4,
+                canonical_targeted_rediagnosis_phase = $5,
+                prior_tracks_diverged = $6,
+                updated_at = now()
+          WHERE trajectory_id = $1`,
+        [
+          bundle.trajectory.id,
+          evaluation.canonicalRoute.nextPhase,
+          evaluation.canonicalRoute.nextCapabilityStability,
+          evaluation.canonicalRoute.route,
+          evaluation.canonicalRoute.targetPhase,
+          !evaluation.systemOutcomeMatched,
+          evaluation.canonicalRoute.nextProgressionAuthority,
+        ],
+      ),
+    ]);
+
+    await persistSandboxStudentTopicState({
+      studentId: bundle.trajectory.student_id,
+      topic: String(input.topic || "Sandbox practice"),
+      phase: evaluation.specialistRoute.nextPhase,
+      stability: evaluation.specialistRoute.nextCapabilityStability,
+      progressionAuthority: evaluation.specialistRoute.nextProgressionAuthority,
+      sessionEvaluationId: sessionId,
+      observedAt: String(input.completedAt || new Date().toISOString()),
+      reason: evaluation.specialistRoute.reason,
+    });
+
+    sessionAuthority = {
+      specialist: evaluation.specialistRoute,
+      authorityAligned: evaluation.systemOutcomeMatched,
+      stateTrackAligned: evaluation.systemOutcomeMatched,
+    };
+
+    await client.query("COMMIT");
+    if(!sessionAuthority||!responseSnapshot||!completedScheduledSession){
+      throw new Error("Sandbox completed session failed to resolve all required records.");
+    }
+    return {sessionAuthority,responseSnapshot,completedScheduledSession};
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function submitSandboxEnvironmentRep(input: {
   tutorAssignmentId: string;
   tutorId: string;
@@ -1483,6 +2062,10 @@ export async function submitSandboxEnvironmentRep(input: {
   });
   if (bundle.trajectory.id !== input.trajectoryId) {
     throw httpError(409, "Sandbox trajectory changed. Reload the current rep.");
+  }
+  if (!sandboxTopicKey(input.topic) ||
+      sandboxTopicKey(input.topic) !== sandboxTopicKey(bundle.trajectory.active_topic_key)) {
+    throw httpError(409, "Selected topic changed after the Sandbox rep was prepared. Return to the Pod and reload the intended topic.");
   }
 
   const planned = await planNextRep({
@@ -1516,6 +2099,17 @@ export async function submitSandboxEnvironmentRep(input: {
     }
   }
 
+  const requiresSentinel = sandboxRequiresPrerequisiteSentinel(fields, input.submission.observations);
+  if (requiresSentinel && !input.submission.prerequisiteSentinel) {
+    throw httpError(400, "Record the required prerequisite check before confirming this rep.");
+  }
+  if (!requiresSentinel && input.submission.prerequisiteSentinel) {
+    throw httpError(400, "A prerequisite result cannot be submitted without an observed current-phase breakdown.");
+  }
+  if (planned.phase === "Time Pressure Stability" && !input.submission.inheritedRescueSignal) {
+    throw httpError(400, "Record the inherited rescue signal for this timed rep.");
+  }
+
   const turn: SandboxCompletedTurn = {
     sequenceNumber: planned.eventSequence,
     sessionNumber: bundle.trajectory.session_number,
@@ -1533,6 +2127,27 @@ export async function submitSandboxEnvironmentRep(input: {
     specialistPrerequisiteSentinel: input.submission.prerequisiteSentinel,
     specialistInheritedRescueSignal: input.submission.inheritedRescueSignal,
   };
+  // Evaluate the full session while the proposed final rep is still in
+  // memory. If the V4 form/evaluator contracts disagree, reject BEFORE
+  // appending a rep event or advancing hidden continuity.
+  if (planned.completedInSession + 1 === planned.totalRepsInSession) {
+    const priorTurns=await loadCurrentSessionTurns(bundle);
+    const priorCount=await pool.query(
+      "SELECT COUNT(*)::int AS count FROM public.specialist_sandbox_session_evaluations WHERE trajectory_id=$1 AND topic_key=$2",
+      [bundle.trajectory.id,sandboxTopicKey(bundle.trajectory.active_topic_key)],
+    );
+    evaluateSandboxCompletedSession({
+      phase:planned.phase,
+      canonicalPreviousStability:bundle.truth.canonical_stability,
+      specialistPreviousStability:bundle.trajectory.specialist_stability,
+      canonicalPreviousProgressionAuthority:bundle.truth.canonical_progression_authority,
+      specialistPreviousProgressionAuthority:bundle.trajectory.specialist_progression_authority,
+      turns:[...priorTurns,turn],
+      priorCompletedSessions:Number(priorCount.rows[0]?.count||0),
+      priorTracksDiverged:bundle.truth.prior_tracks_diverged,
+    });
+  }
+
   const comparison = compareSandboxTurn(turn);
 
   const inserted = await pool.query(
@@ -1542,8 +2157,8 @@ export async function submitSandboxEnvironmentRep(input: {
        selection_seed_digest, specialist_submission, condition_kept,
        total_observations, matching_observations, matching_evidence_statuses,
        observation_exact, evidence_exact,
-       student_state_authoritative, evidence_scope
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,$18,$19,false,'sandbox')
+       student_state_authoritative, evidence_scope, topic_key
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,$18,$19,false,'sandbox',$20)
      RETURNING id, completed_at`,
     [
       bundle.trajectory.id,
@@ -1572,6 +2187,7 @@ export async function submitSandboxEnvironmentRep(input: {
       comparison.matchingEvidenceStatuses,
       comparison.observationExact,
       comparison.evidenceExact,
+      sandboxTopicKey(bundle.trajectory.active_topic_key),
     ],
   );
   const eventId = String(inserted.rows[0]?.id || "");
@@ -1641,163 +2257,22 @@ export async function submitSandboxEnvironmentRep(input: {
   ]);
 
   const sessionCompleted = planned.completedInSession + 1 === planned.totalRepsInSession;
-  let sessionAuthority: {
-    specialist: ReturnType<typeof evaluateSandboxCompletedSession>["specialistRoute"];
-    authorityAligned: boolean;
-    stateTrackAligned: boolean;
-  } | null = null;
-  let responseSnapshot: ResponseSnapshotV1 | null = null;
-  let completedScheduledSession: {
-    id: string;
-    status: "completed";
-    completedAt: string;
-    parentId: string;
-    enrollmentId: string | null;
-  } | null = null;
-
-  if (sessionCompleted) {
-    const refreshedBundle = await ensureTrajectory({
-      tutorAssignmentId: input.tutorAssignmentId,
-      tutorId: input.tutorId,
-      studentId: input.studentId,
-      bank,
-    });
-    const turns = await loadCurrentSessionTurns(refreshedBundle);
-    const priorSessionCountResult = await pool.query(
-      `SELECT COUNT(*)::int AS count
-         FROM specialist_sandbox_session_evaluations
-        WHERE trajectory_id = $1`,
-      [bundle.trajectory.id],
-    );
-    const priorCompletedSessions = Number(priorSessionCountResult.rows[0]?.count || 0);
-    const evaluation = evaluateSandboxCompletedSession({
-      phase: planned.phase,
-      canonicalPreviousStability: bundle.truth.canonical_stability,
-      specialistPreviousStability: bundle.trajectory.specialist_stability,
-      turns,
-      priorCompletedSessions,
-      priorTracksDiverged: bundle.truth.prior_tracks_diverged,
-    });
-
-    const stateChangeObserved =
-      evaluation.canonicalNext.phase !== bundle.truth.canonical_phase ||
-      evaluation.canonicalNext.stability !== bundle.truth.canonical_stability;
-    const breakdownRecoveryObserved = sessionHasBreakdownRecovery(turns);
-
-    const sessionInsert = await pool.query(
-      `INSERT INTO specialist_sandbox_session_evaluations (
-         trajectory_id, tutor_assignment_id, tutor_id, student_id, session_number,
-         phase, specialist_authority, authority_aligned, state_track_aligned,
-         state_change_observed, student_breakdown_recovery_observed,
-         student_state_authoritative, evidence_scope
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,false,'sandbox')
-       RETURNING id`,
-      [
-        bundle.trajectory.id,
-        input.tutorAssignmentId,
-        input.tutorId,
-        bundle.trajectory.student_id,
-        bundle.trajectory.session_number,
-        planned.phase,
-        JSON.stringify(evaluation.specialistRoute),
-        evaluation.systemOutcomeMatched,
-        evaluation.systemOutcomeMatched,
-        stateChangeObserved,
-        breakdownRecoveryObserved,
-      ],
-    );
-    const sessionId = String(sessionInsert.rows[0]?.id || "");
-    responseSnapshot = buildSandboxResponseSnapshot({
-      sourceDrillId: sessionId,
-      topic: String(input.topic || "Sandbox practice"),
-      phase: planned.phase,
-      bankVersion: bank.bankVersion,
-      turns,
-      phaseBefore: bundle.trajectory.specialist_phase,
-      stabilityBefore: bundle.trajectory.specialist_stability,
-      authority: evaluation.specialistRoute,
-    });
-    completedScheduledSession = await completeSandboxScheduledTrainingSession({
-      scheduledSessionId: input.scheduledSessionId,
-      tutorId: input.tutorId,
-      studentId: input.studentId,
-      trajectoryId: bundle.trajectory.id,
-      sandboxSessionNumber: bundle.trajectory.session_number,
-    });
-
-    await pool.query(
-      `INSERT INTO private.specialist_sandbox_session_truth (
-         session_evaluation_id, canonical_authority
-       ) VALUES ($1,$2::jsonb)`,
-      [sessionId, JSON.stringify(evaluation.canonicalRoute)],
-    );
-
-    await insertCapabilityOccurrences({
-      tutorAssignmentId: input.tutorAssignmentId,
-      tutorId: input.tutorId,
-      studentId: bundle.trajectory.student_id,
-      trajectoryId: bundle.trajectory.id,
-      sourceType: "session",
-      sourceId: sessionId,
-      occurrences: evaluation.capabilityEvidence,
-    });
-
-    await Promise.all([
-      pool.query(
-        `UPDATE specialist_sandbox_trajectories
-            SET specialist_phase = $2,
-                specialist_stability = $3,
-                specialist_route = $4,
-                specialist_targeted_rediagnosis_phase = $5,
-                divergence_active = $6,
-                session_number = session_number + 1,
-                updated_at = now()
-          WHERE id = $1`,
-        [
-          bundle.trajectory.id,
-          evaluation.specialistRoute.nextPhase,
-          evaluation.specialistRoute.nextStability,
-          evaluation.specialistRoute.route,
-          evaluation.specialistRoute.targetPhase,
-          !evaluation.systemOutcomeMatched,
-        ],
-      ),
-      pool.query(
-        `UPDATE private.specialist_sandbox_trajectory_truth
-            SET canonical_phase = $2,
-                canonical_stability = $3,
-                canonical_route = $4,
-                canonical_targeted_rediagnosis_phase = $5,
-                prior_tracks_diverged = $6,
-                updated_at = now()
-          WHERE trajectory_id = $1`,
-        [
-          bundle.trajectory.id,
-          evaluation.canonicalRoute.nextPhase,
-          evaluation.canonicalRoute.nextStability,
-          evaluation.canonicalRoute.route,
-          evaluation.canonicalRoute.targetPhase,
-          !evaluation.systemOutcomeMatched,
-        ],
-      ),
-    ]);
-
-    await persistSandboxStudentTopicState({
-      studentId: bundle.trajectory.student_id,
-      topic: String(input.topic || "Sandbox practice"),
-      phase: evaluation.specialistRoute.nextPhase,
-      stability: evaluation.specialistRoute.nextStability,
-      sessionEvaluationId: sessionId,
-      observedAt: String(inserted.rows[0]?.completed_at || new Date().toISOString()),
-      reason: evaluation.specialistRoute.reason,
-    });
-
-    sessionAuthority = {
-      specialist: evaluation.specialistRoute,
-      authorityAligned: evaluation.systemOutcomeMatched,
-      stateTrackAligned: evaluation.systemOutcomeMatched,
-    };
-  }
+  const finalization = sessionCompleted
+    ? await finalizeSandboxRecordedSession({
+        tutorAssignmentId: input.tutorAssignmentId,
+        tutorId: input.tutorId,
+        studentId: input.studentId,
+        scheduledSessionId: input.scheduledSessionId,
+        topic: input.topic,
+        phase: planned.phase,
+        completedAt: String(inserted.rows[0]?.completed_at || new Date().toISOString()),
+        bank,
+        bundle,
+      })
+    : null;
+  const sessionAuthority = finalization?.sessionAuthority || null;
+  const responseSnapshot = finalization?.responseSnapshot || null;
+  const completedScheduledSession = finalization?.completedScheduledSession || null;
 
   const nextEnvironment = await prepareSandboxEnvironment({
     tutorAssignmentId: input.tutorAssignmentId,
@@ -1851,7 +2326,7 @@ export async function getSandboxEnvironmentHistory(input: {
   });
   const [events, sessions, readiness] = await Promise.all([
     pool.query(
-      `SELECT id, event_sequence, session_number, phase, set_id, rep_number,
+      `SELECT id, event_sequence, session_number, phase, topic_key, set_id, rep_number,
               condition_kept, total_observations, matching_observations,
               matching_evidence_statuses, observation_exact, evidence_exact, completed_at
          FROM specialist_sandbox_rep_events
@@ -1861,7 +2336,7 @@ export async function getSandboxEnvironmentHistory(input: {
       [bundle.trajectory.id],
     ),
     pool.query(
-      `SELECT id, session_number, phase, authority_aligned, state_track_aligned,
+      `SELECT id, session_number, phase, topic_key, authority_aligned, state_track_aligned,
               state_change_observed, student_breakdown_recovery_observed, completed_at
          FROM specialist_sandbox_session_evaluations
         WHERE trajectory_id = $1
@@ -1883,6 +2358,7 @@ export async function getSandboxEnvironmentHistory(input: {
       sessionNumber: bundle.trajectory.session_number,
       prescribedPhase: bundle.truth.canonical_phase,
       prescribedStability: bundle.truth.canonical_stability,
+      activeTopicKey: bundle.trajectory.active_topic_key,
       divergenceActive: bundle.trajectory.divergence_active,
       route: bundle.truth.canonical_route,
       targetPhase: bundle.truth.canonical_targeted_rediagnosis_phase,
@@ -1893,6 +2369,7 @@ export async function getSandboxEnvironmentHistory(input: {
       eventSequence: Number(row.event_sequence),
       sessionNumber: Number(row.session_number),
       phase: String(row.phase),
+      topicKey: row.topic_key ? String(row.topic_key) : null,
       setId: String(row.set_id),
       repNumber: Number(row.rep_number),
       conditionKept: row.condition_kept === null ? null : Boolean(row.condition_kept),
@@ -1906,6 +2383,7 @@ export async function getSandboxEnvironmentHistory(input: {
       id: String(row.id),
       sessionNumber: Number(row.session_number),
       phase: String(row.phase),
+      topicKey: row.topic_key ? String(row.topic_key) : null,
       authorityAligned: Boolean(row.authority_aligned),
       stateTrackAligned: Boolean(row.state_track_aligned),
       stateChangeObserved: Boolean(row.state_change_observed),

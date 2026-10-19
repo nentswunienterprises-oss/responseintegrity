@@ -1,0 +1,78 @@
+name: Sandbox Qualification Native First Clarity Rep Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Independently reviewed exact PR commit
+        required: true
+        type: string
+      preview_url:
+        description: Immutable protected Preview URL for this exact commit
+        required: true
+        type: string
+      scope:
+        description: Inspect the current visible rep or submit a separately reviewed observation manifest
+        required: true
+        type: choice
+        options:
+          - CONTROLLED_PROOF_FIRST_CLARITY_REP_INSPECT
+          - CONTROLLED_PROOF_FIRST_CLARITY_REP_SUBMIT
+
+permissions:
+  contents: read
+
+jobs:
+  controlled-proof-first-clarity-rep:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: capability-proof-acceptance
+    steps:
+      - name: Independent reviewer pin check BEFORE checked-out code and protected credentials
+        env:
+          REQUESTED_SHA: ${{ inputs.expected_sha }}
+          REQUESTED_URL: ${{ inputs.preview_url }}
+          APPROVED_SHA: ${{ vars.RI_PROOF_APPROVED_SHA }}
+          APPROVED_URL: ${{ vars.RI_PROOF_APPROVED_URL }}
+          REQUESTED_SCOPE: ${{ inputs.scope }}
+        run: |
+          set -euo pipefail
+          test -n "$APPROVED_SHA"
+          test -n "$APPROVED_URL"
+          test "$REQUESTED_SHA" = "$APPROVED_SHA"
+          test "$REQUESTED_URL" = "$APPROVED_URL"
+          [[ "$REQUESTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          if [[ "$REQUESTED_SCOPE" != "CONTROLLED_PROOF_FIRST_CLARITY_REP_INSPECT" && "$REQUESTED_SCOPE" != "CONTROLLED_PROOF_FIRST_CLARITY_REP_SUBMIT" ]]; then
+            exit 1
+          fi
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.expected_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify immutable reviewed checkout
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Validate source-owned runner against synthetic fixtures without credentials
+        run: node --test scripts/sandboxQualificationNativeFirstClarityRep.test.mjs
+      - name: Protected native first-Clarity-rep inspection or explicitly reviewed submission
+        env:
+          PROOF_BASE_URL: ${{ inputs.preview_url }}
+          PROOF_EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RI_PROOF_NATIVE_REP_SCOPE: ${{ inputs.scope }}
+          RI_PROOF_SPECIALIST_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
+          RI_PROOF_SPECIALIST_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+          RI_PROOF_TD_EMAIL: ${{ secrets.RI_PROOF_TD_EMAIL }}
+          RI_PROOF_TD_PASSWORD: ${{ secrets.RI_PROOF_TD_PASSWORD }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          RI_PROOF_TUTOR_ID: ${{ vars.RI_PROOF_TUTOR_ID }}
+          RI_PROOF_STUDENT_ID: ${{ vars.RI_PROOF_STUDENT_ID }}
+          RI_PROOF_SESSION_ID: ${{ vars.RI_PROOF_SESSION_ID }}
+          RI_PROOF_TOPIC: ${{ vars.RI_PROOF_TOPIC }}
+          RI_PROOF_EXPECTED_SET_ID: clarity.identification
+          RI_PROOF_FIRST_REP_DECISION_JSON: ${{ inputs.scope == 'CONTROLLED_PROOF_FIRST_CLARITY_REP_SUBMIT' && secrets.RI_PROOF_FIRST_REP_DECISION_JSON || '' }}
+        run: node scripts/sandboxQualificationNativeFirstClarityRep.mjs

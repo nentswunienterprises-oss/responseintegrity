@@ -768,9 +768,9 @@ export async function setupAuth(app: Express) {
       if (authError) {
         console.error("Supabase signin error:", authError);
 
-        // Preview continuity remains available for recognized Proof personas and
-        // Sandbox Specialists if a rolling Auth migration cannot be completed.
-        if (process.env.VERCEL_ENV === "preview") {
+        // Preview and local Proof continuity remain available for recognized
+        // synthetic personas if a rolling Auth migration cannot be completed.
+        if (process.env.VERCEL_ENV === "preview" || isProofDbAuthMode()) {
           const fallback = await authenticateEmergencyUser(
             pool,
             email,

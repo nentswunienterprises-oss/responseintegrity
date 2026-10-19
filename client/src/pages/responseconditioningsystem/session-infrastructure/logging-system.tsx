@@ -15,12 +15,12 @@ const evidenceStatuses = [
   {
     title: "Not observed",
     detail:
-      "Use when the opportunity did not meaningfully expose the behavior. Missing evidence is not weakness.",
+      "A narrow status for genuinely unavailable qualifying evidence. It is not a routine student behaviour and never means that the student failed.",
   },
   {
     title: "Confounded",
     detail:
-      "Use when assistance, content exposure, task design, interruption, timing changes, or another condition prevents clean interpretation.",
+      "Use when a concrete cue compromised the intended claim, such as a worked solution remaining visible during independent execution. Preserve unaffected clean observations.",
   },
 ];
 
@@ -106,7 +106,7 @@ export default function ResponseConditioningLoggingSystem() {
             ))}
           </div>
           <p className="font-semibold">
-            Not-observed and confounded evidence must stay missing or confounded. Neither may be converted into strength or weakness.
+            Evidence exceptions are rare, not a normal part of every rep. Keep genuinely missing or contaminated evidence accurate, without inventing an incident or converting it into strength or weakness.
           </p>
         </Card>
 

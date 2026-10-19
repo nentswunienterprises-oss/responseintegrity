@@ -1,7 +1,20 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { displayTopicStability, topicStabilityConfirmationLabel } from "./topicStabilityPresentation";
 
+const sandboxAuthoritySource = readFileSync(
+  new URL("../server/sandboxEnvironment.ts", import.meta.url),
+  "utf8",
+);
+const sandboxTopicAuthoritySource = readFileSync(
+  new URL("./sandboxTopicAuthority.ts", import.meta.url),
+  "utf8",
+);
+const sandboxTopicMigrationSource = readFileSync(
+  new URL("../migrations/20261014013817_sandbox_topic_state_lanes.sql", import.meta.url),
+  "utf8",
+);
 const liveRunnerSource = readFileSync(
   new URL("../client/src/components/tutor/IntroSessionDrillRunner.tsx", import.meta.url),
   "utf8",
@@ -18,8 +31,16 @@ const evidenceDiagnosisRunnerSource = readFileSync(
   new URL("../client/src/components/tutor/EvidenceCompleteDiagnosisRunner.tsx", import.meta.url),
   "utf8",
 );
+const topicMapSource = readFileSync(
+  new URL("../client/src/components/tutor/StudentTopicConditioningDialog.tsx", import.meta.url),
+  "utf8",
+);
 const studentCardSource = readFileSync(
   new URL("../client/src/components/tutor/StudentCard.tsx", import.meta.url),
+  "utf8",
+);
+const studentTopicDialogSource = readFileSync(
+  new URL("../client/src/components/tutor/StudentTopicConditioningDialog.tsx", import.meta.url),
   "utf8",
 );
 const sandboxGuideSource = readFileSync(
@@ -74,6 +95,62 @@ const sandboxReadinessCardSource = readFileSync(
   new URL("../client/src/components/sandbox/SandboxReadinessAssessmentCard.tsx", import.meta.url),
   "utf8",
 );
+
+test("legacy high-stability checkpoint is a public High label with explicit confirmation, not state mutation", () => {
+  assert.equal(displayTopicStability("High Maintenance"), "High");
+  assert.equal(
+    topicStabilityConfirmationLabel("High Maintenance", "Clarity"),
+    "Phase-exit confirmation required",
+  );
+  assert.equal(topicStabilityConfirmationLabel("High", "Clarity"), null);
+  assert.equal(
+    topicStabilityConfirmationLabel("High Maintenance", "Time Pressure Stability"),
+    "Transfer evidence must be confirmed",
+  );
+  assert.match(studentCardSource, /displayTopicStability\(topic\.stability\)/);
+  assert.match(studentCardSource, /topicStabilityConfirmationLabel\(topic\.stability, topic\.phase, topic\.progressionAuthority\)/);
+  assert.match(topicMapSource, /displayTopicStability\(row\.stability\)/);
+  assert.match(topicMapSource, /topicStabilityConfirmationLabel\(row\.stability, row\.phase, row\.progressionAuthority\)/);
+  // The next-action engine reads the separate eligibility field through a
+  // compatibility adapter, never from a new fabricated stability level.
+  assert.match(topicMapSource, /function nextActionStabilityFor\(/);
+  assert.match(topicMapSource, /row\.progressionAuthority === "exit_confirmation_eligible"/);
+  assert.match(topicMapSource, /getNextActionData\(selectedRow\.phase, nextActionStabilityFor\(selectedRow\)\)/);
+  assert.match(topicMapSource, /entry\.seeded\?\.progressionAuthority/);
+});
+
+test("selected topic is authoritative for the Sandbox drill and cannot be silently replaced by student-wide Clarity", () => {
+  assert.match(topicMapSource, /mode=training&topic=\$\{topicParam\}&phase=\$\{phaseParam\}/);
+  assert.match(sandboxRunnerSource, /&topic=\$\{encodeURIComponent\(routeTopic\)\}/);
+  assert.match(sandboxAuthoritySource, /selectSandboxTopicTrajectory\(\{/);
+  assert.match(sandboxAuthoritySource, /resolveSandboxTopicSeed\(student\.rows\[0\]\?\.concept_mastery, input\.topic\)/);
+  assert.match(sandboxAuthoritySource, /sandboxTopicKey\(input\.topic\) !== sandboxTopicKey\(bundle\.trajectory\.active_topic_key\)/);
+  assert.match(sandboxAuthoritySource, /canonical_topic_states/);
+  assert.match(sandboxAuthoritySource, /specialist_topic_states/);
+  assert.match(sandboxAuthoritySource, /AND topic_key = \$2/);
+  assert.match(sandboxTopicAuthoritySource, /requiresTargetedRediagnosis === true/);
+  assert.match(sandboxAuthoritySource, /if \(row\.topic_key && row\.topic_key !== sandboxTopicKey\(topic\)\) return null/);
+  assert.match(sandboxTopicMigrationSource, /history\.entry->>'drillId' = e\.id/);
+  assert.match(sandboxTopicMigrationSource, /active_topic_key/);
+  assert.match(sandboxTopicMigrationSource, /canonical_topic_states/);
+});
+
+test("explicit Sandbox student deep links never silently fall back to a different learner", () => {
+  // A Specialist's Pod can be a narrower card projection than the synthetic
+  // students authorized in Capability Proof. Do not silently swap identity.
+  assert.match(sandboxRunnerSource,
+    /const studentId = String\(requestedStudentId \|\| selectedSandboxStudent\?\.id \|\| ""\)/);
+  assert.match(sandboxRunnerSource,
+    /!requestedStudentId \? sandboxStudents\[0\] \|\| null : null/);
+  // The server remains authoritative: a URL alone cannot grant access to a
+  // student who is not assigned or is not in a synthetic Sandbox enrollment.
+  assert.match(sandboxAuthoritySource,
+    /Sandbox student is not assigned to this authenticated Specialist/);
+  assert.match(sandboxAuthoritySource,
+    /Stateful Sandbox may only run against synthetic Sandbox student accounts/);
+  assert.match(sandboxAuthoritySource,
+    /The selected Sandbox training lesson could not be found/);
+});
 
 test("Sandbox mode uses the existing live-runner route rather than a separate runner flow", () => {
   assert.match(
@@ -137,7 +214,7 @@ test("Sandbox diagnosis keeps the evidence-native runner and projects private si
   );
   assert.match(
     sandboxRediagnosisSource,
-    /studentBehavior:\s*projectSandboxLiveBehavior\(\{[\s\S]*behavior: selected\.studentBehavior/,
+    /studentBehavior: projectSandboxLiveBehavior\([\s\S]*behavior: selected\.studentBehavior/,
   );
   assert.doesNotMatch(
     sandboxRediagnosisSource.slice(
@@ -195,12 +272,21 @@ test("Sandbox Handover stays on the live Handover runner and records one observa
     /!isHandoverContinuityVerification && \([\s\S]*of \{set\?\.reps \?\? 0\}/,
   );
 
-  const handoverPrepStart = liveRunnerSource.indexOf('if (mode === "handover")', liveRunnerSource.indexOf('function buildVerificationPrepSpec('));
+  const verificationPrepStart = liveRunnerSource.indexOf(
+    "function buildVerificationPrepSpec",
+  );
+  const handoverPrepStart = liveRunnerSource.indexOf(
+    'if (mode === "handover")',
+    verificationPrepStart,
+  );
   const handoverPrepEnd = liveRunnerSource.indexOf(
     'title: "Targeted Re-Diagnosis Prep"',
     handoverPrepStart,
   );
-  const handoverPrepSource = liveRunnerSource.slice(handoverPrepStart, handoverPrepEnd);
+  const handoverPrepSource = liveRunnerSource.slice(
+    handoverPrepStart,
+    handoverPrepEnd,
+  );
   assert.doesNotMatch(handoverPrepSource, /\.\.\.verificationRules|\.\.\.phaseRules/);
   assert.doesNotMatch(
     liveRunnerSource,
@@ -214,10 +300,7 @@ test("Sandbox Handover stays on the live Handover runner and records one observa
     liveRunnerSource,
     /drillMode === "handover" && showModeInstructions && \(/,
   );
-  const regularHandoverPrep = liveRunnerSource.slice(
-    handoverPrepStart,
-    handoverPrepEnd,
-  );
+  const regularHandoverPrep = handoverPrepSource;
   assert.match(
     regularHandoverPrep,
     /record it as not observed[\s\S]*record it as confounded/,
@@ -358,7 +441,7 @@ test("embedded Sandbox live runner is locked to the route student and still rend
   assert.match(sandboxRunnerSource, /operationalModeOverride/);
   assert.match(
     sandboxRunnerSource,
-    /const studentId = String\([\s\S]*studentIdOverride \|\| selectedSandboxStudent\?\.id/,
+    /const studentId = String\(requestedStudentId \|\| selectedSandboxStudent\?\.id \|\| ""\)/,
   );
   assert.match(sandboxRunnerSource, /enabled: requiresPodData/);
   assert.match(sandboxRunnerSource, /LiveSandboxStudentResponse/);
@@ -507,15 +590,19 @@ test("Sandbox Response Snapshot resolves the same current Training schema used b
   );
 });
 
-test("Sandbox System Direction preserves Before stability and uses a real next-session action", () => {
-  assert.match(
-    sandboxEnvironmentSource,
-    /previous\.specialist_authority AS previous_specialist_authority/,
+test("Sandbox System Direction uses only previous same-topic evidence for Before", () => {
+  const history = sandboxEnvironmentSource.slice(
+    sandboxEnvironmentSource.indexOf("async function previousCompletedSessionBoundary"),
+    sandboxEnvironmentSource.indexOf("async function loadCapabilityOccurrences"),
   );
-  assert.match(
-    sandboxEnvironmentSource,
-    /stabilityBefore[\s\S]*previousAuthority\?\.nextStability/,
-  );
+  assert.match(history, /LEFT JOIN LATERAL/);
+  assert.match(history, /prior\.topic_key = current\.topic_key/);
+  assert.match(history, /prior\.session_number < current\.session_number/);
+  assert.match(history, /ORDER BY prior\.session_number DESC/);
+  assert.match(history, /deriveSandboxSameTopicSnapshotBefore/);
+  assert.doesNotMatch(history, /previous\.session_number = current\.session_number - 1/);
+  assert.doesNotMatch(history, /\|\| completedPhase/);
+  assert.match(sandboxEnvironmentSource, /previous\.specialist_authority AS previous_specialist_authority/);
   assert.match(
     sandboxRunnerSource,
     /snapshot\.engineOutcomeRef\.stabilityBefore/,
@@ -675,4 +762,72 @@ test("Sandbox readiness never skips Practicals by promoting directly to Trial", 
     deriveModeSource,
     /sandboxMockPassed[\s\S]*return "trial"/,
   );
+});
+
+test("Sandbox V2 Diagnosis and Handover POST compare the exact visible profile-weighted outcome", () => {
+  const prepare = sandboxRediagnosisSource.slice(
+    sandboxRediagnosisSource.indexOf("export async function prepareSandboxLiveEvidenceSimulation"),
+    sandboxRediagnosisSource.indexOf("export async function submitSandboxLiveEvidenceSimulation"),
+  );
+  const submit = sandboxRediagnosisSource.slice(
+    sandboxRediagnosisSource.indexOf("export async function submitSandboxLiveEvidenceSimulation"),
+    sandboxRediagnosisSource.indexOf("export async function prepareSandboxRediagnosis"),
+  );
+  for(const body of [prepare, submit]){
+    assert.match(body, /selectSandboxDiagnosisOutcome\(\{/);
+    assert.match(body, /profileSeed: truth\.trajectory_seed/);
+    assert.match(body, /behaviorModelVersion: truth\.behavior_model_version/);
+  }
+  assert.match(submit,/const prescribedDimensions =\s*DIAGNOSIS_PROBES\[prepared\.probeId as DiagnosisProbeId\]\.dimensions/);
+  assert.match(submit,/prescribedDimensions\.filter\(/);
+  assert.match(submit,/DIAGNOSIS_OBSERVATION_MATRIX\[dimensionId\]\.phase === input\.startingPhase/);
+  assert.ok(!submit.includes(".filter((dimension) => dimension.phase === input.startingPhase)"),
+    "A single Handover observation cannot certify repeatability without a repeat opportunity");
+});
+
+test("Sandbox filters retired fictional incidents only when preparing a new rep", () => {
+  const loader = sandboxAuthoritySource.slice(
+    sandboxAuthoritySource.indexOf("async function loadRepOutcomes"),
+    sandboxAuthoritySource.indexOf("function projectRepFields"),
+  );
+  assert.match(loader,
+    /isAuthoredSandboxOutcomeEligible\(\{[\s\S]*?behaviorModelVersion: input\.behaviorModelVersion,[\s\S]*?outcomeKey: storedDefinition\.key,[\s\S]*?trajectoryClass: storedDefinition\.trajectoryClass,/,
+    "Selection must delegate V1 and V2 incident eligibility to the tested model-specific policy.");
+  const filterPosition = loader.indexOf("if (!isAuthoredSandboxOutcomeEligible(");
+  const projectionPosition = loader.indexOf("projectSandboxOutcomeToCurrentTrainingContract(");
+  assert.ok(filterPosition >= 0 && projectionPosition > filterPosition,
+    "Retired incidents must be rejected before producing a new student response.");
+  assert.doesNotMatch(loader, /DELETE FROM|UPDATE public\.specialist_sandbox_rep_events/,
+    "Authoring policy must not alter any previously recorded V1 rep.");
+  assert.match(sandboxAuthoritySource, /v1-retired-fictional-exceptions-v1/,
+    "Stale, pre-correction V1 forms must be invalidated.");
+  // Learner identity and booking authority remain unchanged.
+  assert.match(sandboxAuthoritySource, /assertSandboxAccess/);
+  assert.match(sandboxAuthoritySource, /loadSandboxScheduledTrainingSession/);
+});
+
+test("Sandbox history stays separate from the current package balance in the student card", () => {
+  assert.match(
+    studentCardSource,
+    /const countedProgramProgress =[\s\S]*student\.sessionProgress/,
+  );
+  assert.match(
+    studentCardSource,
+    /resolveTrainingPackageProgressSummary\(trainingSessionsData\?\.monthlyQuota\)/,
+  );
+  assert.match(
+    studentCardSource,
+    /const sessionProgress = isSandboxStudent\s*\? sandboxPackage\?\.sessionsUsed/,
+  );
+  assert.match(
+    studentCardSource,
+    /const sessionsRemaining = isSandboxStudent\s*\? sandboxPackage\?\.sessionsRemaining/,
+  );
+  assert.match(studentCardSource, /const progressLabel = isSandboxStudent \? "Current Package"/);
+  assert.match(studentCardSource, /Package balance is unavailable or inconsistent/);
+  assert.match(studentTopicDialogSource, /monthlyQuota: trainingSessionsData\?\.monthlyQuota/);
+  assert.match(serverRoutesSource, /specialist_sandbox_session_evaluations/);
+  assert.match(serverRoutesSource, /sandbox-session:/);
+  assert.match(serverRoutesSource, /specialist_phase, specialist_stability/);
+  assert.match(serverRoutesSource, /certificationMode !== "sandbox"/);
 });

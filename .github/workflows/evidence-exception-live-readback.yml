@@ -1,0 +1,30 @@
+name: Evidence Exception Authenticated Release Readback
+on:
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: Immutable Vercel preview for the selected release ref
+        type: string
+        required: true
+permissions:
+  contents: read
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    environment: production-db
+    timeout-minutes: 25
+    env:
+      RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
+      RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      EXCEPTION_PREVIEW_URL: ${{ inputs.preview_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm install --no-save playwright@1.55.0
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/evidenceExceptionLiveReadback.mjs

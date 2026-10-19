@@ -28,6 +28,23 @@ Read this file with these rules:
 4. If this file and the current code ever disagree, the current code is the live runtime behavior and this file must be updated immediately in the same workstream.
 5. No Response Integrity-OS algorithm change is complete until this document is updated.
 
+## 2026-10-13 Founder-Approved Evidence-Exception Doctrine
+
+This section supersedes earlier derivative examples that scripted missing observations, forgotten explanations, camera freezes or interruptions as ordinary simulated student behaviour. It applies across Specialist Deep Dives, Mastery, Retrieval, Transfer, Sandbox, Diagnosis, Handover and Practicals content, without rewriting historical attempts.
+
+- **Observed capability is the default.** Present the prescribed mathematical problem, method, step order, timing and support condition, and record the response actually seen. Normal hesitation, collapse, partial recovery and independent execution are not evidence-integrity exceptions.
+- **`not_observed` is only an evidence-recording status.** If an actual qualifying observation is genuinely absent, RI-OS may keep the dimension unresolved. It is not a regular student personality or a generated missing-observation simulation. Do not teach fictional camera glitches, forgotten observation fields, or unelicited explanations as default Sandbox cases. A final answer does not backfill an unestablished independent step.
+- **The sole authored exceptional `confounded` student scenario is a *visible worked mathematical example* supplying the method or step that was meant to be independently demonstrated.** Where the student consults that reference, invalidate only the affected independence, repeatability or timed-integrity claim. Preserve other clean observations; remove the reference and obtain a new comparable opportunity if RI-OS requires one. A visible reference never changes the prescribed method.
+- **Rare is not a quota.** V2's deterministic 2% candidate-eligibility window for a visible-reference confound is a simulation design ceiling, not a target rate or a rule for discarding genuine incident evidence. V1 historical cases remain historical rather than live teaching content.
+- **Do not conflate separate operating workflows.** Equipment preflight, real network/time/timer interruption handling, camera/lighting alignment, and logging actual Specialist prompts or rescue are still valid operating duties. They should be taught as real setup/condition/intervention rules, never portrayed as routine learner traits or staged missing observations.
+- **Live Specialist training and bank authority are versioned.** Deep Dive teaching examples, private Mastery, Retrieval and Transfer assessments must apply the same narrow doctrine. Superseded bank versions, completed responses and V1 behaviour evidence are preserved for history; only separately validated versions may become active. Never silently replace an answered question or reset Specialist mastery.
+
+### Reviewed exception release inventory
+
+The release receipt is `docs/EXCEPTION_DOCTRINE_LOCAL_ACCEPTANCE_2026-10-13.md`. The exact 44 content corrections are identified by assessment key, item key, predecessor/successor version and canonical SHA-256 content hash in `docs/qualification-content/20261013_evidence_exception_reviewed_inventory.json`. New inactive versions must match those fingerprints before any promotion; a global total alone does not establish acceptance.
+
+The inventory separately identifies a pre-existing Transfer critical-metadata omission: `ost2_training_purpose_01` must carry `training_purpose.no_stop_at_clarity`, and existing wrong option `e` must be critical on the new version. Its correct answers remain `a` and `c`. This restores the canonical layer-progression boundary for future attempts; it does not rewrite historical outcomes. Exact approved predecessor passes continue through the pinned editorial continuity map; failed or unapproved versions never qualify. Technical readback, live authenticated acceptance and protected promotion remain distinct release gates.
+
 ## What Response Integrity-OS Is
 
 Response Integrity-OS is not a generic tutoring workflow.

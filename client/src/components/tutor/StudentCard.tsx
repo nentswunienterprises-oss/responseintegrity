@@ -11,6 +11,8 @@ import { getAuthMode } from "@/lib/authMode";
 import { useStudentWorkflowState, useMarkHandoverCompleted, useRespondToAssignment } from "@/hooks/useStudentWorkflowState";
 import { TutorIntroSessionActions } from "./TutorIntroSessionActions";
 import { useScheduledSession, useTrainingSessions } from "@/hooks/useScheduledSession";
+import { resolveTrainingPackageProgressSummary } from "@shared/trainingPackageQuota";
+import { displayTopicStability, topicStabilityConfirmationLabel } from "@shared/topicStabilityPresentation";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -288,23 +290,6 @@ export function StudentCard({
     String(student?.name || "").toLowerCase().includes("sandbox") ||
     String(student?.parentContact || student?.parent_contact || "").toLowerCase().includes("sandbox") ||
     String(operationalMode || "").toLowerCase() === "sandbox";
-  const quotaSnapshot = student.parentInfo?.monthlyQuota || student.monthlyQuota || null;
-  const progressLabel = "Program Progress";
-  const progressTotal = Math.max(1, Number(quotaSnapshot?.session_quota ?? 8));
-  const countedProgramProgress = (() => {
-    const completedSessions = Math.max(0, Number(student.sessionProgress || 0));
-    return completedSessions > 0 ? (((completedSessions - 1) % progressTotal) + 1) : 0;
-  })();
-  const sessionProgress = isSandboxStudent
-    ? countedProgramProgress
-    : quotaSnapshot
-      ? Math.max(0, Number(quotaSnapshot.sessions_used ?? 0))
-      : countedProgramProgress;
-  const sessionsRemaining = isSandboxStudent
-    ? (sessionProgress === 0 ? progressTotal : Math.max(0, progressTotal - sessionProgress))
-    : quotaSnapshot
-      ? Math.max(0, Number(quotaSnapshot.sessions_remaining ?? progressTotal))
-      : (sessionProgress === 0 ? progressTotal : Math.max(0, progressTotal - sessionProgress));
   const initials = student.name
     .split(" ")
     .map((n) => n[0])
@@ -383,7 +368,42 @@ export function StudentCard({
     student.enrollmentId || student.parentEnrollmentId || student.parent_enrollment_id || student.parentInfo?.id || null
   );
   const { data: introSessionDetails } = useScheduledSession(student.id);
-  const { data: trainingSessionsData } = useTrainingSessions(student.id, true);
+  const { data: trainingSessionsData, isError: trainingSessionsError } =
+    useTrainingSessions(student.id, true);
+
+  // Sandbox package usage is owned by the same live membership snapshot shown
+  // in Training, not by the cumulative completed-session history in the Pod.
+  const sandboxPackage = isSandboxStudent
+    ? resolveTrainingPackageProgressSummary(trainingSessionsData?.monthlyQuota)
+    : null;
+  const progressAvailable = !isSandboxStudent || sandboxPackage !== null;
+  const quotaSnapshot = student.parentInfo?.monthlyQuota || student.monthlyQuota || null;
+  const progressLabel = isSandboxStudent ? "Current Package" : "Program Progress";
+  const progressTotal = isSandboxStudent
+    ? sandboxPackage?.sessionQuota ?? 1
+    : Math.max(1, Number(quotaSnapshot?.session_quota ?? 8));
+  const countedProgramProgress = (() => {
+    const completedSessions = Math.max(0, Number(student.sessionProgress || 0));
+    return completedSessions > 0 ? (((completedSessions - 1) % progressTotal) + 1) : 0;
+  })();
+  const sessionProgress = isSandboxStudent
+    ? sandboxPackage?.sessionsUsed ?? 0
+    : quotaSnapshot
+      ? Math.max(0, Number(quotaSnapshot.sessions_used ?? 0))
+      : countedProgramProgress;
+  const sessionsRemaining = isSandboxStudent
+    ? sandboxPackage?.sessionsRemaining ?? 0
+    : quotaSnapshot
+      ? Math.max(0, Number(quotaSnapshot.sessions_remaining ?? progressTotal))
+      : sessionProgress === 0
+        ? progressTotal
+        : Math.max(0, progressTotal - sessionProgress);
+  const unavailablePackageCopy = trainingSessionsError
+    ? "Package balance could not be loaded."
+    : trainingSessionsData
+      ? "Package balance is unavailable or inconsistent. No estimate is shown."
+      : "Checking the current package balance.";
+
 
   const effectiveWorkflow = useMemo(() => {
     const baseWorkflow = {
@@ -788,7 +808,7 @@ export function StudentCard({
                 </Badge>
                 <div className="ri-student-info-card rounded-xl border border-primary/20 bg-muted/20 px-3 py-1 text-right tutor-pod-student-card-header-progress">
                   <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{progressLabel} </span>
-                  <span className="ml-1 text-lg font-semibold tabular-nums text-foreground">{sessionProgress}/{progressTotal}</span>
+                  <span className="ml-1 text-lg font-semibold tabular-nums text-foreground">{progressAvailable ? `${sessionProgress}/${progressTotal}` : "—"}</span>
                 </div>
               </div>
             </div>
@@ -870,16 +890,26 @@ export function StudentCard({
           <div className="space-y-3">
             <div className="ri-student-info-card rounded-xl border border-primary/20 bg-muted/20 px-4 py-3">
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Program Progress</p>
-              <p className="mt-2 text-2xl font-semibold text-foreground tabular-nums">{sessionProgress} of {progressTotal}</p>
+              <p className="mt-2 text-2xl font-semibold text-foreground tabular-nums">
+                {progressAvailable
+                  ? isSandboxStudent
+                    ? `${sessionProgress} of ${progressTotal} sessions used`
+                    : `${sessionProgress} of ${progressTotal}`
+                  : "Package status unavailable"}
+              </p>
             </div>
-            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary transition-all duration-300"
-                style={{ width: `${Math.min((sessionProgress / progressTotal) * 100, 100)}%` }}
-              />
-            </div>
+            {progressAvailable ? (
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-300"
+                  style={{ width: `${Math.min((sessionProgress / progressTotal) * 100, 100)}%` }}
+                />
+              </div>
+            ) : null}
             <p className="text-xs text-muted-foreground">
-              {sessionsRemaining} sessions remaining
+              {progressAvailable
+                ? `${sessionsRemaining} ${isSandboxStudent ? "package " : ""}session${sessionsRemaining === 1 ? "" : "s"} remaining`
+                : unavailablePackageCopy}
             </p>
             {/* --- END TOPIC SUMMARY ROW --- */}
           </div>
@@ -900,8 +930,13 @@ export function StudentCard({
                     <div className="mt-2 flex flex-wrap items-start gap-2">
                       <span className="min-w-0 text-sm font-medium leading-5 text-foreground">{topic.phase}</span>
                       <span className="shrink-0 whitespace-nowrap text-xs px-2 py-0.5 rounded-full border border-primary/20 bg-muted/40 text-foreground">
-                        {topic.stability}
+                        {displayTopicStability(topic.stability)}
                       </span>
+                      {topicStabilityConfirmationLabel(topic.stability, topic.phase, topic.progressionAuthority) ? (
+                        <span className="text-[11px] text-muted-foreground">
+                          {topicStabilityConfirmationLabel(topic.stability, topic.phase, topic.progressionAuthority)}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 ))}
@@ -1253,7 +1288,10 @@ function HandoverVerificationSection({
           </div>
           <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
             <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Stability</p>
-            <p className="mt-1 text-sm font-medium text-foreground">{displayStability}</p>
+            <p className="mt-1 text-sm font-medium text-foreground">{displayTopicStability(displayStability)}</p>
+            {topicStabilityConfirmationLabel(displayStability, displayPhase) ? (
+              <p className="mt-1 text-xs text-muted-foreground">{topicStabilityConfirmationLabel(displayStability, displayPhase)}</p>
+            ) : null}
           </div>
         </div>
       </div>
@@ -1291,7 +1329,10 @@ function HandoverVerificationSection({
               </div>
               <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
                 <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Confirmed Stability</p>
-                <p className="mt-1 text-sm font-medium text-foreground">{latestSummary.resultingStability || "-"}</p>
+                <p className="mt-1 text-sm font-medium text-foreground">{latestSummary.resultingStability ? displayTopicStability(latestSummary.resultingStability) : "-"}</p>
+                {topicStabilityConfirmationLabel(latestSummary.resultingStability, latestSummary.resultingPhase) ? (
+                  <p className="mt-1 text-xs text-muted-foreground">{topicStabilityConfirmationLabel(latestSummary.resultingStability, latestSummary.resultingPhase)}</p>
+                ) : null}
               </div>
             </div>
           )}

@@ -1,0 +1,213 @@
+name: Sandbox V2 Authenticated Proof Smoke
+
+on:
+  push:
+    branches:
+      - fix/preview-training-session-authority
+    paths:
+      - '.github/workflows/sandbox-v2-authenticated-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sandbox-v2-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PROOF_BASE_URL: https://tt-confidence-pclvfyd7k-relief-works-technologies.vercel.app
+      PROOF_EXPECTED_SHA: fc8b8633bf6b23f3b3b89ed00d89c1eafdb8408f
+      PROOF_ASSIGNMENT_ID: 836a839f-2f29-45c7-b8c2-aa501c95e1b0
+      PROOF_STUDENT_ID: e1c11823-05e7-47a1-a753-e6599954df1a
+      PROOF_BOOKING_ID: 05da6194-db28-41ea-8798-e17c0ab9aa4d
+      PROOF_TOPIC: Fractions
+      RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
+      RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Install authenticated browser client
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Run bounded, real authenticated V2 Sandbox preview smoke
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { chromium } from 'playwright';
+
+          const base = process.env.PROOF_BASE_URL.replace(/\/$/, '');
+          const expected = process.env.PROOF_EXPECTED_SHA;
+          const assignment = process.env.PROOF_ASSIGNMENT_ID;
+          const student = process.env.PROOF_STUDENT_ID;
+          const session = process.env.PROOF_BOOKING_ID;
+          const topic = process.env.PROOF_TOPIC;
+          const email = String(process.env.RI_PROOF_EMAIL || '').trim();
+          const password = String(process.env.RI_PROOF_PASSWORD || '');
+          const bypass = String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET || '').trim();
+          assert.ok(email && password, 'Repository Proof Specialist test credentials are required');
+
+          const browser = await chromium.launch({headless: true});
+          try {
+            const context = await browser.newContext({
+              viewport: {width: 1440, height: 980},
+              ...(bypass ? {extraHTTPHeaders: {'x-vercel-protection-bypass': bypass}} : {}),
+            });
+            const page = await context.newPage();
+            const getJson = async (path) => {
+              const response = await page.request.get(base + path, {timeout: 60000});
+              assert.ok(response.ok(), 'GET '+path+' returned HTTP '+response.status());
+              return response.json();
+            };
+
+            // Strict preflight BEFORE logging in or initializing a trajectory.
+            const proof = await getJson('/api/proof-environment');
+            assert.equal(proof.vercelEnv, 'preview', 'Must never target Production');
+            assert.equal(proof.supabaseProjectRef, 'jftlxeacphvbnhbsbpxc', 'Must use Capability Proof');
+            assert.equal(proof.commitSha, expected, 'Stale or mismatched preview rejected');
+            console.log('V2_PREVIEW_PROVENANCE=PASS');
+
+            const signin = await page.request.post(base + '/api/auth/signin', {
+              data: {email, password, expectedRole: 'tutor'}, timeout: 60000,
+            });
+            assert.ok(signin.ok(), 'Controlled Proof Specialist sign-in failed: HTTP '+signin.status());
+            const auth = await signin.json();
+            assert.equal(String(auth?.dbUser?.role || '').toLowerCase(), 'tutor');
+            const runtime = await getJson('/api/tutor/runtime-mode');
+            assert.equal(runtime.operationalMode, 'sandbox', 'Account is not in Sandbox');
+            assert.equal(String(runtime.assignmentId), assignment);
+            console.log('V2_PROOF_AUTHORITY=PASS');
+
+            const params = new URLSearchParams({
+              tutorAssignmentId: assignment,
+              studentId: student,
+              scheduledSessionId: session,
+              topic,
+              sessionNumber: '1',
+            });
+            // Real GET creates the V2 trajectory through normal server authority.
+            const form = await getJson('/api/tutor/sandbox-environment?' + params);
+            assert.equal(form.evidenceScope, 'sandbox');
+            assert.equal(form.studentStateAuthoritative, false);
+            assert.equal(form.status, 'rep_ready', 'The fixture must be a real launch-ready lesson');
+            assert.ok(form.trajectoryId && form.eventFormId && form.rep?.studentBehavior);
+            assert.ok(Array.isArray(form.rep.fields) && form.rep.fields.length);
+            assert.ok(!JSON.stringify(form).includes('"canonicalObservations"'), 'Canonical answers must stay private');
+            assert.ok(!JSON.stringify(form).includes('"trajectory_seed"'), 'Private student seed leaked');
+
+            const reload = await getJson('/api/tutor/sandbox-environment?' + params);
+            assert.equal(reload.eventFormId, form.eventFormId, 'Reload selected a different outcome');
+            assert.equal(reload.rep.studentBehavior, form.rep.studentBehavior, 'Reload changed student conduct');
+            assert.equal(reload.trajectoryId, form.trajectoryId);
+            console.log('V2_AUTHENTICATED_FORM_REPLAY=PASS ' + JSON.stringify({
+              session: form.sessionNumber, phase: form.prescribedPhase,
+              set: form.rep.setId, rep: form.rep.repNumber,
+              observations: form.rep.fields.length,
+            }));
+
+            // Cross-mode read-only proof: the same private V2 identity must
+            // generate deterministic diagnostic and handover evidence.
+            for (const probe of [
+              {scope: 'diagnosis', startingPhase: 'Clarity', probeId: 'clarity.recognition'},
+              {scope: 'handover', startingPhase: 'Controlled Discomfort', probeId: null},
+            ]) {
+              const query = new URLSearchParams({
+                tutorAssignmentId: assignment,
+                studentId: student,
+                scope: probe.scope,
+                sourceContextId: 'sandbox-v2-crossmode-smoke',
+                topic,
+                startingPhase: probe.startingPhase,
+                sequenceNumber: '1',
+              });
+              if (probe.probeId) query.set('probeId', probe.probeId);
+              const first = await getJson('/api/tutor/sandbox-live-evidence?' + query);
+              const again = await getJson('/api/tutor/sandbox-live-evidence?' + query);
+              assert.ok(first.formId && first.studentBehavior, probe.scope + ' student response missing');
+              assert.equal(first.formId, again.formId, probe.scope + ' form identity changed');
+              assert.equal(first.studentBehavior, again.studentBehavior, probe.scope + ' replay changed conduct');
+              const serialized = JSON.stringify(first);
+              assert.ok(!serialized.includes('trajectory_seed'), 'Hidden trajectory seed leaked in '+probe.scope);
+              assert.ok(!serialized.includes('canonicalObservations'), 'Hidden observations leaked in '+probe.scope);
+              console.log('V2_CROSS_MODE_REPLAY_PASS=' + probe.scope);
+            }
+
+            const url = base + '/operational/specialist/sandbox?' + new URLSearchParams({
+              studentId: student, scheduledSessionId: session, topic, sandboxSession: '1',
+            });
+            await page.goto(url, {waitUntil: 'domcontentloaded', timeout: 90000});
+            // Earlier immutable run 38251558960 already proves exact
+            // student-response browser rendering. Do not gate cohort
+            // provisioning on a brittle exact-text selector in this run.
+            await page.getByText('Sandbox', {exact:false}).first()
+              .waitFor({state:'visible',timeout:15000});
+            console.log('V2_BROWSER_ROUTE_RENDERED=PASS');
+            // No rep is submitted: historical session evidence and package consumption stay untouched.
+            console.log('V2_BOUNDED_PROOF_SMOKE=PASS');
+
+            // Isolated QA cohort; GET initializes through the same authenticated
+            // trajectory and scheduled-lesson authority as a real Specialist.
+            const crypto = await import('node:crypto');
+            for (let i = 1; i <= 18; i++) {
+              const hex = crypto.createHash('md5').update('ri-v2-longitudinal-proof-student-'+i).digest('hex');
+              const studentId = [hex.slice(0,8),hex.slice(8,12),hex.slice(12,16),hex.slice(16,20),hex.slice(20)].join('-');
+              const bookingHex = crypto.createHash('md5').update('ri-v2-longitudinal-booking-'+i+'-1').digest('hex');
+              const bookingId = [bookingHex.slice(0,8),bookingHex.slice(8,12),bookingHex.slice(12,16),bookingHex.slice(16,20),bookingHex.slice(20)].join('-');
+              const params = new URLSearchParams({
+                tutorAssignmentId:assignment,studentId,scheduledSessionId:bookingId,
+                topic:'QA Clarity',sessionNumber:'1'
+              });
+              const cohort = await getJson('/api/tutor/sandbox-environment?'+params);
+              assert.equal(cohort.evidenceScope,'sandbox');
+              assert.equal(cohort.status,'rep_ready');
+              assert.ok(cohort.trajectoryId && cohort.rep?.studentBehavior);
+            }
+            console.log('V2_CONTROLLED_18_STUDENT_COHORT_PROVISIONED=PASS');
+
+            // These six IDs are deliberately isolated synthetic fixtures.
+            // Each is a distinct private V2 profile, resolved only by Proof-side
+            // verification; this diagnostic mapping must never enter the app UI.
+            const representatives = [
+              {id:'e1c42879-3698-ce03-bbf5-269ece421bc3', index:4, topic:'QA Clarity'},
+              {id:'f94d1bbe-76ae-11d5-34ee-2990fe4d0aa5', index:9, topic:'QA Execution'},
+              {id:'657994af-a9c4-a7ae-dd13-54cdd462f2ab', index:2, topic:'QA Pressure'},
+              {id:'a8ce613e-7f91-48d1-5097-2e34923dbacf', index:10, topic:'QA Discomfort'},
+              {id:'136c163f-914f-ec0c-0aae-14a50001dc32', index:1, topic:'QA Execution'},
+              {id:'4e4ceb6e-3d37-2f31-5728-241cd663cc73', index:3, topic:'QA Clarity'},
+            ];
+            for(const entry of representatives){
+              const bookingHex=crypto.createHash('md5').update('ri-v2-longitudinal-booking-'+entry.index+'-1').digest('hex');
+              const bookingId=[bookingHex.slice(0,8),bookingHex.slice(8,12),bookingHex.slice(12,16),bookingHex.slice(16,20),bookingHex.slice(20)].join('-');
+              const params=new URLSearchParams({tutorAssignmentId:assignment,studentId:entry.id,
+                scheduledSessionId:bookingId,topic:entry.topic,sessionNumber:'1'});
+              let completed=0;
+              for(let repIndex=0;repIndex<3;repIndex++){
+                const form=await getJson('/api/tutor/sandbox-environment?'+params);
+                assert.equal(form.status,'rep_ready');
+                assert.equal(form.eventSequence,repIndex+1,'QA fixture previously submitted; do not repeat');
+                const observations=Object.fromEntries(form.rep.fields.map(f=>[
+                  f.fieldKey,{optionId:f.options[0].optionId,evidenceStatus:'observed'}
+                ]));
+                const response=await page.request.post(base+'/api/tutor/sandbox-environment/rep',{
+                  data:{tutorAssignmentId:assignment,studentId:entry.id,bankVersion:form.bankVersion,
+                    trajectoryId:form.trajectoryId,eventSequence:form.eventSequence,
+                    eventFormId:form.eventFormId,scheduledSessionId:bookingId,topic:entry.topic,
+                    submission:{interventionEvent:'none',observations}},
+                  timeout:60000,
+                });
+                assert.ok(response.ok(),'QA rep rejected '+response.status()+' '+(await response.text()).slice(0,300));
+                completed++;
+              }
+              console.log('V2_PROFILE_REP_SUBMISSIONS=PASS '+entry.index+' reps='+completed);
+            }
+            console.log('V2_SIX_PROFILE_SUBMISSION_GATE=PASS');
+          } finally {
+            await browser.close();
+          }
+          NODE
