@@ -917,11 +917,13 @@ export default function PodDetail() {
 
   const podName = (currentPod as Pod).podName;
   const tdName = getTDName((currentPod as Pod).tdId);
-  const tutorCount = podTutors?.length || 0;
+  const tutorCount = Array.isArray(podTutors) ? podTutors.length : 0;
   const maxTutors = MAX_TUTORS_PER_POD;
   const availableSlots = maxTutors - tutorCount;
   const maxStudentsPerTutor = getMaxStudentsPerTutorForVehicle((currentPod as Pod).vehicle);
-  const operatingOverview = podOperatingOverview.find((entry: any) => entry.podId === podId);
+  const operatingOverview = Array.isArray(podOperatingOverview)
+    ? podOperatingOverview.find((entry: any) => entry?.podId === podId)
+    : undefined;
 
   // Debug logging
   console.log("Approved tutors:", approvedTutors?.map((t: any) => ({ id: t.id, name: t.name })));
@@ -1048,7 +1050,7 @@ export default function PodDetail() {
                 </div>
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-sm text-muted-foreground">Operating State</span>
-                  <Badge className={getOperatingStateBadgeClass(operatingOverview?.operatingState?.key)}>
+                  <Badge className={getOperatingStateBadgeClass(operatingOverviewError ? undefined : operatingOverview?.operatingState?.key)}>
                     {operatingOverviewError
                       ? "Unavailable"
                       : operatingOverviewLoading && !operatingOverview
@@ -1062,10 +1064,10 @@ export default function PodDetail() {
                     <Button variant="outline" size="sm" onClick={() => refetchOperatingOverview()}>Retry</Button>
                   </div>
                 ) : null}
-                {operatingOverview?.operatingState?.description ? (
+                {!operatingOverviewError && operatingOverview?.operatingState?.description ? (
                   <p className="text-sm text-muted-foreground">{operatingOverview.operatingState.description}</p>
                 ) : null}
-                {operatingOverview ? (
+                {!operatingOverviewError && operatingOverview?.operatingState?.key ? (
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-lg border bg-muted/20 p-3">
                       <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Specialist Mix</p>
@@ -1235,6 +1237,8 @@ export default function PodDetail() {
                     </div>
                   ) : !Array.isArray(podTutors) ? (
                     <div className="text-sm text-muted-foreground py-6 text-center">Specialist roster returned an invalid response. No assignments have been changed.</div>
+                  ) : podTutors.length === 0 && (podStats?.totalTutors || 0) > 0 ? (
+                    <div className="text-sm text-muted-foreground py-6 text-center">Assigned Specialist roster is incomplete; the authoritative count has not been cleared.</div>
                   ) : podTutors.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <p className="text-sm">No Specialists assigned yet</p>
@@ -1246,7 +1250,7 @@ export default function PodDetail() {
                             Roster incomplete: {podTutors.length} of {podStats.totalTutors} assigned Specialist records loaded.
                           </p>
                         ) : null}
-                        {podTutors.map((assignment: any) => {
+                        {podTutors.filter((assignment: any) => assignment && typeof assignment.id === "string" && typeof assignment.tutorId === "string").map((assignment: any) => {
                           const isExpanded = expandedTutors.has(assignment.id);
                           const tutorAudit = battleTestingSummary?.tutorSummaries.find(
                             (entry) => entry.assignmentId === assignment.id
