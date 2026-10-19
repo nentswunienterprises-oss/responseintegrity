@@ -513,6 +513,7 @@ export default function PodDetail() {
   const {
     data: assignedTutorIds,
     isLoading: assignedTutorsLoading,
+    isError: assignedTutorsError,
   } = useQuery<string[]>({
     queryKey: ["/api/coo/all-tutor-assignments"],
     enabled: isAuthenticated && !authLoading,
@@ -552,6 +553,7 @@ export default function PodDetail() {
   const {
     data: podStats,
     isLoading: statsLoading,
+    isError: podStatsError,
   } = useQuery<{ totalTutors: number; totalStudents: number; sessionsCompleted: number }>({
     queryKey: [`/api/coo/pods/${podId}/stats`],
     enabled: isAuthenticated && !authLoading && !!podId,
@@ -917,9 +919,16 @@ export default function PodDetail() {
 
   const podName = (currentPod as Pod).podName;
   const tdName = getTDName((currentPod as Pod).tdId);
-  const tutorCount = Array.isArray(podTutors) ? podTutors.length : 0;
+  const tutorCount = typeof podStats?.totalTutors === "number"
+    ? podStats.totalTutors
+    : Array.isArray(podTutors) ? podTutors.length : 0;
   const maxTutors = MAX_TUTORS_PER_POD;
-  const availableSlots = maxTutors - tutorCount;
+  // A failed query must never be interpreted as spare assignment capacity.
+  const canEditRoster = !podTutorsError && !podStatsError && !assignedTutorsError
+    && Array.isArray(podTutors) && typeof podStats?.totalTutors === "number"
+    && podTutors.length === podStats.totalTutors
+    && Array.isArray(assignedTutorIds) && !assignedTutorsLoading;
+  const availableSlots = canEditRoster ? Math.max(0, maxTutors - tutorCount) : 0;
   const maxStudentsPerTutor = getMaxStudentsPerTutorForVehicle((currentPod as Pod).vehicle);
   const operatingOverview = Array.isArray(podOperatingOverview)
     ? podOperatingOverview.find((entry: any) => entry?.podId === podId)
@@ -1001,7 +1010,7 @@ export default function PodDetail() {
             <div className="px-4 py-4 sm:px-5 sm:py-5">
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Specialists</p>
               <p className="mt-2 text-3xl font-semibold tabular-nums text-foreground sm:text-4xl">
-                {podStats?.totalTutors || 0}
+                {podStatsError ? "Unavailable" : podStats?.totalTutors ?? "Unavailable"}
               </p>
             </div>
           </Card>
@@ -1010,7 +1019,7 @@ export default function PodDetail() {
             <div className="px-4 py-4 sm:px-5 sm:py-5">
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Students</p>
               <p className="mt-2 text-3xl font-semibold tabular-nums text-foreground sm:text-4xl">
-                {podStats?.totalStudents || 0}
+                {podStatsError ? "Unavailable" : podStats?.totalStudents ?? "Unavailable"}
               </p>
             </div>
           </Card>
@@ -1019,7 +1028,7 @@ export default function PodDetail() {
             <div className="px-4 py-4 sm:px-5 sm:py-5">
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Sessions Done</p>
               <p className="mt-2 text-3xl font-semibold tabular-nums text-foreground sm:text-4xl">
-                {podStats?.sessionsCompleted || 0}
+                {podStatsError ? "Unavailable" : podStats?.sessionsCompleted ?? "Unavailable"}
               </p>
             </div>
           </Card>
@@ -1206,7 +1215,7 @@ export default function PodDetail() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs sm:text-sm text-muted-foreground">
-                      {tutorCount}/{maxTutors}
+                      {podStatsError && podTutorsError ? "Unavailable" : `${tutorCount}/${maxTutors}`}
                     </span>
                     <Button
                       variant="ghost"
