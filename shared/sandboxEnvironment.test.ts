@@ -347,6 +347,30 @@ test("V2 capability targeting cannot starve intermediate recovery after a breakd
   assert.equal(selectSandboxOutcome({ seed: "legacy", outcomes: candidates, context: { ...context, behaviorModelVersion: 1 } }).key, "target.breakdown", "historical V1 targeting stays unchanged");
 });
 
+test("V2 capability targeting cannot starve observable uneven performance after support", () => {
+  const candidates = [
+    outcomeFor({ setId: "clarity.identification", repNumber: 1, key: "target.breakdown", trajectoryClass: "breakdown", challenge: "continuity_integrity" }),
+    outcomeFor({ setId: "clarity.identification", repNumber: 1, key: "uneven.near-stable", trajectoryClass: "near_stable" }),
+    outcomeFor({ setId: "clarity.identification", repNumber: 1, key: "uneven.conditional", trajectoryClass: "conditional" }),
+    outcomeFor({ setId: "clarity.identification", repNumber: 1, key: "clean", trajectoryClass: "supported" }),
+  ];
+  const context = {
+    canonicalPhase: phase, canonicalStability: "High" as const,
+    prescribedPhase: phase, setId: "clarity.identification", repNumber: 1,
+    sequenceNumber: 7, earliestUnsupportedCapability: "continuity_integrity" as const,
+    previousTrajectoryClass: "supported" as const, behaviorModelVersion: 2 as const,
+  };
+  const unevenSeeds = Array.from({ length: 512 }, (_, index) => `synthetic-uneven-${index}`)
+    .filter((seed) => resolveSandboxBehaviorProfile(seed) === "uneven_performer");
+  const selected = new Set(unevenSeeds.map((seed) =>
+    selectSandboxOutcome({ seed, outcomes: candidates, context }).trajectoryClass,
+  ));
+  assert.ok(selected.has("near_stable") || selected.has("conditional"),
+    "hard targeting must preserve an observable supported-to-weaker transition");
+  assert.ok(selected.has("supported"), "uneven behavior must not be forced");
+  assert.ok(selected.has("breakdown"), "capability challenge must remain eligible");
+});
+
 test("Sandbox student behavior profile is deterministic and changes phase tendencies without suppressing evidence anomalies", () => {
   const seed = "student-profile-seed";
   const first = resolveSandboxBehaviorProfile(seed);
