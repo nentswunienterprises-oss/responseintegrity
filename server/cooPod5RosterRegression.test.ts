@@ -66,3 +66,17 @@ test("COO-only API boundary and Specialist names-only Pod Team remain separate",
   assert.match(podTeam, /Pod team view shows names only/);
   assert.doesNotMatch(podTeam, /podTeamData\.territoryDirector\.email/);
 });
+
+test("a failed operating overview never renders stale state metrics", () => {
+  const operating = section(detail, "Pod Operating Model", "{/* Territory Director */}");
+  assert.match(operating, /!operatingOverviewError && operatingOverview\\?\\.operatingState\\?\\.key/);
+  assert.match(operating, /!operatingOverviewError && operatingOverview\\?\\.operatingState\\?\\.description/);
+  assert.match(operating, /operatingOverviewError[\\s\\S]*?"Unavailable"/);
+});
+
+test("a roster query with zero rows cannot contradict four assigned users", () => {
+  const list = section(detail, "{/* Specialists List */}", "{/* Add Specialists Button */}");
+  assert.match(list, /podTutors\\.length === 0 && \\(podStats\\?\\.totalTutors \\|\\| 0\\) > 0/);
+  assert.match(list, /Assigned Specialist roster is incomplete/);
+  assert.match(list, /podTutors\\.filter\\(\\(assignment: any\\) => assignment && typeof assignment\\.id/);
+});
