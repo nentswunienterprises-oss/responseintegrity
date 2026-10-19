@@ -706,7 +706,8 @@ export function selectSandboxOutcome(input: {
         definition.challengeCapabilities?.includes(target)
       )
     : [];
-  // Keep V2 recovery and retained support eligible beside capability challenges.
+  // Keep V2 recovery, retained support and observable uneven continuation
+  // eligible beside capability challenges.
   // Hard targeting must not suppress the very transitions that make recovery
   // and subsequent phase development possible. State compatibility, repetition
   // and the prohibition on an immediate breakdown-to-supported jump were
@@ -720,8 +721,19 @@ export function selectSandboxOutcome(input: {
         if (previous === "conditional") {
           return definition.trajectoryClass === "near_stable" || definition.trajectoryClass === "supported";
         }
-        return (previous === "near_stable" || previous === "supported") &&
-          definition.trajectoryClass === "supported";
+        if (previous === "near_stable") {
+          return definition.trajectoryClass === "supported";
+        }
+        if (previous === "supported") {
+          // A supported response must be allowed either to hold or to weaken
+          // naturally. Otherwise hard capability targeting can make the
+          // uneven-performer signature unobservable by excluding every
+          // supported -> near-stable/conditional transition.
+          return definition.trajectoryClass === "supported" ||
+            definition.trajectoryClass === "near_stable" ||
+            definition.trajectoryClass === "conditional";
+        }
+        return false;
       })
     : [];
   const candidates = targeted.length
