@@ -2421,6 +2421,9 @@ async function recalculateMembershipMonthUsage(options: {
 }) {
   const monthStart = options.monthStartIso.slice(0, 10);
   const nowIso = new Date().toISOString();
+  const evidenceUpperBoundIso = options.isSandbox
+    ? "9999-12-31T23:59:59.999Z"
+    : nowIso;
   let usageWindowStart = `${monthStart}T00:00:00.000Z`;
 
   try {
@@ -2485,7 +2488,7 @@ async function recalculateMembershipMonthUsage(options: {
     .eq("type", "training")
     .eq("status", "completed")
     .gte("scheduled_time", usageWindowStart)
-    .lt("scheduled_time", nowIso);
+    .lt("scheduled_time", evidenceUpperBoundIso);
 
   const completedSessionKeys = new Set<string>();
   const completedScheduledSessions = new Map<string, string>();
@@ -2528,7 +2531,7 @@ async function recalculateMembershipMonthUsage(options: {
     .eq("student_id", options.studentId)
     .in("status", ["submitted", "completed"])
     .gte("submitted_at", usageWindowStart)
-    .lt("submitted_at", nowIso);
+    .lt("submitted_at", evidenceUpperBoundIso);
 
   for (const row of (trainingRuns || [])) {
     const scheduledId = String(row?.scheduled_session_id || "").trim();
@@ -2544,7 +2547,7 @@ async function recalculateMembershipMonthUsage(options: {
     .select("id, scheduled_session_id, training_session_run_id, drill")
     .eq("student_id", options.studentId)
     .gte("submitted_at", usageWindowStart)
-    .lt("submitted_at", nowIso);
+    .lt("submitted_at", evidenceUpperBoundIso);
 
   const evidenceEligibleSessionIds = new Set<string>();
   for (const row of (drills || [])) {
@@ -2573,7 +2576,7 @@ async function recalculateMembershipMonthUsage(options: {
     .eq("parent_id", options.parentId)
     .eq("student_id", options.studentId)
     .gte("effective_at", usageWindowStart)
-    .lt("effective_at", nowIso)
+    .lt("effective_at", evidenceUpperBoundIso)
     .eq("billing_impact", "consume")
     .eq("is_sandbox", !!options.isSandbox);
 
