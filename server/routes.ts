@@ -15070,7 +15070,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         studentId: String(studentId),
         isSandboxContext,
       });
+      if (isSandboxContext && !monthlyQuota) {
+        return res.status(409).json({
+          message: "Sandbox package-cycle authority cannot be verified. Booking remains blocked.",
+        });
+      }
       if (monthlyQuota && Number(monthlyQuota.sessions_remaining || 0) <= 0) {
+        if (isSandboxContext) {
+          return res.status(409).json({
+            message: "Simulated package exhausted. Complete the explicit Sandbox renewal before booking.",
+            monthlyQuota,
+          });
+        }
         const currentMonthKey = toMonthKey(getMonthStartIso(new Date().toISOString())!);
         const { data: latestPayment } = await getLatestPaidPaymentForParent(userId, String(studentId));
         const paymentMonthKey = latestPayment?.paid_at ? toMonthKey(getMonthStartIso(latestPayment.paid_at)!) : null;
@@ -30407,7 +30418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const servicePackage = getMonthlyServicePackage(enrollment.package_key);
 
-      const monthKey = toMonthKey(getMonthStartIso(new Date().toISOString())!);
+      let monthKey = toMonthKey(getMonthStartIso(new Date().toISOString())!);
       const canonicalStudent = await resolveCanonicalStudentForEnrollment(enrollment);
       const studentId = canonicalStudent?.id || enrollment.assigned_student_id || null;
       const isSandboxContext = isSandboxPaymentEnrollment(enrollment);
@@ -30425,6 +30436,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(409).json({
           message: `Your current ${servicePackage.sessionsPerMonth}-session monthly package is not complete yet. Renewal opens after all package sessions are used.`,
         });
+      }
+
+      if (useSandbox) {
+        if (!monthlyQuota) {
+          return res.status(409).json({
+            message: "Sandbox package-cycle authority is unavailable. Renewal cannot create an unverified entitlement.",
+          });
+        }
+        const nextCycleKey = nextSandboxCycleKey(monthlyQuota.month_key);
+        if (!nextCycleKey) {
+          return res.status(409).json({
+            message: "Sandbox package-cycle lineage is invalid. Renewal remains blocked.",
+          });
+        }
+        // Only an explicit paid Sandbox renewal advances the simulated cycle.
+        // The calendar date has no authority over Sandbox package capacity.
+        monthKey = nextCycleKey;
       }
 
       let existingRenewalPaymentQuery = supabase
