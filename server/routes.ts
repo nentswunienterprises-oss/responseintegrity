@@ -17,6 +17,7 @@ import { isAuthenticated } from "./supabaseAuth";
 import { pool } from "./db";
 import { isEmergencyDbMode } from "./emergencyMode";
 import { ensurePreviewSandboxFixtureCommercialState } from "./proofSandboxCommercialState";
+import { readSandboxCycle } from "./sandboxPackageCycle";
 import { buildEmergencyEnrollmentStatusFilter } from "./emergencyPodQuery";
 import {
   createEmergencyFileBundle,
@@ -2831,6 +2832,13 @@ async function getMonthlySessionQuotaSnapshot(options: {
   referenceIso?: string | null;
   isSandboxContext?: boolean | null;
 }) {
+  // Sandbox package cycles are simulated; the advancing UTC calendar must
+  // not expire or replenish a persisted, authorized simulated entitlement.
+  // The shared role-scoped server path is read-only even during a GET.
+  if (options.isSandboxContext === true && usesDirectProofSessionDatabase()) {
+    return readSandboxCycle(pool, options.parentId, String(options.studentId));
+  }
+
   const monthStartIso = getMonthStartIso(options.referenceIso || new Date().toISOString());
   if (!monthStartIso) return null;
   const monthKey = toMonthKey(monthStartIso);
@@ -14986,7 +14994,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         studentId: String(studentId),
         isSandboxContext,
       });
+      if (isSandboxContext && !monthlyQuota) {
+        return res.status(409).json({
+          code: "PACKAGE_AUTHORITY_UNAVAILABLE",
+          message: "This Sandbox family has no verified simulated package cycle. Do not estimate or create credits.",
+        });
+      }
       if (monthlyQuota && Number(monthlyQuota.sessions_remaining || 0) <= 0) {
+        if (isSandboxContext) {
+          return res.status(409).json({
+            code: "PACKAGE_QUOTA_EXHAUSTED",
+            message: "The simulated package is exhausted. Complete an explicit Sandbox renewal before booking more sessions.",
+            monthlyQuota,
+          });
+        }
         const currentMonthKey = toMonthKey(getMonthStartIso(new Date().toISOString())!);
         const { data: latestPayment } = await getLatestPaidPaymentForParent(userId, String(studentId));
         const paymentMonthKey = latestPayment?.paid_at ? toMonthKey(getMonthStartIso(latestPayment.paid_at)!) : null;
@@ -15563,6 +15584,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? await getMonthlySessionQuotaSnapshot({
               parentId: String(updatedSession.parent_id),
               studentId: String(updatedSession.student_id),
+              isSandboxContext: operationalMode === "sandbox",
             })
           : null;
 

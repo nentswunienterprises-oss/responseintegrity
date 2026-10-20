@@ -1,0 +1,27 @@
+name: Sandbox Package Cycle CI
+on:
+  pull_request:
+    paths:
+      - "server/routes.ts"
+      - "server/sandboxPackageCycle.ts"
+      - "server/sandboxPackageCycle.test.ts"
+      - "server/proofSandboxCommercialState.ts"
+      - "shared/trainingPackageQuota.ts"
+      - ".github/workflows/sandbox-package-cycle-ci.yml"
+permissions:
+  contents: read
+jobs:
+  package-cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx tsx --test server/sandboxPackageCycle.test.ts shared/trainingPackageQuota.test.ts
+      - run: npx tsx --test server/emergencyContinuity.test.ts
+      - run: npm run build:backend
+      - run: npm run build:vercel-api
