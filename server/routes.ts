@@ -2751,13 +2751,18 @@ async function recordSessionBillingEvent(options: {
     console.error("Failed to resolve enrollment for sandbox detection:", err);
   }
 
-  await upsertMembershipMonth({
-    parentId: options.parentId,
-    studentId: options.studentId,
-    enrollmentId: options.enrollmentId || null,
-    monthStartIso,
-    isSandbox: isSandboxEvent,
-  });
+  const simulatedEvent = isSandboxEvent && usesDirectProofSessionDatabase();
+  if (!simulatedEvent) {
+    await upsertMembershipMonth({
+      parentId: options.parentId,
+      studentId: options.studentId,
+      enrollmentId: options.enrollmentId || null,
+      monthStartIso,
+      isSandbox: isSandboxEvent,
+    });
+  }
+  // A simulated session/billing event must never create a new package
+  // merely because the real calendar month changed.
 
   const { data: existingEvents } = await supabase
     .from("session_billing_events")
@@ -2767,12 +2772,14 @@ async function recordSessionBillingEvent(options: {
     .limit(1);
 
   if (Array.isArray(existingEvents) && existingEvents.length > 0) {
-    return recalculateMembershipMonthUsage({
-      parentId: options.parentId,
-      studentId: options.studentId,
-      monthStartIso,
-      isSandbox: isSandboxEvent,
-    });
+    return simulatedEvent
+      ? readSandboxCycle(pool, options.parentId, options.studentId)
+      : recalculateMembershipMonthUsage({
+          parentId: options.parentId,
+          studentId: options.studentId,
+          monthStartIso,
+          isSandbox: isSandboxEvent,
+        });
   }
 
   const { error } = await supabase.from("session_billing_events").insert({
@@ -2796,6 +2803,23 @@ async function recordSessionBillingEvent(options: {
   if (error) {
     console.error("Failed to record session billing event:", error);
     return null;
+  }
+
+  if (simulatedEvent) {
+    const truth = await readSandboxCycle(pool, options.parentId, options.studentId);
+    if (!truth) return null;
+    // Only an actual accepted billing event may persist simulated usage,
+    // never a GET or the passing of a real month.
+    if (options.billingImpact === "consume" || options.billingImpact === "restore") {
+      await pool.query(
+        `UPDATE public.membership_months
+            SET sessions_used = $1, sessions_remaining = $2, updated_at = NOW()
+          WHERE id = $3 AND parent_id::text = $4::text
+            AND student_id::text = $5::text AND is_sandbox = TRUE`,
+        [truth.sessions_used, truth.sessions_remaining, truth.id, options.parentId, options.studentId],
+      );
+    }
+    return truth;
   }
 
   const recalculated = await recalculateMembershipMonthUsage({
@@ -3627,7 +3651,7 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
     });
     if (!month) return null;
     await recordSessionBillingEvent({
-      sessionId: `renewal-${monthKey}-${parentId}-${studentId}`,
+      sessionId: isSandboxTransaction ? `sandbox-renewal-${String(transaction.id)}` : `renewal-${monthKey}-${parentId}-${studentId}`,
       parentId,
       studentId,
       enrollmentId: enrollmentId || null,
@@ -3676,7 +3700,7 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
   }
 
   const renewedMonth = await recordSessionBillingEvent({
-    sessionId: `renewal-${monthKey}-${parentId}-${studentId}`,
+    sessionId: isSandboxTransaction ? `sandbox-renewal-${String(transaction.id)}` : `renewal-${monthKey}-${parentId}-${studentId}`,
     parentId,
     studentId,
     enrollmentId: enrollmentId || null,
@@ -14654,7 +14678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = (req as any).dbUser.id;
       if (usesDirectProofSessionDatabase()) {
         const enrollmentResult = await pool.query(
-          `SELECT id, assigned_tutor_id, status, student_full_name, student_grade, parent_email
+          `SELECT id, assigned_tutor_id, status, student_full_name, student_grade, parent_email, is_sandbox_account
              FROM public.parent_enrollments
             WHERE user_id = $1
             ORDER BY updated_at DESC
@@ -14711,7 +14735,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? await getMonthlySessionQuotaSnapshot({
               parentId: String(userId),
               studentId,
-              isSandboxContext: String(enrollment.parent_email || "").toLowerCase().startsWith("sandbox-parent-"),
+              isSandboxContext: enrollment.is_sandbox_account === true ||
+                String(enrollment.parent_email || "").toLowerCase().startsWith("sandbox-parent-"),
             })
           : null;
         const recentSessions = [...sessionRows].sort(
@@ -30345,7 +30370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const servicePackage = getMonthlyServicePackage(enrollment.package_key);
 
-      const monthKey = toMonthKey(getMonthStartIso(new Date().toISOString())!);
+      const calendarMonthKey = toMonthKey(getMonthStartIso(new Date().toISOString())!);
       const canonicalStudent = await resolveCanonicalStudentForEnrollment(enrollment);
       const studentId = canonicalStudent?.id || enrollment.assigned_student_id || null;
       const isSandboxContext = isSandboxPaymentEnrollment(enrollment);
@@ -30359,11 +30384,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      if (isSandboxContext && !monthlyQuota) {
+        return res.status(409).json({
+          code: "PACKAGE_AUTHORITY_UNAVAILABLE",
+          message: "A verified simulated package must exist before renewal. Do not manufacture a package balance.",
+        });
+      }
       if (monthlyQuota && Number(monthlyQuota.sessions_remaining || 0) > 0) {
         return res.status(409).json({
           message: `Your current ${servicePackage.sessionsPerMonth}-session monthly package is not complete yet. Renewal opens after all package sessions are used.`,
         });
       }
+      // Sandbox renews the persisted simulated cycle, never the advancing
+      // real month. Real families retain calendar-governed billing.
+      const monthKey = isSandboxContext ? String(monthlyQuota?.month_key || "") : calendarMonthKey;
 
       let existingRenewalPaymentQuery = supabase
         .from("payment_transactions")
@@ -30378,7 +30412,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .limit(1)
         .maybeSingle();
 
-      if (existingRenewalPayment) {
+      if (existingRenewalPayment && !isSandboxContext) {
         await applyRenewalTransactionToMembershipMonth(existingRenewalPayment);
         return res.json({
           message: "This month's renewal payment has already been made.",
@@ -30386,6 +30420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           alreadyPaid: true,
         });
       }
+      // A completed simulated package may renew more than once per real month.
 
       const merchantReference = `response-integrity-renewal-${monthKey}-${uuidv4()}`;
       const payfastConfig = getPayfastConfig(useSandbox);
