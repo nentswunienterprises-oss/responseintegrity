@@ -74,3 +74,11 @@ test("Sandbox simulated completion and renewal windows are not capped by the act
   assert.ok(src.includes('activatedAt && activatedAt < cycleStartIso'));
   assert.ok(src.includes('usageWindowStart, evidenceUpperBoundIso'));
 });
+
+test("Sandbox billing reconciler includes completed future-dated simulated events", () => {
+  const src = source("async function recalculateMembershipMonthUsage(", "async function recordSessionBillingEvent(");
+  assert.ok(src.includes('const evidenceUpperBoundIso = options.isSandbox'));
+  assert.match(src, /\.lt\("scheduled_time", evidenceUpperBoundIso\)/);
+  assert.match(src, /\.lt\("submitted_at", evidenceUpperBoundIso\)/);
+  assert.match(src, /\.lt\("effective_at", evidenceUpperBoundIso\)/);
+});
