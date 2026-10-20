@@ -2751,6 +2751,36 @@ async function recordSessionBillingEvent(options: {
     console.error("Failed to resolve enrollment for sandbox detection:", err);
   }
 
+  if (isSandboxEvent) {
+    const rawCycleKey = options.metadata?.monthKey;
+    let cycleKey: string | null = null;
+    if (options.eventType === "renewal_payment" &&
+        options.billingImpact === "restore" &&
+        isSandboxCycleKey(rawCycleKey)) {
+      // Only the server's verified renewal-application path can start a new
+      // simulated cycle. Never derive an entitlement from wall-clock time.
+      cycleKey = rawCycleKey;
+    } else {
+      const { data, error } = await supabase
+        .from("membership_months")
+        .select("*")
+        .eq("parent_id", options.parentId)
+        .eq("student_id", options.studentId)
+        .eq("is_sandbox", true)
+        .order("month_key", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(2);
+      if (error) {
+        console.error("Failed to resolve Sandbox billing cycle:", error);
+        return null;
+      }
+      const cycle = selectAuthoritativeSandboxCycle(data, options.parentId, options.studentId);
+      if (!cycle) return null;
+      cycleKey = String(cycle.month_key);
+    }
+    monthStartIso = `${cycleKey}T00:00:00.000Z`;
+  }
+
   await upsertMembershipMonth({
     parentId: options.parentId,
     studentId: options.studentId,
