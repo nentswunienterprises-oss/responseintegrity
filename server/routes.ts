@@ -1,9 +1,10 @@
+import { confidentialReference, ensurePrivateBucket, createConfidentialDownloadHandler } from "./confidentialStorage";
 import { captureDemandParent } from "./demandCapture";
 import { registerDemandProductionRoutes } from "./demandProduction";
 import { demandAssignmentBlock, resolveEntryType } from "../shared/demandProduction";
 import type { Express, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
-import { createHash } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { existsSync } from "fs";
 import { createServer, type Server } from "http";
 import { join, resolve } from "path";
@@ -4736,6 +4737,8 @@ async function getPendingTrainingConfirmationSession(tutorId: string, studentId:
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  app.get("/api/confidential-file", isAuthenticated,
+    createConfidentialDownloadHandler({ query: (sql, values) => pool.query(sql, values), client: supabase, supabaseUrl: process.env.SUPABASE_URL || "" }));
   registerDemandProductionRoutes(app, { client: supabase, isAuthenticated, requireRole });
 
   app.post(
@@ -22295,17 +22298,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const bucketName = "coo-brain-library";
-        const { error: bucketError } = await supabase.storage.createBucket(bucketName, { public: true });
-        if (bucketError && !/already exists|duplicate/i.test(String(bucketError.message || ""))) {
-          console.warn("Could not pre-create COO brain library bucket:", bucketError);
-        }
+        await ensurePrivateBucket(supabase, bucketName);
 
-        const storagePath = `coo/${userId}/${Date.now()}-${normalizedFileName}`;
+        const storagePath = `coo/${userId}/${randomUUID()}-${normalizedFileName}`;
         const { error: uploadError } = await supabase.storage
           .from(bucketName)
           .upload(storagePath, buffer, {
             contentType: "application/pdf",
-            upsert: true,
+            upsert: false,
           });
 
         if (uploadError) {
@@ -22313,7 +22313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(500).json({ message: "Storage upload failed", error: uploadError.message });
         }
 
-        const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(storagePath);
+        const urlData = { publicUrl: confidentialReference(bucketName, storagePath) };
         if (!urlData?.publicUrl) {
           return res.status(500).json({ message: "Upload succeeded but file URL could not be generated" });
         }
@@ -23350,14 +23350,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const buffer = Buffer.from(fileData, 'base64');
 
         // Ensure file path begins with userId folder
-        const safeFileName = fileName.startsWith(`${userId}/`) ? fileName : `${userId}/${fileName}`;
+        const safeFileName = `${userId}/${randomUUID()}-${String(fileName).replace(/[^a-zA-Z0-9._-]/g, "_")}`;
 
         // Upload using server (service role) supabase client to avoid RLS issues
+        await ensurePrivateBucket(supabase, "tutor-documents");
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('tutor-documents')
           .upload(safeFileName, buffer, {
             contentType: fileType || undefined,
-            upsert: true,
+            upsert: false,
           });
 
         if (uploadError) {
@@ -23365,8 +23366,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(500).json({ message: 'Storage upload failed', error: uploadError.message });
         }
 
-        // Get public URL
-        const { data: urlData } = supabase.storage.from('tutor-documents').getPublicUrl(safeFileName);
+        // Persist the immutable object reference; reads require record authorization.
+        const urlData = { publicUrl: confidentialReference('tutor-documents', safeFileName) };
         if (!urlData?.publicUrl) {
           console.error('Could not resolve public URL for uploaded onboarding document', {
             applicationId,
@@ -23610,11 +23611,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const buffer = Buffer.from(fileData, "base64");
         const safeFileName = `coo-completed/${id}/doc_${docStep}_completed_${Date.now()}_${String(fileName).replace(/[^a-zA-Z0-9._-]/g, "_")}`;
 
+        await ensurePrivateBucket(supabase, "tutor-documents");
         const { error: uploadError } = await supabase.storage
           .from("tutor-documents")
           .upload(safeFileName, buffer, {
             contentType: fileType || undefined,
-            upsert: true,
+            upsert: false,
           });
 
         if (uploadError) {
@@ -23622,7 +23624,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(500).json({ message: "Storage upload failed", error: uploadError.message });
         }
 
-        const { data: urlData } = supabase.storage.from("tutor-documents").getPublicUrl(safeFileName);
+        const urlData = { publicUrl: confidentialReference("tutor-documents", safeFileName) };
         if (!urlData?.publicUrl) {
           return res.status(500).json({ message: "Upload succeeded but completed template URL could not be generated" });
         }
@@ -24385,18 +24387,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const sanitizedName = String(fileName).replace(/[^a-zA-Z0-9._-]/g, "_");
         const safeFileName = `td-documents/${userId}/td-certified-id-${applicationId}-${Date.now()}-${sanitizedName}`;
 
+        await ensurePrivateBucket(supabase, "tutor-documents");
         const { error: uploadError } = await supabase.storage
           .from("tutor-documents")
           .upload(safeFileName, buffer, {
             contentType: fileType || undefined,
-            upsert: true,
+            upsert: false,
           });
 
         if (uploadError) {
           return res.status(500).json({ message: uploadError.message });
         }
 
-        const { data: urlData } = supabase.storage.from("tutor-documents").getPublicUrl(safeFileName);
+        const urlData = { publicUrl: confidentialReference("tutor-documents", safeFileName) };
         if (!urlData?.publicUrl) {
           return res.status(500).json({ message: "Upload succeeded but file URL could not be generated." });
         }
@@ -25088,18 +25091,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const sanitizedName = String(fileName).replace(/[^a-zA-Z0-9._-]/g, "_");
         const safeFileName = `affiliate-documents/${userId}/egp-certified-id-${applicationId}-${Date.now()}-${sanitizedName}`;
 
+        await ensurePrivateBucket(supabase, "tutor-documents");
         const { error: uploadError } = await supabase.storage
           .from("tutor-documents")
           .upload(safeFileName, buffer, {
             contentType: fileType || undefined,
-            upsert: true,
+            upsert: false,
           });
 
         if (uploadError) {
           return res.status(500).json({ message: uploadError.message });
         }
 
-        const { data: urlData } = supabase.storage.from("tutor-documents").getPublicUrl(safeFileName);
+        const urlData = { publicUrl: confidentialReference("tutor-documents", safeFileName) };
         if (!urlData?.publicUrl) {
           return res.status(500).json({ message: "Upload succeeded but file URL could not be generated." });
         }

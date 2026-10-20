@@ -10,6 +10,8 @@ type ManagedMigration = {
   path: string;
   description: string;
   risk: "additive" | "destructive";
+  sha256?: string;
+  authority?: string;
 };
 
 export type ProductionMigrationAuthority = {
@@ -161,6 +163,9 @@ export function verifyProductionMigrationAuthority() {
     }
     managedPaths.add(safePath);
     const sql = readMigration(safePath).toString("utf8");
+    if (migration.sha256 && sqlSha256(Buffer.from(sql)) !== migration.sha256) {
+      fail("Managed migration checksum drift: " + safePath);
+    }
     assertNoForbiddenSql(safePath, sql);
     assertTransactionCompatible(safePath, sql);
   }

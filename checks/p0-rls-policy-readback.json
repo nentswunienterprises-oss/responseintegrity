@@ -1,0 +1,499 @@
+[
+  {
+    "extended": {
+      "rls_anon_select": [
+        {
+          "relname": "affiliate_codes",
+          "policies": [
+            {
+              "policyname": "Affiliate can access own",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "(affiliate_id = auth.uid())",
+              "with_check": null
+            },
+            {
+              "policyname": "HR can access all",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE (((users.id)::text = ((auth.uid())::character varying)::text) AND (users.role = ANY (ARRAY['hr'::role, 'coo'::role])))))",
+              "with_check": null
+            }
+          ]
+        },
+        {
+          "relname": "affiliate_reflections",
+          "policies": [
+            {
+              "policyname": "Affiliate can access own",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "(affiliate_id = auth.uid())",
+              "with_check": null
+            },
+            {
+              "policyname": "HR can access all",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE (((users.id)::text = ((auth.uid())::character varying)::text) AND (users.role = ANY (ARRAY['hr'::role, 'coo'::role])))))",
+              "with_check": null
+            }
+          ]
+        },
+        {
+          "relname": "closes",
+          "policies": [
+            {
+              "policyname": "Affiliate can access own",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "(affiliate_id = auth.uid())",
+              "with_check": null
+            },
+            {
+              "policyname": "HR can access all",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE (((users.id)::text = ((auth.uid())::character varying)::text) AND (users.role = ANY (ARRAY['hr'::role, 'coo'::role])))))",
+              "with_check": null
+            }
+          ]
+        },
+        {
+          "relname": "details",
+          "policies": [
+            {
+              "policyname": "Owner can access own",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "((created_by)::text = ((auth.uid())::character varying)::text)",
+              "with_check": null
+            },
+            {
+              "policyname": "HR can access all",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE (((users.id)::text = ((auth.uid())::character varying)::text) AND (users.role = ANY (ARRAY['hr'::role, 'coo'::role])))))",
+              "with_check": null
+            }
+          ]
+        },
+        {
+          "relname": "dispute_resolutions",
+          "policies": [
+            {
+              "policyname": "Resolver can access own",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "((resolved_by)::text = ((auth.uid())::character varying)::text)",
+              "with_check": null
+            },
+            {
+              "policyname": "HR can access all",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE (((users.id)::text = ((auth.uid())::character varying)::text) AND (users.role = ANY (ARRAY['hr'::role, 'coo'::role])))))",
+              "with_check": null
+            }
+          ]
+        },
+        {
+          "relname": "disputes",
+          "policies": [
+            {
+              "policyname": "Logger can access own",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "((logged_by)::text = ((auth.uid())::character varying)::text)",
+              "with_check": null
+            },
+            {
+              "policyname": "HR can access all",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE (((users.id)::text = ((auth.uid())::character varying)::text) AND (users.role = ANY (ARRAY['hr'::role, 'coo'::role])))))",
+              "with_check": null
+            }
+          ]
+        },
+        {
+          "relname": "early_intervention_requests",
+          "policies": [
+            {
+              "policyname": "Allow all for authenticated",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "true",
+              "with_check": "true"
+            }
+          ]
+        },
+        {
+          "relname": "encounters",
+          "policies": [
+            {
+              "policyname": "Affiliate can access own",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "(affiliate_id = auth.uid())",
+              "with_check": null
+            },
+            {
+              "policyname": "HR can access all",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE (((users.id)::text = ((auth.uid())::character varying)::text) AND (users.role = ANY (ARRAY['hr'::role, 'coo'::role])))))",
+              "with_check": null
+            }
+          ]
+        },
+        {
+          "relname": "ideas",
+          "policies": [
+            {
+              "policyname": "Submitter can access own",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "((submitted_by)::text = ((auth.uid())::character varying)::text)",
+              "with_check": null
+            },
+            {
+              "policyname": "HR can access all",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE (((users.id)::text = ((auth.uid())::character varying)::text) AND (users.role = ANY (ARRAY['hr'::role, 'coo'::role])))))",
+              "with_check": null
+            }
+          ]
+        },
+        {
+          "relname": "leadership_pilot_requests",
+          "policies": [
+            {
+              "policyname": "Allow all for authenticated",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "true",
+              "with_check": "true"
+            }
+          ]
+        },
+        {
+          "relname": "leads",
+          "policies": [
+            {
+              "policyname": "Affiliate can access own",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "(affiliate_id = auth.uid())",
+              "with_check": null
+            },
+            {
+              "policyname": "HR can access all",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE (((users.id)::text = ((auth.uid())::character varying)::text) AND (users.role = ANY (ARRAY['hr'::role, 'coo'::role])))))",
+              "with_check": null
+            }
+          ]
+        },
+        {
+          "relname": "parent_enrollments",
+          "policies": [
+            {
+              "policyname": "Parents can access own",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "(user_id = auth.uid())",
+              "with_check": null
+            },
+            {
+              "policyname": "HR can access all",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE (((users.id)::text = ((auth.uid())::character varying)::text) AND (users.role = ANY (ARRAY['hr'::role, 'coo'::role])))))",
+              "with_check": null
+            }
+          ]
+        },
+        {
+          "relname": "people_registry",
+          "policies": [
+            {
+              "policyname": "Owner can access own",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "((user_id)::text = ((auth.uid())::character varying)::text)",
+              "with_check": null
+            },
+            {
+              "policyname": "HR can access all",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE (((users.id)::text = ((auth.uid())::character varying)::text) AND (users.role = ANY (ARRAY['hr'::role, 'coo'::role])))))",
+              "with_check": null
+            }
+          ]
+        },
+        {
+          "relname": "project_details",
+          "policies": [
+            {
+              "policyname": "HR can access all",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE (((users.id)::text = ((auth.uid())::character varying)::text) AND (users.role = ANY (ARRAY['hr'::role, 'coo'::role])))))",
+              "with_check": null
+            }
+          ]
+        },
+        {
+          "relname": "projects",
+          "policies": [
+            {
+              "policyname": "Owner can access own",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "((owner_id)::text = ((auth.uid())::character varying)::text)",
+              "with_check": null
+            },
+            {
+              "policyname": "HR can access all",
+              "roles": [
+                "public"
+              ],
+              "cmd": "ALL",
+              "qual": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE (((users.id)::text = ((auth.uid())::character varying)::text) AND (users.role = ANY (ARRAY['hr'::role, 'coo'::role])))))",
+              "with_check": null
+            }
+          ]
+        },
+        {
+          "relname": "response_integrity_evidence_ledger",
+          "policies": null
+        },
+        {
+          "relname": "school_campaigns",
+          "policies": [
+            {
+              "policyname": "service_role_all",
+              "roles": [
+                "authenticated",
+                "service_role"
+              ],
+              "cmd": "ALL",
+              "qual": "true",
+              "with_check": "true"
+            },
+            {
+              "policyname": "authenticated_read_all",
+              "roles": [
+                "authenticated"
+              ],
+              "cmd": "SELECT",
+              "qual": "true",
+              "with_check": null
+            },
+            {
+              "policyname": "authenticated_create",
+              "roles": [
+                "authenticated"
+              ],
+              "cmd": "INSERT",
+              "qual": null,
+              "with_check": "(created_by = auth.uid())"
+            }
+          ]
+        },
+        {
+          "relname": "specialist_capability_question_confirmations",
+          "policies": null
+        },
+        {
+          "relname": "training_evidence_shadow_comparisons",
+          "policies": null
+        },
+        {
+          "relname": "tutor_portable_certification_snapshots",
+          "policies": null
+        }
+      ],
+      "function_search_paths": [
+        {
+          "name": "capture_tutor_trial_first_session_v2()",
+          "prosecdef": false,
+          "proconfig": [
+            "search_path=pg_catalog"
+          ]
+        },
+        {
+          "name": "create_notification_row(character varying,notification_channel,character varying,text,character varying,character varying,character varying,character varying)",
+          "prosecdef": false,
+          "proconfig": null
+        },
+        {
+          "name": "create_notification_row(character varying,notification_channel,character varying,text,character varying,character varying,uuid,character varying)",
+          "prosecdef": false,
+          "proconfig": null
+        },
+        {
+          "name": "decide_tutor_trial_case(character varying,character varying,text,character varying,character varying)",
+          "prosecdef": false,
+          "proconfig": null
+        },
+        {
+          "name": "enforce_allowed_single_od()",
+          "prosecdef": false,
+          "proconfig": null
+        },
+        {
+          "name": "enforce_tutor_trial_placement_limit()",
+          "prosecdef": false,
+          "proconfig": null
+        },
+        {
+          "name": "get_student_stats(character varying)",
+          "prosecdef": false,
+          "proconfig": null
+        },
+        {
+          "name": "get_unread_broadcast_count(uuid)",
+          "prosecdef": false,
+          "proconfig": null
+        },
+        {
+          "name": "guard_demand_enrollment()",
+          "prosecdef": false,
+          "proconfig": [
+            "search_path=public"
+          ]
+        },
+        {
+          "name": "guard_demand_entry_type()",
+          "prosecdef": false,
+          "proconfig": [
+            "search_path=public"
+          ]
+        },
+        {
+          "name": "guard_first_production_lineage()",
+          "prosecdef": false,
+          "proconfig": [
+            "search_path=public"
+          ]
+        },
+        {
+          "name": "handle_new_user()",
+          "prosecdef": true,
+          "proconfig": null
+        },
+        {
+          "name": "notify_scheduled_session_changes()",
+          "prosecdef": false,
+          "proconfig": null
+        },
+        {
+          "name": "prevent_response_integrity_evidence_correction_mutation()",
+          "prosecdef": false,
+          "proconfig": null
+        },
+        {
+          "name": "prevent_response_integrity_evidence_mutation()",
+          "prosecdef": false,
+          "proconfig": null
+        },
+        {
+          "name": "prevent_response_integrity_tps_contract_update()",
+          "prosecdef": false,
+          "proconfig": null
+        },
+        {
+          "name": "prevent_training_evidence_shadow_mutation()",
+          "prosecdef": false,
+          "proconfig": null
+        },
+        {
+          "name": "set_onboarding_type_from_affiliate()",
+          "prosecdef": false,
+          "proconfig": [
+            "search_path=public"
+          ]
+        },
+        {
+          "name": "update_commitment_streak()",
+          "prosecdef": false,
+          "proconfig": null
+        },
+        {
+          "name": "update_demand_production(text,text,text,text,text,text,text)",
+          "prosecdef": false,
+          "proconfig": [
+            "search_path=public"
+          ]
+        },
+        {
+          "name": "update_onboarding_proposals_updated_at()",
+          "prosecdef": false,
+          "proconfig": null
+        },
+        {
+          "name": "update_parent_enrollments_updated_at()",
+          "prosecdef": false,
+          "proconfig": null
+        }
+      ]
+    }
+  }
+]
