@@ -17,6 +17,7 @@ import { isAuthenticated } from "./supabaseAuth";
 import { pool } from "./db";
 import { isEmergencyDbMode } from "./emergencyMode";
 import { ensurePreviewSandboxFixtureCommercialState } from "./proofSandboxCommercialState";
+import { isSandboxCycleKey, nextSandboxCycleKey, selectAuthoritativeSandboxCycle, verifySandboxCycleConsumption } from "./sandboxPackageCycle";
 import { buildEmergencyEnrollmentStatusFilter } from "./emergencyPodQuery";
 import {
   createEmergencyFileBundle,
@@ -2837,23 +2838,40 @@ async function getMonthlySessionQuotaSnapshot(options: {
 
   if (isEmergencyDbMode()) {
     const isSandbox = options.isSandboxContext === true;
-    const result = await pool.query(
-      `SELECT *
-         FROM public.membership_months
-        WHERE parent_id::text = $1::text AND student_id::text = $2::text
-          AND month_key = $3 AND is_sandbox = $4
-        LIMIT 1`,
-      [options.parentId, options.studentId, monthKey, isSandbox],
-    );
-    const row = result.rows[0];
+    // Sandbox month_key names a simulated package cycle, not calendar expiry.
+    const result = isSandbox
+      ? await pool.query(
+          `SELECT *
+             FROM public.membership_months
+            WHERE parent_id::text = $1::text AND student_id::text = $2::text
+              AND is_sandbox = TRUE
+            ORDER BY month_key DESC, created_at DESC
+            LIMIT 2`,
+          [options.parentId, options.studentId],
+        )
+      : await pool.query(
+          `SELECT *
+             FROM public.membership_months
+            WHERE parent_id::text = $1::text AND student_id::text = $2::text
+              AND month_key = $3 AND is_sandbox = FALSE
+            LIMIT 1`,
+          [options.parentId, options.studentId, monthKey],
+        );
+    const row = isSandbox
+      ? selectAuthoritativeSandboxCycle(result.rows, options.parentId, options.studentId)
+      : result.rows[0];
     if (!row) return null;
 
-    const monthStartIso = new Date(`${monthKey}T00:00:00.000Z`).toISOString();
-    const nextMonth = new Date(monthStartIso);
+    const selectedCycleKey = isSandbox ? String(row.month_key) : monthKey;
+    const cycleStartIso = new Date(`${selectedCycleKey}T00:00:00.000Z`).toISOString();
+    const nextMonth = new Date(cycleStartIso);
     nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
-    const nextMonthIso = nextMonth.toISOString();
     const nowIso = new Date().toISOString();
-    let usageWindowStart = monthStartIso;
+    const nextMonthIso = isSandbox ? nowIso : nextMonth.toISOString();
+    // A virtual key may be in the future after repeated simulated renewals.
+    let usageWindowStart = isSandbox && cycleStartIso > nowIso
+      ? (toIsoDateTime(row.created_at) || nowIso)
+      : cycleStartIso;
 
     try {
       const boundaryResult = await pool.query(
@@ -3026,13 +3044,28 @@ async function getMonthlySessionQuotaSnapshot(options: {
     }
   }
 
+  if (isSandboxContext === true) {
+    // Proof/Sandbox reads never create or renew a package because time passed.
+    const { data, error } = await supabase
+      .from("membership_months")
+      .select("*")
+      .eq("parent_id", options.parentId)
+      .eq("student_id", options.studentId)
+      .eq("is_sandbox", true)
+      .order("month_key", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(2);
+    if (error) throw error;
+    return selectAuthoritativeSandboxCycle(data, options.parentId, options.studentId);
+  }
+
   let { data: row } = await supabase
     .from("membership_months")
     .select("*")
     .eq("parent_id", options.parentId)
     .eq("student_id", options.studentId)
     .eq("month_key", monthKey)
-    .eq("is_sandbox", isSandboxContext)
+    .eq("is_sandbox", false)
     .maybeSingle();
 
   if (!row) {
