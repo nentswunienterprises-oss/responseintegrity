@@ -103,7 +103,86 @@ const MEMBERSHIP_SQL = [
 
 const RENEWAL_SQL = [
   "WITH renewed AS (",
-  " SELECT p.paid_at AS renewed_at, p.package_sessions::integer AS renewed_quota",
+  " SELECT p.paid_at AS renewed_at,",
+  " CASE WHEN p.raw_payload->>'package_sessions' ~ '^(8|12|16)
+  " FROM public.payment_transactions p",
+  " WHERE p.parent_id::text = $1::text AND p.student_id::text = $2::text",
+  " AND p.payment_status = 'paid' AND p.provider = 'payfast' AND p.paid_at IS NOT NULL",
+  " AND p.raw_payload->>'renewal' = 'true'",
+  " AND (p.raw_payload->>'payfast_mode' = 'sandbox' OR p.raw_payload->>'sandbox_checkout' = 'true')",
+  " AND p.paid_at >= $3::timestamptz",
+  " UNION ALL",
+  " SELECT b.effective_at AS renewed_at, NULL::integer AS renewed_quota",
+  " FROM public.session_billing_events b",
+  " WHERE b.parent_id::text = $1::text AND b.student_id::text = $2::text",
+  " AND b.is_sandbox = TRUE AND b.event_type = 'renewal_payment'",
+  " AND b.billing_impact = 'restore' AND b.effective_at >= $3::timestamptz",
+  ") SELECT renewed_at, renewed_quota FROM renewed",
+  " ORDER BY renewed_at DESC, renewed_quota DESC NULLS LAST LIMIT 1",
+].join("\n");
+
+const USAGE_SQL = [
+  "WITH completed_keys AS (",
+  " SELECT 'training:' || s.id::text AS usage_key FROM public.scheduled_sessions s",
+  " WHERE s.parent_id::text = $1::text AND s.student_id::text = $2::text",
+  " AND s.type = 'training' AND s.status = 'completed'",
+  " AND COALESCE(s.updated_at, s.scheduled_time) >= $3::timestamptz",
+  " UNION",
+  " SELECT CASE WHEN r.scheduled_session_id IS NOT NULL",
+  " THEN 'training:' || r.scheduled_session_id::text",
+  " ELSE 'training-run:' || r.id::text END",
+  " FROM public.training_session_runs r",
+  " WHERE r.student_id::text = $2::text AND r.status IN ('submitted', 'completed')",
+  " AND COALESCE(r.submitted_at, r.started_at, r.created_at) >= $3::timestamptz",
+  " UNION",
+  " SELECT CASE WHEN d.scheduled_session_id IS NOT NULL",
+  " THEN 'training:' || d.scheduled_session_id::text",
+  " WHEN d.training_session_run_id IS NOT NULL",
+  " THEN 'training-run:' || d.training_session_run_id::text",
+  " ELSE 'training-drill:' || d.id::text END",
+  " FROM public.intro_session_drills d",
+  " WHERE d.student_id::text = $2::text AND d.submitted_at >= $3::timestamptz",
+  " AND LOWER(COALESCE(NULLIF(d.drill->>'drillType', ''),",
+  " NULLIF(d.drill->>'sessionContextKind', ''),",
+  " CASE WHEN d.training_session_run_id IS NOT NULL THEN 'training' ELSE '' END)) = 'training'",
+  "), unlinked_billing AS (",
+  " SELECT COALESCE(SUM(GREATEST(b.credits_delta,0)),0)::integer AS used",
+  " FROM public.session_billing_events b",
+  " WHERE b.parent_id::text = $1::text AND b.student_id::text = $2::text",
+  " AND b.is_sandbox = TRUE AND b.billing_impact = 'consume'",
+  " AND b.effective_at >= $3::timestamptz",
+  " AND NOT EXISTS (SELECT 1 FROM completed_keys c",
+  " WHERE c.usage_key = 'training:' || b.session_id::text",
+  " OR c.usage_key = 'training-run:' || b.session_id::text)",
+  ") SELECT (SELECT COUNT(*)::integer FROM completed_keys) AS completed_used,",
+  " (SELECT used FROM unlinked_billing) AS unlinked_billed_used",
+].join("\n");
+
+/** All three queries are SELECT-only and are scoped to the exact parent/student. */
+export async function readSandboxCycle(
+  db: SandboxDbReader,
+  parentId: string,
+  studentId: string,
+): Promise<SandboxCycleSnapshot | null> {
+  if (!parentId.trim() || !studentId.trim()) return null;
+  const membership = await db.query(MEMBERSHIP_SQL, [parentId, studentId]);
+  const cycle = selectSandboxCycle(membership.rows, { parentId, studentId });
+  if (!cycle) return null;
+  const renewals = await db.query(RENEWAL_SQL, [parentId, studentId, cycle.startIso]);
+  const latest = renewals.rows[0] || null;
+  const renewalAt = latest?.renewed_at ? new Date(latest.renewed_at).toISOString() : null;
+  const boundary = renewalAt && renewalAt > cycle.startIso ? renewalAt : cycle.startIso;
+  const usage = await db.query(USAGE_SQL, [parentId, studentId, boundary]);
+  if (!usage.rows[0]) return null;
+  return projectSandboxBalance(cycle, {
+    renewalAt,
+    renewedQuota: latest?.renewed_quota ?? null,
+    completedUsed: usage.rows[0].completed_used,
+    unlinkedBilledUsed: usage.rows[0].unlinked_billed_used,
+  });
+}
+",
+  " THEN (p.raw_payload->>'package_sessions')::integer ELSE NULL::integer END AS renewed_quota",
   " FROM public.payment_transactions p",
   " WHERE p.parent_id::text = $1::text AND p.student_id::text = $2::text",
   " AND p.payment_status = 'paid' AND p.provider = 'payfast' AND p.paid_at IS NOT NULL",
