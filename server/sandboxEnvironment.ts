@@ -1,5 +1,6 @@
 import { createHmac } from "crypto";
 import { pool } from "./db";
+import { activateApprovedSandboxModelTransition } from "./sandboxModelTransition";
 import { loadTutorOperationalModeAuthority } from "./tutorOperationalModeAuthority";
 import {
   getDrillSchemaDefinition,
@@ -715,7 +716,23 @@ async function ensureTrajectory(input: {
 
   const existing = await pool.query(selectSql, selectParams);
   if (existing.rows[0]) {
-    return bundleFromRow(existing.rows[0]);
+    const bundle = bundleFromRow(existing.rows[0]);
+    const activated = await activateApprovedSandboxModelTransition({
+      id: bundle.trajectory.id,
+      tutor_assignment_id: bundle.trajectory.tutor_assignment_id,
+      tutor_id: bundle.trajectory.tutor_id,
+      student_id: bundle.trajectory.student_id,
+      session_number: bundle.trajectory.session_number,
+      behavior_model_version: bundle.truth.behavior_model_version,
+    });
+    if (activated) {
+      const refreshed = await pool.query(selectSql, selectParams);
+      if (!refreshed.rows[0]) {
+        throw httpError(409, "Sandbox upgraded but the authoritative trajectory was not available.");
+      }
+      return bundleFromRow(refreshed.rows[0]);
+    }
+    return bundle;
   }
 
   const client = await pool.connect();

@@ -1,0 +1,46 @@
+name: Execution and System Intelligence Bank Promotion
+
+# Proof DB secret configured; rerun plan after Founder authorization.
+
+on:
+  push:
+    branches:
+      - fix/preview-training-session-authority
+    paths:
+      - ".github/workflows/execution-system-intelligence-bank-promotion.yml"
+      - "scripts/promoteApprovedExecutionSystemIntelligenceBanks.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  promotion-plan:
+    runs-on: ubuntu-latest
+    environment: production-db
+    timeout-minutes: 20
+    env:
+      BANK_PROMOTION_MODE: plan
+      RI_PROOF_DATABASE_URL: ${{ secrets.RI_PROOF_DATABASE_URL }}
+      RI_PROOF_DB_URL: ${{ secrets.RI_PROOF_DB_URL }}
+      PROOF_DATABASE_URL: ${{ secrets.PROOF_DATABASE_URL }}
+      SUPABASE_PROOF_DATABASE_URL: ${{ secrets.SUPABASE_PROOF_DATABASE_URL }}
+      RI_PRODUCTION_DATABASE_URL: ${{ secrets.RI_PRODUCTION_DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Configure verified Supabase CA trust
+        env:
+          RI_PRODUCTION_DB_CA_CERT: ${{ secrets.RI_PRODUCTION_DB_CA_CERT }}
+        run: |
+          test -n "$RI_PRODUCTION_DB_CA_CERT"
+          CA_PATH="$RUNNER_TEMP/supabase-release-ca.crt"
+          printf '%s\n' "$RI_PRODUCTION_DB_CA_CERT" > "$CA_PATH"
+          chmod 600 "$CA_PATH"
+          echo "NODE_EXTRA_CA_CERTS=$CA_PATH" >> "$GITHUB_ENV"
+      - name: Plan approved private-bank promotion
+        run: node scripts/promoteApprovedExecutionSystemIntelligenceBanks.mjs

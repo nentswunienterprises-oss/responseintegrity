@@ -299,7 +299,7 @@ export async function authenticateEmergencyUser(
   if (authUser) {
     if (!authUserMatches) {
       const previewSyntheticSharedPasswordAccepted =
-        process.env.VERCEL_ENV === "preview" &&
+        (process.env.VERCEL_ENV === "preview" || proofDbAuthMode) &&
         isPreviewSyntheticSandboxPersonaEmail(normalizedEmail) &&
         password === PREVIEW_SANDBOX_SHARED_PASSWORD &&
         !authUser.deleted_at &&
@@ -383,10 +383,7 @@ export async function authenticateEmergencyUser(
 
   let credential = credentialResult.rows[0];
 
-  if (
-    !credential?.password_hash &&
-    process.env.VERCEL_ENV === "preview"
-  ) {
+  if (process.env.VERCEL_ENV === "preview" || proofDbAuthMode) {
     const sandboxEnrollmentResult = publicUser.role === "parent"
       ? await pool.query<{ id: string }>(
           `SELECT id
@@ -407,7 +404,7 @@ export async function authenticateEmergencyUser(
       Boolean(sandboxEnrollmentResult.rows[0]);
 
     if (recognizedSyntheticPersona) {
-      if (password !== PREVIEW_SANDBOX_SHARED_PASSWORD) {
+      if (password !== PREVIEW_SANDBOX_SHARED_PASSWORD && !credential?.password_hash) {
         recordFailure(key, attempt, now);
         if (attempt.blockedUntil > now) {
           return { error: "throttled", reason: "throttled" };
@@ -415,20 +412,36 @@ export async function authenticateEmergencyUser(
         return { error: "invalid", reason: "password_mismatch" };
       }
 
-      await provisionEmergencyCredentialForExistingUser(
-        pool,
-        publicUser.id,
-        PREVIEW_SANDBOX_SHARED_PASSWORD,
+      const sharedPasswordAlreadyProvisioned = Boolean(
+        credential?.password_hash &&
+          await verifyEmergencyPasswordForUser(
+            credential.password_hash,
+            PREVIEW_SANDBOX_SHARED_PASSWORD,
+          ),
       );
 
-      const repairedCredentialResult = await pool.query<{ user_id: string; password_hash: string }>(
-        `SELECT user_id, password_hash
-           FROM private.emergency_auth_credentials
-          WHERE user_id = $1
-          LIMIT 1`,
-        [publicUser.id],
-      );
-      credential = repairedCredentialResult.rows[0];
+      if (
+        password === PREVIEW_SANDBOX_SHARED_PASSWORD &&
+        !sharedPasswordAlreadyProvisioned
+      ) {
+        await provisionEmergencyCredentialForExistingUser(
+          pool,
+          publicUser.id,
+          PREVIEW_SANDBOX_SHARED_PASSWORD,
+        );
+
+        const repairedCredentialResult = await pool.query<{
+          user_id: string;
+          password_hash: string;
+        }>(
+          `SELECT user_id, password_hash
+             FROM private.emergency_auth_credentials
+            WHERE user_id = $1
+            LIMIT 1`,
+          [publicUser.id],
+        );
+        credential = repairedCredentialResult.rows[0];
+      }
     }
   }
 

@@ -1,0 +1,32 @@
+name: Curriculum v2 Mastery Review Smoke
+
+on:
+  push:
+    branches:
+      - fix/preview-training-session-authority
+    paths:
+      - ".github/workflows/curriculum-v2-mastery-review-smoke.yml"
+      - "scripts/curriculumV2MasteryReviewSmoke.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    environment: production-db
+    timeout-minutes: 15
+    env:
+      RI_PROOF_SPECIALIST_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
+      RI_PROOF_SPECIALIST_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Verify isolated Curriculum v2 Mastery Review Mode
+        run: node scripts/curriculumV2MasteryReviewSmoke.mjs

@@ -1,0 +1,72 @@
+name: Sandbox Qualification Native Preparation Acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact independently reviewed PR commit
+        required: true
+        type: string
+      preview_url:
+        description: Exact immutable protected Preview URL
+        required: true
+        type: string
+      write_scope:
+        description: Scope of authorized controlled Proof mutation
+        required: true
+        type: choice
+        options:
+          - CONTROLLED_PROOF_PREPARATION_ONLY
+
+permissions:
+  contents: read
+
+jobs:
+  controlled-proof-preparation:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: capability-proof-acceptance
+    steps:
+      - name: Match independent environment reviewer approval before checkout
+        env:
+          REQUESTED_SHA: ${{ inputs.expected_sha }}
+          REQUESTED_URL: ${{ inputs.preview_url }}
+          APPROVED_SHA: ${{ vars.RI_PROOF_APPROVED_SHA }}
+          APPROVED_URL: ${{ vars.RI_PROOF_APPROVED_URL }}
+          WRITE_SCOPE: ${{ inputs.write_scope }}
+        run: |
+          set -euo pipefail
+          test -n "$APPROVED_SHA"
+          test -n "$APPROVED_URL"
+          test "$REQUESTED_SHA" = "$APPROVED_SHA"
+          test "$REQUESTED_URL" = "$APPROVED_URL"
+          test "$WRITE_SCOPE" = "CONTROLLED_PROOF_PREPARATION_ONLY"
+          [[ "$REQUESTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.expected_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify immutable reviewed checkout
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Check bounded runner regressions without credentials
+        run: node --test scripts/sandboxQualificationNativePreparationAcceptance.test.mjs
+      - name: Record only one controlled synthetic Proof Map preparation receipt
+        env:
+          PROOF_BASE_URL: ${{ inputs.preview_url }}
+          PROOF_EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RI_PROOF_NATIVE_WRITE_SCOPE: ${{ inputs.write_scope }}
+          RI_PROOF_SPECIALIST_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
+          RI_PROOF_SPECIALIST_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+          RI_PROOF_TD_EMAIL: ${{ secrets.RI_PROOF_TD_EMAIL }}
+          RI_PROOF_TD_PASSWORD: ${{ secrets.RI_PROOF_TD_PASSWORD }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          RI_PROOF_TUTOR_ID: ${{ vars.RI_PROOF_TUTOR_ID }}
+          RI_PROOF_STUDENT_ID: ${{ vars.RI_PROOF_STUDENT_ID }}
+          RI_PROOF_SESSION_ID: ${{ vars.RI_PROOF_SESSION_ID }}
+          RI_PROOF_TOPIC: ${{ vars.RI_PROOF_TOPIC }}
+        run: node scripts/sandboxQualificationNativePreparationAcceptance.mjs

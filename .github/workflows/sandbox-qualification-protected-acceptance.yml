@@ -1,0 +1,60 @@
+name: Sandbox Qualification Protected Acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact reviewed commit
+        required: true
+        type: string
+      preview_url:
+        description: Exact HTTPS Preview URL
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  protected-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: capability-proof-acceptance
+    steps:
+      # Protected-environment approval must pin the SHA/URL independently.
+      # Never checkout arbitrary workflow_dispatch code with role secrets.
+      - name: Verify protected reviewer-approved commit and deployment
+        env:
+          REQUESTED_SHA: ${{ inputs.expected_sha }}
+          REQUESTED_URL: ${{ inputs.preview_url }}
+          APPROVED_SHA: ${{ vars.RI_PROOF_APPROVED_SHA }}
+          APPROVED_URL: ${{ vars.RI_PROOF_APPROVED_URL }}
+        run: |
+          test -n "$APPROVED_SHA"
+          test -n "$APPROVED_URL"
+          test "$REQUESTED_SHA" = "$APPROVED_SHA"
+          test "$REQUESTED_URL" = "$APPROVED_URL"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.expected_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify checkout matches approved exact commit
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Verify acceptance runner failure boundaries without credentials
+        run: node --test scripts/sandboxQualificationProtectedAcceptance.test.mjs
+      - name: Read-only authenticated Specialist and TD acceptance
+        env:
+          PROOF_BASE_URL: ${{ inputs.preview_url }}
+          PROOF_EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RI_PROOF_SPECIALIST_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
+          RI_PROOF_SPECIALIST_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+          RI_PROOF_TD_EMAIL: ${{ secrets.RI_PROOF_TD_EMAIL }}
+          RI_PROOF_TD_PASSWORD: ${{ secrets.RI_PROOF_TD_PASSWORD }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          RI_PROOF_TUTOR_ID: ${{ vars.RI_PROOF_TUTOR_ID }}
+          RI_PROOF_STUDENT_ID: ${{ vars.RI_PROOF_STUDENT_ID }}
+          RI_PROOF_SESSION_ID: ${{ vars.RI_PROOF_SESSION_ID }}
+          RI_PROOF_TOPIC: ${{ vars.RI_PROOF_TOPIC }}
+        run: node scripts/sandboxQualificationProtectedAcceptance.mjs

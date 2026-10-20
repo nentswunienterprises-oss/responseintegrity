@@ -1,0 +1,217 @@
+{
+  "name": "RI-OS evidence-integrity teaching reconciliation",
+  "date": "2026-10-13",
+  "authority": "Founder: no staged not-observed narratives; only visible worked mathematical examples as authored confounded scenarios",
+  "policy": {
+    "not_observed": "Retain as a record-only status for genuinely absent qualifying evidence; do not generate not-observed student incidents or fictional missed observations",
+    "confounded": "For scenario-based learner evidence, use only a visible worked example or reference supplying the relevant method or step. Preserve unrelated clean dimensions.",
+    "operations": "Keep equipment setup, actual technical incident recovery and real support/intervention logging as separate workflows, not simulated student exceptions.",
+    "history": "Never edit old assessment versions or completed attempts; stage new inactive versions and promote only after verified continuity and bank quality."
+  },
+  "entries": [
+    {
+      "itemKey": "handover_extra_11",
+      "kind": "missing",
+      "prompt": "A Handover claim has no qualifying direct evidence for independent method recognition. What keeps the inherited-state decision trustworthy?",
+      "claim": "independent method recognition"
+    },
+    {
+      "itemKey": "handover_extra_12",
+      "kind": "missing",
+      "prompt": "Before accepting inherited first-step control, RI-OS requires a qualifying independent first-step observation that the record does not yet contain. Can Handover close that claim?",
+      "claim": "first-step control in Handover"
+    },
+    {
+      "itemKey": "handover_extra_25",
+      "kind": "missing",
+      "prompt": "A required Handover observation has no qualifying evidence in the record. How should the Specialist preserve the unestablished claim?",
+      "claim": "the required Handover dimension"
+    },
+    {
+      "itemKey": "handover_verification_q14_base",
+      "kind": "support",
+      "prompt": "In a Handover verification, the Specialist supplies a mathematical step before the student independently chooses it. How should the affected first-step claim be recorded?",
+      "claim": "independent first-step control"
+    },
+    {
+      "itemKey": "how_the_system_resolves_uncertainty_f04_base",
+      "kind": "reference",
+      "prompt": "A student identifies a method during an independence check while an open worked example beside the task already names that method. Which statements preserve the actual evidence?",
+      "claim": "independent method selection"
+    },
+    {
+      "itemKey": "uncertainty_extra_01",
+      "kind": "missing",
+      "prompt": "A student's final answer is correct, but there is no qualifying observation establishing their independent recognition of the problem type. What does the answer prove about recognition?",
+      "claim": "problem-type recognition"
+    },
+    {
+      "itemKey": "uncertainty_extra_02",
+      "kind": "missing",
+      "prompt": "There is no qualifying observation of the student's independent first step in the evidence record. May RI-OS treat that step as a breakdown?",
+      "claim": "independent first-step control"
+    },
+    {
+      "itemKey": "uncertainty_extra_06",
+      "kind": "reference",
+      "prompt": "During a timed method check, a worked solution remains visible and the student consults its steps. Can the affected timed independence be scored cleanly?",
+      "claim": "timed independent method execution"
+    },
+    {
+      "itemKey": "uncertainty_extra_08",
+      "kind": "reference",
+      "prompt": "A student starts to solve independently but then consults a visible worked example showing the method's next operation. How should the affected evidence be classified?",
+      "claim": "independent method continuation"
+    },
+    {
+      "itemKey": "how_to_interpret_prompts_f10_base",
+      "kind": "missing",
+      "prompt": "After a response, the evidence contains no qualifying indication of how the student recognized the problem type. What should the Specialist record for recognition?",
+      "claim": "method recognition"
+    },
+    {
+      "itemKey": "how_to_interpret_prompts_f13_base",
+      "kind": "missing",
+      "prompt": "An observation form requests a claim for which the submitted response contains no qualifying direct evidence. How should the Specialist preserve the observation boundary?",
+      "claim": "the requested observation field"
+    },
+    {
+      "itemKey": "interpret_prompts_extra_18",
+      "kind": "missing",
+      "prompt": "A recorded response does not establish the student's independent method-recognition reasoning. What should the Specialist do with that unestablished claim?",
+      "claim": "method-recognition reasoning"
+    },
+    {
+      "itemKey": "interpret_prompts_extra_19",
+      "kind": "missing",
+      "prompt": "A recorded rep has no qualifying evidence for one requested dimension. What is the evidence-integrity rule when completing the observation fields?",
+      "claim": "the unestablished observation field"
+    },
+    {
+      "itemKey": "interpret_prompts_extra_25",
+      "kind": "missing",
+      "prompt": "The record shows a later solution but does not establish the independent first step. Which observation boundary must the Specialist preserve?",
+      "claim": "independent first-step control"
+    },
+    {
+      "itemKey": "interpret_prompts_extra_26",
+      "kind": "missing",
+      "prompt": "The record contains no qualifying direct evidence of the student's verbal explanation. Which conclusion is justified for that explanation dimension?",
+      "claim": "the student's verbal explanation"
+    },
+    {
+      "itemKey": "interpret_prompts_extra_27",
+      "kind": "missing",
+      "prompt": "A final answer is recorded, but it does not establish the student's independent completion of every required method step. How should completion integrity be treated?",
+      "claim": "independent completion integrity"
+    },
+    {
+      "itemKey": "interpret_prompts_extra_28",
+      "kind": "missing",
+      "prompt": "A Specialist is considering filling an evidence field using an inference rather than a qualifying observation. Which proposed actions would manufacture evidence?",
+      "claim": "the requested unobserved dimension"
+    },
+    {
+      "itemKey": "v2r8_intro_session_structure_20",
+      "kind": "reference",
+      "prompt": "During a diagnostic independence check, a student sees a worked example naming the method before selecting it. Earlier evidence is mixed and RI-OS cannot resolve the starting state yet. What must happen?",
+      "claim": "the unresolved diagnostic independence claim"
+    },
+    {
+      "itemKey": "v2r8_logging_system_08",
+      "kind": "missing",
+      "prompt": "A prerequisite evidence field is genuinely unresolved and RI-OS requires a targeted check. May the Specialist change its status to avoid that route?",
+      "claim": "the unresolved prerequisite check"
+    },
+    {
+      "itemKey": "v2r8_logging_system_13",
+      "kind": "reference",
+      "prompt": "During Structured Execution, the student follows the method while an open worked solution beside the page shows the next operations. What is the most defensible record of independence?",
+      "claim": "independent Structured Execution"
+    },
+    {
+      "itemKey": "v2r8_logging_system_15",
+      "kind": "reference",
+      "prompt": "A completed Training set includes an independent-execution opportunity in which a worked example was visible and consulted. How should the Specialist preserve affected and unaffected evidence?",
+      "claim": "the affected independent-execution opportunity"
+    },
+    {
+      "itemKey": "v2r8_logging_system_25",
+      "kind": "missing",
+      "prompt": "A recorded Training opportunity has no qualifying evidence for one required dimension, although other dimensions are clean. How should that unestablished dimension be represented?",
+      "claim": "the unestablished Training dimension"
+    },
+    {
+      "itemKey": "osr_errors_01",
+      "kind": "missing",
+      "prompt": "An assessment field cannot be established by the prescribed opportunity. What is the boundary against adding a leading mathematical prompt merely to fill the field?",
+      "claim": "the unresolved evidence field"
+    },
+    {
+      "itemKey": "osr_logging_03",
+      "kind": "missing",
+      "prompt": "One required capability dimension has no qualifying direct observation, while other dimensions are strong. Which conclusions may be drawn about the unestablished dimension?",
+      "claim": "the unestablished capability dimension"
+    },
+    {
+      "itemKey": "ost_handover_01",
+      "kind": "reference",
+      "prompt": "A replacement Specialist checks inherited independent execution, but a previous worked solution is visible while the student performs the middle steps. What can the continuity record establish?",
+      "claim": "independent Handover continuation"
+    },
+    {
+      "itemKey": "ost_logging_02",
+      "kind": "reference",
+      "prompt": "During a challenging rep, the student uses a visible worked example showing the prescribed method's next step. They then finish the solution. Which observations remain valid?",
+      "claim": "independent continuation under difficulty"
+    },
+    {
+      "itemKey": "ost_logging_04",
+      "kind": "reference",
+      "prompt": "A rep begins cleanly, but the student later consults a visible worked solution while the Specialist also provides a mathematical prompt. Which statements preserve the separate evidence effects?",
+      "claim": "the cue-affected independence claim"
+    },
+    {
+      "itemKey": "ost_prompts_03",
+      "kind": "missing",
+      "prompt": "An observation field has no qualifying evidence from the actual prescribed opportunity. Which action protects the Specialist's observation boundary?",
+      "claim": "the unestablished observation field"
+    },
+    {
+      "itemKey": "ost_uncertainty_01",
+      "kind": "reference",
+      "prompt": "In Handover, a student correctly begins a method, then consults a visible worked example providing the next step. What can be concluded about the affected method independence?",
+      "claim": "independent method continuation"
+    },
+    {
+      "itemKey": "what_not_to_do_extra_05",
+      "kind": "missing",
+      "prompt": "An observation form requests method-recognition evidence, but the submitted opportunity does not establish that recognition directly. What should the Specialist avoid?",
+      "claim": "method recognition"
+    },
+    {
+      "itemKey": "what_not_to_do_extra_06",
+      "kind": "missing",
+      "prompt": "The final answer is visible, but the record has no qualifying direct observation of independent first-step control. What must the Specialist preserve?",
+      "claim": "independent first-step control"
+    },
+    {
+      "itemKey": "what_not_to_do_extra_07",
+      "kind": "missing",
+      "prompt": "A required Handover claim is unresolved. What is the risk of adding an unauthorized leading method question solely to fill the requested field?",
+      "claim": "the unresolved Handover claim"
+    },
+    {
+      "itemKey": "how_to_diagnose_extra_19",
+      "kind": "missing",
+      "prompt": "A diagnostic evidence question remains unresolved because no qualifying observation establishes the required dimension. Is an additional system-authorized comparable opportunity inconsistent with evidence-complete Diagnosis?",
+      "claim": "the unresolved diagnostic dimension"
+    },
+    {
+      "itemKey": "how_to_diagnose_extra_27",
+      "kind": "missing",
+      "prompt": "A completed problem shows the final answer but not the independent recognition used to choose the method. How should that recognition claim be recorded?",
+      "claim": "independent method recognition"
+    }
+  ]
+}
