@@ -66,3 +66,11 @@ test("Sandbox consumption paths remain student-scoped and read side is write-fre
   assert.match(src, /COALESCE\(ARRAY_AGG\(usage_key\), ARRAY\[\]::text\[\]\)/);
   assert.match(src, /completedKeys\.has/);
 });
+
+test("Sandbox simulated completion and renewal windows are not capped by the actual clock", () => {
+  const src = source("async function getMonthlySessionQuotaSnapshot(", "type TrainingPackageQuotaAuthority =");
+  assert.ok(src.includes('const evidenceUpperBoundIso = isSandbox ? "9999-12-31T23:59:59.999Z" : nowIso'));
+  assert.ok(src.includes('const nextMonthIso = isSandbox ? evidenceUpperBoundIso : nextMonth.toISOString()'));
+  assert.ok(src.includes('activatedAt && activatedAt < cycleStartIso'));
+  assert.ok(src.includes('usageWindowStart, evidenceUpperBoundIso'));
+});
