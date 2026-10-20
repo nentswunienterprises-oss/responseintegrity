@@ -163,3 +163,52 @@ test("route uses simulated authority across Specialist / Parent and preserves li
   assert.match(routes, /isSandboxContext && !monthlyQuota/); // parent booking also fails closed
   assert.match(routes, /operationalMode === "sandbox"/);
 });
+
+test("simulated billing events never provision a new wall-month package", () => {
+  const routes = readFileSync("server/routes.ts", "utf8");
+  const a = routes.indexOf("async function recordSessionBillingEvent(");
+  const b = routes.indexOf("function isMissingAssignedStudentIdError(", a);
+  const code = routes.slice(a, b);
+  assert.ok(a >= 0 && b > a);
+  assert.match(code, /const simulatedEvent = isSandboxEvent && usesDirectProofSessionDatabase\(\)/);
+  assert.match(code, /if \(!simulatedEvent\) \{\s*await upsertMembershipMonth/);
+  assert.match(code, /simulatedEvent\s*\?\s*readSandboxCycle\(pool, options\.parentId, options\.studentId\)/);
+  assert.match(code, /if \(simulatedEvent\) \{\s*const truth = await readSandboxCycle/);
+  assert.match(code, /options.billingImpact === "consume" \|\| options.billingImpact === "restore"/);
+  assert.match(code, /AND is_sandbox = TRUE/);
+});
+
+test("simulated paid renewal preserves its cycle key and uses per-payment event identity", () => {
+  const routes = readFileSync("server/routes.ts", "utf8");
+  const renewal = routes.slice(routes.indexOf('app.post("/api/parent/payments/renew"'));
+  assert.match(renewal, /if \(isSandboxContext && !monthlyQuota\)/);
+  assert.match(renewal, /isSandboxContext \? String\(monthlyQuota\?\.month_key \|\| ""\) : calendarMonthKey/);
+  assert.match(renewal, /existingRenewalPayment && !isSandboxContext/);
+  assert.match(routes, /sessionId: isSandboxTransaction \? /);
+  assert.equal((routes.match(/sandbox-renewal-/g) || []).length, 2);
+});
+
+test("Preview-only fixture reconciliation never provisions next calendar month over an active cycle", () => {
+  const fixture = readFileSync("server/proofSandboxCommercialState.ts", "utf8");
+  assert.match(fixture, /if \(normalize\(process\.env\.VERCEL_ENV\) !== "preview"\)/);
+  assert.match(fixture, /\.eq\("is_sandbox", true\)\s*\.order\("month_key", \{ ascending: false \}\)/);
+  assert.match(fixture, /const monthKey = membership\?\.month_key \|\| monthKeyFromIso\(startIso\)/);
+});
+
+test("real family month-bound quota and three access boundaries remain intact", () => {
+  const routes = readFileSync("server/routes.ts", "utf8");
+  const snapshot = routes.slice(
+    routes.indexOf("async function getMonthlySessionQuotaSnapshot("),
+    routes.indexOf("function trainingPackageQuotaMessage("),
+  );
+  assert.match(snapshot, /if \(options.isSandboxContext === true && usesDirectProofSessionDatabase\(\)\)/);
+  assert.match(snapshot, /month_key = \$3 AND is_sandbox = \$4/);
+  const tutor = routes.slice(
+    routes.indexOf('"/api/tutor/students/:studentId/training-sessions"'),
+    routes.indexOf('app.post(', routes.indexOf('"/api/tutor/students/:studentId/training-sessions"')),
+  );
+  assert.match(tutor, /requireRole\(\["tutor"\]\)/);
+  assert.match(tutor, /getTrainingPackageQuotaAuthority/);
+  assert.match(routes, /code: "PACKAGE_AUTHORITY_UNAVAILABLE"/);
+  assert.match(routes, /code: "PACKAGE_QUOTA_EXHAUSTED"/);
+});
