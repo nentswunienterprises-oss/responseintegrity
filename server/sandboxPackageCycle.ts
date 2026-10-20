@@ -104,7 +104,8 @@ const MEMBERSHIP_SQL = [
 const RENEWAL_SQL = [
   "WITH renewed AS (",
   " SELECT p.paid_at AS renewed_at,",
-  " CASE WHEN p.raw_payload->>'package_sessions' ~ '^(8|12|16)
+  " CASE WHEN p.raw_payload->>'package_sessions' IN ('8','12','16')",
+  " THEN (p.raw_payload->>'package_sessions')::integer ELSE NULL::integer END AS renewed_quota",
   " FROM public.payment_transactions p",
   " WHERE p.parent_id::text = $1::text AND p.student_id::text = $2::text",
   " AND p.payment_status = 'paid' AND p.provider = 'payfast' AND p.paid_at IS NOT NULL",
