@@ -2897,10 +2897,13 @@ async function getMonthlySessionQuotaSnapshot(options: {
     const nextMonth = new Date(cycleStartIso);
     nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
     const nowIso = new Date().toISOString();
-    const nextMonthIso = isSandbox ? nowIso : nextMonth.toISOString();
-    // A virtual key may be in the future after repeated simulated renewals.
-    let usageWindowStart = isSandbox && cycleStartIso > nowIso
-      ? (toIsoDateTime(row.created_at) || nowIso)
+    // Sandbox evidence can carry an accelerated virtual timeline. Real clock
+    // time must not be a cap on completed simulated training or renewals.
+    const evidenceUpperBoundIso = isSandbox ? "9999-12-31T23:59:59.999Z" : nowIso;
+    const nextMonthIso = isSandbox ? evidenceUpperBoundIso : nextMonth.toISOString();
+    const activatedAt = toIsoDateTime(row.created_at);
+    let usageWindowStart = isSandbox && activatedAt && activatedAt < cycleStartIso
+      ? activatedAt
       : cycleStartIso;
 
     try {
@@ -3023,7 +3026,7 @@ async function getMonthlySessionQuotaSnapshot(options: {
        SELECT COUNT(*)::int AS completed_used,
              COALESCE(ARRAY_AGG(usage_key), ARRAY[]::text[]) AS completed_keys
           FROM completed_keys`,
-      [options.parentId, options.studentId, usageWindowStart, nowIso],
+      [options.parentId, options.studentId, usageWindowStart, evidenceUpperBoundIso],
     );
 
     const eventResult = isSandbox
@@ -3036,7 +3039,7 @@ async function getMonthlySessionQuotaSnapshot(options: {
               AND effective_at < $4::timestamptz
               AND billing_impact = 'consume'
               AND is_sandbox = TRUE`,
-          [options.parentId, options.studentId, usageWindowStart, nowIso],
+          [options.parentId, options.studentId, usageWindowStart, evidenceUpperBoundIso],
         )
       : await pool.query(
           `SELECT COALESCE(SUM(GREATEST(credits_delta, 0)), 0)::int AS event_used
@@ -3047,7 +3050,7 @@ async function getMonthlySessionQuotaSnapshot(options: {
               AND effective_at < $4::timestamptz
               AND billing_impact = 'consume'
               AND is_sandbox = FALSE`,
-          [options.parentId, options.studentId, usageWindowStart, nowIso],
+          [options.parentId, options.studentId, usageWindowStart, evidenceUpperBoundIso],
         );
 
     const sessionQuota = Number(row.session_quota ?? DEFAULT_SERVICE_PACKAGE.sessionsPerMonth);
