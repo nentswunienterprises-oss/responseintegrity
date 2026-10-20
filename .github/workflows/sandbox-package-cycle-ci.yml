@@ -14,6 +14,11 @@ jobs:
   package-cycle:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      # Static continuity tests import the server module, but never connect.
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/unreachable_static_ci
+      SUPABASE_URL: https://ci-test.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ci-only-invalid-key-no-network
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
