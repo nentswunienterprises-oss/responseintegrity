@@ -242,20 +242,26 @@ export async function ensurePreviewSandboxFixtureCommercialState(options: {
   }
 
   const now = new Date();
-  const startIso = monthStartIso(now);
-  const monthKey = monthKeyFromIso(startIso);
   const nowIso = now.toISOString();
   const servicePackage = getMonthlyServicePackage(enrollment.package_key);
 
+  // Preview's controlled fixture repair must preserve the most recent
+  // simulated cycle across real month boundaries; looking only at "now"
+  // silently creates an extra package without renewal evidence.
   let { data: membership, error: membershipError } = await supabase
     .from("membership_months")
     .select("*")
     .eq("parent_id", parentId)
     .eq("student_id", studentId)
-    .eq("month_key", monthKey)
     .eq("is_sandbox", true)
+    .order("month_key", { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (membershipError) throw membershipError;
+  const startIso = membership?.month_key
+    ? String(membership.month_key) + "T00:00:00.000Z"
+    : monthStartIso(now);
+  const monthKey = membership?.month_key || monthKeyFromIso(startIso);
 
   const usageEvents = await loadUsageEvents(parentId, studentId, startIso, nowIso);
   const distinctUsageCount = new Set(usageEvents.map((event) => event.key)).size;
