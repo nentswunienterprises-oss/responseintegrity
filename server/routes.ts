@@ -2883,6 +2883,8 @@ async function getMonthlySessionQuotaSnapshot(options: {
               AND provider = $6
               AND payment_status = 'paid'
               AND raw_payload @> '{"renewal": true}'::jsonb
+              AND ($5 = FALSE OR raw_payload->>'payfast_mode' = 'sandbox'
+                   OR raw_payload @> '{"sandbox_checkout": true}'::jsonb)
               AND paid_at >= $3::timestamptz
               AND paid_at < $4::timestamptz
             ORDER BY paid_at DESC
@@ -2895,6 +2897,11 @@ async function getMonthlySessionQuotaSnapshot(options: {
               AND provider = $6
               AND payment_status = 'paid'
               AND raw_payload @> '{"renewal": true}'::jsonb
+              AND ($5 = FALSE OR (
+                (student_id::text = $2::text OR ($7::text <> '' AND enrollment_id::text = $7::text))
+                AND (raw_payload->>'payfast_mode' = 'sandbox'
+                     OR raw_payload @> '{"sandbox_checkout": true}'::jsonb)
+              ))
               AND paid_at >= $3::timestamptz
               AND paid_at < $4::timestamptz
             ORDER BY paid_at DESC
@@ -2925,10 +2932,11 @@ async function getMonthlySessionQuotaSnapshot(options: {
         [
           options.parentId,
           options.studentId,
-          monthStartIso,
+          usageWindowStart,
           nextMonthIso,
           isSandbox,
           PAYMENT_PROVIDER_PAYFAST,
+          String(row.enrollment_id || ""),
         ],
       );
 
@@ -2938,6 +2946,7 @@ async function getMonthlySessionQuotaSnapshot(options: {
       }
     } catch (error) {
       console.error("Failed to determine emergency quota renewal window:", error);
+      if (isSandbox) throw error;
     }
 
     const usageResult = await pool.query(
