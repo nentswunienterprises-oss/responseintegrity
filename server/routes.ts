@@ -14730,7 +14730,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = (req as any).dbUser.id;
       if (usesDirectProofSessionDatabase()) {
         const enrollmentResult = await pool.query(
-          `SELECT id, assigned_tutor_id, status, student_full_name, student_grade, parent_email
+          `SELECT id, assigned_tutor_id, status, student_full_name, student_grade, parent_email, is_sandbox_account
              FROM public.parent_enrollments
             WHERE user_id = $1
             ORDER BY updated_at DESC
@@ -14787,7 +14787,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? await getMonthlySessionQuotaSnapshot({
               parentId: String(userId),
               studentId,
-              isSandboxContext: String(enrollment.parent_email || "").toLowerCase().startsWith("sandbox-parent-"),
+              isSandboxContext:
+                 enrollment.is_sandbox_account === true ||
+                 String(enrollment.parent_email || "").toLowerCase().startsWith("sandbox-parent-"),
             })
           : null;
         const recentSessions = [...sessionRows].sort(
@@ -14867,7 +14869,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      if (!monthlyQuota) {
+      if (!monthlyQuota && !studentId) {
+        // Never substitute another student's entitlement for a missing one.
         try {
           const { data: fallbackMembership } = await supabase
             .from("membership_months")
@@ -15658,6 +15661,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? await getMonthlySessionQuotaSnapshot({
               parentId: String(updatedSession.parent_id),
               studentId: String(updatedSession.student_id),
+              isSandboxContext: operationalMode === "sandbox",
             })
           : null;
 
