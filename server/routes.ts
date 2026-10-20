@@ -14260,6 +14260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ? await getMonthlySessionQuotaSnapshot({
                 parentId: String(updatedSession.parent_id),
                 studentId: String(updatedSession.student_id),
+                isSandboxContext: (await getTutorOperationalMode(tutorId)) === "sandbox",
               })
             : null;
 
