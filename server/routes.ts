@@ -3026,27 +3026,43 @@ async function getMonthlySessionQuotaSnapshot(options: {
       [options.parentId, options.studentId, usageWindowStart, nowIso],
     );
 
-    const eventResult = await pool.query(
-      `SELECT session_id::text, credits_delta
-         FROM public.session_billing_events
-        WHERE parent_id::text = $1::text
-          AND student_id::text = $2::text
-          AND effective_at >= $3::timestamptz
-          AND effective_at < $4::timestamptz
-          AND billing_impact = 'consume'
-          AND is_sandbox = $5`,
-      [options.parentId, options.studentId, usageWindowStart, nowIso, isSandbox],
-    );
+    const eventResult = isSandbox
+      ? await pool.query(
+          `SELECT session_id::text, credits_delta
+             FROM public.session_billing_events
+            WHERE parent_id::text = $1::text
+              AND student_id::text = $2::text
+              AND effective_at >= $3::timestamptz
+              AND effective_at < $4::timestamptz
+              AND billing_impact = 'consume'
+              AND is_sandbox = TRUE`,
+          [options.parentId, options.studentId, usageWindowStart, nowIso],
+        )
+      : await pool.query(
+          `SELECT COALESCE(SUM(GREATEST(credits_delta, 0)), 0)::int AS event_used
+             FROM public.session_billing_events
+            WHERE parent_id::text = $1::text
+              AND student_id::text = $2::text
+              AND effective_at >= $3::timestamptz
+              AND effective_at < $4::timestamptz
+              AND billing_impact = 'consume'
+              AND is_sandbox = FALSE`,
+          [options.parentId, options.studentId, usageWindowStart, nowIso],
+        );
 
     const sessionQuota = Number(row.session_quota ?? DEFAULT_SERVICE_PACKAGE.sessionsPerMonth);
     const completedUsed = Number(usageResult.rows[0]?.completed_used || 0);
     const completedKeys = new Set<string>(usageResult.rows[0]?.completed_keys || []);
     // Do not count a matching delivered lesson and billing event twice.
-    const eventUsed = eventResult.rows.reduce((sum: number, event: any) => {
-      const id = String(event.session_id || "").trim();
-      if (id && (completedKeys.has(`training:${id}`) || completedKeys.has(`training-run:${id}`))) return sum;
-      return sum + Math.max(0, Number(event.credits_delta) || 0);
-    }, 0);
+    const eventUsed = isSandbox
+      ? eventResult.rows.reduce((sum: number, event: any) => {
+          const id = String(event.session_id || "").trim();
+          // A delivered lesson already represented by training evidence
+          // must not be consumed a second time via its billing event.
+          if (id && (completedKeys.has(`training:${id}`) || completedKeys.has(`training-run:${id}`))) return sum;
+          return sum + Math.max(0, Number(event.credits_delta) || 0);
+        }, 0)
+      : Number(eventResult.rows[0]?.event_used || 0);
     const actualConsumed = completedUsed + eventUsed;
     const sessionsUsed = Math.max(0, Math.min(sessionQuota, actualConsumed));
     const sessionsRemaining = Math.max(0, sessionQuota - sessionsUsed);
@@ -14869,7 +14885,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      if (!monthlyQuota && !studentId) {
+      if (!monthlyQuota && !studentId && operationalMode !== "sandbox") {
         // Never substitute another student's entitlement for a missing one.
         try {
           const { data: fallbackMembership } = await supabase
