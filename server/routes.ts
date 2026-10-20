@@ -2990,13 +2990,14 @@ async function getMonthlySessionQuotaSnapshot(options: {
               )
             ) = 'training'
        )
-       SELECT COUNT(*)::int AS completed_used
-         FROM completed_keys`,
+       SELECT COUNT(*)::int AS completed_used,
+             COALESCE(ARRAY_AGG(usage_key), ARRAY[]::text[]) AS completed_keys
+          FROM completed_keys`,
       [options.parentId, options.studentId, usageWindowStart, nowIso],
     );
 
     const eventResult = await pool.query(
-      `SELECT COALESCE(SUM(GREATEST(credits_delta, 0)), 0)::int AS event_used
+      `SELECT session_id::text, credits_delta
          FROM public.session_billing_events
         WHERE parent_id::text = $1::text
           AND student_id::text = $2::text
@@ -3009,15 +3010,26 @@ async function getMonthlySessionQuotaSnapshot(options: {
 
     const sessionQuota = Number(row.session_quota ?? DEFAULT_SERVICE_PACKAGE.sessionsPerMonth);
     const completedUsed = Number(usageResult.rows[0]?.completed_used || 0);
-    const eventUsed = Number(eventResult.rows[0]?.event_used || 0);
-    const sessionsUsed = Math.max(0, Math.min(sessionQuota, completedUsed + eventUsed));
+    const completedKeys = new Set<string>(usageResult.rows[0]?.completed_keys || []);
+    // Do not count a matching delivered lesson and billing event twice.
+    const eventUsed = eventResult.rows.reduce((sum: number, event: any) => {
+      const id = String(event.session_id || "").trim();
+      if (id && (completedKeys.has(`training:${id}`) || completedKeys.has(`training-run:${id}`))) return sum;
+      return sum + Math.max(0, Number(event.credits_delta) || 0);
+    }, 0);
+    const actualConsumed = completedUsed + eventUsed;
+    const sessionsUsed = Math.max(0, Math.min(sessionQuota, actualConsumed));
     const sessionsRemaining = Math.max(0, sessionQuota - sessionsUsed);
 
+    // Reading a simulated package must not alter the evidence or provision
+    // new capacity. Block when the persistent snapshot and usage disagree.
+    if (isSandbox && !verifySandboxCycleConsumption(row, actualConsumed)) return null;
+
     let persistedRow = row;
-    if (
+    if (!isSandbox && (
       Number(row.sessions_used ?? 0) !== sessionsUsed ||
       Number(row.sessions_remaining ?? sessionQuota) !== sessionsRemaining
-    ) {
+    )) {
       const persisted = await pool.query(
         `UPDATE public.membership_months
             SET sessions_used = $1,
