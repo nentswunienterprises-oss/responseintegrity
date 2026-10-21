@@ -5,6 +5,7 @@ on:
       - "server/sandboxPackageCycle.ts"
       - "server/sandboxPackageCycle.test.ts"
       - "server/sandboxPackageCycleRoutes.test.ts"
+      - "server/proofSandboxCommercialState.ts"
       - "server/routes.ts"
       - ".github/workflows/sandbox-package-cycle-ci.yml"
   push:
@@ -14,6 +15,7 @@ on:
       - "server/sandboxPackageCycle.ts"
       - "server/sandboxPackageCycle.test.ts"
       - "server/sandboxPackageCycleRoutes.test.ts"
+      - "server/proofSandboxCommercialState.ts"
       - "server/routes.ts"
       - ".github/workflows/sandbox-package-cycle-ci.yml"
 permissions:
