@@ -82,3 +82,20 @@ test("Sandbox billing reconciler includes completed future-dated simulated event
   assert.match(src, /\.lt\("submitted_at", evidenceUpperBoundIso\)/);
   assert.match(src, /\.lt\("effective_at", evidenceUpperBoundIso\)/);
 });
+
+test("Preview fixture retains the simulated cycle and does not grant another month", () => {
+  const preview = readFileSync("server/proofSandboxCommercialState.ts", "utf8");
+  const lookup = preview.slice(
+    preview.indexOf("const now = new Date();"),
+    preview.indexOf("const usageEvents = await loadUsageEvents("),
+  );
+  assert.ok(lookup.includes("selectAuthoritativeSandboxCycle(existingCycles, parentId, studentId)"));
+  assert.ok(lookup.includes('.eq("is_sandbox", true)'));
+  assert.ok(lookup.includes('.order("month_key", { ascending: false })'));
+  assert.ok(lookup.includes("existingCycles.length > 0 && !membership"));
+  assert.ok(lookup.includes('reason: "membership_unavailable"'));
+  assert.ok(lookup.includes('String(membership.month_key) + "T00:00:00.000Z"'));
+  assert.doesNotMatch(lookup, /\.eq\("month_key",\s*monthKey\)/);
+  assert.doesNotMatch(lookup, /\.insert\(|\.update\(/);
+  assert.ok(preview.includes('normalize(process.env.VERCEL_ENV) !== "preview"'));
+});
