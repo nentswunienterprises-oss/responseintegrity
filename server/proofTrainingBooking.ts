@@ -191,10 +191,40 @@ export function proofSandboxProfileCoverageHandler(
   };
 }
 
+/** Visible, cookie-authenticated setup for the already-authorized native proof.
+ * GET is read-only. Both forms use the existing independently guarded POSTs.
+ */
+export function proofSandboxSetupHandler(env = process.env) {
+  return (req: Request, res: Response) => {
+    if (!isCapabilityProofPreview(env)) return res.status(404).json({message:"Not found"});
+    if (String((req as any).dbUser?.id || "") !== ISOLATED_ACCEPTANCE_SPECIALIST)
+      return res.status(403).json({message:"This controlled setup is unavailable."});
+    res.setHeader("Cache-Control", "no-store");
+    return res.type("html").send(`<!doctype html><html lang="en"><meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>Controlled Preview setup</title><body>
+      <h1>Controlled Preview setup</h1>
+      <p>Synthetic acceptance account only. Learning evidence and qualification are captured in the native journey.</p>
+      <form method="post" action="/api/proof/sandbox-profile-coverage">
+        <button type="submit">Prepare two new development students</button>
+      </form>
+      <p>The setup reuses an existing ten-student roster. Return here after reviewing its receipt.</p>
+      <form method="post" action="/api/proof/training-booking">
+        <label>Owned synthetic student ID <input name="studentId" required></label>
+        <button type="submit">Prepare confirmed Preview lesson</button>
+      </form>
+      <p>Return to the Pod after checking the booking receipt.</p>
+      <a href="/specialist/pod">Open Specialist Pod</a>
+      </body></html>`);
+  };
+}
+
 export function registerProofTrainingBooking(app: Express, dependencies: {
   pool: Pick<Pool, "connect">; isAuthenticated: RequestHandler; requireTutor: RequestHandler;
   provisionProfileCoverage: (tutorId:string)=>Promise<unknown>;
 }) {
+  app.get("/api/proof/sandbox-setup", dependencies.isAuthenticated,
+    dependencies.requireTutor, proofSandboxSetupHandler());
   app.post("/api/proof/training-booking", dependencies.isAuthenticated,
     dependencies.requireTutor, proofTrainingBookingHandler(dependencies.pool));
   app.post("/api/proof/sandbox-profile-coverage", dependencies.isAuthenticated,

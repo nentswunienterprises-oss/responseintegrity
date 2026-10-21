@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { proofSandboxCoverageReceipt, proofSandboxProfileCoverageHandler, proofTrainingBookingHandler } from "./proofTrainingBooking";
+import { proofSandboxCoverageReceipt, proofSandboxSetupHandler, proofSandboxProfileCoverageHandler, proofTrainingBookingHandler } from "./proofTrainingBooking";
 const tutor = "77977298-7ac9-41f9-a726-9d5fd634540f";
 const student = "657994af-a9c4-a7ae-dd13-54cdd462f2ab";
 const isolatedTutor = "b8448bbf-e01b-4f7b-bf6a-baf3ddb5d0bc";
@@ -120,4 +120,16 @@ test("versioned development rollout adds only two fresh students and reuses its 
  const existing=await proofSandboxCoverageReceipt({requiredStudents:10,loadStudents:async()=>students,
   provision:async()=>{throw new Error("Existing roster must remain untouched");}});
  assert.equal(existing.createdAccounts,0);
+});
+
+
+test("visible native proof setup denies other accounts and Production and never provisions on GET",()=>{
+ for(const [environment,actor,expected] of [[env,isolatedTutor,200],[env,tutor,403],[{...env,VERCEL_ENV:'production'},isolatedTutor,404]] as const) {
+  let status=200,html='',cache='';
+  const res={status(n:number){status=n;return this;},json(){return this;},setHeader(k:string,v:string){cache=v;},type(){return this;},send(v:string){html=v;return this;}};
+  proofSandboxSetupHandler(environment as any)({dbUser:{id:actor}} as any,res as any);
+  assert.equal(status,expected);
+  if(expected===200){assert.equal(cache,'no-store');assert.match(html,/method="post" action="\/api\/proof\/sandbox-profile-coverage"/);assert.match(html,/name="studentId"/);}
+  else assert.equal(html,'');
+ }
 });
