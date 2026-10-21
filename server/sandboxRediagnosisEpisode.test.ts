@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { resolveSandboxRediagnosisEpisodeRun, canRetireSupersededEmptySandboxEpisode } from "./sandboxRediagnosisEpisode";
+import { resolveSandboxRediagnosisEpisodeRun, canRetireSupersededEmptySandboxEpisode, sandboxRediagnosisSelectionSeed } from "./sandboxRediagnosisEpisode";
 
 const run = (id: string, status: string, session = 2, minute = 0) => ({
   id, status, started_session_number: session,
@@ -35,4 +35,16 @@ test("only an empty older duplicate superseded by completed placement can retire
     {specialist_complete:true},{canonical_complete:true},{status:"blocked"},{status:"completed"},
     {started_session_number:4},{started_session_number:5},{started_session_number:0},
   ]) assert.equal(canRetireSupersededEmptySandboxEpisode({...empty,...change},4),false,JSON.stringify(change));
+});
+
+
+test("episode selection preserves legacy streams and separates reproducible new episodes", () => {
+  const trajectorySeed = "generic-profile-fixture";
+  assert.equal(sandboxRediagnosisSelectionSeed({trajectorySeed,runId:"old-a"}),trajectorySeed);
+  assert.equal(sandboxRediagnosisSelectionSeed({trajectorySeed,runId:"old-b"}),trajectorySeed);
+  const episode = {trajectorySeed,runId:"new-a",selectionVersion:2 as const};
+  assert.equal(sandboxRediagnosisSelectionSeed(episode),sandboxRediagnosisSelectionSeed(episode));
+  assert.notEqual(sandboxRediagnosisSelectionSeed(episode),sandboxRediagnosisSelectionSeed({...episode,runId:"new-b"}));
+  assert.notEqual(sandboxRediagnosisSelectionSeed(episode),trajectorySeed);
+  assert.throws(()=>sandboxRediagnosisSelectionSeed({...episode,runId:""}),/lineage/);
 });

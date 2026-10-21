@@ -33,3 +33,13 @@ test("policy reinterpretation stores the previous decision and server-owned sess
  assert.deepEqual(saved.previousDecision,previous);
  assert.equal(diagnosisContinuationContext(saved,5,"forged-new-session"),restored);
 });
+
+test("Sandbox episode selection version survives a later lesson and decision reconstruction",async()=>{
+ const versioned={...context,sandboxSelectionVersion:2 as const};
+ const next=await authorizeDiagnosisContinuation({...input,context:versioned},{query:async()=>({rows:[{id:"next"}]})});
+ assert.equal(next.sandboxSelectionVersion,2);
+ const saved=diagnosisDecisionWithContext(decision,next);
+ assert.equal(diagnosisContinuationContext(saved,2,"different-booking").sandboxSelectionVersion,2);
+ assert.equal(diagnosisContinuationContext({},0,"old").sandboxSelectionVersion,undefined);
+ assert.throws(()=>diagnosisContinuationContext({_diagnosisContext:{...versioned,sandboxSelectionVersion:99}},0,"old"),/lineage is invalid/);
+});

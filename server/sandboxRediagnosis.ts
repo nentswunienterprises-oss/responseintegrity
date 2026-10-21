@@ -37,7 +37,7 @@ import {
   type PersistedTpsTimerContract,
 } from "./tpsTimingAuthority";
 import { getSandboxEnvironmentHistory, initializeSandboxNativeEvidenceTrajectory } from "./sandboxEnvironment";
-import { resolveSandboxRediagnosisEpisodeRun, canRetireSupersededEmptySandboxEpisode } from "./sandboxRediagnosisEpisode";
+import { resolveSandboxRediagnosisEpisodeRun, canRetireSupersededEmptySandboxEpisode, sandboxRediagnosisSelectionSeed } from "./sandboxRediagnosisEpisode";
 import { SANDBOX_DIAGNOSIS_EXCEPTION_NARRATIVE_VERSION } from "@shared/sandboxDiagnosisExceptionNarrativesV2";
 
 import { projectSandboxNativeDiagnosisOutcome, SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION } from "./sandboxNativeDiagnosisProjection";
@@ -213,6 +213,7 @@ async function loadTrajectory(input: {
 async function ensureRediagnosisRun(input: {
   trajectory: TrajectoryRow;
   truth: TrajectoryTruthRow;
+  scheduledSessionId?: string | null;
 }) {
   if (
     input.truth.canonical_route !== "targeted_rediagnosis" ||
@@ -301,8 +302,8 @@ async function ensureRediagnosisRun(input: {
     const created = await client.query(
       `INSERT INTO specialist_sandbox_rediagnosis_runs (
          trajectory_id, tutor_assignment_id, tutor_id, student_id, started_session_number,
-         target_phase, specialist_probe_history, status
-       ) VALUES ($1,$2,$3,$4,$5,$6,'[]'::jsonb,'active')
+         target_phase, specialist_probe_history, status, specialist_decision
+       ) VALUES ($1,$2,$3,$4,$5,$6,'[]'::jsonb,'active',$7::jsonb)
        RETURNING *`,
       [
         input.trajectory.id,
@@ -311,6 +312,14 @@ async function ensureRediagnosisRun(input: {
         input.trajectory.student_id,
         input.trajectory.session_number,
         input.truth.canonical_targeted_rediagnosis_phase,
+        JSON.stringify(input.truth.behavior_model_version === 2 ? {
+          decisionPolicyVersion: 2,
+          _diagnosisContext: {
+            legacyPrefixLength: 0,
+            sessions: [{ scheduledSessionId: input.scheduledSessionId || null, startProbeIndex: 0 }],
+            sandboxSelectionVersion: 2,
+          },
+        } : {}),
       ],
     );
     const run = created.rows[0] as RediagnosisRunRow;
@@ -415,7 +424,7 @@ async function plan(input: {
   scheduledSessionId?: string | null;
 }) {
   const { trajectory, truth } = await loadTrajectory(input);
-  const { run, truth: diagnosisTruth } = await ensureRediagnosisRun({ trajectory, truth });
+  const { run, truth: diagnosisTruth } = await ensureRediagnosisRun({ trajectory, truth, scheduledSessionId: input.scheduledSessionId });
 
   const context = diagnosisContinuationContext(run.specialist_decision, run.specialist_probe_history.length, input.scheduledSessionId || null);
   const sessionStartProbeIndex = context.sessions.at(-1)!.startProbeIndex;
@@ -455,7 +464,10 @@ async function plan(input: {
   });
   const history = await getSandboxEnvironmentHistory(input);
   const selected = projectSandboxNativeDiagnosisOutcome(selectSandboxDiagnosisOutcome({
-    seed: truth.trajectory_seed,
+    seed: sandboxRediagnosisSelectionSeed({
+      trajectorySeed: truth.trajectory_seed, runId: run.id,
+      selectionVersion: context.sandboxSelectionVersion,
+    }),
     profileSeed: truth.trajectory_seed,
     outcomes: outcomes.map((item) => item.definition),
     context: {

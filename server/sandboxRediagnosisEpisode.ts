@@ -5,6 +5,16 @@ type EpisodeRun = {
   created_at: string;
 };
 
+/** Separate new episodes without changing trajectory-level profile identity. */
+export function sandboxRediagnosisSelectionSeed(input: {
+  trajectorySeed: string; runId: string; selectionVersion?: 2;
+}): string {
+  if (input.selectionVersion == null) return input.trajectorySeed;
+  if (input.selectionVersion !== 2 || !input.runId)
+    throw new Error("Invalid Sandbox episode selection lineage");
+  return JSON.stringify(["sandbox-rediagnosis-episode-v2", input.trajectorySeed, input.runId]);
+}
+
 /** Retire only the historical empty duplicate left behind a completed episode. */
 export function canRetireSupersededEmptySandboxEpisode(row: {
   status: string; started_session_number: number;

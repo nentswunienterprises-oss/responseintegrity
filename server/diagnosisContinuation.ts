@@ -4,12 +4,15 @@ export type DiagnosisSessionLineage = { scheduledSessionId: string | null; start
 export type DiagnosisContinuationContext = {
   legacyPrefixLength: number;
   sessions: DiagnosisSessionLineage[];
+  /** Persisted at creation for new Sandbox episodes; absent preserves legacy selection. */
+  sandboxSelectionVersion?: 2;
 };
 
 /** Only read this context from the persisted run, never from a submitted decision. */
 export function diagnosisContinuationContext(decision: any, historyLength: number, originalSessionId: string | null): DiagnosisContinuationContext {
   const saved = decision?._diagnosisContext;
-  if (saved && (!Number.isInteger(saved.legacyPrefixLength) || saved.legacyPrefixLength < 0 || saved.legacyPrefixLength > historyLength ||
+  if (saved && ((saved.sandboxSelectionVersion != null && saved.sandboxSelectionVersion !== 2) ||
+    !Number.isInteger(saved.legacyPrefixLength) || saved.legacyPrefixLength < 0 || saved.legacyPrefixLength > historyLength ||
     !Array.isArray(saved.sessions) || !saved.sessions.length || saved.sessions[0].startProbeIndex !== 0 ||
     saved.sessions.some((s: any, i: number) => !Number.isInteger(s.startProbeIndex) || s.startProbeIndex < 0 || s.startProbeIndex > historyLength ||
       (i > 0 && s.startProbeIndex <= saved.sessions[i - 1].startProbeIndex)))) {
