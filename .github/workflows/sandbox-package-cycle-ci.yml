@@ -7,6 +7,7 @@ on:
       - "server/sandboxPackageCycleRoutes.test.ts"
       - "server/proofSandboxCommercialState.ts"
       - "server/routes.ts"
+      - "server/evidenceCompleteDiagnosisRoutes.ts"
       - ".github/workflows/sandbox-package-cycle-ci.yml"
   push:
     branches:
@@ -17,6 +18,7 @@ on:
       - "server/sandboxPackageCycleRoutes.test.ts"
       - "server/proofSandboxCommercialState.ts"
       - "server/routes.ts"
+      - "server/evidenceCompleteDiagnosisRoutes.ts"
       - ".github/workflows/sandbox-package-cycle-ci.yml"
 permissions:
   contents: read
