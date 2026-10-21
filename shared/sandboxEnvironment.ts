@@ -1094,6 +1094,8 @@ export function evaluateSandboxCompletedSession(input: {
     canonicalRoute.nextCapabilityStability !== canonicalPreviousState.stability ||
     canonicalRoute.nextProgressionAuthority !== canonicalPreviousState.progression;
 
+  // No new longitudinal condition is absence of fresh capability proof, not
+  // weaker Specialist performance. Never reset demonstrated recovery on a hold.
   const continuityClass: ResponseEvidenceClass =
     !systemOutcomeMatched
       ? "breakdown"
@@ -1101,7 +1103,7 @@ export function evaluateSandboxCompletedSession(input: {
         ? "not_observed"
         : canonicalStateChanged || input.priorTracksDiverged
           ? "supported"
-          : "near_stable";
+          : "not_observed";
 
   return {
     canonicalRoute,
@@ -1130,11 +1132,11 @@ export function evaluateSandboxCompletedSession(input: {
         continuityClass,
         continuityClass === "supported"
           ? "RI truth remained aligned through a longitudinal state condition."
-          : continuityClass === "near_stable"
-            ? "RI truth remained aligned, but this session did not yet establish a meaningful longitudinal change."
-            : continuityClass === "not_observed"
-              ? "A prior session or state change is required before continuity can be established."
-              : "The Specialist record broke longitudinal alignment with canonical student truth.",
+          : continuityClass === "not_observed"
+            ? input.priorCompletedSessions < 1
+              ? "A prior session is required before continuity can be established."
+              : "RI truth remained aligned without a new longitudinal state condition; holding adds no continuity proof and does not weaken existing evidence."
+            : "The Specialist record broke longitudinal alignment with canonical student truth.",
       ),
     ],
     studentStateAuthoritative: false,

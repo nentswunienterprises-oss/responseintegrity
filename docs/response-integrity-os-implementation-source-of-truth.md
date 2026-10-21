@@ -3032,3 +3032,7 @@ it does not establish a deployed native journey or permit automatic stage transi
 ### Specialist calendar week boundaries — 19 October 2026
 
 The Specialist Sessions page supplies the UTC instants bounding its displayed local calendar week. The authenticated owner-bound schedule endpoint validates those boundaries and uses them for both database paths. This keeps early Monday lessons in UTC-positive zones and daylight-saving transitions visible in the same week the page renders. Existing callers without boundary instants retain the UTC fallback. Scheduling and learning state are unchanged.
+
+### Sandbox continuity evidence on aligned holding — 21 October 2026
+
+A completed Sandbox Training session whose Specialist and canonical routes align but whose canonical state does not change adds no new Continuity Integrity proof when no prior-track divergence is being resolved. Record that capability occurrence as `not_observed`, rather than `near_stable`: absence of a new longitudinal challenge must not interrupt an already demonstrated support/recovery streak. This is a Specialist-capability opportunity classification, not a student observation exception. The first session still cannot establish continuity; a real route divergence remains breakdown; a later qualifying state condition or recovery can establish support. Required breadth, state-change coverage, recovery minima and phase-exit rules remain separate and unchanged. This applies to newly evaluated sessions; persisted historical occurrences are not backfilled.

@@ -27,6 +27,7 @@ import {
   resolveEvidenceSelection,
 } from "./responseIntegrityDrillRegistry";
 import type { TopicPhase } from "./topicConditioningEngine";
+import { resolveResponseEvidenceDimension } from "./responseEvidenceModel";
 import { SANDBOX_BEHAVIOR_PROFILE_IDS_V1, SANDBOX_BEHAVIOR_PROFILE_MODEL_VERSION, isSandboxBehaviorTransitionPlausible, resolveSandboxBehaviorProfile, sandboxBehaviorObservableSignatureMultiplier, sandboxBehaviorProfileMultiplier, sandboxBehaviorTransitionMultiplier, selectSandboxBehaviorProfileSeed } from "./sandboxBehaviorProfiles";
 import { SANDBOX_BEHAVIOR_NARRATIVE_VERSION, renderSandboxBehaviorNarrativeV2 } from "./sandboxBehaviorNarrativesV2";
 import {
@@ -626,6 +627,52 @@ test("three distinct evidence-native Sandbox sessions establish High, repeatabil
     );
     previous = result.canonicalNext;
   }
+});
+
+test("aligned held state neither earns new continuity proof nor erases demonstrated recovery", () => {
+  const turns = fullClaritySession().map((turn) => {
+    const outcome = outcomeFor({
+      setId: turn.setId,
+      repNumber: turn.repNumber,
+      key: `${turn.setId}.${turn.repNumber}.near-stable`,
+      optionIndex: 2,
+      trajectoryClass: "near_stable",
+    });
+    return { ...turn, outcome, specialistObservations: specialistCopy(outcome) };
+  });
+  const result = evaluateSandboxCompletedSession({
+    phase: "Clarity",
+    canonicalPreviousStability: "High",
+    specialistPreviousStability: "High",
+    turns,
+    priorCompletedSessions: 3,
+    priorTracksDiverged: false,
+  });
+  assert.equal(result.systemOutcomeMatched, true);
+  assert.deepEqual(result.canonicalNext, {
+    phase: "Clarity", stability: "High", progressionAuthority: "building",
+  });
+  const held = result.capabilityEvidence.find((item) => item.layer === "continuity_integrity")!;
+  assert.equal(held.evidenceClass, "not_observed");
+  assert.equal(resolveResponseEvidenceDimension({
+    evidence: [held], minimumValidOpportunities: 2,
+  }).state, "UNRESOLVED", "holding alone must not mint continuity readiness");
+  const recovery = resolveResponseEvidenceDimension({
+    evidence: [
+      { evidenceClass: "breakdown" as const },
+      { evidenceClass: "supported" as const },
+      { evidenceClass: "supported" as const },
+      { evidenceClass: "supported" as const },
+      held,
+    ], minimumValidOpportunities: 2,
+  });
+  assert.equal(recovery.state, "SUPPORTED");
+  assert.equal(recovery.recoveredAfterBreakdown, true);
+  assert.equal(recovery.validOpportunityCount, 4);
+  assert.equal(resolveResponseEvidenceDimension({
+    evidence: [{ evidenceClass: "breakdown" as const }, held],
+    minimumValidOpportunities: 1,
+  }).state, "BREAKDOWN", "neutral holding must not repair a real divergence");
 });
 
 test("legacy checkpoint and separated checkpoint give identical held continuity, without false state changes", () => {
