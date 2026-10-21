@@ -326,6 +326,7 @@ export async function ensurePreviewSandboxFixtureCommercialState(options: {
     .from("payment_transactions")
     .select("id, paid_at, raw_payload")
     .eq("parent_id", parentId)
+    .or(`student_id.eq.${studentId},enrollment_id.eq.${enrollmentId}`)
     .eq("provider", "payfast")
     .eq("payment_status", "paid")
     .order("paid_at", { ascending: false })
