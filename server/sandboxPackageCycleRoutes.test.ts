@@ -101,4 +101,7 @@ test("Preview fixture retains the simulated cycle and does not grant another mon
   assert.ok(preview.includes('const evidenceUpperBoundIso = "9999-12-31T23:59:59.999Z"'));
   assert.ok(preview.includes("loadUsageEvents(parentId, studentId, startIso, evidenceUpperBoundIso)"));
   assert.ok(preview.includes("latestTimes[0] + 1"));
+  assert.ok(preview.includes('student_id.eq.${studentId},enrollment_id.eq.${enrollmentId}'));
+  assert.ok(preview.includes('normalize(process.env.VERCEL_ENV) !== "preview"'));
+
 });
