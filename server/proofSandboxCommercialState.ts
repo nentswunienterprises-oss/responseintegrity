@@ -5,6 +5,7 @@ import {
   getMonthlyServicePackage,
 } from "@shared/servicePackages";
 import { supabase } from "./storage";
+import { selectAuthoritativeSandboxCycle } from "./sandboxPackageCycle";
 
 type SyntheticUsageEvent = {
   key: string;
@@ -88,7 +89,12 @@ export function deriveSyntheticRenewalBoundary(
   const latestTimes = Array.from(latestByKey.values()).sort((a, b) => b - a);
   const desired = Math.max(0, Math.floor(Number(intendedUsed) || 0));
   if (latestTimes.length <= desired) return null;
-  if (desired === 0) return nowIso;
+  if (desired === 0) {
+    // A future-dated simulated session remains real evidence in Sandbox.
+    // A zero-used renewal begins after the newest event, not merely now.
+    const reference = new Date(nowIso).getTime();
+    return new Date(Math.max(Number.isFinite(reference) ? reference : 0, latestTimes[0] + 1)).toISOString();
+  }
 
   const newestExcluded = latestTimes[desired];
   const oldestIncluded = latestTimes[desired - 1];
@@ -242,22 +248,36 @@ export async function ensurePreviewSandboxFixtureCommercialState(options: {
   }
 
   const now = new Date();
-  const startIso = monthStartIso(now);
-  const monthKey = monthKeyFromIso(startIso);
   const nowIso = now.toISOString();
   const servicePackage = getMonthlyServicePackage(enrollment.package_key);
 
-  let { data: membership, error: membershipError } = await supabase
+  // A Sandbox fixture is an explicit simulated package, not a real-month
+  // subscription. Reuse the existing cycle across calendar rollovers.
+  // Never create a new one to hide missing/inconsistent historical evidence.
+  const { data: existingCycles, error: membershipError } = await supabase
     .from("membership_months")
     .select("*")
     .eq("parent_id", parentId)
     .eq("student_id", studentId)
-    .eq("month_key", monthKey)
     .eq("is_sandbox", true)
-    .maybeSingle();
+    .order("month_key", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(2);
   if (membershipError) throw membershipError;
+  let membership = selectAuthoritativeSandboxCycle(existingCycles, parentId, studentId);
+  if (Array.isArray(existingCycles) && existingCycles.length > 0 && !membership) {
+    return { repaired: false, reason: "membership_unavailable" as const };
+  }
+  // A brand-new eligible Preview fixture is allowed its first simulated
+  // package cycle; only an explicit simulated renewal may advance it.
+  const startIso = membership?.month_key
+    ? String(membership.month_key) + "T00:00:00.000Z"
+    : monthStartIso(now);
+  const monthKey = monthKeyFromIso(startIso);
 
-  const usageEvents = await loadUsageEvents(parentId, studentId, startIso, nowIso);
+  // A simulated case may deliberately contain future-dated session evidence.
+  const evidenceUpperBoundIso = "9999-12-31T23:59:59.999Z";
+  const usageEvents = await loadUsageEvents(parentId, studentId, startIso, evidenceUpperBoundIso);
   const distinctUsageCount = new Set(usageEvents.map((event) => event.key)).size;
 
   if (!membership) {
@@ -306,6 +326,7 @@ export async function ensurePreviewSandboxFixtureCommercialState(options: {
     .from("payment_transactions")
     .select("id, paid_at, raw_payload")
     .eq("parent_id", parentId)
+    .or(`student_id.eq.${studentId},enrollment_id.eq.${enrollmentId}`)
     .eq("provider", "payfast")
     .eq("payment_status", "paid")
     .order("paid_at", { ascending: false })

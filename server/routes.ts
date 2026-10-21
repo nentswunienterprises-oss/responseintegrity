@@ -17,6 +17,7 @@ import { isAuthenticated } from "./supabaseAuth";
 import { pool } from "./db";
 import { isEmergencyDbMode } from "./emergencyMode";
 import { ensurePreviewSandboxFixtureCommercialState } from "./proofSandboxCommercialState";
+import { isSandboxCycleKey, nextSandboxCycleKey, selectAuthoritativeSandboxCycle, verifySandboxCycleConsumption } from "./sandboxPackageCycle";
 import { buildEmergencyEnrollmentStatusFilter } from "./emergencyPodQuery";
 import {
   createEmergencyFileBundle,
@@ -2420,6 +2421,9 @@ async function recalculateMembershipMonthUsage(options: {
 }) {
   const monthStart = options.monthStartIso.slice(0, 10);
   const nowIso = new Date().toISOString();
+  const evidenceUpperBoundIso = options.isSandbox
+    ? "9999-12-31T23:59:59.999Z"
+    : nowIso;
   let usageWindowStart = `${monthStart}T00:00:00.000Z`;
 
   try {
@@ -2484,7 +2488,7 @@ async function recalculateMembershipMonthUsage(options: {
     .eq("type", "training")
     .eq("status", "completed")
     .gte("scheduled_time", usageWindowStart)
-    .lt("scheduled_time", nowIso);
+    .lt("scheduled_time", evidenceUpperBoundIso);
 
   const completedSessionKeys = new Set<string>();
   const completedScheduledSessions = new Map<string, string>();
@@ -2527,7 +2531,7 @@ async function recalculateMembershipMonthUsage(options: {
     .eq("student_id", options.studentId)
     .in("status", ["submitted", "completed"])
     .gte("submitted_at", usageWindowStart)
-    .lt("submitted_at", nowIso);
+    .lt("submitted_at", evidenceUpperBoundIso);
 
   for (const row of (trainingRuns || [])) {
     const scheduledId = String(row?.scheduled_session_id || "").trim();
@@ -2543,7 +2547,7 @@ async function recalculateMembershipMonthUsage(options: {
     .select("id, scheduled_session_id, training_session_run_id, drill")
     .eq("student_id", options.studentId)
     .gte("submitted_at", usageWindowStart)
-    .lt("submitted_at", nowIso);
+    .lt("submitted_at", evidenceUpperBoundIso);
 
   const evidenceEligibleSessionIds = new Set<string>();
   for (const row of (drills || [])) {
@@ -2572,7 +2576,7 @@ async function recalculateMembershipMonthUsage(options: {
     .eq("parent_id", options.parentId)
     .eq("student_id", options.studentId)
     .gte("effective_at", usageWindowStart)
-    .lt("effective_at", nowIso)
+    .lt("effective_at", evidenceUpperBoundIso)
     .eq("billing_impact", "consume")
     .eq("is_sandbox", !!options.isSandbox);
 
@@ -2750,6 +2754,36 @@ async function recordSessionBillingEvent(options: {
     console.error("Failed to resolve enrollment for sandbox detection:", err);
   }
 
+  if (isSandboxEvent) {
+    const rawCycleKey = options.metadata?.monthKey;
+    let cycleKey: string | null = null;
+    if (options.eventType === "renewal_payment" &&
+        options.billingImpact === "restore" &&
+        isSandboxCycleKey(rawCycleKey)) {
+      // Only the server's verified renewal-application path can start a new
+      // simulated cycle. Never derive an entitlement from wall-clock time.
+      cycleKey = rawCycleKey;
+    } else {
+      const { data, error } = await supabase
+        .from("membership_months")
+        .select("*")
+        .eq("parent_id", options.parentId)
+        .eq("student_id", options.studentId)
+        .eq("is_sandbox", true)
+        .order("month_key", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(2);
+      if (error) {
+        console.error("Failed to resolve Sandbox billing cycle:", error);
+        return null;
+      }
+      const cycle = selectAuthoritativeSandboxCycle(data, options.parentId, options.studentId);
+      if (!cycle) return null;
+      cycleKey = String(cycle.month_key);
+    }
+    monthStartIso = `${cycleKey}T00:00:00.000Z`;
+  }
+
   await upsertMembershipMonth({
     parentId: options.parentId,
     studentId: options.studentId,
@@ -2837,23 +2871,43 @@ async function getMonthlySessionQuotaSnapshot(options: {
 
   if (isEmergencyDbMode()) {
     const isSandbox = options.isSandboxContext === true;
-    const result = await pool.query(
-      `SELECT *
-         FROM public.membership_months
-        WHERE parent_id::text = $1::text AND student_id::text = $2::text
-          AND month_key = $3 AND is_sandbox = $4
-        LIMIT 1`,
-      [options.parentId, options.studentId, monthKey, isSandbox],
-    );
-    const row = result.rows[0];
+    // Sandbox month_key names a simulated package cycle, not calendar expiry.
+    const result = isSandbox
+      ? await pool.query(
+          `SELECT *
+             FROM public.membership_months
+            WHERE parent_id::text = $1::text AND student_id::text = $2::text
+              AND is_sandbox = TRUE
+            ORDER BY month_key DESC, created_at DESC
+            LIMIT 2`,
+          [options.parentId, options.studentId],
+        )
+      : await pool.query(
+          `SELECT *
+             FROM public.membership_months
+            WHERE parent_id::text = $1::text AND student_id::text = $2::text
+              AND month_key = $3 AND is_sandbox = FALSE
+            LIMIT 1`,
+          [options.parentId, options.studentId, monthKey],
+        );
+    const row = isSandbox
+      ? selectAuthoritativeSandboxCycle(result.rows, options.parentId, options.studentId)
+      : result.rows[0];
     if (!row) return null;
 
-    const monthStartIso = new Date(`${monthKey}T00:00:00.000Z`).toISOString();
-    const nextMonth = new Date(monthStartIso);
+    const selectedCycleKey = isSandbox ? String(row.month_key) : monthKey;
+    const cycleStartIso = new Date(`${selectedCycleKey}T00:00:00.000Z`).toISOString();
+    const nextMonth = new Date(cycleStartIso);
     nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
-    const nextMonthIso = nextMonth.toISOString();
     const nowIso = new Date().toISOString();
-    let usageWindowStart = monthStartIso;
+    // Sandbox evidence can carry an accelerated virtual timeline. Real clock
+    // time must not be a cap on completed simulated training or renewals.
+    const evidenceUpperBoundIso = isSandbox ? "9999-12-31T23:59:59.999Z" : nowIso;
+    const nextMonthIso = isSandbox ? evidenceUpperBoundIso : nextMonth.toISOString();
+    const activatedAt = toIsoDateTime(row.created_at);
+    let usageWindowStart = isSandbox && activatedAt && activatedAt < cycleStartIso
+      ? activatedAt
+      : cycleStartIso;
 
     try {
       const boundaryResult = await pool.query(
@@ -2865,6 +2919,8 @@ async function getMonthlySessionQuotaSnapshot(options: {
               AND provider = $6
               AND payment_status = 'paid'
               AND raw_payload @> '{"renewal": true}'::jsonb
+              AND ($5 = FALSE OR raw_payload->>'payfast_mode' = 'sandbox'
+                   OR raw_payload @> '{"sandbox_checkout": true}'::jsonb)
               AND paid_at >= $3::timestamptz
               AND paid_at < $4::timestamptz
             ORDER BY paid_at DESC
@@ -2877,6 +2933,11 @@ async function getMonthlySessionQuotaSnapshot(options: {
               AND provider = $6
               AND payment_status = 'paid'
               AND raw_payload @> '{"renewal": true}'::jsonb
+              AND ($5 = FALSE OR (
+                (student_id::text = $2::text OR ($7::text <> '' AND enrollment_id::text = $7::text))
+                AND (raw_payload->>'payfast_mode' = 'sandbox'
+                     OR raw_payload @> '{"sandbox_checkout": true}'::jsonb)
+              ))
               AND paid_at >= $3::timestamptz
               AND paid_at < $4::timestamptz
             ORDER BY paid_at DESC
@@ -2907,10 +2968,11 @@ async function getMonthlySessionQuotaSnapshot(options: {
         [
           options.parentId,
           options.studentId,
-          monthStartIso,
+          usageWindowStart,
           nextMonthIso,
           isSandbox,
           PAYMENT_PROVIDER_PAYFAST,
+          String(row.enrollment_id || ""),
         ],
       );
 
@@ -2920,6 +2982,7 @@ async function getMonthlySessionQuotaSnapshot(options: {
       }
     } catch (error) {
       console.error("Failed to determine emergency quota renewal window:", error);
+      if (isSandbox) throw error;
     }
 
     const usageResult = await pool.query(
@@ -2963,34 +3026,62 @@ async function getMonthlySessionQuotaSnapshot(options: {
               )
             ) = 'training'
        )
-       SELECT COUNT(*)::int AS completed_used
-         FROM completed_keys`,
-      [options.parentId, options.studentId, usageWindowStart, nowIso],
+       SELECT COUNT(*)::int AS completed_used,
+             COALESCE(ARRAY_AGG(usage_key), ARRAY[]::text[]) AS completed_keys
+          FROM completed_keys`,
+      [options.parentId, options.studentId, usageWindowStart, evidenceUpperBoundIso],
     );
 
-    const eventResult = await pool.query(
-      `SELECT COALESCE(SUM(GREATEST(credits_delta, 0)), 0)::int AS event_used
-         FROM public.session_billing_events
-        WHERE parent_id::text = $1::text
-          AND student_id::text = $2::text
-          AND effective_at >= $3::timestamptz
-          AND effective_at < $4::timestamptz
-          AND billing_impact = 'consume'
-          AND is_sandbox = $5`,
-      [options.parentId, options.studentId, usageWindowStart, nowIso, isSandbox],
-    );
+    const eventResult = isSandbox
+      ? await pool.query(
+          `SELECT session_id::text, credits_delta
+             FROM public.session_billing_events
+            WHERE parent_id::text = $1::text
+              AND student_id::text = $2::text
+              AND effective_at >= $3::timestamptz
+              AND effective_at < $4::timestamptz
+              AND billing_impact = 'consume'
+              AND is_sandbox = TRUE`,
+          [options.parentId, options.studentId, usageWindowStart, evidenceUpperBoundIso],
+        )
+      : await pool.query(
+          `SELECT COALESCE(SUM(GREATEST(credits_delta, 0)), 0)::int AS event_used
+             FROM public.session_billing_events
+            WHERE parent_id::text = $1::text
+              AND student_id::text = $2::text
+              AND effective_at >= $3::timestamptz
+              AND effective_at < $4::timestamptz
+              AND billing_impact = 'consume'
+              AND is_sandbox = FALSE`,
+          [options.parentId, options.studentId, usageWindowStart, evidenceUpperBoundIso],
+        );
 
     const sessionQuota = Number(row.session_quota ?? DEFAULT_SERVICE_PACKAGE.sessionsPerMonth);
     const completedUsed = Number(usageResult.rows[0]?.completed_used || 0);
-    const eventUsed = Number(eventResult.rows[0]?.event_used || 0);
-    const sessionsUsed = Math.max(0, Math.min(sessionQuota, completedUsed + eventUsed));
+    const completedKeys = new Set<string>(usageResult.rows[0]?.completed_keys || []);
+    // Do not count a matching delivered lesson and billing event twice.
+    const eventUsed = isSandbox
+      ? eventResult.rows.reduce((sum: number, event: any) => {
+          const id = String(event.session_id || "").trim();
+          // A delivered lesson already represented by training evidence
+          // must not be consumed a second time via its billing event.
+          if (id && (completedKeys.has(`training:${id}`) || completedKeys.has(`training-run:${id}`))) return sum;
+          return sum + Math.max(0, Number(event.credits_delta) || 0);
+        }, 0)
+      : Number(eventResult.rows[0]?.event_used || 0);
+    const actualConsumed = completedUsed + eventUsed;
+    const sessionsUsed = Math.max(0, Math.min(sessionQuota, actualConsumed));
     const sessionsRemaining = Math.max(0, sessionQuota - sessionsUsed);
 
+    // Reading a simulated package must not alter the evidence or provision
+    // new capacity. Block when the persistent snapshot and usage disagree.
+    if (isSandbox && !verifySandboxCycleConsumption(row, actualConsumed)) return null;
+
     let persistedRow = row;
-    if (
+    if (!isSandbox && (
       Number(row.sessions_used ?? 0) !== sessionsUsed ||
       Number(row.sessions_remaining ?? sessionQuota) !== sessionsRemaining
-    ) {
+    )) {
       const persisted = await pool.query(
         `UPDATE public.membership_months
             SET sessions_used = $1,
@@ -3026,13 +3117,28 @@ async function getMonthlySessionQuotaSnapshot(options: {
     }
   }
 
+  if (isSandboxContext === true) {
+    // Proof/Sandbox reads never create or renew a package because time passed.
+    const { data, error } = await supabase
+      .from("membership_months")
+      .select("*")
+      .eq("parent_id", options.parentId)
+      .eq("student_id", options.studentId)
+      .eq("is_sandbox", true)
+      .order("month_key", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(2);
+    if (error) throw error;
+    return selectAuthoritativeSandboxCycle(data, options.parentId, options.studentId);
+  }
+
   let { data: row } = await supabase
     .from("membership_months")
     .select("*")
     .eq("parent_id", options.parentId)
     .eq("student_id", options.studentId)
     .eq("month_key", monthKey)
-    .eq("is_sandbox", isSandboxContext)
+    .eq("is_sandbox", false)
     .maybeSingle();
 
   if (!row) {
@@ -14160,6 +14266,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ? await getMonthlySessionQuotaSnapshot({
                 parentId: String(updatedSession.parent_id),
                 studentId: String(updatedSession.student_id),
+                isSandboxContext: (await getTutorOperationalMode(tutorId)) === "sandbox",
               })
             : null;
 
@@ -14646,7 +14753,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = (req as any).dbUser.id;
       if (usesDirectProofSessionDatabase()) {
         const enrollmentResult = await pool.query(
-          `SELECT id, assigned_tutor_id, status, student_full_name, student_grade, parent_email
+          `SELECT id, assigned_tutor_id, status, student_full_name, student_grade, parent_email, is_sandbox_account
              FROM public.parent_enrollments
             WHERE user_id = $1
             ORDER BY updated_at DESC
@@ -14703,7 +14810,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? await getMonthlySessionQuotaSnapshot({
               parentId: String(userId),
               studentId,
-              isSandboxContext: String(enrollment.parent_email || "").toLowerCase().startsWith("sandbox-parent-"),
+              isSandboxContext:
+                 enrollment.is_sandbox_account === true ||
+                 String(enrollment.parent_email || "").toLowerCase().startsWith("sandbox-parent-"),
             })
           : null;
         const recentSessions = [...sessionRows].sort(
@@ -14783,7 +14892,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      if (!monthlyQuota) {
+      if (!monthlyQuota && !studentId && operationalMode !== "sandbox") {
+        // Never substitute another student's entitlement for a missing one.
         try {
           const { data: fallbackMembership } = await supabase
             .from("membership_months")
@@ -14986,7 +15096,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         studentId: String(studentId),
         isSandboxContext,
       });
+      if (isSandboxContext && !monthlyQuota) {
+        return res.status(409).json({
+          message: "Sandbox package-cycle authority cannot be verified. Booking remains blocked.",
+        });
+      }
       if (monthlyQuota && Number(monthlyQuota.sessions_remaining || 0) <= 0) {
+        if (isSandboxContext) {
+          return res.status(409).json({
+            message: "Simulated package exhausted. Complete the explicit Sandbox renewal before booking.",
+            monthlyQuota,
+          });
+        }
         const currentMonthKey = toMonthKey(getMonthStartIso(new Date().toISOString())!);
         const { data: latestPayment } = await getLatestPaidPaymentForParent(userId, String(studentId));
         const paymentMonthKey = latestPayment?.paid_at ? toMonthKey(getMonthStartIso(latestPayment.paid_at)!) : null;
@@ -15563,6 +15684,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? await getMonthlySessionQuotaSnapshot({
               parentId: String(updatedSession.parent_id),
               studentId: String(updatedSession.student_id),
+              isSandboxContext: operationalMode === "sandbox",
             })
           : null;
 
@@ -30323,7 +30445,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const servicePackage = getMonthlyServicePackage(enrollment.package_key);
 
-      const monthKey = toMonthKey(getMonthStartIso(new Date().toISOString())!);
+      let monthKey = toMonthKey(getMonthStartIso(new Date().toISOString())!);
       const canonicalStudent = await resolveCanonicalStudentForEnrollment(enrollment);
       const studentId = canonicalStudent?.id || enrollment.assigned_student_id || null;
       const isSandboxContext = isSandboxPaymentEnrollment(enrollment);
@@ -30341,6 +30463,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(409).json({
           message: `Your current ${servicePackage.sessionsPerMonth}-session monthly package is not complete yet. Renewal opens after all package sessions are used.`,
         });
+      }
+
+      if (useSandbox) {
+        if (!monthlyQuota) {
+          return res.status(409).json({
+            message: "Sandbox package-cycle authority is unavailable. Renewal cannot create an unverified entitlement.",
+          });
+        }
+        const nextCycleKey = nextSandboxCycleKey(monthlyQuota.month_key);
+        if (!nextCycleKey) {
+          return res.status(409).json({
+            message: "Sandbox package-cycle lineage is invalid. Renewal remains blocked.",
+          });
+        }
+        // Only an explicit paid Sandbox renewal advances the simulated cycle.
+        // The calendar date has no authority over Sandbox package capacity.
+        monthKey = nextCycleKey;
       }
 
       let existingRenewalPaymentQuery = supabase
