@@ -116,6 +116,8 @@ test("targeted re-diagnosis consumes a package session only after scoped complet
   assert.match(completion, /await client\.query\("BEGIN"\)/);
   assert.match(completion, /FOR UPDATE OF session/);
   assert.match(completion, /enrollment\.is_sandbox_account/);
+  assert.match(completion, /status === "scheduled"/);
+  assert.match(completion, /Sandbox targeted re-diagnosis requires a confirmed package lesson/);
   assert.match(completion, /enrollment_parent_id/);
   assert.match(completion, /enrollment_tutor_id/);
   assert.match(completion, /run\.status = 'completed'/);
@@ -137,4 +139,7 @@ test("targeted re-diagnosis consumes a package session only after scoped complet
   const callback = source.slice(source.indexOf("sessionResult.activityKind ==="));
   assert.match(callback, /completeScheduledTrainingSessionAfterDiagnosis\(/);
   assert.match(callback, /runId,/);
+  const retry = source.slice(source.indexOf('if (existingRun.status === "completed")'));
+  assert.match(retry, /completeScheduledTrainingSessionAfterDiagnosis\(\{/);
+  assert.match(retry, /completedAt: existingRun.completed_at \|\| null,[\s\S]*?runId,/);
 });
