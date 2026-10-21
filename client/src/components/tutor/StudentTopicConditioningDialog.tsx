@@ -44,6 +44,7 @@ import {
   nextMoveRecommendation,
 } from "./topicConditioningEngine";
 import { Progress } from "../ui/progress";
+import { sandboxTargetedRediagnosisCopy } from "@shared/sandboxCompletionDirection";
 import { displayTopicStability, topicStabilityConfirmationLabel, topicStabilityConfirmationExplanation } from "@shared/topicStabilityPresentation";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import type { PhaseLabel, StabilityLabel, TopicTrend } from "./topicConditioningEngine";
@@ -1506,6 +1507,11 @@ export default function StudentTopicConditioningDialog({
 
   const selectedRow = topics.find((row) => row.topic === selectedTopic) || prioritizedTopics[0];
   const hasObservedSelection = !!selectedRow?.hasObservedState;
+  const selectedRediagnosisCopy = selectedRow?.requiresTargetedRediagnosis
+    ? sandboxTargetedRediagnosisCopy({ topic: selectedRow.topic, authority: {
+        route: "targeted_rediagnosis", targetPhase: selectedRow.targetedRediagnosisStartPhase,
+      } })
+    : null;
   const phaseIx = selectedRow && hasObservedSelection ? phaseIndex(selectedRow.phase) : -1;
   const guidance = selectedRow && hasObservedSelection
     ? actionGuidanceFor(selectedRow.phase, nextActionStabilityFor(selectedRow)) : { doItems: [], avoidItems: [] };
@@ -1970,7 +1976,7 @@ export default function StudentTopicConditioningDialog({
                         </div>
 
                         <p className="text-sm text-muted-foreground">
-                          <span className="font-medium text-foreground">Specialist Meaning:</span> {row.hasObservedState ? topicIntel.tutorMeaning : "Topic is active but not yet observed in a scored drill/session."}
+                          <span className="font-medium text-foreground">Specialist Meaning:</span> {row.requiresTargetedRediagnosis ? "The recorded checkpoint needs fresh prerequisite evidence before Training resumes." : row.hasObservedState ? topicIntel.tutorMeaning : "Topic is active but not yet observed in a scored drill/session."}
                         </p>
 
                         <p className="text-sm text-foreground font-medium">
@@ -1991,6 +1997,9 @@ export default function StudentTopicConditioningDialog({
 
                         <div className="rounded-md border border-primary/20 bg-primary/5 p-2.5 space-y-1.5">
                           <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Specialist Prep For Next Session</p>
+                          {row.requiresTargetedRediagnosis ? (
+                            <p className="text-xs">Prepare only the system-selected re-diagnosis opportunity in the runner and preserve its displayed conditions.</p>
+                          ) : <>
                           <p className="text-xs text-foreground/80">{rowPrepPlan.drillType}</p>
                           <div className="space-y-1">
                             {rowPrepPlan.setPlans.map((setPlan) => (
@@ -2010,6 +2019,7 @@ export default function StudentTopicConditioningDialog({
                               ))}
                             </ul>
                           </div>
+                          </>}
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
@@ -2102,16 +2112,18 @@ export default function StudentTopicConditioningDialog({
                       <p className="text-xs text-muted-foreground">{topicStabilityConfirmationExplanation(selectedRow.stability, selectedRow.phase, selectedRow.progressionAuthority)}</p>
                     ) : null}
                     <p><span className="font-medium">Trend:</span> {selectedRow.trend}</p>
-                    <p><span className="font-medium">Transition Status:</span> {selectedInterpretation?.transitionStatus || "Awaiting Observation"}</p>
-                    <p><span className="font-medium">Specialist Meaning:</span> {selectedInterpretation?.tutorMeaning || "Topic is active but not yet observed."}</p>
-                    <p><span className="font-medium">Parent Meaning:</span> {selectedInterpretation?.parentMeaning || "Observed state will appear after first scored drill/session."}</p>
-                    <p><span className="font-medium">Direction:</span> {selectedInterpretation?.direction || "Run evidence-complete diagnosis first."}</p>
-                    <p><span className="font-medium">Constraint:</span> {selectedInterpretation?.rules[0] || "Do not infer phase movement without observations."}</p>
+                    <p><span className="font-medium">Transition Status:</span> {selectedRediagnosisCopy ? "Re-diagnosis required" : selectedInterpretation?.transitionStatus || "Awaiting Observation"}</p>
+                    <p><span className="font-medium">Specialist Meaning:</span> {selectedRediagnosisCopy ? "The recorded checkpoint needs fresh prerequisite evidence before Training resumes." : selectedInterpretation?.tutorMeaning || "Topic is active but not yet observed."}</p>
+                    <p><span className="font-medium">Parent Meaning:</span> {selectedRediagnosisCopy ? "A follow-up check will establish the right starting point for the next lesson." : selectedInterpretation?.parentMeaning || "Observed state will appear after first scored drill/session."}</p>
+                    <p><span className="font-medium">Direction:</span> {selectedRediagnosisCopy?.nextFocus || selectedInterpretation?.direction || "Run evidence-complete diagnosis first."}</p>
+                    <p><span className="font-medium">Constraint:</span> {selectedRediagnosisCopy?.nextConstraint || selectedInterpretation?.rules[0] || "Do not infer phase movement without observations."}</p>
                     <p><span className="font-medium">Entry Diagnosis:</span> {selectedRow.entryDiagnosis}</p>
                   </div>
                   <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-3">
                     <p className="text-sm font-medium">Specialist Prep For Next Session</p>
-                    {prepPlan && (
+                    {selectedRediagnosisCopy ? (
+                      <p className="text-sm">Prepare only the system-selected re-diagnosis opportunity in the runner and preserve its displayed conditions.</p>
+                    ) : prepPlan && (
                       <>
                         <p className="text-xs text-muted-foreground">Drill type: {prepPlan.drillType}</p>
                         <div className="space-y-1.5">

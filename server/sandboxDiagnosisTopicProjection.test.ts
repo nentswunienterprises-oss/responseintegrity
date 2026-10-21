@@ -22,3 +22,21 @@ test("live students, absent completed evidence, another topic and later Training
  const later={...topics,"Quadratic equations":{...topics["Quadratic equations"],lastUpdated:"2026-10-19T12:00:00Z"}};
  assert.equal(await overlaySandboxDiagnosisTopicPlacement({tutorId:"t",studentId:"s",topics:later},{query:async()=>({rows:[row]})}),later);
 });
+
+test("current owned re-diagnosis route overrides a later stale mirror without changing its evidence", async () => {
+ const stale={...topics,"Quadratic equations":{...topics["Quadratic equations"],lastUpdated:"2026-10-21T12:00:00Z",requiresTargetedRediagnosis:false}};
+ const before=JSON.stringify(stale);
+ const queries:string[]=[];
+ const result=await overlaySandboxDiagnosisTopicPlacement({tutorId:"t",studentId:"s",topics:stale},{query:async(sql,values)=>{
+  queries.push(sql);assert.deepEqual(values,["t","s"]);
+  return {rows:[{active_topic_key:"quadratic equations",specialist_route:"targeted_rediagnosis",specialist_targeted_rediagnosis_phase:"Clarity"}]};
+ }});
+ assert.equal(result["Quadratic equations"].requiresTargetedRediagnosis,true);
+ assert.equal(result["Quadratic equations"].targetedRediagnosisStartPhase,"Clarity");
+ assert.equal(result["Quadratic equations"].phase,"Structured Execution");
+ assert.deepEqual(result["Quadratic equations"].history,stale["Quadratic equations"].history);
+ assert.equal(JSON.stringify(stale),before);
+ assert.equal(queries.length,1);
+ assert.match(queries[0],/pe.is_sandbox_account=true/);
+ assert.doesNotMatch(queries[0],/private\./);
+});

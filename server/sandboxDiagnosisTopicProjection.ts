@@ -1,7 +1,27 @@
-/** Overlay the latest completed Sandbox diagnosis, without rewriting observations or student snapshots. */
+/** Read current Sandbox routing and completed placement without rewriting student snapshots. */
 export async function overlaySandboxDiagnosisTopicPlacement(input: {
   tutorId: string; studentId: string; topics: Record<string, any>;
 }, db: { query: (sql: string, values: any[]) => Promise<{ rows: any[] }> }): Promise<Record<string, any>> {
+  // Legacy mirrors can still describe ordinary Training after the owned
+  // trajectory has required re-diagnosis. Routing must not depend on which
+  // deployment last wrote the display snapshot.
+  const routing = await db.query(`SELECT t.active_topic_key, t.specialist_route,
+      t.specialist_targeted_rediagnosis_phase
+    FROM public.specialist_sandbox_trajectories t
+    JOIN public.students s ON s.id::text=t.student_id::text AND s.tutor_id::text=t.tutor_id::text
+    JOIN public.parent_enrollments pe ON pe.id=s.parent_enrollment_id AND pe.is_sandbox_account=true
+    WHERE t.tutor_id::text=$1 AND t.student_id::text=$2 AND t.status='active'
+      AND t.specialist_route='targeted_rediagnosis'
+    ORDER BY t.updated_at DESC LIMIT 1`, [input.tutorId,input.studentId]);
+  const route = routing.rows[0];
+  if (route?.specialist_route === "targeted_rediagnosis") {
+    const key = Object.keys(input.topics).find(k =>
+      k.trim().toLowerCase() === String(route.active_topic_key || "").trim().toLowerCase());
+    if (key) return { ...input.topics, [key]: { ...input.topics[key],
+      requiresTargetedRediagnosis: true,
+      targetedRediagnosisStartPhase: route.specialist_targeted_rediagnosis_phase,
+    } };
+  }
   const result = await db.query(`SELECT t.active_topic_key, t.specialist_phase, t.specialist_stability,
       r.id AS source_id, r.completed_at, r.specialist_decision->>'reason' AS reason
     FROM public.specialist_sandbox_trajectories t
