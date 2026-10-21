@@ -544,6 +544,9 @@ async function completeScheduledTrainingSessionAfterDiagnosis(input: {
     }
 
     if (session.is_sandbox_account === true) {
+      if (status === "scheduled") {
+        throw new Error("Sandbox targeted re-diagnosis requires a confirmed package lesson.");
+      }
       const parentId = String(session.parent_id || "");
       if (
         !parentId ||
