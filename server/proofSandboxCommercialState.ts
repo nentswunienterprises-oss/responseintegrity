@@ -89,7 +89,12 @@ export function deriveSyntheticRenewalBoundary(
   const latestTimes = Array.from(latestByKey.values()).sort((a, b) => b - a);
   const desired = Math.max(0, Math.floor(Number(intendedUsed) || 0));
   if (latestTimes.length <= desired) return null;
-  if (desired === 0) return nowIso;
+  if (desired === 0) {
+    // A future-dated simulated session remains real evidence in Sandbox.
+    // A zero-used renewal begins after the newest event, not merely now.
+    const reference = new Date(nowIso).getTime();
+    return new Date(Math.max(Number.isFinite(reference) ? reference : 0, latestTimes[0] + 1)).toISOString();
+  }
 
   const newestExcluded = latestTimes[desired];
   const oldestIncluded = latestTimes[desired - 1];
@@ -270,7 +275,9 @@ export async function ensurePreviewSandboxFixtureCommercialState(options: {
     : monthStartIso(now);
   const monthKey = monthKeyFromIso(startIso);
 
-  const usageEvents = await loadUsageEvents(parentId, studentId, startIso, nowIso);
+  // A simulated case may deliberately contain future-dated session evidence.
+  const evidenceUpperBoundIso = "9999-12-31T23:59:59.999Z";
+  const usageEvents = await loadUsageEvents(parentId, studentId, startIso, evidenceUpperBoundIso);
   const distinctUsageCount = new Set(usageEvents.map((event) => event.key)).size;
 
   if (!membership) {
