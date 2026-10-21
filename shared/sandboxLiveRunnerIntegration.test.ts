@@ -839,3 +839,30 @@ test("Sandbox history stays separate from the current package balance in the stu
   assert.match(serverRoutesSource, /specialist_phase, specialist_stability/);
   assert.match(serverRoutesSource, /certificationMode !== "sandbox"/);
 });
+
+
+test("required re-diagnosis launches the owner of the active operational lane", () => {
+  const start = topicMapSource.indexOf("      const topicParam = encodeURIComponent(topicState.topic);");
+  const end = topicMapSource.indexOf("\n    }", start);
+  assert.ok(start >= 0 && end > start);
+  const launch = new Function("topicState", "studentId", "sessionId", "isSandboxMode",
+    "setSessionTopicsModalOpen", "navigate", topicMapSource.slice(start, end));
+  const topicState = { topic: "Quadratic equations", phase: "Structured Execution", stability: "High",
+    hasObservedState: true, requiresTargetedRediagnosis: true, targetedRediagnosisStartPhase: "Clarity" };
+  for (const sandbox of [true, false]) {
+    let destination = "";
+    launch(topicState, "owned-student", "confirmed-booking", sandbox, () => {}, (url: string) => { destination = url; });
+    const url = new URL(destination, "https://preview.example");
+    assert.equal(url.pathname, "/specialist/intro-session/owned-student");
+    assert.equal(url.searchParams.get("topic"), "Quadratic equations");
+    assert.equal(url.searchParams.get("scheduledSessionId"), "confirmed-booking");
+    if (sandbox) {
+      assert.equal(url.searchParams.get("mode"), "training", "stateful runner owns Sandbox re-diagnosis and both lanes");
+      assert.equal(url.searchParams.get("rediagnosis"), null);
+    } else {
+      assert.equal(url.searchParams.get("rediagnosis"), "1");
+      assert.equal(url.searchParams.get("phase"), "Clarity");
+      assert.equal(url.searchParams.get("context"), "training");
+    }
+  }
+});

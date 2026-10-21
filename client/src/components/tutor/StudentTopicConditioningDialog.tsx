@@ -1279,7 +1279,10 @@ export default function StudentTopicConditioningDialog({
         navigate(`/specialist/intro-session/${studentId}?topic=${topicParam}&phase=${phaseParam}&stability=${stabilityParam}&context=training${sessionParam}`);
         return;
       }
-      if (topicState.requiresTargetedRediagnosis) {
+      // The stateful Sandbox runner owns both independently evaluated tracks
+      // and clears its trajectory route only after its re-diagnosis completes.
+      // General native Diagnosis updates the live topic mirror, not that lane.
+      if (topicState.requiresTargetedRediagnosis && !isSandboxMode) {
         const rediagnosisPhaseParam = encodeURIComponent(
           topicState.targetedRediagnosisStartPhase || topicState.phase,
         );
