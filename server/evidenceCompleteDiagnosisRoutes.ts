@@ -1343,6 +1343,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
                 tutorId,
                 studentId,
                 completedAt: existingRun.completed_at || null,
+                runId,
               });
             }
             if (existingRun.timing_policy_version !== 1) {
