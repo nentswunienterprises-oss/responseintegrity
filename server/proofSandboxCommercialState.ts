@@ -5,6 +5,7 @@ import {
   getMonthlyServicePackage,
 } from "@shared/servicePackages";
 import { supabase } from "./storage";
+import { selectAuthoritativeSandboxCycle } from "./sandboxPackageCycle";
 
 type SyntheticUsageEvent = {
   key: string;
@@ -242,20 +243,32 @@ export async function ensurePreviewSandboxFixtureCommercialState(options: {
   }
 
   const now = new Date();
-  const startIso = monthStartIso(now);
-  const monthKey = monthKeyFromIso(startIso);
   const nowIso = now.toISOString();
   const servicePackage = getMonthlyServicePackage(enrollment.package_key);
 
-  let { data: membership, error: membershipError } = await supabase
+  // A Sandbox fixture is an explicit simulated package, not a real-month
+  // subscription. Reuse the existing cycle across calendar rollovers.
+  // Never create a new one to hide missing/inconsistent historical evidence.
+  const { data: existingCycles, error: membershipError } = await supabase
     .from("membership_months")
     .select("*")
     .eq("parent_id", parentId)
     .eq("student_id", studentId)
-    .eq("month_key", monthKey)
     .eq("is_sandbox", true)
-    .maybeSingle();
+    .order("month_key", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(2);
   if (membershipError) throw membershipError;
+  let membership = selectAuthoritativeSandboxCycle(existingCycles, parentId, studentId);
+  if (Array.isArray(existingCycles) && existingCycles.length > 0 && !membership) {
+    return { repaired: false, reason: "membership_unavailable" as const };
+  }
+  // A brand-new eligible Preview fixture is allowed its first simulated
+  // package cycle; only an explicit simulated renewal may advance it.
+  const startIso = membership?.month_key
+    ? String(membership.month_key) + "T00:00:00.000Z"
+    : monthStartIso(now);
+  const monthKey = monthKeyFromIso(startIso);
 
   const usageEvents = await loadUsageEvents(parentId, studentId, startIso, nowIso);
   const distinctUsageCount = new Set(usageEvents.map((event) => event.key)).size;
