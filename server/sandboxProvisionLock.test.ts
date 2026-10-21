@@ -74,3 +74,20 @@ test("Sandbox provisioning rejects an empty Specialist identity before connectin
   );
   assert.equal(connected, false);
 });
+
+test("isolated transaction-pooled provisioning pins its lock to one transaction", async () => {
+  const calls: string[]=[];
+  const db={connect:async()=>({query:async(sql:string,values?:unknown[])=>{
+    calls.push(sql);if(values)assert.deepEqual(values,["sandbox-account-provision:transaction-v2:specialist"]);
+    return {rows:[]};},release:()=>calls.push("release")})};
+  assert.equal(await withSandboxProvisionLock(db as any,"specialist",async()=>{calls.push("work");return "done";},{transactionScoped:true}),"done");
+  assert.deepEqual(calls,["BEGIN","SET LOCAL lock_timeout = '5s'","SELECT pg_advisory_xact_lock(hashtextextended($1, 0))","work","COMMIT","release"]);
+});
+
+test("failed transaction-pooled provisioning rolls back instead of leaking a session lock", async () => {
+  const calls:string[]=[];
+  const db={connect:async()=>({query:async(sql:string)=>{calls.push(sql);return {rows:[]};},release:()=>calls.push("release")})};
+  await assert.rejects(()=>withSandboxProvisionLock(db as any,"specialist",async()=>{calls.push("work");throw new Error("failed");},{transactionScoped:true}),/failed/);
+  assert.equal(calls.at(-2),"ROLLBACK");assert.equal(calls.at(-1),"release");
+  assert.ok(!calls.some(sql=>sql.includes("pg_advisory_unlock")));
+});

@@ -1,6 +1,6 @@
 import { tutorScheduleWeekRange } from "./tutorScheduleWeek";
 import { overlaySandboxDiagnosisTopicPlacement } from "./sandboxDiagnosisTopicProjection";
-import { registerProofTrainingBooking, proofSandboxCoverageReceipt } from "./proofTrainingBooking";
+import { registerProofTrainingBooking, proofSandboxCoverageReceipt, isCapabilityProofPreview } from "./proofTrainingBooking";
 import { captureDemandParent } from "./demandCapture";
 import { registerDemandProductionRoutes } from "./demandProduction";
 import { demandAssignmentBlock, resolveEntryType } from "../shared/demandProduction";
@@ -1740,6 +1740,8 @@ async function autoProvisionSandboxAccountsForTutor(
 ) {
   return withSandboxProvisionLock(pool, tutorId, () =>
     autoProvisionSandboxAccountsForTutorUnlocked(tutorId, minimumCount),
+    { transactionScoped: isCapabilityProofPreview(process.env) &&
+      tutorId === "b8448bbf-e01b-4f7b-bf6a-baf3ddb5d0bc" },
   );
 }
 
