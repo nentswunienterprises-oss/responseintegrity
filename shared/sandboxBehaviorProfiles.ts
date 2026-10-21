@@ -155,13 +155,17 @@ export function resolveSandboxBehaviorProfile(
 export function selectSandboxBehaviorProfileSeed(input: {
   baseSeed: string;
   existingSeeds: readonly string[];
+  /** Server-owned unmet ledger profiles for a newly issued development plan. */
+  preferredProfiles?: readonly SandboxBehaviorProfileId[];
 }): string {
   const occupied = new Set(input.existingSeeds.map(resolveSandboxBehaviorProfile));
-  if (occupied.size >= SANDBOX_BEHAVIOR_PROFILE_IDS_V1.length) return input.baseSeed;
+  const preferred = input.preferredProfiles?.length ? new Set(input.preferredProfiles) : null;
+  if (!preferred && occupied.size >= SANDBOX_BEHAVIOR_PROFILE_IDS_V1.length) return input.baseSeed;
 
   for (let nonce = 0; nonce < 10_000; nonce += 1) {
     const candidate = nonce === 0 ? input.baseSeed : `${input.baseSeed}:${nonce}`;
-    if (!occupied.has(resolveSandboxBehaviorProfile(candidate))) return candidate;
+    const profile = resolveSandboxBehaviorProfile(candidate);
+    if (preferred ? preferred.has(profile) : !occupied.has(profile)) return candidate;
   }
   throw new Error("Unable to allocate an unrepresented Sandbox behavior profile.");
 }

@@ -4755,7 +4755,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     isAuthenticated,
     requireTutor: requireRole(["tutor"]),
     provisionProfileCoverage: async (tutorId) => proofSandboxCoverageReceipt({
-      provision: () => ensureVisibleSandboxStudentsForTutor(tutorId, 8),
+      requiredStudents: 10,
+      provision: () => ensureVisibleSandboxStudentsForTutor(tutorId, 10),
       loadStudents: async () => {
         const students = await pool.query(
           `SELECT s.id, s.name AS label

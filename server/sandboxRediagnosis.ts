@@ -57,6 +57,7 @@ type TrajectoryRow = {
   specialist_targeted_rediagnosis_phase: TopicPhase | null;
   session_number: number;
   completed_rep_count: number;
+  active_topic_key: string | null;
   divergence_active: boolean;
 };
 
@@ -67,6 +68,7 @@ type TrajectoryTruthRow = {
   canonical_targeted_rediagnosis_phase: TopicPhase | null;
   trajectory_seed: string;
   behavior_model_version: 1 | 2;
+  continuity_tags: string[];
 };
 
 type RediagnosisRunRow = {
@@ -180,7 +182,7 @@ async function loadTrajectory(input: {
   const result = await pool.query(
     `SELECT t.*, truth.canonical_phase, truth.canonical_stability,
             truth.canonical_route, truth.canonical_targeted_rediagnosis_phase,
-            truth.trajectory_seed, truth.behavior_model_version
+            truth.trajectory_seed, truth.behavior_model_version, truth.continuity_tags
        FROM specialist_sandbox_trajectories t
        JOIN private.specialist_sandbox_trajectory_truth truth
          ON truth.trajectory_id = t.id
@@ -206,6 +208,7 @@ async function loadTrajectory(input: {
         : null,
       trajectory_seed: String(row.trajectory_seed),
       behavior_model_version: Number(row.behavior_model_version) as 1 | 2,
+      continuity_tags: asArray<string>(row.continuity_tags),
     } satisfies TrajectoryTruthRow,
   };
 }
@@ -480,6 +483,8 @@ async function plan(input: {
           : null,
       recentOutcomeKeys: diagnosisTruth.recent_outcome_keys,
       behaviorModelVersion: truth.behavior_model_version,
+      continuityTags: truth.continuity_tags,
+      developmentTopicKey: trajectory.active_topic_key || "",
     },
   }));
   const selectedRecord = outcomes.find(
@@ -705,6 +710,8 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
       earliestUnsupportedCapability: null,
       recentOutcomeKeys: [],
       behaviorModelVersion: truth.behavior_model_version,
+      continuityTags: truth.continuity_tags,
+      developmentTopicKey: input.topic,
     },
   }));
   const selectedRecord = outcomes.find(
@@ -801,6 +808,8 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
       earliestUnsupportedCapability: null,
       recentOutcomeKeys: [],
       behaviorModelVersion: truth.behavior_model_version,
+      continuityTags: truth.continuity_tags,
+      developmentTopicKey: input.topic,
     },
   }));
 

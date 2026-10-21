@@ -30,6 +30,22 @@ Read this file with these rules:
 
 ## 2026-10-13 Founder-Approved Evidence-Exception Doctrine
 
+### Versioned synthetic learner development — 21 October 2026
+
+Founder-approved correction: Sandbox must deliberately provide the situations required for Specialist development. Exposure is planned; captured observations, independent state evaluation and qualification remain earned evidence.
+
+The initial rollout is bounded to **new trajectories** in the isolated Capability Proof Preview Specialist account. A server-owned `sandbox-development-plan:v1` marker is persisted in private continuity history at creation. Existing unmarked V1/V2 trajectories, seeds, issued forms, submitted observations and evaluations retain their historical selection rules. Production does not opt in through this rollout.
+
+New profile allocation reads unmet profile requirements from the persisted qualification ledger and balances new plans within that unmet set. Assignment earns no coverage. The controlled Preview setup can add two fresh students, bringing its bounded roster from eight to ten; it reuses the ordinary owned provisioning and booking paths without resetting any earlier account or evidence.
+
+The development plan gives each synthetic profile coherent phase strengths and an initial challenge sequence. Clarity fragility appears in Clarity, reassurance seeking in Structured Execution and pressure fragility in Time Pressure Stability. Fast recovery and uneven performance have explicit response transitions. Intermediate recovery remains required after breakdown. Complete lessons with preserved conditions accumulate topic- and phase-specific experience; incomplete or disrupted lessons do not. Consolidation retains strength, with later maintenance opportunities revisiting difficulty. Specialist observation accuracy is evaluated independently and cannot rewrite simulated learner conduct.
+
+Training selects compatible existing response scenes within the planned response class, retaining the narrowly gated visible-reference exception during initial development. Missing compatible content blocks issuance with a repair error; no phase, score or observation is fabricated to bypass it. Only within-class scene variation uses the new mixed deterministic weighted draw; historical random streams remain unchanged.
+
+New-plan Diagnosis/Handover responses are authored dimension by dimension from the public canonical observation contract before issuance. A cross-layer timed probe may show intact Clarity and independent execution alongside timed difficulty. The native protocol still excludes unelicited vocabulary and reason from an independent-solving probe. These authored observations are described in the native opportunity and persisted as that turn's truth. Diagnosis and Training evaluators alone establish placement and movement, including required baseline evidence; the plan cannot directly assign either.
+
+Qualification policy, profile opportunity minima, all seven modes, condition and comparison checks, final eight clean sessions with two per phase, and governed TD sign-off remain unchanged. Local synthetic-contract reachability tests do not count as deployed acceptance or qualification evidence.
+
 ### Sandbox profile breadth — 18 October 2026
 
 V2 capability targeting keeps state-compatible intermediate recovery candidates eligible alongside the earliest unsupported Specialist capability challenge. After breakdown, conditional or near-stable responses may compete; after an observed intermediate, stronger responses may compete. After support, supported, near-stable and conditional responses may compete so the learner can either retain support or show a valid uneven transition. Challenge targeting cannot force a relapse that makes a clean lesson impossible or suppress every observable uneven-performance signature. Selection remains deterministic and profile-weighted, never guarantees recovery or instability, and cannot bypass phase/stability compatibility, repetition rules or the ban on an immediate breakdown-to-supported jump. Historical V1 selection and submitted evidence remain unchanged.

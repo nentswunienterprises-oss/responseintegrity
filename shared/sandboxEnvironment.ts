@@ -1,3 +1,4 @@
+import { hasSandboxDevelopmentPlan, sandboxDevelopmentCandidates, sandboxDevelopmentLessons, sandboxDevelopmentDraw } from "./sandboxDevelopmentPlan";
 import { PHASES, type TopicPhase, type TopicStability } from "./topicConditioningEngine";
 import { normalizeCapabilityProgressionState, type CapabilityStability, type ProgressionAuthority } from "./capabilityProgressionAuthority";
 import {
@@ -113,6 +114,8 @@ export type SandboxOutcomeSelectionContext = {
   recentOutcomeKeys?: string[];
   /** Legacy trajectories remain V1; new trajectories opt into V2. */
   behaviorModelVersion?: 1 | 2;
+  developmentTopicKey?: string;
+  developmentRepIndex?: number;
 };
 
 export type SandboxSubmittedObservation = {
@@ -695,6 +698,32 @@ export function selectSandboxOutcome(input: {
     throw new Error(
       `Sandbox Outcome Matrix has no plausible behavioural continuation for ${input.context.prescribedPhase} / ${input.context.setId} / rep ${input.context.repNumber}.`,
     );
+  }
+
+  if (hasSandboxDevelopmentPlan(input.context.continuityTags)) {
+    if (input.context.behaviorModelVersion !== 2 || !input.context.developmentTopicKey ||
+        !Number.isInteger(input.context.developmentRepIndex) || input.context.developmentRepIndex! < 0) {
+      throw new Error("Sandbox development plan requires versioned, owned lesson context.");
+    }
+    const planned = sandboxDevelopmentCandidates({
+      seed: input.seed, candidates: plausible, phase: input.context.prescribedPhase,
+      completedLessons: sandboxDevelopmentLessons(input.context.continuityTags!, input.context.developmentTopicKey, input.context.prescribedPhase),
+      repIndex: input.context.developmentRepIndex!, previous: input.context.previousTrajectoryClass,
+    });
+    // Retain the already-gated exceptional worked-example incident during
+    // initial development only, after the profile's opening opportunities.
+    if (input.context.developmentRepIndex === 2 &&
+        sandboxDevelopmentLessons(input.context.continuityTags!, input.context.developmentTopicKey, input.context.prescribedPhase) === 0) {
+      planned.push(...plausible.filter(item => item.trajectoryClass === "confounded"));
+    }
+    const recent = new Set(input.context.recentOutcomeKeys || []);
+    const fresh = planned.filter(item => !recent.has(item.key));
+    const scenes = fresh.length ? fresh : planned;
+    const score = (item: SandboxOutcomeDefinition) => -Math.log(sandboxDevelopmentDraw([
+      "sandbox-development-selection-v1", input.seed, input.context.sequenceNumber,
+      input.context.developmentTopicKey, item.key, item.version,
+    ].join(":"))) / Math.max(0.05, item.weight);
+    return [...scenes].sort((a, b) => score(a) - score(b) || a.key.localeCompare(b.key))[0];
   }
 
   const recent = new Set(input.context.recentOutcomeKeys || []);

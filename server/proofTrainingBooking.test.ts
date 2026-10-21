@@ -108,3 +108,16 @@ test("incomplete coverage provisions once and verifies the resulting owned roste
  await assert.rejects(()=>proofSandboxCoverageReceipt({loadStudents:async()=>students.slice(0,6),
   provision:async()=>({createdAccounts:[]})}),/incomplete/);
 });
+
+
+test("versioned development rollout adds only two fresh students and reuses its completed roster",async()=>{
+ const students=Array.from({length:10},(_,i)=>({id:`student-${i}`,label:`Student ${i}`}));
+ let loads=0,calls=0;
+ const receipt=await proofSandboxCoverageReceipt({requiredStudents:10,
+  loadStudents:async()=>++loads===1?students.slice(0,8):students,
+  provision:async()=>{calls++;return {createdAccounts:["new-9","new-10"]};}});
+ assert.equal(calls,1);assert.equal(receipt.createdAccounts,2);assert.equal(receipt.studentCount,10);
+ const existing=await proofSandboxCoverageReceipt({requiredStudents:10,loadStudents:async()=>students,
+  provision:async()=>{throw new Error("Existing roster must remain untouched");}});
+ assert.equal(existing.createdAccounts,0);
+});

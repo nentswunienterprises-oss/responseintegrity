@@ -19,7 +19,7 @@ const SPECIALIST_STUDENTS = new Map<string, ReadonlySet<string>>([
 const ISOLATED_ACCEPTANCE_SPECIALIST = "b8448bbf-e01b-4f7b-bf6a-baf3ddb5d0bc";
 const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 
-function isCapabilityProofPreview(env: NodeJS.ProcessEnv | Record<string,string|undefined>) {
+export function isCapabilityProofPreview(env: NodeJS.ProcessEnv | Record<string,string|undefined>) {
   let project = "";
   let databaseMatches = false;
   try { project = new URL(env.SUPABASE_URL || "").hostname; } catch { /* fail closed */ }
@@ -159,14 +159,17 @@ export function proofTrainingBookingHandler(pool: Pick<Pool, "connect">, env = p
 export async function proofSandboxCoverageReceipt(dependencies: {
   loadStudents: () => Promise<Array<{id:string;label:string}>>;
   provision: () => Promise<{createdAccounts: unknown[]}>;
+  requiredStudents?: 8 | 10;
 }) {
+  const requiredStudents = dependencies.requiredStudents ?? 8;
+  if (![8, 10].includes(requiredStudents)) throw new Error("Unapproved controlled roster size");
   let students = await dependencies.loadStudents();
   let createdAccounts = 0;
-  if (students.length < 8) {
+  if (students.length < requiredStudents) {
     createdAccounts = (await dependencies.provision()).createdAccounts.length;
     students = await dependencies.loadStudents();
   }
-  if (students.length < 8) throw new Error("Controlled profile roster is incomplete");
+  if (students.length < requiredStudents) throw new Error("Controlled profile roster is incomplete");
   return {createdAccounts, studentCount: students.length, students};
 }
 

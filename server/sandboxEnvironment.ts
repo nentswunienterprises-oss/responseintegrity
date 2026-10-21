@@ -1,3 +1,5 @@
+import { SANDBOX_DEVELOPMENT_PLAN_V1, hasSandboxDevelopmentPlan, advanceSandboxDevelopment } from "@shared/sandboxDevelopmentPlan";
+import { isCapabilityProofPreview } from "./proofTrainingBooking";
 import { sandboxQualificationEvidenceFingerprint } from "./sandboxQualificationFingerprint";
 import { createHash, createHmac } from "crypto";
 import { pool } from "./db";
@@ -52,7 +54,7 @@ import { sandboxRequiresPrerequisiteSentinel, renderSandboxPrerequisiteFollowUp 
 import type { TopicPhase, TopicStability } from "@shared/topicConditioningEngine";
 import { normalizeCapabilityProgressionState, type ProgressionAuthority } from "@shared/capabilityProgressionAuthority";
 import { SANDBOX_BEHAVIOR_NARRATIVE_VERSION } from "@shared/sandboxBehaviorNarrativesV2";
-import { selectSandboxBehaviorProfileSeed } from "@shared/sandboxBehaviorProfiles";
+import { SANDBOX_BEHAVIOR_PROFILE_IDS_V1, resolveSandboxBehaviorProfile, selectSandboxBehaviorProfileSeed } from "@shared/sandboxBehaviorProfiles";
 import {
   sandboxTopicKey,
   deriveSandboxSameTopicSnapshotBefore,
@@ -809,7 +811,7 @@ async function ensureTrajectory(input: {
       ].join(":"),
     );
     const existingProfileSeeds = await client.query(
-      `SELECT truth.trajectory_seed
+      `SELECT truth.trajectory_seed, truth.continuity_tags
          FROM public.specialist_sandbox_trajectories existing
          JOIN private.specialist_sandbox_trajectory_truth truth
            ON truth.trajectory_id = existing.id
@@ -821,8 +823,31 @@ async function ensureTrajectory(input: {
       [input.tutorAssignmentId, input.tutorId, input.bank.bankKey,
        input.bank.bankVersion, trajectory.id],
     );
+    // Initial bounded rollout: only new trajectories in the isolated Preview
+    // acceptance account. Production and every existing stream remain unchanged.
+    const developmentPlan = isCapabilityProofPreview(process.env) &&
+      input.tutorId === "b8448bbf-e01b-4f7b-bf6a-baf3ddb5d0bc";
+    const developmentTags = developmentPlan ? [SANDBOX_DEVELOPMENT_PLAN_V1] : [];
+    let preferredProfiles: typeof SANDBOX_BEHAVIOR_PROFILE_IDS_V1[number][] | undefined;
+    if (developmentPlan) {
+      const timeline = await loadSandboxQualificationEvidence(input, client);
+      if (timeline.sourceGaps.length) throw new Error("Cannot target development coverage from incomplete source evidence.");
+      const ledger = evaluateSandboxQualification(timeline.events);
+      const missing = ledger.requirements.filter(item => item.key.startsWith("profile:") && !item.met);
+      // Balance newly issued plans within the unmet set before repeating one.
+      const counts = new Map(SANDBOX_BEHAVIOR_PROFILE_IDS_V1.map(id => [id, 0]));
+      for (const row of existingProfileSeeds.rows) {
+        if (!hasSandboxDevelopmentPlan(jsonStringArray(row.continuity_tags))) continue;
+        const id = resolveSandboxBehaviorProfile(String(row.trajectory_seed));
+        counts.set(id, counts.get(id)! + 1);
+      }
+      const eligible = SANDBOX_BEHAVIOR_PROFILE_IDS_V1.filter(id => missing.some(item => item.key === "profile:" + id));
+      const least = Math.min(...eligible.map(id => counts.get(id)!));
+      preferredProfiles = eligible.filter(id => counts.get(id) === least);
+    }
     const trajectorySeed = selectSandboxBehaviorProfileSeed({
       baseSeed: baseTrajectorySeed,
+      preferredProfiles,
       existingSeeds: existingProfileSeeds.rows.map(row => String(row.trajectory_seed)),
     });
     await client.query(
@@ -837,8 +862,8 @@ async function ensureTrajectory(input: {
          continuity_tags,
          recent_outcome_keys,
          prior_tracks_diverged
-       ) VALUES ($1,'Clarity','Low','building','normal_training',$2,2,'[]'::jsonb,'[]'::jsonb,false)`,
-      [trajectory.id, trajectorySeed],
+       ) VALUES ($1,'Clarity','Low','building','normal_training',$2,2,$3::jsonb,'[]'::jsonb,false)`,
+      [trajectory.id, trajectorySeed, JSON.stringify(developmentTags)],
     );
     await client.query("COMMIT");
     return {
@@ -853,7 +878,7 @@ async function ensureTrajectory(input: {
         trajectory_seed: trajectorySeed,
         behavior_model_version: 2,
         previous_trajectory_class: null,
-        continuity_tags: [],
+        continuity_tags: developmentTags,
         recent_outcome_keys: [],
         prior_tracks_diverged: false,
       },
@@ -1020,7 +1045,7 @@ async function selectSandboxTopicTrajectory(input: {
       canonical = {
         ...seed.state,
         previousTrajectoryClass: null,
-        continuityTags: [],
+        continuityTags: hasSandboxDevelopmentPlan(jsonStringArray(row.continuity_tags)) ? [SANDBOX_DEVELOPMENT_PLAN_V1] : [],
         recentOutcomeKeys: [],
         priorTracksDiverged: false,
       };
@@ -1594,6 +1619,8 @@ async function planNextRep(input: {
       previousTrajectoryClass: input.bundle.truth.previous_trajectory_class,
       behaviorModelVersion: input.bundle.truth.behavior_model_version,
       continuityTags: input.bundle.truth.continuity_tags,
+      developmentTopicKey: sandboxTopicKey(input.bundle.trajectory.active_topic_key),
+      developmentRepIndex: completedInSession,
       earliestUnsupportedCapability:
         readiness.policyAvailable ? readiness.earliestUnsupportedCapability : null,
       recentOutcomeKeys: input.bundle.truth.recent_outcome_keys,
@@ -2569,6 +2596,13 @@ export async function submitSandboxEnvironmentRep(input: {
   const continuity = nextSandboxContinuityState({
     currentTags: bundle.truth.continuity_tags,
     outcome: planned.selected,
+  });
+  continuity.continuityTags = advanceSandboxDevelopment({
+    tags: continuity.continuityTags,
+    topic: sandboxTopicKey(bundle.trajectory.active_topic_key),
+    phase: planned.phase,
+    conditionKept: turn.conditionConformed === true,
+    lessonCompleted: planned.completedInSession + 1 === planned.totalRepsInSession,
   });
   const recentOutcomeKeys = [
     ...bundle.truth.recent_outcome_keys,
