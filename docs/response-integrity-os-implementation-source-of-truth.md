@@ -109,6 +109,13 @@ As of 2026-09-03, the live implementation uses these operating constants:
 - Specialist payout is released according to package-completion rules, not ad-hoc per-session cash-out.
 - Evidence integrity gates payable delivery.
 
+## Approved targeted re-diagnosis package policy (21 October 2026)
+
+A scheduled package session and its diagnostic activity have separate authorities. A system-authorized, completed, evidence-backed targeted re-diagnosis delivered in a confirmed package-bearing Training session consumes exactly one family package session, including in Sandbox. This does not by itself earn Training progression, Trial qualification, or Specialist compensation. Those decisions require independently qualifying evidence.
+
+Consumption is written only at accepted completion, after verifying parent/student/Specialist scope, booked session, completed diagnosis, persisted source drill, and Evidence Ledger. The event and package update must be atomic, idempotent, cycle-scoped, and auditable. Reads must not grant or restore credits. Missing or contradictory authority blocks rather than invents a balance. A diagnostic activity outside an authorized package-bearing Training session does not consume package capacity solely because evidence exists. Existing live calendar billing and explicit simulated Sandbox renewal rules remain unchanged.
+
+
 Do not describe the live commercial model as a R1,000 Premium plan, loose session credits, or ad-hoc session capacity.
 
 The Specialist development pathway is:

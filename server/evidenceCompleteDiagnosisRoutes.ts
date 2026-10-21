@@ -3,6 +3,7 @@ import { isAuthenticated } from "./supabaseAuth";
 import { storage, supabase } from "./storage";
 import { pool } from "./db";
 import { isEmergencyDbMode } from "./emergencyMode";
+import { selectAuthoritativeSandboxCycle } from "./sandboxPackageCycle";
 import {
   NEXT_ACTION_ENGINE,
   tryParsePhase,
@@ -502,42 +503,226 @@ async function completeScheduledTrainingSessionAfterDiagnosis(input: {
   scheduledSessionId: string | null;
   tutorId: string;
   studentId: string;
+  runId: string;
   completedAt?: string | null;
 }) {
   const scheduledSessionId = String(input.scheduledSessionId || "").trim();
   if (!scheduledSessionId) return;
 
-  const completedAt = input.completedAt || new Date().toISOString();
-  const updated = await pool.query(
-    `UPDATE public.scheduled_sessions
-        SET status = 'completed',
-            attendance_status = 'both_joined',
-            recording_status = 'manual_not_tracked',
-            transcript_status = 'manual_not_tracked',
-            updated_at = $4
-      WHERE id::text = $1::text
-        AND tutor_id::text = $2::text
-        AND student_id::text = $3::text
-        AND type = 'training'
-        AND status IN ('confirmed', 'scheduled', 'ready', 'live')
-    RETURNING id, status`,
-    [scheduledSessionId, input.tutorId, input.studentId, completedAt],
-  );
-  if (updated.rows[0]) return;
+  // A completed targeted re-diagnosis delivered in a booked Sandbox lesson
+  // consumes one simulated family package session. It is not Training
+  // progression and does not create Specialist-earning evidence. A read of
+  // package status never performs this reconciliation.
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const sessionResult = await client.query(
+      `SELECT session.id, session.parent_id, session.status,
+              enrollment.id AS enrollment_id,
+              enrollment.user_id AS enrollment_parent_id,
+              enrollment.assigned_tutor_id AS enrollment_tutor_id,
+              enrollment.is_sandbox_account
+         FROM public.scheduled_sessions session
+         LEFT JOIN public.students student
+           ON student.id::text = session.student_id::text
+         LEFT JOIN public.parent_enrollments enrollment
+           ON enrollment.id = student.parent_enrollment_id
+        WHERE session.id::text = $1::text
+          AND session.tutor_id::text = $2::text
+          AND session.student_id::text = $3::text
+          AND session.type = 'training'
+        FOR UPDATE OF session`,
+      [scheduledSessionId, input.tutorId, input.studentId],
+    );
+    const session = sessionResult.rows[0];
+    if (!session) {
+      throw new Error("Completed re-diagnosis could not find its assigned training session.");
+    }
+    const status = String(session.status || "");
+    if (!["confirmed", "scheduled", "ready", "live", "completed"].includes(status)) {
+      throw new Error("The assigned training lesson is not available for completion.");
+    }
 
-  const existing = await pool.query(
-    `SELECT status
-       FROM public.scheduled_sessions
-      WHERE id::text = $1::text
-        AND tutor_id::text = $2::text
-        AND student_id::text = $3::text
-        AND type = 'training'
-      LIMIT 1`,
-    [scheduledSessionId, input.tutorId, input.studentId],
-  );
-  if (String(existing.rows[0]?.status || "") === "completed") return;
+    if (session.is_sandbox_account === true) {
+      if (status === "scheduled") {
+        throw new Error("Sandbox targeted re-diagnosis requires a confirmed package lesson.");
+      }
+      const parentId = String(session.parent_id || "");
+      if (
+        !parentId ||
+        !session.enrollment_id ||
+        String(session.enrollment_parent_id || "") !== parentId ||
+        String(session.enrollment_tutor_id || "") !== input.tutorId
+      ) {
+        throw new Error("Sandbox targeted re-diagnosis ownership could not be verified.");
+      }
 
-  throw new Error("Completed re-diagnosis could not retire its scheduled training session.");
+      // The route has already persisted the completed, system-scored run.
+      // Independently verify its exact submitted drill and Evidence Ledger
+      // before any package consumption is allowed.
+      const evidence = await client.query(
+        `SELECT run.id
+           FROM public.response_integrity_diagnosis_runs run
+          WHERE run.id::text = $1::text
+            AND run.student_id::text = $2::text
+            AND run.tutor_id::text = $3::text
+            AND run.scheduled_session_id::text = $4::text
+            AND run.status = 'completed'
+            AND run.session_container = 'scheduled_training_session'
+            AND run.activity_kind = 'targeted_rediagnosis'
+            AND EXISTS (
+              SELECT 1 FROM public.intro_session_drills drill
+               WHERE drill.id::text = run.source_drill_id::text
+                 AND drill.student_id::text = run.student_id::text
+                 AND drill.scheduled_session_id::text = run.scheduled_session_id::text
+            )
+            AND EXISTS (
+              SELECT 1 FROM public.response_integrity_evidence_ledger ledger
+               WHERE ledger.source_drill_id::text = run.source_drill_id::text
+                 AND ledger.student_id::text = run.student_id::text
+                 AND ledger.scheduled_session_id::text = run.scheduled_session_id::text
+                 AND ledger.activity_kind = 'targeted_rediagnosis'
+            )
+          LIMIT 1`,
+        [input.runId, input.studentId, input.tutorId, scheduledSessionId],
+      );
+      if (!evidence.rows[0]) {
+        throw new Error("Sandbox targeted re-diagnosis evidence is incomplete; package consumption is held.");
+      }
+
+      const packageRows = await client.query(
+        `SELECT id, parent_id, student_id, month_key, created_at, is_sandbox,
+                status, session_quota, sessions_used, sessions_remaining
+           FROM public.membership_months
+          WHERE parent_id::text = $1::text
+            AND student_id::text = $2::text
+            AND is_sandbox = TRUE
+          ORDER BY month_key DESC, created_at DESC
+          LIMIT 2
+          FOR UPDATE`,
+        [parentId, input.studentId],
+      );
+      const cycle = selectAuthoritativeSandboxCycle(
+        packageRows.rows, parentId, input.studentId,
+      );
+      if (!cycle?.id) {
+        throw new Error("Sandbox package-cycle authority is unavailable; completion cannot provision credits.");
+      }
+
+      // A delivered session is one usage key even if the drill and the
+      // billing event both reference it. Lock the booking and check across
+      // all Sandbox consume event types before adding the single event.
+      const existingConsumption = await client.query(
+        `SELECT id, parent_id, student_id, credits_delta
+           FROM public.session_billing_events
+          WHERE session_id::text = $1::text
+            AND is_sandbox = TRUE
+            AND billing_impact = 'consume'
+          FOR UPDATE`,
+        [scheduledSessionId],
+      );
+      if (existingConsumption.rows.length > 1 || existingConsumption.rows.some((row: any) =>
+        String(row.parent_id || "") !== parentId ||
+        String(row.student_id || "") !== input.studentId ||
+        Number(row.credits_delta) !== 1
+      )) {
+        throw new Error("Existing Sandbox session consumption evidence is contradictory.");
+      }
+
+      if (existingConsumption.rows.length === 0) {
+        if (Number(cycle.sessions_remaining) <= 0) {
+          throw new Error("The authorized Sandbox package is exhausted; no new entitlement was created.");
+        }
+        const newEvent = await client.query(
+          `INSERT INTO public.session_billing_events (
+             session_id, parent_id, student_id, enrollment_id,
+             event_type, actor_role, actor_id, billing_impact, credits_delta,
+             reason_codes, reason_note, metadata, is_sandbox,
+             effective_at, created_at
+           )
+           SELECT $1, $2, $3, $4,
+                  'sandbox_targeted_rediagnosis_completed', 'tutor', $5, 'consume', 1,
+                  '["targeted_rediagnosis_completed"]'::jsonb,
+                  'Authorized evidence-backed targeted re-diagnosis completed in a package session',
+                  jsonb_build_object(
+                    'session_container', 'scheduled_training_session',
+                    'activity_kind', 'targeted_rediagnosis',
+                    'diagnosis_run_id', $6::text,
+                    'training_progression_earned', FALSE,
+                    'specialist_accrual_eligible', FALSE
+                  ),
+                  TRUE, $7::timestamptz, NOW()
+           WHERE NOT EXISTS (
+             SELECT 1 FROM public.session_billing_events
+              WHERE session_id::text = $1::text
+                AND is_sandbox = TRUE
+                AND billing_impact = 'consume'
+           )
+           RETURNING id`,
+          [
+            scheduledSessionId, parentId, input.studentId,
+            String(session.enrollment_id), input.tutorId, input.runId,
+            input.completedAt || new Date().toISOString(),
+          ],
+        );
+        if (newEvent.rowCount !== 1) {
+          throw new Error("Sandbox targeted re-diagnosis consumption was already recorded.");
+        }
+        const updatedCycle = await client.query(
+          `UPDATE public.membership_months
+              SET sessions_used = sessions_used + 1,
+                  sessions_remaining = sessions_remaining - 1,
+                  updated_at = NOW()
+            WHERE id::text = $1::text
+              AND parent_id::text = $2::text
+              AND student_id::text = $3::text
+              AND is_sandbox = TRUE
+              AND status = 'active'
+              AND sessions_used = $4::int
+              AND sessions_remaining = $5::int
+              AND sessions_remaining > 0
+            RETURNING id`,
+          [
+            cycle.id, parentId, input.studentId,
+            cycle.sessions_used, cycle.sessions_remaining,
+          ],
+        );
+        if (updatedCycle.rowCount !== 1) {
+          throw new Error("Sandbox package consumption could not be atomically reconciled.");
+        }
+      }
+    }
+
+    if (status !== "completed") {
+      const changed = await client.query(
+        `UPDATE public.scheduled_sessions
+            SET status = 'completed',
+                attendance_status = 'both_joined',
+                recording_status = 'manual_not_tracked',
+                transcript_status = 'manual_not_tracked',
+                updated_at = $4
+          WHERE id::text = $1::text
+            AND tutor_id::text = $2::text
+            AND student_id::text = $3::text
+            AND type = 'training'
+            AND status IN ('confirmed', 'scheduled', 'ready', 'live')
+        RETURNING id`,
+        [
+          scheduledSessionId, input.tutorId, input.studentId,
+          input.completedAt || new Date().toISOString(),
+        ],
+      );
+      if (changed.rowCount !== 1) {
+        throw new Error("Completed re-diagnosis could not retire its scheduled training session.");
+      }
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 const canonicalJson = canonicalizeEvidenceJson;
@@ -1161,6 +1346,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
                 tutorId,
                 studentId,
                 completedAt: existingRun.completed_at || null,
+                runId,
               });
             }
             if (existingRun.timing_policy_version !== 1) {
@@ -1363,6 +1549,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
             tutorId,
             studentId,
             completedAt: finalized.observedAt,
+            runId,
           });
         }
 

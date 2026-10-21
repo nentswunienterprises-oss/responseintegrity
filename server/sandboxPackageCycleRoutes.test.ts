@@ -105,3 +105,41 @@ test("Preview fixture retains the simulated cycle and does not grant another mon
   assert.ok(preview.includes('normalize(process.env.VERCEL_ENV) !== "preview"'));
 
 });
+
+
+test("targeted re-diagnosis consumes a package session only after scoped completed evidence", () => {
+  const source = readFileSync("server/evidenceCompleteDiagnosisRoutes.ts", "utf8");
+  const begin = source.indexOf("async function completeScheduledTrainingSessionAfterDiagnosis(");
+  const finish = source.indexOf("const canonicalJson = canonicalizeEvidenceJson;", begin);
+  assert.ok(begin >= 0 && finish > begin);
+  const completion = source.slice(begin, finish);
+  assert.match(completion, /await client\.query\("BEGIN"\)/);
+  assert.match(completion, /FOR UPDATE OF session/);
+  assert.match(completion, /enrollment\.is_sandbox_account/);
+  assert.match(completion, /status === "scheduled"/);
+  assert.match(completion, /Sandbox targeted re-diagnosis requires a confirmed package lesson/);
+  assert.match(completion, /enrollment_parent_id/);
+  assert.match(completion, /enrollment_tutor_id/);
+  assert.match(completion, /run\.status = 'completed'/);
+  assert.match(completion, /run\.activity_kind = 'targeted_rediagnosis'/);
+  assert.match(completion, /public\.intro_session_drills/);
+  assert.match(completion, /public\.response_integrity_evidence_ledger/);
+  assert.match(completion, /selectAuthoritativeSandboxCycle/);
+  assert.match(completion, /existingConsumption\.rows\.length === 0/);
+  assert.match(completion, /sandbox_targeted_rediagnosis_completed/);
+  assert.match(completion, /'consume', 1/);
+  assert.match(completion, /WHERE NOT EXISTS/);
+  assert.match(completion, /sessions_used = sessions_used \+ 1/);
+  assert.match(completion, /sessions_remaining = sessions_remaining - 1/);
+  assert.match(completion, /'training_progression_earned', FALSE/);
+  assert.match(completion, /'specialist_accrual_eligible', FALSE/);
+  assert.match(completion, /await client\.query\("COMMIT"\)/);
+  assert.match(completion, /await client\.query\("ROLLBACK"\)/);
+  assert.doesNotMatch(completion, /INSERT INTO public\.membership_months|UPDATE public\.specialist_package_payouts|specialist_earned_amount/);
+  const callback = source.slice(source.indexOf("sessionResult.activityKind ==="));
+  assert.match(callback, /completeScheduledTrainingSessionAfterDiagnosis\(/);
+  assert.match(callback, /runId,/);
+  const retry = source.slice(source.indexOf('if (existingRun.status === "completed")'));
+  assert.match(retry, /completeScheduledTrainingSessionAfterDiagnosis\(\{/);
+  assert.match(retry, /completedAt: existingRun.completed_at \|\| null,[\s\S]*?runId,/);
+});
