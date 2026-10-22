@@ -315,7 +315,7 @@ async function ensureRediagnosisRun(input: {
         input.trajectory.tutor_id,
         input.trajectory.student_id,
         input.trajectory.session_number,
-        input.truth.canonical_targeted_rediagnosis_phase,
+        targetPhase,
         JSON.stringify(input.truth.behavior_model_version === 2 ? {
           decisionPolicyVersion: 2,
           _diagnosisContext: {
