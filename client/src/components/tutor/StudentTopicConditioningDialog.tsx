@@ -1231,7 +1231,7 @@ export default function StudentTopicConditioningDialog({
       // The existing Map preparation checkbox is the single confirmation.
       // The server derives phase, form, first set, bank and constraints; the
       // browser never supplies canonical rep identifiers or answer material.
-      if (isSandboxMode && topicState.hasObservedState && !topicState.requiresTargetedRediagnosis) {
+      if (isSandboxMode && topicState.hasObservedState) {
         const plan = sandboxMapPreparationQuery.data;
         if (!plan || sandboxMapPreparationQuery.isError || !sessionId) {
           setSandboxPreparationError("The current Sandbox preparation prescription could not be verified. Refresh this Map before launching.");
@@ -1268,24 +1268,6 @@ export default function StudentTopicConditioningDialog({
           } finally {
             setSandboxPreparationPending(false);
           }
-        }
-      }
-      if (topicState.requiresTargetedRediagnosis && isSandboxMode && sessionId) {
-        setSandboxPreparationPending(true);
-        setSandboxPreparationError(null);
-        try {
-          await apiRequest("POST", "/api/tutor/sandbox-environment/timing-rediagnosis", {
-            studentId,
-            scheduledSessionId: sessionId,
-            topic: topicState.topic,
-          });
-        } catch (error) {
-          setSandboxPreparationError(
-            error instanceof Error ? error.message : "The prescribed Sandbox re-diagnosis route could not be opened.",
-          );
-          return;
-        } finally {
-          setSandboxPreparationPending(false);
         }
       }
       const topicParam = encodeURIComponent(topicState.topic);
@@ -1755,7 +1737,7 @@ export default function StudentTopicConditioningDialog({
   const selectedSandboxPrepTopic = selectedSessionTopics.size === 1
     ? Array.from(selectedSessionTopics)[0] : null;
   const sandboxTrainingPreparationRequired = isSandboxMode && selectedSessionPrepPlans.length === 1 &&
-    selectedSessionUnknownTopics.length === 0 && selectedSessionRediagnosisTopics.length === 0;
+    selectedSessionUnknownTopics.length === 0;
   const sandboxMapPreparationQuery = useQuery<SandboxMapPreparationPlan>({
     queryKey: ["sandbox-map-preparation-plan", studentId, activeTrainingSession?.id, selectedSandboxPrepTopic],
     enabled: sandboxTrainingPreparationRequired && sessionTopicsModalOpen && Boolean(
