@@ -32576,7 +32576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/tutor/topic-conditioning/:studentId", isAuthenticated, requireRole(["tutor"]), async (req: Request, res: Response) => {
+  app.get("/api/tutor/topic-conditioning/:studentId", isAuthenticated, requireRole(["tutor", "specialist"]), async (req: Request, res: Response) => {
     try {
       const tutorId = (req as any).dbUser.id;
       const { studentId } = req.params;
