@@ -309,9 +309,9 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
       if (!authority || authority.mode !== "sandbox" || !authority.assignmentId) {
         return res.status(403).json({ message: "Active assigned Sandbox mode is required." });
       }
-      return res.json(await armSandboxTimingRediagnosis({
+      return res.json(await prepareSandboxRediagnosis({
         tutorAssignmentId: authority.assignmentId,
-        tutorId: String(user.id), studentId, scheduledSessionId, topic,
+        tutorId: String(user.id), studentId, scheduledSessionId,
       }));
     } catch (error) {
       return sendError(res, error, "Failed to open the Sandbox timing-baseline route.");
