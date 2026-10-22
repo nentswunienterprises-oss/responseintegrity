@@ -1,4 +1,4 @@
-import { SANDBOX_DEVELOPMENT_PLAN_V1, hasSandboxDevelopmentPlan, advanceSandboxDevelopment } from "@shared/sandboxDevelopmentPlan";
+import { SANDBOX_DEVELOPMENT_PLAN_V1, hasSandboxDevelopmentPlan, advanceSandboxDevelopment, migrateSandboxDevelopmentTags } from "@shared/sandboxDevelopmentPlan";
 import { isCapabilityProofPreview } from "./proofTrainingBooking";
 import { sandboxQualificationEvidenceFingerprint } from "./sandboxQualificationFingerprint";
 import { createHash, createHmac } from "crypto";
@@ -726,7 +726,42 @@ async function ensureTrajectory(input: {
 
   const existing = await pool.query(selectSql, selectParams);
   if (existing.rows[0]) {
-    const bundle = bundleFromRow(existing.rows[0]);
+    let bundle = bundleFromRow(existing.rows[0]);
+    // The adaptive curriculum was introduced after some controlled Preview
+    // trajectories had already begun.  Keep their persisted state and all
+    // evidence intact, but attach the curriculum at the current lesson count
+    // so future native sessions can improve, regress, recover, and progress.
+    // This is deliberately isolated to the acceptance Specialist and Preview;
+    // production and historical trajectories remain untouched.
+    const isAcceptanceDevelopment = isCapabilityProofPreview(process.env) &&
+      input.tutorId === "b8448bbf-e01b-4f7b-bf6a-baf3ddb5d0bc";
+    if (isAcceptanceDevelopment && !hasSandboxDevelopmentPlan(bundle.truth.continuity_tags)) {
+      const topicKey = sandboxTopicKey(bundle.trajectory.active_topic_key);
+      let tags = [...bundle.truth.continuity_tags, SANDBOX_DEVELOPMENT_PLAN_V1];
+      if (topicKey) {
+        const completed = await pool.query(
+          `SELECT COUNT(*)::int AS count
+             FROM public.specialist_sandbox_session_evaluations
+            WHERE trajectory_id = $1 AND topic_key = $2 AND phase = $3`,
+          [bundle.trajectory.id, topicKey, bundle.trajectory.specialist_phase],
+        );
+        tags = migrateSandboxDevelopmentTags({
+          tags,
+          topic: topicKey,
+          phase: bundle.trajectory.specialist_phase,
+          completedLessons: Number(completed.rows[0]?.count || 0),
+        });
+      }
+      await pool.query(
+        `UPDATE private.specialist_sandbox_trajectory_truth
+            SET continuity_tags = $2::jsonb, updated_at = now()
+          WHERE trajectory_id = $1`,
+        [bundle.trajectory.id, JSON.stringify(tags)],
+      );
+      const refreshed = await pool.query(selectSql, selectParams);
+      if (!refreshed.rows[0]) throw httpError(409, "Sandbox curriculum migration could not reload the trajectory.");
+      bundle = bundleFromRow(refreshed.rows[0]);
+    }
     const activated = await activateApprovedSandboxModelTransition({
       id: bundle.trajectory.id,
       tutor_assignment_id: bundle.trajectory.tutor_assignment_id,
