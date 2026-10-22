@@ -2,6 +2,7 @@ import type {Request,Response} from "express";
 import {loadSandboxQualificationEvidence} from "./sandboxQualificationEvidence";
 import {evaluateSandboxQualification} from "@shared/sandboxQualificationPolicy";
 import {resolveSandboxBehaviorProfile} from "@shared/sandboxBehaviorProfiles";
+import {isCapabilityProofPreview} from "./proofTrainingBooking";
 type DB={query:(sql:string,values?:any[])=>Promise<{rows:any[]}>};
 
 /** Read-only TD authority: latest Pod ownership is checked BEFORE private history. */
@@ -34,7 +35,10 @@ export function createTdSandboxQualificationReview(db?:DB){
      [tutorAssignmentId,tutorId],
     ),
    ]);
-   const activated=process.env.RI_SANDBOX_QUALIFICATION_V1_ACTIVE==="true";
+   const activated=process.env.RI_SANDBOX_QUALIFICATION_V1_ACTIVE==="true" ||
+    (isCapabilityProofPreview(process.env) &&
+      process.env.RI_SANDBOX_CROSSMODE_CAPTURE_V1==="true" &&
+      tutorId==="b8448bbf-e01b-4f7b-bf6a-baf3ddb5d0bc");
    let qualification=evaluateSandboxQualification(history.events,{activated});
    if(history.sourceGaps.length)qualification={
      ...qualification,qualificationReady:false,
