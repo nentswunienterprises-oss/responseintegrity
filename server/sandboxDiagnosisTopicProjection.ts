@@ -25,7 +25,7 @@ export async function overlaySandboxDiagnosisTopicPlacement(input: {
   if (route?.specialist_route === "normal_training") {
     const key = Object.keys(input.topics).find(k =>
       k.trim().toLowerCase() === String(route.active_topic_key || "").trim().toLowerCase());
-    if (key && input.topics[key]?.requiresTargetedRediagnosis) {
+    if (key) {
       return { ...input.topics, [key]: { ...input.topics[key],
         phase: route.specialist_phase,
         stability: route.specialist_stability,
