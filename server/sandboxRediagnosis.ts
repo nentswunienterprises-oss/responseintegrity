@@ -219,7 +219,17 @@ async function ensureRediagnosisRun(input: {
   truth: TrajectoryTruthRow;
   scheduledSessionId?: string | null;
 }) {
-  const inferredTimingBaselineTarget =\n    input.truth.canonical_route === "normal_training" &&\n    (input.truth.canonical_phase === "Controlled Discomfort" || input.truth.canonical_phase === "Time Pressure Stability")\n      ? "Structured Execution"\n      : null;\n  const targetPhase = input.truth.canonical_targeted_rediagnosis_phase || inferredTimingBaselineTarget;\n  if (\n    (input.truth.canonical_route !== "targeted_rediagnosis" && !inferredTimingBaselineTarget) ||\n    !targetPhase\n  ) {\n    throw httpError(409, "The Sandbox trajectory does not currently require targeted re-diagnosis.");
+  const inferredTimingBaselineTarget =
+    input.truth.canonical_route === "normal_training" &&
+    (input.truth.canonical_phase === "Controlled Discomfort" || input.truth.canonical_phase === "Time Pressure Stability")
+      ? "Structured Execution"
+      : null;
+  const targetPhase = input.truth.canonical_targeted_rediagnosis_phase || inferredTimingBaselineTarget;
+  if (
+    (input.truth.canonical_route !== "targeted_rediagnosis" && !inferredTimingBaselineTarget) ||
+    !targetPhase
+  ) {
+    throw httpError(409, "The Sandbox trajectory does not currently require targeted re-diagnosis.");
   }
 
   const loadExisting = (db: Pick<typeof pool, "query">) => db.query(
