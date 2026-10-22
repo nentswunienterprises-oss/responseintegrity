@@ -6,12 +6,11 @@ export async function overlaySandboxDiagnosisTopicPlacement(input: {
   // trajectory has required re-diagnosis. Routing must not depend on which
   // deployment last wrote the display snapshot.
   const routing = await db.query(`SELECT t.active_topic_key, t.specialist_route,
-      t.specialist_targeted_rediagnosis_phase
+      t.specialist_targeted_rediagnosis_phase, t.specialist_phase, t.specialist_stability
     FROM public.specialist_sandbox_trajectories t
     JOIN public.students s ON s.id::text=t.student_id::text AND s.tutor_id::text=t.tutor_id::text
     JOIN public.parent_enrollments pe ON pe.id=s.parent_enrollment_id AND pe.is_sandbox_account=true
     WHERE t.tutor_id::text=$1 AND t.student_id::text=$2 AND t.status='active'
-      AND t.specialist_route='targeted_rediagnosis'
       AND t.divergence_active=false
     ORDER BY t.updated_at DESC LIMIT 1`, [input.tutorId,input.studentId]);
   const route = routing.rows[0];
@@ -22,6 +21,18 @@ export async function overlaySandboxDiagnosisTopicPlacement(input: {
       requiresTargetedRediagnosis: true,
       targetedRediagnosisStartPhase: route.specialist_targeted_rediagnosis_phase,
     } };
+  }
+  if (route?.specialist_route === "normal_training") {
+    const key = Object.keys(input.topics).find(k =>
+      k.trim().toLowerCase() === String(route.active_topic_key || "").trim().toLowerCase());
+    if (key && input.topics[key]?.requiresTargetedRediagnosis) {
+      return { ...input.topics, [key]: { ...input.topics[key],
+        phase: route.specialist_phase,
+        stability: route.specialist_stability,
+        requiresTargetedRediagnosis: false,
+        targetedRediagnosisStartPhase: null,
+      } };
+    }
   }
   const result = await db.query(`SELECT t.active_topic_key, t.specialist_phase, t.specialist_stability,
       r.id AS source_id, r.completed_at, r.specialist_decision->>'reason' AS reason
@@ -49,5 +60,5 @@ export async function overlaySandboxDiagnosisTopicPlacement(input: {
   return {...input.topics,[key]:{...existing,phase:row.specialist_phase,stability:row.specialist_stability,
     progressionAuthority:"building",lastUpdated:observedAt,requiresTargetedRediagnosis:false,targetedRediagnosisStartPhase:null,
     nextAction:row.reason,history:[...history,{phase:row.specialist_phase,stability:row.specialist_stability,
-    date:observedAt,drillId:row.source_id,structuredObservation:{drillType:"targeted_rediagnosis",evidenceScope:"sandbox",studentStateAuthoritative:false}}]}};
+      date:observedAt,drillId:row.source_id,structuredObservation:{drillType:"targeted_rediagnosis",evidenceScope:"sandbox",studentStateAuthoritative:false}}]}};
 }
