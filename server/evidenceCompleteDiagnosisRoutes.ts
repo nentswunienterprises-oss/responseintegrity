@@ -29,6 +29,7 @@ import {
   buildEvidenceCompleteDiagnosisLedgerRows,
   canonicalizeEvidenceJson,
   replayEvidenceCompleteDiagnosis,
+  diagnosisReplayInheritedBaselineSeconds,
 } from "@shared/evidenceCompleteDiagnosisSubmission";
 import { deriveDiagnosisTpsTimerContract } from "@shared/tpsTimingRuntime";
 import {
@@ -1060,7 +1061,8 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
         const replay = replayEvidenceCompleteDiagnosis(
           run.starting_phase,
           history,
-          boundContract?.baselineSeconds ?? boundTimingBaselineSeconds(run),
+          diagnosisReplayInheritedBaselineSeconds(run.id, boundContract?.baselineSourceEpochKey,
+            boundContract?.baselineSeconds ?? boundTimingBaselineSeconds(run)),
           (() => { const context = diagnosisContinuationContext(parseJsonValue(run.decision, null), history.length, run.scheduled_session_id || null); return { legacyPrefixLength: context.legacyPrefixLength, sessionStarts: context.sessions.map(s => s.startProbeIndex) }; })(),
         );
         if (replay.ok === false) {
@@ -1184,7 +1186,8 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
         });
         if (continuingInNewSession) {
           const prior = replayEvidenceCompleteDiagnosis(startingPhase, storedHistoryForReplay,
-            preexistingTimingContract?.baselineSeconds ?? boundTimingBaselineSeconds(existingRun),
+            diagnosisReplayInheritedBaselineSeconds(runId, preexistingTimingContract?.baselineSourceEpochKey,
+              preexistingTimingContract?.baselineSeconds ?? boundTimingBaselineSeconds(existingRun)),
             { legacyPrefixLength: continuationContext.legacyPrefixLength, sessionStarts: continuationContext.sessions.map(s => s.startProbeIndex) });
           if (prior.ok === false) return res.status(409).json({ message: prior.error });
           // Opening a new lesson does not append a response or manufacture a placement.
@@ -1195,8 +1198,8 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
         const replay = replayEvidenceCompleteDiagnosis(
           startingPhase,
           req.body?.probeHistory || [],
-          preexistingTimingContract?.baselineSeconds ??
-            boundTimingBaselineSeconds(existingRun),
+          diagnosisReplayInheritedBaselineSeconds(runId, preexistingTimingContract?.baselineSourceEpochKey,
+            preexistingTimingContract?.baselineSeconds ?? boundTimingBaselineSeconds(existingRun)),
           { legacyPrefixLength: continuationContext.legacyPrefixLength, sessionStarts: continuationContext.sessions.map(s => s.startProbeIndex) },
         );
         if (replay.ok === false) {

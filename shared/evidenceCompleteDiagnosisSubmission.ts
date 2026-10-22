@@ -165,6 +165,18 @@ const validateExactProbeDimensions = (
   return null;
 };
 
+// A contract earned inside this run is an output of replay, never authority
+// inherited at its beginning. Otherwise it retroactively changes probe routing.
+export function diagnosisReplayInheritedBaselineSeconds(
+  runId: string,
+  contractSourceEpochKey: string | null | undefined,
+  boundBaselineSeconds: number | null,
+): number | null {
+  return runId && contractSourceEpochKey === `diagnosis-v1:${runId}`
+    ? null
+    : boundBaselineSeconds;
+}
+
 export function replayEvidenceCompleteDiagnosis(
   startingPhase: TopicPhase | null,
   rawProbeHistory: unknown,

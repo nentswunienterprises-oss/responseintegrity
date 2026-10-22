@@ -32,6 +32,8 @@ Read this file with these rules:
 
 ### Versioned synthetic learner development — 21 October 2026
 
+Diagnosis replay distinguishes inherited timer authority from a contract earned by that same run. A contract whose source epoch is `diagnosis-v1:<current run ID>` remains the output of the run's three clean comparable measurements; GET restore, ordinary submission and cross-lesson continuation replay those original measurements without injecting that contract at the beginning. Contracts earned by earlier runs or Training retain inherited authority. This preserves the prescribed historical probe order and timer lineage without changing observations or relaxing timed-placement requirements.
+
 Founder-approved correction: Sandbox must deliberately provide the situations required for Specialist development. Exposure is planned; captured observations, independent state evaluation and qualification remain earned evidence.
 
 The initial rollout is bounded to **new trajectories** in the isolated Capability Proof Preview Specialist account. A server-owned `sandbox-development-plan:v1` marker is persisted in private continuity history at creation. Existing unmarked V1/V2 trajectories, seeds, issued forms, submitted observations and evaluations retain their historical selection rules. Production does not opt in through this rollout.
