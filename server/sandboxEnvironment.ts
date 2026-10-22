@@ -66,7 +66,9 @@ import {
   type SandboxCanonicalTopicLane,
 } from "@shared/sandboxTopicAuthority";
 import { buildResponseSnapshotV1, type ResponseSnapshotV1 } from "@shared/responseSnapshot";
-import { loadLatestTpsTimerContract } from "./tpsTimingAuthority";
+import { rebuildSandboxDiagnosisState } from "@shared/sandboxDiagnosisEnvironment";
+import { deriveDiagnosisTpsTimerContract } from "@shared/tpsTimingRuntime";
+import { loadLatestTpsTimerContract, persistTpsTimerContract } from "./tpsTimingAuthority";
 
 export const DEFAULT_SANDBOX_ENVIRONMENT_BANK_KEY = "sandbox_stateful_environment";
 
@@ -1995,6 +1997,36 @@ export async function armSandboxTimingRediagnosis(input: {
     bundle: initial,
     topic,
   });
+  const completedBaseline = await pool.query(
+    `SELECT run.id, run.target_phase, truth.canonical_probe_history
+       FROM public.specialist_sandbox_rediagnosis_runs run
+       JOIN private.specialist_sandbox_rediagnosis_truth truth
+         ON truth.rediagnosis_run_id=run.id
+      WHERE run.trajectory_id=$1 AND run.status='completed'
+      ORDER BY run.completed_at DESC NULLS LAST, run.created_at DESC
+      LIMIT 1`,
+    [bundle.trajectory.id],
+  );
+  const completedRun = completedBaseline.rows[0];
+  if (completedRun && bundle.trajectory.active_topic_key === sandboxTopicKey(topic)) {
+    const canonicalHistory = Array.isArray(completedRun.canonical_probe_history)
+      ? completedRun.canonical_probe_history
+      : [];
+    const recoveredContract = deriveDiagnosisTpsTimerContract({
+      state: rebuildSandboxDiagnosisState({
+        startingPhase: completedRun.target_phase,
+        history: canonicalHistory,
+      }),
+      studentId: input.studentId,
+      topic,
+      sourceEpochKey: `sandbox-rediagnosis-v1:${completedRun.id}`,
+      baselineGroupId: `sandbox-rediagnosis:${completedRun.id}`,
+    });
+    if (recoveredContract) {
+      await persistTpsTimerContract({ contract: recoveredContract, tutorId: input.tutorId });
+      return { status: "timing_ready" as const };
+    }
+  }
   if (bundle.truth.canonical_route === "targeted_rediagnosis") {
     return { status: "targeted_rediagnosis_required" as const,
       targetPhase: bundle.truth.canonical_targeted_rediagnosis_phase };

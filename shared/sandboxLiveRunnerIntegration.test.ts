@@ -845,6 +845,16 @@ test("required re-diagnosis launches the owner of the active operational lane", 
   assert.match(topicMapSource, /sandbox-environment\/timing-rediagnosis/);
   assert.match(sandboxAuthoritySource, /export async function armSandboxTimingRediagnosis/);
   assert.match(sandboxAuthoritySource, /loadLatestTpsTimerContract/);
+  assert.match(
+    sandboxAuthoritySource,
+    /specialist_sandbox_rediagnosis_runs[\s\S]*status='completed'[\s\S]*deriveDiagnosisTpsTimerContract[\s\S]*persistTpsTimerContract/,
+    "a completed clean re-diagnosis repairs its missing timer lineage instead of opening another episode",
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /completedPlacementNeedsTimer[\s\S]*deriveDiagnosisTpsTimerContract[\s\S]*persistTpsTimerContract/,
+    "new completed re-diagnoses persist timing authority before ordinary Training resumes",
+  );
   assert.match(sandboxAuthoritySource, /canonical_targeted_rediagnosis_phase='Structured Execution'/);
   const start = topicMapSource.indexOf("      const topicParam = encodeURIComponent(topicState.topic);");
   const end = topicMapSource.indexOf("\n    }", start);

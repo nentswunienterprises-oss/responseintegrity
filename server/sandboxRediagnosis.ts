@@ -31,6 +31,7 @@ import {
   deriveTpsTimerContractV1,
   type TpsBaselineSnapshot,
 } from "@shared/tpsTimingContract";
+import { deriveDiagnosisTpsTimerContract } from "@shared/tpsTimingRuntime";
 import {
   loadLatestTpsTimerContract,
   persistTpsTimerContract,
@@ -1145,6 +1146,32 @@ export async function submitSandboxRediagnosisProbe(input: {
     probeId: input.submission.probeId,
   });
 
+  const complete = decisionComparison.canonicalDecision.complete;
+  const blocked =
+    !complete && !decisionComparison.canonicalDecision.nextProbeId;
+  const completedPlacementNeedsTimer =
+    complete &&
+    ["Controlled Discomfort", "Time Pressure Stability"].includes(
+      String(decisionComparison.canonicalDecision.placementPhase || ""),
+    ) &&
+    decisionComparison.canonicalDecision.timingBaseline.ready &&
+    decisionComparison.canonicalDecision.timingBaseline.source === "diagnosis_run";
+  const diagnosisTimerContract = completedPlacementNeedsTimer
+    ? deriveDiagnosisTpsTimerContract({
+        state: canonicalState,
+        studentId: input.studentId,
+        topic: planned.trajectory.active_topic_key || "",
+        sourceEpochKey: `sandbox-rediagnosis-v1:${planned.run.id}`,
+        baselineGroupId: `sandbox-rediagnosis:${planned.run.id}`,
+      })
+    : null;
+  if (completedPlacementNeedsTimer && !diagnosisTimerContract) {
+    throw httpError(
+      409,
+      "Sandbox re-diagnosis timing evidence reports ready but its Timer Contract could not be derived.",
+    );
+  }
+
   const turn = await pool.query(
     `INSERT INTO specialist_sandbox_rediagnosis_turns (
        rediagnosis_run_id, trajectory_id, tutor_assignment_id, tutor_id, student_id,
@@ -1204,10 +1231,6 @@ export async function submitSandboxRediagnosisProbe(input: {
     planned.selected.key,
   ].slice(-3);
 
-  const complete = decisionComparison.canonicalDecision.complete;
-  const blocked =
-    !complete && !decisionComparison.canonicalDecision.nextProbeId;
-
   await Promise.all([
     pool.query(
       `UPDATE specialist_sandbox_rediagnosis_runs
@@ -1239,6 +1262,12 @@ export async function submitSandboxRediagnosisProbe(input: {
     ),
   ]);
 
+  if (diagnosisTimerContract) {
+    await persistTpsTimerContract({
+      contract: diagnosisTimerContract,
+      tutorId: input.tutorId,
+    });
+  }
   if (complete) await persistSandboxDiagnosisPlacement(pool, planned.trajectory.id, decisionComparison);
 
   const history = await getSandboxEnvironmentHistory(input);
