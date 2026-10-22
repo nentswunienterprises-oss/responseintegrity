@@ -12,6 +12,7 @@ export async function overlaySandboxDiagnosisTopicPlacement(input: {
     JOIN public.parent_enrollments pe ON pe.id=s.parent_enrollment_id AND pe.is_sandbox_account=true
     WHERE t.tutor_id::text=$1 AND t.student_id::text=$2 AND t.status='active'
       AND t.specialist_route='targeted_rediagnosis'
+      AND t.divergence_active=false
     ORDER BY t.updated_at DESC LIMIT 1`, [input.tutorId,input.studentId]);
   const route = routing.rows[0];
   if (route?.specialist_route === "targeted_rediagnosis") {
@@ -48,5 +49,5 @@ export async function overlaySandboxDiagnosisTopicPlacement(input: {
   return {...input.topics,[key]:{...existing,phase:row.specialist_phase,stability:row.specialist_stability,
     progressionAuthority:"building",lastUpdated:observedAt,requiresTargetedRediagnosis:false,targetedRediagnosisStartPhase:null,
     nextAction:row.reason,history:[...history,{phase:row.specialist_phase,stability:row.specialist_stability,
-      date:observedAt,drillId:row.source_id,structuredObservation:{drillType:"targeted_rediagnosis",evidenceScope:"sandbox",studentStateAuthoritative:false}}]}};
+    date:observedAt,drillId:row.source_id,structuredObservation:{drillType:"targeted_rediagnosis",evidenceScope:"sandbox",studentStateAuthoritative:false}}]}};
 }
