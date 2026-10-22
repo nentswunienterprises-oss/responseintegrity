@@ -35,6 +35,34 @@ export function sandboxDevelopmentLessons(tags: readonly string[], topic: string
   return count;
 }
 
+/**
+ * Attach the adaptive development curriculum to an already-created Preview
+ * trajectory without rewriting its observed state or evidence. Older proof
+ * trajectories were created before the curriculum marker existed; leaving
+ * them on the legacy random stream makes progression unreachable even though
+ * the native training route is otherwise correct.
+ */
+export function migrateSandboxDevelopmentTags(input: {
+  tags: readonly string[];
+  topic: string;
+  phase: TopicPhase;
+  completedLessons: number;
+}): string[] {
+  if (!hasSandboxDevelopmentPlan(input.tags)) {
+    const topicKey = input.topic.trim().toLowerCase();
+    if (!topicKey) throw new Error("Sandbox development requires an owned topic.");
+    if (!Number.isSafeInteger(input.completedLessons) || input.completedLessons < 0) {
+      throw new Error("Sandbox development lesson count must be a non-negative integer.");
+    }
+    return [...new Set([
+      ...input.tags,
+      SANDBOX_DEVELOPMENT_PLAN_V1,
+      `${lessonPrefix(topicKey, input.phase)}${input.completedLessons}`,
+    ])].sort();
+  }
+  return [...new Set(input.tags)].sort();
+}
+
 /** Experience advances only after a complete lesson with preserved conditions.
  * Observation accuracy is graded separately; it cannot rewrite learner conduct.
  */
