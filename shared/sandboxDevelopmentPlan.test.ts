@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { SANDBOX_DEVELOPMENT_PLAN_V1 as marker, advanceSandboxDevelopment, hasSandboxDevelopmentPlan, sandboxDevelopmentLessons } from './sandboxDevelopmentPlan';
+import { SANDBOX_DEVELOPMENT_PLAN_V1 as marker, advanceSandboxDevelopment, hasSandboxDevelopmentPlan, migrateSandboxDevelopmentTags, sandboxDevelopmentLessons } from './sandboxDevelopmentPlan';
 import { resolveSandboxBehaviorProfile, SANDBOX_BEHAVIOR_PROFILE_IDS_V1, selectSandboxBehaviorProfileSeed } from './sandboxBehaviorProfiles';
 import { selectSandboxOutcome, evaluateSandboxCompletedSession, nextSandboxContinuityState, compareSandboxTurn, type SandboxOutcomeDefinition, type SandboxCompletedTurn } from './sandboxEnvironment';
 import { getDrillSchemaDefinition, getFieldDefinitionsForRep, getEvidenceSelectionIdentity, resolveEvidenceSelection } from './responseIntegrityDrillRegistry';
@@ -100,6 +100,14 @@ test('incomplete or contaminated delivery cannot accumulate learning; topics rem
  assert.equal(sandboxDevelopmentLessons(tags,'A','Structured Execution'),0);
  assert.deepEqual(advanceSandboxDevelopment({tags:[],topic:'A',phase:'Clarity',conditionKept:true,lessonCompleted:true}),[]);
  assert.throws(()=>hasSandboxDevelopmentPlan(['sandbox-development-plan:v999']),/Unsupported/);
+});
+
+test('legacy Preview trajectories can enter the adaptive curriculum without rewriting evidence',()=>{
+ const migrated=migrateSandboxDevelopmentTags({tags:['existing-integrity-tag'],topic:'Functions and graphs',phase:'Clarity',completedLessons:8});
+ assert.equal(hasSandboxDevelopmentPlan(migrated),true);
+ assert.equal(sandboxDevelopmentLessons(migrated,'Functions and graphs','Clarity'),8);
+ assert.ok(migrated.includes('existing-integrity-tag'));
+ assert.deepEqual(migrateSandboxDevelopmentTags({tags:migrated,topic:'Functions and graphs',phase:'Clarity',completedLessons:99}),migrated);
 });
 
 test('planned conduct does not award accurate observations or conceal an error',()=>{
