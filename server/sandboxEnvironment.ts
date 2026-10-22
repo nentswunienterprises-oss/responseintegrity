@@ -66,6 +66,7 @@ import {
   type SandboxCanonicalTopicLane,
 } from "@shared/sandboxTopicAuthority";
 import { buildResponseSnapshotV1, type ResponseSnapshotV1 } from "@shared/responseSnapshot";
+import { loadLatestTpsTimerContract } from "./tpsTimingAuthority";
 
 export const DEFAULT_SANDBOX_ENVIRONMENT_BANK_KEY = "sandbox_stateful_environment";
 
@@ -1959,6 +1960,95 @@ export async function getSandboxSessionPreparationPreview(input: {
  * does not qualify on its own: the evidence adapter requires the matching
  * later first rep, preserved conditions and private canonical alignment.
  */
+/** Arm the explicit Map-selected timing-baseline route for an owned lesson. */
+export async function armSandboxTimingRediagnosis(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+  studentId: string;
+  scheduledSessionId: string;
+  topic: string;
+}) {
+  await assertSandboxAccess(input);
+  const topic = String(input.topic || "").trim();
+  if (!topic) throw httpError(400, "Sandbox timing re-diagnosis requires a topic.");
+  await loadSandboxScheduledTrainingSession({
+    scheduledSessionId: input.scheduledSessionId,
+    tutorId: input.tutorId,
+    studentId: input.studentId,
+  });
+  if (await loadLatestTpsTimerContract({ studentId: input.studentId, topic })) {
+    return { status: "timing_ready" as const };
+  }
+  const bank = await loadActiveEnvironmentBank();
+  if (!bank) throw httpError(404, "No active stateful Sandbox environment bank is available.");
+  const initial = await ensureTrajectory({
+    tutorAssignmentId: input.tutorAssignmentId,
+    tutorId: input.tutorId,
+    studentId: input.studentId,
+    bank,
+  });
+  const bundle = await selectSandboxTopicTrajectory({
+    tutorAssignmentId: input.tutorAssignmentId,
+    tutorId: input.tutorId,
+    studentId: input.studentId,
+    bank,
+    bundle: initial,
+    topic,
+  });
+  if (bundle.truth.canonical_route === "targeted_rediagnosis") {
+    return { status: "targeted_rediagnosis_required" as const,
+      targetPhase: bundle.truth.canonical_targeted_rediagnosis_phase };
+  }
+  if (!["Controlled Discomfort", "Time Pressure Stability"].includes(bundle.truth.canonical_phase)) {
+    throw httpError(409, "This Sandbox topic does not require a timing-baseline re-diagnosis.");
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const locked = await client.query(
+      `SELECT trajectory.id, truth.canonical_route, truth.canonical_phase
+         FROM public.specialist_sandbox_trajectories trajectory
+         JOIN private.specialist_sandbox_trajectory_truth truth
+           ON truth.trajectory_id=trajectory.id
+        WHERE trajectory.id=$1 AND trajectory.tutor_assignment_id=$2
+          AND trajectory.tutor_id=$3 AND trajectory.student_id=$4
+        FOR UPDATE OF trajectory, truth`,
+      [bundle.trajectory.id,input.tutorAssignmentId,input.tutorId,input.studentId],
+    );
+    const row = locked.rows[0];
+    if (!row) throw httpError(409, "Sandbox trajectory authority changed. Reload the Map.");
+    if (row.canonical_route === "targeted_rediagnosis") {
+      await client.query("COMMIT");
+      return { status: "targeted_rediagnosis_required" as const,
+        targetPhase: "Structured Execution" as const };
+    }
+    if (!["Controlled Discomfort", "Time Pressure Stability"].includes(String(row.canonical_phase))) {
+      throw httpError(409, "Sandbox phase changed. Reload the Map before re-diagnosis.");
+    }
+    await client.query(
+      `UPDATE public.specialist_sandbox_trajectories
+          SET specialist_route='targeted_rediagnosis',
+              specialist_targeted_rediagnosis_phase='Structured Execution', updated_at=now()
+        WHERE id=$1`, [bundle.trajectory.id],
+    );
+    await client.query(
+      `UPDATE private.specialist_sandbox_trajectory_truth
+          SET canonical_route='targeted_rediagnosis',
+              canonical_targeted_rediagnosis_phase='Structured Execution', updated_at=now()
+        WHERE trajectory_id=$1`, [bundle.trajectory.id],
+    );
+    await client.query("COMMIT");
+    return { status: "targeted_rediagnosis_required" as const,
+      targetPhase: "Structured Execution" as const };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function recordSandboxPreparation(input: {
   tutorAssignmentId: string;
   tutorId: string;

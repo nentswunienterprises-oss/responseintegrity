@@ -842,6 +842,10 @@ test("Sandbox history stays separate from the current package balance in the stu
 
 
 test("required re-diagnosis launches the owner of the active operational lane", () => {
+  assert.match(topicMapSource, /sandbox-environment\/timing-rediagnosis/);
+  assert.match(sandboxAuthoritySource, /export async function armSandboxTimingRediagnosis/);
+  assert.match(sandboxAuthoritySource, /loadLatestTpsTimerContract/);
+  assert.match(sandboxAuthoritySource, /canonical_targeted_rediagnosis_phase='Structured Execution'/);
   const start = topicMapSource.indexOf("      const topicParam = encodeURIComponent(topicState.topic);");
   const end = topicMapSource.indexOf("\n    }", start);
   assert.ok(start >= 0 && end > start);

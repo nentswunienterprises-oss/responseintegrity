@@ -1270,6 +1270,24 @@ export default function StudentTopicConditioningDialog({
           }
         }
       }
+      if (topicState.requiresTargetedRediagnosis && isSandboxMode && sessionId) {
+        setSandboxPreparationPending(true);
+        setSandboxPreparationError(null);
+        try {
+          await apiRequest("POST", "/api/tutor/sandbox-environment/timing-rediagnosis", {
+            studentId,
+            scheduledSessionId: sessionId,
+            topic: topicState.topic,
+          });
+        } catch (error) {
+          setSandboxPreparationError(
+            error instanceof Error ? error.message : "The prescribed Sandbox re-diagnosis route could not be opened.",
+          );
+          return;
+        } finally {
+          setSandboxPreparationPending(false);
+        }
+      }
       const topicParam = encodeURIComponent(topicState.topic);
       const phaseParam = encodeURIComponent(topicState.phase);
       const stabilityParam = encodeURIComponent(topicState.stability);

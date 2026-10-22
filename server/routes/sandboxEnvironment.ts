@@ -3,6 +3,7 @@ import { z } from "zod";
 import { parseSandboxPreparationQuery } from "../sandboxPreparationQuery";
 import { isAuthenticated } from "../supabaseAuth";
 import {
+  armSandboxTimingRediagnosis,
   getSandboxEnvironmentHistory,
   prepareSandboxEnvironment,
   recordSandboxPreparation,
@@ -291,6 +292,29 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
       return res.json(environment);
     } catch (error) {
       return sendError(res, error, "Failed to prepare the Sandbox environment.");
+    }
+  });
+
+  app.post("/api/tutor/sandbox-environment/timing-rediagnosis", isAuthenticated, async (req, res) => {
+    try {
+      const user = requireSpecialist(req, res);
+      if (!user) return;
+      const studentId = String(req.body?.studentId || "").trim();
+      const scheduledSessionId = String(req.body?.scheduledSessionId || "").trim();
+      const topic = String(req.body?.topic || "").trim();
+      if (!studentId || !scheduledSessionId || !topic) {
+        return res.status(400).json({ message: "studentId, scheduledSessionId and topic are required." });
+      }
+      const authority = await loadTutorOperationalModeAuthorityForTutor(String(user.id));
+      if (!authority || authority.mode !== "sandbox" || !authority.assignmentId) {
+        return res.status(403).json({ message: "Active assigned Sandbox mode is required." });
+      }
+      return res.json(await armSandboxTimingRediagnosis({
+        tutorAssignmentId: authority.assignmentId,
+        tutorId: String(user.id), studentId, scheduledSessionId, topic,
+      }));
+    } catch (error) {
+      return sendError(res, error, "Failed to open the Sandbox timing-baseline route.");
     }
   });
 
