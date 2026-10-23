@@ -1,0 +1,42 @@
+name: P0 Security Containment
+on:
+  pull_request:
+    paths:
+      - "server/**"
+      - "package.json"
+      - "package-lock.json"
+      - "shared/storedDocumentUrl*"
+      - "migrations/20261013_p0*"
+      - "checks/**"
+      - "config/production-migration-authority.json"
+      - "scripts/p0Containment*"
+      - "scripts/productionMigrationAuthority*"
+      - ".github/workflows/p0-security-containment.yml"
+  push:
+    branches: ["security/p0-anon-containment-20261013"]
+permissions:
+  contents: read
+jobs:
+  isolated-containment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run test:p0-security
+      - run: npm run test:production-link
+      - run: npm run test:demand-production
+      - run: npm run test:capability
+      - run: npm run test:sandbox
+      - run: npm run test:ri-snapshot
+      - run: npm run test:practicals
+      - run: npm run test:trial:policy
+      - run: npm run test:db-authority
+      - run: npm run db:authority:verify
+      - run: npm run build:backend
+      - run: npm run build:vercel-api

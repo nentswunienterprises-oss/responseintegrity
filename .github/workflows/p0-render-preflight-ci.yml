@@ -1,0 +1,24 @@
+name: P0 Render Credential Preflight CI
+on:
+  pull_request:
+    paths:
+      - "server/index.ts"
+      - "server/p0RenderRuntimePreflight.ts"
+      - "server/p0RenderRuntimePreflight.test.ts"
+      - "server/privilegedSupabaseKey.ts"
+      - ".github/workflows/p0-render-preflight-ci.yml"
+permissions:
+  contents: read
+jobs:
+  render-preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: node --import tsx --test server/p0RenderRuntimePreflight.test.ts
+      - run: npm run build:backend
+      - run: npm run build:vercel-api
