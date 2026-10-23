@@ -74,7 +74,6 @@ interface TutorAlignmentSummaryData {
     practicalsReady: boolean;
     reason: string;
   } | null;
-}
   developmentPathway?: {
     currentStage: string;
     pathway: { status: string; timeline?: { label?: string; daysRemaining?: number | null } | null } | null;
@@ -82,6 +81,7 @@ interface TutorAlignmentSummaryData {
     sandbox?: { readiness?: { practicalsReady?: boolean; qualification?: { qualificationReady?: boolean; qualifyingSessions?: number; requiredSessions?: number; phaseCounts?: Record<string, number>; phaseMinimums?: Record<string, number>; reason?: string } }; latestAssessment?: { decision?: string } | null };
     trial?: { status?: string; gate?: { reviewable?: boolean } } | null;
   } | null;
+}
 
 interface TutorPodSession {
   id: string;
