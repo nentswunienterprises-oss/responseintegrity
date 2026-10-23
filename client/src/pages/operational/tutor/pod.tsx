@@ -75,6 +75,13 @@ interface TutorAlignmentSummaryData {
     reason: string;
   } | null;
 }
+  developmentPathway?: {
+    currentStage: string;
+    pathway: { status: string; timeline?: { label?: string; daysRemaining?: number | null } | null } | null;
+    training?: { sandboxReady: boolean; summary?: Record<string, { complete: number; total: number }> };
+    sandbox?: { readiness?: { practicalsReady?: boolean; qualification?: { qualificationReady?: boolean; qualifyingSessions?: number; requiredSessions?: number; phaseCounts?: Record<string, number>; phaseMinimums?: Record<string, number>; reason?: string } }; latestAssessment?: { decision?: string } | null };
+    trial?: { status?: string; gate?: { reviewable?: boolean } } | null;
+  } | null;
 
 interface TutorPodSession {
   id: string;
@@ -123,6 +130,25 @@ function formatTutorAlignmentStatus(value: string | null | undefined) {
 }
 
 const SANDBOX_PHASES = ["Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability"] as const;
+
+function formatDevelopmentStage(value: string | null | undefined) {
+  const labels: Record<string, string> = {
+    application: "Application", training: "Training", sandbox: "Sandbox", practicals: "Practicals", trial: "Trial", certification: "Certification", certified_live: "Certified Live",
+  };
+  return labels[String(value || "").toLowerCase()] || "Pathway stage unavailable";
+}
+
+function formatDevelopmentNextAction(stage: string | null | undefined, pathway: TutorAlignmentSummaryData["developmentPathway"]) {
+  const value = String(stage || "").toLowerCase();
+  if (value === "application") return "Complete application and onboarding requirements before Training begins.";
+  if (value === "training") return pathway?.training?.sandboxReady ? "Training gate complete; Sandbox is the next governed stage." : "Complete the assigned Deep Dives and Mastery Checks to establish the Training gate.";
+  if (value === "sandbox") return pathway?.sandbox?.readiness?.qualification?.qualificationReady ? "Sandbox evidence is complete; assigned TD review is the next gate." : "Complete the prescribed phase-balanced Sandbox evidence run."; 
+  if (value === "practicals") return "Complete Prepare, Execute and Evidence for the assigned Practicals."; 
+  if (value === "trial") return "Complete the two-family Trial evidence window and outcome reviews."; 
+  if (value === "certification") return "Complete the remaining certification review decisions."; 
+  if (value === "certified_live") return "Certified Live. Continue operating under the RI-OS evidence standard."; 
+  return "The next governed pathway requirement will appear here."; 
+}
 
 function formatTutorMode(value: TutorAlignmentSummaryData["operationalMode"]) {
   if (!value) return "Unavailable";
@@ -246,6 +272,14 @@ export default function TutorPod() {
     queryKey: ["/api/tutor/pod-alignment-summary"],
     enabled: isAuthenticated && !authLoading,
     refetchInterval: false,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
+  });
+  const { data: developmentPathway } = useQuery<TutorAlignmentSummaryData["developmentPathway"]>({
+    queryKey: ["/api/tutor/development-pathway"],
+    queryFn: async () => authorizedGetJson("/api/tutor/development-pathway"),
+    enabled: isAuthenticated && !authLoading,
     refetchOnWindowFocus: !emergencyDbMode,
     refetchOnReconnect: !emergencyDbMode,
     retry: emergencyDbMode ? false : undefined,
@@ -541,6 +575,8 @@ export default function TutorPod() {
   const selectedStudent = (students as any[]).find((s: any) => s.id === selectedStudentId) || null;
 
   const firstName = user?.name?.split(" ")[0] || "Specialist";
+  const standingSummary = tutorAlignmentSummary ? { ...tutorAlignmentSummary, developmentPathway: developmentPathway || tutorAlignmentSummary.developmentPathway || null } : tutorAlignmentSummary;
+
   const specialistOperationalMode = String(
     trialCaseData?.mode ||
       tutorAlignmentSummary?.operationalMode ||
@@ -664,7 +700,7 @@ export default function TutorPod() {
                 <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Specialist Alignment</p>
                 <h2 className="mt-1 text-xl font-semibold tracking-[-0.01em]">Your standing in the system</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  This shows your current operating mode, audited alignment and Sandbox qualification progress.
+                  This is the authoritative Specialist Development Pathway standing: current stage, evidence state and next governed requirement.
                 </p>
               </div>
             </div>
@@ -677,9 +713,9 @@ export default function TutorPod() {
                 </p>
               </div>
               <div className="ri-alignment-info-card rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
-                <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Last Audit</p>
+                <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Current Stage</p>
                 <p className="mt-2 text-sm font-medium text-foreground">
-                  {formatTutorAuditTimestamp(tutorAlignmentSummary?.alignmentSummary?.lastAuditAt)}
+                  {formatDevelopmentStage(standingSummary?.developmentPathway?.currentStage || tutorAlignmentSummary?.operationalMode)}
                 </p>
               </div>
               <div className="ri-alignment-info-card rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
@@ -694,6 +730,13 @@ export default function TutorPod() {
                     : formatTutorAlignmentStatus(tutorAlignmentSummary?.alignmentSummary?.actionRequired)}
                 </p>
               </div>
+            </div>
+
+            <div className="ri-alignment-info-card rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
+              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Next governed requirement</p>
+              <p className="mt-2 text-sm font-medium text-foreground">
+                {formatDevelopmentNextAction(standingSummary?.developmentPathway?.currentStage, standingSummary?.developmentPathway)}
+              </p>
             </div>
 
             {tutorAlignmentSummary?.sandboxProgress?.qualification ? (
