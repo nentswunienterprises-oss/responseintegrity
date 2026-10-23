@@ -109,6 +109,17 @@ type Readiness = {
     stateChangeObserved: boolean;
     breakdownRecoveryObserved: boolean;
   };
+  qualification?: {
+    policyVersion: number;
+    activated: boolean;
+    developmentCoverageReady: boolean;
+    qualificationReady: boolean;
+    qualifyingSessions: number;
+    requiredSessions: number;
+    phaseCounts: Record<string, number>;
+    phaseMinimums: Record<string, number>;
+    reason: string;
+  };
   reason: string;
 };
 
@@ -345,6 +356,13 @@ const CAPABILITY_LABELS: Record<CapabilityId, string> = {
   authority_integrity: "Authority Integrity",
   continuity_integrity: "Continuity Integrity",
 };
+
+const SANDBOX_PHASES = [
+  "Clarity",
+  "Structured Execution",
+  "Controlled Discomfort",
+  "Time Pressure Stability",
+] as const;
 
 const humanize = (value: string) =>
   String(value || "")
@@ -1549,6 +1567,70 @@ export default function SpecialistSandboxSimulation({
             )}
           </CardContent>
         </Card>
+
+        {readiness.qualification ? (
+          <Card>
+            <CardHeader>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle>Sandbox qualification progress</CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Your progress shows what remains without revealing hidden student profiles or canonical answers.
+                  </p>
+                </div>
+                <Badge variant={readiness.qualification.qualificationReady ? "default" : "outline"}>
+                  {readiness.qualification.qualificationReady
+                    ? "Qualified pending TD review"
+                    : readiness.qualification.developmentCoverageReady
+                      ? "Final run in progress"
+                      : "Coverage developing"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/20 p-3">
+                <div>
+                  <p className="text-sm font-semibold">
+                    {readiness.qualification.qualifyingSessions}/{readiness.qualification.requiredSessions} clean sessions credited
+                  </p>
+                  <p className="text-xs text-muted-foreground">Two clean sessions are required in each phase.</p>
+                </div>
+                <Badge variant="secondary">Policy v{readiness.qualification.policyVersion || 1}</Badge>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {SANDBOX_PHASES.map((phase) => {
+                  const count = readiness.qualification?.phaseCounts?.[phase] || 0;
+                  const required = readiness.qualification?.phaseMinimums?.[phase] || 2;
+                  const remaining = Math.max(0, required - count);
+                  return (
+                    <div key={phase} className="rounded-lg border p-3">
+                      <p className="text-xs font-medium">{phase}</p>
+                      <p className="mt-1 text-lg font-semibold">{count}/{required}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {remaining === 0 ? "Coverage complete" : `${remaining} clean session${remaining === 1 ? "" : "s"} remaining`}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="rounded-lg border p-3 text-sm">
+                <p className="font-medium">Next requirement</p>
+                <p className="mt-1 text-muted-foreground">
+                  {readiness.qualification.qualificationReady
+                    ? "All qualification requirements are complete. Await TD review; Sandbox does not transition automatically."
+                    : (() => {
+                        const next = SANDBOX_PHASES.find((phase) =>
+                          (readiness.qualification?.phaseCounts?.[phase] || 0) < (readiness.qualification?.phaseMinimums?.[phase] || 2),
+                        );
+                        return next
+                          ? `Complete a clean ${next} session through the next confirmed Sandbox lesson.`
+                          : readiness.qualification.reason;
+                      })()}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
 
         {lastResult && (
           <Alert>
