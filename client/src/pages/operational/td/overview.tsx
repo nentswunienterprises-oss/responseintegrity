@@ -942,65 +942,7 @@ export default function TDOverview() {
         )}
       </div>
 
-      <BattleTestRunnerDialog
-        open={!!activeTutorRun}
-        onOpenChange={(open) => {
-          if (!open) setActiveTutorRun(null);
-        }}
-        title={
-          activeTutorRun
-            ? `Tutor Battle Test - ${activeTutorRun.tutorName}`
-            : "Tutor Battle Test"
-        }
-        description={
-          activeTutorRun
-            ? `Run the Response Integrity Specialist Alignment Engine for ${activeTutorRun.tutorName} inside ${activeTutorRun.podName}. Complete one 15-question Battle Test, save it, then run the next assigned deep dive separately.`
-            : "Run the Response Integrity Specialist Alignment Engine."
-        }
-        phaseOptions={activePhaseOptions}
-        preSelectedPhaseKeys={activeTutorRun?.autoSelectedPhases?.length ? activeTutorRun.autoSelectedPhases : undefined}
-        selectionMode={activeTutorRun?.autoSelectedPhases?.length ? "fixed" : "multiple"}
-        submitLabel="Save Tutor Battle Test"
-        onSubmit={async ({ selectedPhases, responses }) => {
-          if (!activeTutorRun) return;
-          await submitTutorBattleTestMutation.mutateAsync({
-            podId: activeTutorRun.podId,
-            tutorAssignmentId: activeTutorRun.assignmentId,
-            tutorId: activeTutorRun.tutorId,
-            phaseKeys: selectedPhases.map((phase) => phase.key),
-            phaseVariants: Object.fromEntries(
-              selectedPhases.map((phase) => [phase.key, phase.variantKey || "form_a"])
-            ),
-            responses,
-          });
-        }}
-      />
 
-      <BattleTestHistoryDialog
-        open={!!activeTutorHistory}
-        onOpenChange={(open) => {
-          if (!open) setActiveTutorHistory(null);
-        }}
-        title={
-          activeTutorHistory
-            ? `Alignment Audit History - ${activeTutorHistory.tutorName}`
-            : "Alignment Audit History"
-        }
-        description="Stored Specialist alignment-audit runs and rep-level evidence."
-        historyQueryKey={
-          activeTutorHistory
-            ? `battle-test-runs-${activeTutorHistory.podId}`
-            : "battle-test-runs"
-        }
-        historyEndpoint={
-          activeTutorHistory
-            ? `/api/battle-tests/pods/${activeTutorHistory.podId}/runs`
-            : "/api/battle-tests/pods/unknown/runs"
-        }
-        filter={(run) =>
-          !!activeTutorHistory && run.subjectType === "tutor" && run.tutorAssignmentId === activeTutorHistory.assignmentId
-        }
-      />
 
       <ViewAssignmentsDialog
         open={assignmentsDialogOpen}
