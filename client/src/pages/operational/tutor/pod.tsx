@@ -15,7 +15,7 @@ import { StudentCard } from "@/components/tutor/StudentCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ChevronDown, ChevronUp, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { ApplicationForm } from "@/components/tutor/application-form";
@@ -112,22 +112,6 @@ function formatTutorAuditTimestamp(value: string | null | undefined) {
   });
 }
 
-function formatTutorAlignmentStatus(value: string | null | undefined) {
-  if (!value) return "You have not been fully reviewed yet.";
-  if (value === "Complete the remaining tutor battle-test audits.") {
-    return "Your full alignment review is not complete yet. Remaining Response Integrity audit modules still need to be checked.";
-  }
-  if (value === "Continue. Eligible for greater responsibility if other operating criteria hold.") {
-    return "You are in good standing. Keep operating at this level.";
-  }
-  if (value === "Correct immediately and retest in the next cycle.") {
-    return "Your alignment needs strengthening. Review feedback and prepare for recheck.";
-  }
-  if (value === "Remove from live responsibility and recondition before returning.") {
-    return "You are off standard right now. Reconditioning is required before returning to live work.";
-  }
-  return value;
-}
 
 const SANDBOX_PHASES = ["Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability"] as const;
 
@@ -199,7 +183,6 @@ export default function TutorPod() {
   const [identitySheetOpen, setIdentitySheetOpen] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState<string>("");
   const [selectedStudentName, setSelectedStudentName] = useState<string>("");
-  const [showFullStanding, setShowFullStanding] = useState(false);
   const [proposalOpen, setProposalOpen] = useState(false);
   const [assignmentsDialogOpen, setAssignmentsDialogOpen] = useState(false);
   const [trackingDialogOpen, setTrackingDialogOpen] = useState(false);
@@ -727,7 +710,7 @@ export default function TutorPod() {
                       : tutorAlignmentSummary.sandboxProgress.qualification.developmentCoverageReady
                         ? "Final qualification run in progress."
                         : "Sandbox coverage developing."
-                    : formatTutorAlignmentStatus(tutorAlignmentSummary?.alignmentSummary?.actionRequired)}
+                    : "Pathway standing is available above. Follow the next governed requirement."}
                 </p>
               </div>
             </div>
@@ -789,119 +772,7 @@ export default function TutorPod() {
               </div>
             )}
 
-            <div className="ri-alignment-section rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
-              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Audit Modules</p>
-              {tutorAlignmentSummary?.alignmentSummary?.phaseScores?.length ? (
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {tutorAlignmentSummary.alignmentSummary.phaseScores.map((phase) => (
-                    <div key={phase.phaseKey} className="ri-alignment-info-card rounded-xl border border-primary/15 bg-background px-3 py-2 text-sm text-foreground">
-                      <span className="font-medium">{phase.title}</span>
-                      <span className="ml-2 text-muted-foreground">{Math.round(phase.percent)}%</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-2 text-sm text-muted-foreground">
-                  No Specialist audit has been recorded for you yet.
-                </p>
-              )}
-            </div>
 
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-8 rounded-full px-3 text-xs text-muted-foreground hover:text-foreground"
-                onClick={() => setShowFullStanding((current) => !current)}
-              >
-                {showFullStanding ? "Hide Full Standing" : "View Full Standing"}
-                {showFullStanding ? <ChevronUp className="ml-1.5 h-3.5 w-3.5" /> : <ChevronDown className="ml-1.5 h-3.5 w-3.5" />}
-              </Button>
-            </div>
-
-            {showFullStanding ? (
-              <>
-                {!tutorAlignmentSummary?.alignmentSummary?.moduleProgress?.length &&
-                !tutorAlignmentSummary?.alignmentSummary?.nextBattleTests?.length &&
-                !tutorAlignmentSummary?.alignmentSummary?.deepDiveProgress?.length ? (
-                  <div className="ri-alignment-info-card rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
-                    <p className="text-sm font-medium text-foreground">No detailed standing data available yet.</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Your summary standing is shown above. Detailed module, battle test, and deep dive progress will appear here once audit data is available.
-                    </p>
-                  </div>
-                ) : null}
-
-                {tutorAlignmentSummary?.alignmentSummary?.moduleProgress?.length ? (
-                  <div className="ri-alignment-section rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
-                    <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Module Progress</p>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                      {tutorAlignmentSummary.alignmentSummary.moduleProgress.map((module) => (
-                        <div key={module.moduleKey} className="ri-alignment-info-card rounded-xl border border-primary/15 bg-background px-3 py-2 text-sm text-foreground">
-                          <span className="font-medium">{module.title}</span>
-                          <span className="ml-2 text-muted-foreground">
-                            {module.completedCount}/{module.totalCount}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                {tutorAlignmentSummary?.alignmentSummary?.nextBattleTests?.length ? (
-                  <div className="ri-alignment-section rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
-                    <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Next Battle Test</p>
-                    <div className="mt-3 space-y-2">
-                      {tutorAlignmentSummary.alignmentSummary.nextBattleTests.map((entry) => (
-                        <div key={entry.phaseKey} className="ri-alignment-info-card rounded-xl border border-primary/15 bg-background px-3 py-2 text-sm text-foreground">
-                          <span className="font-medium">{entry.title}</span>
-                          <span className="ml-2 text-muted-foreground">{entry.reason}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                {tutorAlignmentSummary?.alignmentSummary?.deepDiveProgress?.length ? (
-                  <div className="ri-alignment-section rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
-                    <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Deep Dive Progress</p>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                      {tutorAlignmentSummary.alignmentSummary.deepDiveProgress.map((entry) => (
-                        <div
-                          key={entry.phaseKey}
-                          className="ri-alignment-info-card rounded-xl border border-primary/10 bg-background px-3 py-3 text-sm text-foreground"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="font-medium">{entry.title}</p>
-                              <p className="mt-0.5 text-xs text-muted-foreground">{entry.moduleTitle}</p>
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              {entry.historicalState === "completed" ? "Completed" : "In progress"}
-                            </span>
-                          </div>
-                          <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                            <span>Streak {entry.currentStreak}/3</span>
-                            <span>
-                              Score {entry.latestScore == null ? "N/A" : `${Math.round(entry.latestScore)}%`}
-                            </span>
-                            <span>
-                              {entry.currentHealthState === "locked"
-                                ? "Locked"
-                                : entry.currentHealthState === "watchlist"
-                                ? "Watchlist"
-                                : "Drift"}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </>
-            ) : null}
-          </div>
         </Card>
 
         <div className="grid gap-4 md:grid-cols-2 md:gap-6">
