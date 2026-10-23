@@ -11,7 +11,9 @@ const source = fs.readFileSync(
 test("Specialist, TD and COO account menus expose the shared RI Appearance control", () => {
   assert.match(source, /isTD/);
   assert.match(source, /isCOO/);
-  assert.match(source, /showAppearance =/);\n  assert.match(source, /user\\?\\.role === "parent"/);\n  assert.match(source, /user\\?\\.role === "student"/);
+  assert.match(source, /showAppearance =/);
+  assert.match(source, /user\\?\\.role === "parent"/);
+  assert.match(source, /user\\?\\.role === "student"/);
   assert.match(source, /Appearance/);
   assert.match(source, /Warm Dark/);
   assert.match(source, /value="dark"/);
