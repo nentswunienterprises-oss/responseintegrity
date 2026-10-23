@@ -66,6 +66,7 @@ import {
   type SandboxCanonicalTopicLane,
 } from "@shared/sandboxTopicAuthority";
 import { buildResponseSnapshotV1, type ResponseSnapshotV1 } from "@shared/responseSnapshot";
+import { loadLatestTpsTimerContract } from "./tpsTimingAuthority";
 
 export const DEFAULT_SANDBOX_ENVIRONMENT_BANK_KEY = "sandbox_stateful_environment";
 
@@ -1630,6 +1631,18 @@ async function planNextRep(input: {
   }
 
   const phase = input.bundle.truth.canonical_phase;
+  if (phase === "Controlled Discomfort" || phase === "Time Pressure Stability") {
+    const timerContract = await loadLatestTpsTimerContract({
+      studentId: input.bundle.trajectory.student_id,
+      topic: input.bundle.trajectory.active_topic_key,
+    });
+    if (!timerContract) {
+      return {
+        blockedByRoute: true as const,
+        targetPhase: "Structured Execution" as const,
+      };
+    }
+  }
   const trainingSets = scoredTrainingSets(phase);
   const plan = flattenedRepPlan(phase);
   const completedInSession = await currentSessionEventCount(input.bundle);
