@@ -1,0 +1,530 @@
+[
+  {
+    "access": {
+      "privileged_62": [
+        {
+          "relname": "academic_profiles",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "affiliate_applications",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "affiliate_onboarding_acceptance_events",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "affiliate_onboarding_acceptances",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "affiliate_onboarding_clause_acknowledgements",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "assignments",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "battle_test_rep_logs",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "battle_test_runs",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "broadcast_reads",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "broadcasts",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "commitment_logs",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "coo_brain_library_items",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "egp_crew_members",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "egp_crews",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "executive_command_tasks",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "executive_profiles",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "executive_role_appointments",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "executive_task_proofs",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "executive_task_time_logs",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "executive_weekly_records",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "intro_session_drills",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "membership_months",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "notifications",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "onboarding_proposals",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "parent_reports",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "parents",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "payment_transactions",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "pods",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "push_subscriptions",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "reflections",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "scheduled_sessions",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "session_billing_events",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "sessions",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "struggle_targets",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "student_commitments",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "student_communication_messages",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "student_communication_threads",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "student_reflections",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "student_sessions",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "student_users",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "students",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "td_applications",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "td_onboarding_acceptance_events",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "td_onboarding_acceptances",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "td_onboarding_clause_acknowledgements",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "topic_conditioning_activations",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "training_session_runs",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "tutor_applications",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "tutor_assignments",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "tutor_battle_test_deep_dive_progress",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "tutor_battle_test_statuses",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "tutor_certification_decisions",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "tutor_onboarding_acceptance_events",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "tutor_onboarding_acceptances",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "tutor_onboarding_clause_acknowledgements",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "tutor_trial_cases",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "tutor_trial_placements",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "tutor_trial_reviews",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "tutoring_sessions",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "users",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "verification_docs",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        },
+        {
+          "relname": "weekly_check_ins",
+          "select_ok": true,
+          "insert_ok": true,
+          "update_ok": true,
+          "delete_ok": true
+        }
+      ],
+      "roles": [
+        {
+          "rolname": "authenticated",
+          "rolbypassrls": false
+        },
+        {
+          "rolname": "anon",
+          "rolbypassrls": false
+        },
+        {
+          "rolname": "service_role",
+          "rolbypassrls": true
+        },
+        {
+          "rolname": "postgres",
+          "rolbypassrls": true
+        }
+      ],
+      "document_columns": [
+        {
+          "table_name": "affiliate_applications",
+          "column_name": "doc_5_submission_url"
+        },
+        {
+          "table_name": "affiliate_applications",
+          "column_name": "user_id"
+        },
+        {
+          "table_name": "coo_brain_library_items",
+          "column_name": "pdf_url"
+        },
+        {
+          "table_name": "td_applications",
+          "column_name": "doc_7_submission_url"
+        },
+        {
+          "table_name": "td_applications",
+          "column_name": "user_id"
+        },
+        {
+          "table_name": "tutor_applications",
+          "column_name": "doc_1_completed_template_url"
+        },
+        {
+          "table_name": "tutor_applications",
+          "column_name": "doc_1_submission_url"
+        },
+        {
+          "table_name": "tutor_applications",
+          "column_name": "doc_2_completed_template_url"
+        },
+        {
+          "table_name": "tutor_applications",
+          "column_name": "doc_2_submission_url"
+        },
+        {
+          "table_name": "tutor_applications",
+          "column_name": "doc_3_completed_template_url"
+        },
+        {
+          "table_name": "tutor_applications",
+          "column_name": "doc_3_submission_url"
+        },
+        {
+          "table_name": "tutor_applications",
+          "column_name": "doc_4_completed_template_url"
+        },
+        {
+          "table_name": "tutor_applications",
+          "column_name": "doc_4_submission_url"
+        },
+        {
+          "table_name": "tutor_applications",
+          "column_name": "doc_5_completed_template_url"
+        },
+        {
+          "table_name": "tutor_applications",
+          "column_name": "doc_5_submission_url"
+        },
+        {
+          "table_name": "tutor_applications",
+          "column_name": "doc_6_submission_url"
+        },
+        {
+          "table_name": "tutor_applications",
+          "column_name": "user_id"
+        }
+      ]
+    }
+  }
+]
