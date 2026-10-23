@@ -19072,6 +19072,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const user = await storage.getUser(tutorId);
           const students = await storage.getStudentsByTutor(tutorId);
           const operationalMode = await getTutorOperationalMode(tutorId);
+          let sandboxProgress = null;
+          if (operationalMode === "sandbox") {
+            try {
+              const readiness = await getSandboxCapabilityReadiness({ tutorAssignmentId: assignment.id, tutorId });
+              sandboxProgress = { qualification: readiness.qualification, practicalsReady: readiness.practicalsReady, reason: readiness.reason };
+            } catch (error) {
+              console.error("Failed to load Specialist Sandbox progress:", error);
+            }
+          }
           const alignmentSummary = {
             assignmentId: assignment.id,
             tutorId,
@@ -19097,6 +19106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             assignmentId: assignment.id,
             operationalMode,
             alignmentSummary,
+            sandboxProgress,
           });
         }
         const assignment = await storage.getTutorAssignment(tutorId);
@@ -19143,7 +19153,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           summary.tutorSummaries.find((entry) => entry.tutorId === tutorId) ||
           null;
 
+        let sandboxProgress = null;
         if ((alignmentSummary?.mode || assignment.operationalMode) === "sandbox") {
+          try {
+            const readiness = await getSandboxCapabilityReadiness({ tutorAssignmentId: assignment.id, tutorId });
+            sandboxProgress = { qualification: readiness.qualification, practicalsReady: readiness.practicalsReady, reason: readiness.reason };
+          } catch (error) {
+            console.error("Failed to load Specialist Sandbox progress:", error);
+          }
           try {
             await ensureVisibleSandboxStudentsForTutor(tutorId, SANDBOX_REQUIRED_ACCOUNT_COUNT);
           } catch (error) {
@@ -19157,6 +19174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           assignmentId: assignment.id,
           operationalMode: alignmentSummary?.mode || assignment.operationalMode || "training",
           alignmentSummary,
+          sandboxProgress,
         });
       } catch (error) {
         console.error("Error fetching tutor pod alignment summary:", error);
