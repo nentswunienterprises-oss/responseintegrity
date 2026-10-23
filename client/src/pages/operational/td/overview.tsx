@@ -707,7 +707,7 @@ export default function TDOverview() {
                   {pod.phase} phase - {pod.status}
                 </p>
               </div>
-/* Pod Info Grid */}
+              {/* Pod Info Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 {/* Left Column */}
                 <div className="space-y-3 sm:space-y-4">
@@ -1138,3 +1138,4 @@ function TDTutorStudentsSection({
     </div>
   );
 }
+
