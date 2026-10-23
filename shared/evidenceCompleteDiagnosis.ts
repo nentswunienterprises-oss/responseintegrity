@@ -527,7 +527,13 @@ const isSupportedDiagnosisTimingSample = (result: DiagnosisProbeResult) => {
       observation.dimensionId,
       observation.behaviorId,
     );
-    return option?.behaviorClass === "supported";
+    // Neutral baseline probes intentionally do not elicit every layer.  In
+    // particular, Independent Normal Probe does not ask the Clarity
+    // vocabulary/reason questions, so those fields are recorded as
+    // `not_observed`.  That is valid absence of an observation, not a failed
+    // execution, and must not disqualify the timing sample.  Any dimension
+    // that is actually observed still has to be cleanly supported.
+    return option?.behaviorClass === "supported" || option?.behaviorClass === "not_observed";
   });
 };
 
