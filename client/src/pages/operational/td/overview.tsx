@@ -656,21 +656,7 @@ export default function TDOverview() {
                           </div>
                           <span className="text-xs font-medium text-primary shrink-0">Open pod</span>
                         </div>
-                        <div className="grid grid-cols-3 gap-3">
-                          <div>
-                            <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Specialists</p>
-                            <p className="mt-1 text-2xl font-semibold">{tutors.length}</p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Students</p>
-                            <p className="mt-1 text-2xl font-semibold">{totalStudents}</p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Sessions</p>
-                            <p className="mt-1 text-2xl font-semibold">{totalSessions}</p>
-                          </div>
-                        </div>
-                      </div>
+                                              </div>
                     </Card>
                   </button>
                 );
@@ -721,38 +707,7 @@ export default function TDOverview() {
                   {pod.phase} phase - {pod.status}
                 </p>
               </div>
-
-              {/* Statistics Section */}
-              <div className="coo-pod-stats grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                <Card className="border-primary/15 bg-background shadow-sm">
-                  <div className="px-4 py-4 sm:px-5 sm:py-5">
-                    <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Specialists</p>
-                    <p className="mt-2 text-3xl font-semibold tabular-nums text-foreground sm:text-4xl">
-                      {tutors.length}
-                    </p>
-                  </div>
-                </Card>
-
-                <Card className="border-primary/15 bg-background shadow-sm">
-                  <div className="px-4 py-4 sm:px-5 sm:py-5">
-                    <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Students</p>
-                    <p className="mt-2 text-3xl font-semibold tabular-nums text-foreground sm:text-4xl">
-                      {totalStudents}
-                    </p>
-                  </div>
-                </Card>
-
-                <Card className="border-primary/15 bg-background shadow-sm">
-                  <div className="px-4 py-4 sm:px-5 sm:py-5">
-                    <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Sessions Done</p>
-                    <p className="mt-2 text-3xl font-semibold tabular-nums text-foreground sm:text-4xl">
-                      {totalSessions}
-                    </p>
-                  </div>
-                </Card>
-              </div>
-
-              {/* Pod Info Grid */}
+/* Pod Info Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 {/* Left Column */}
                 <div className="space-y-3 sm:space-y-4">
