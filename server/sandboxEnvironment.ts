@@ -28,7 +28,7 @@ import {
   type TrainingInterventionEvent,
   type TrainingPrerequisiteSentinelResult,
 } from "@shared/trainingEvidenceCapture";
-import { evaluateSandboxQualification } from "@shared/sandboxQualificationPolicy";
+import { evaluateSandboxQualification, SANDBOX_QUALIFICATION_V1 } from "@shared/sandboxQualificationPolicy";
 import { loadSandboxQualificationEvidence } from "./sandboxQualificationEvidence";
 import {
   compareSandboxTurn,
@@ -66,7 +66,6 @@ import {
   type SandboxCanonicalTopicLane,
 } from "@shared/sandboxTopicAuthority";
 import { buildResponseSnapshotV1, type ResponseSnapshotV1 } from "@shared/responseSnapshot";
-import { loadLatestTpsTimerContract } from "./tpsTimingAuthority";
 
 export const DEFAULT_SANDBOX_ENVIRONMENT_BANK_KEY = "sandbox_stateful_environment";
 
@@ -1449,6 +1448,8 @@ async function readinessFor(input: {
       qualificationReady: qualification.qualificationReady,
       qualifyingSessions: qualification.qualifyingSessions,
       requiredSessions: qualification.requiredSessions,
+      phaseCounts: qualification.phaseCounts,
+      phaseMinimums: SANDBOX_QUALIFICATION_V1.phaseMinimums,
       reason: qualification.reason,
       evidenceFingerprint,
     },
@@ -1629,18 +1630,6 @@ async function planNextRep(input: {
   }
 
   const phase = input.bundle.truth.canonical_phase;
-  if (phase === "Controlled Discomfort" || phase === "Time Pressure Stability") {
-    const timerContract = await loadLatestTpsTimerContract({
-      studentId: input.bundle.trajectory.student_id,
-      topic: input.bundle.trajectory.active_topic_key,
-    });
-    if (!timerContract) {
-      return {
-        blockedByRoute: true as const,
-        targetPhase: "Structured Execution" as const,
-      };
-    }
-  }
   const trainingSets = scoredTrainingSets(phase);
   const plan = flattenedRepPlan(phase);
   const completedInSession = await currentSessionEventCount(input.bundle);
