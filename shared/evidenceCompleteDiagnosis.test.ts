@@ -567,6 +567,23 @@ test("all-clear diagnosis requires individualized baseline plus repeated tempora
   }
 });
 
+test("neutral baseline timing accepts deliberately unobserved clarity fields", () => {
+  let state = createEvidenceCompleteDiagnosisState("Controlled Discomfort");
+  state = run(state, "stack.normal_independent", {
+    "clarity.vocabulary": "not_observed",
+    "clarity.method": "correct_method_cleanly",
+    "clarity.reason": "not_observed",
+    "clarity.immediate_apply": "engages_cleanly",
+    ...executionImmediateSupported,
+  });
+  state = run(state, "execution.repeatability", executionSupported);
+  state = run(state, "execution.repeatability", executionSupported);
+
+  const decision = evaluateEvidenceCompleteDiagnosis(state);
+  assert.equal(decision.timingBaseline.sampleCount, 3);
+  assert.equal(decision.timingBaseline.ready, true);
+});
+
 
 test("Independent Normal Probe forbids deliberate Clarity elicitation during the live response", () => {
   const protocol = DIAGNOSIS_PROBE_EXECUTION_PROTOCOLS["stack.normal_independent"];
