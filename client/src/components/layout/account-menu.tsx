@@ -133,7 +133,7 @@ export function AccountMenu({
                 <Palette className="w-4 h-4" />
                 Appearance
               </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="min-w-[10rem]">
+              <DropdownMenuSubContent\n                side="bottom"\n                align="start"\n                sideOffset={4}\n                className="min-w-[10rem] max-w-[calc(100vw-1rem)]"\n              >
                 <DropdownMenuRadioGroup
                   value={theme}
                   onValueChange={(value) => {
