@@ -28,7 +28,7 @@ import {
   type TrainingInterventionEvent,
   type TrainingPrerequisiteSentinelResult,
 } from "@shared/trainingEvidenceCapture";
-import { evaluateSandboxQualification } from "@shared/sandboxQualificationPolicy";
+import { evaluateSandboxQualification, SANDBOX_QUALIFICATION_V1 } from "@shared/sandboxQualificationPolicy";
 import { loadSandboxQualificationEvidence } from "./sandboxQualificationEvidence";
 import {
   compareSandboxTurn,
@@ -1449,6 +1449,8 @@ async function readinessFor(input: {
       qualificationReady: qualification.qualificationReady,
       qualifyingSessions: qualification.qualifyingSessions,
       requiredSessions: qualification.requiredSessions,
+      phaseCounts: qualification.phaseCounts,
+      phaseMinimums: SANDBOX_QUALIFICATION_V1.phaseMinimums,
       reason: qualification.reason,
       evidenceFingerprint,
     },

@@ -60,6 +60,27 @@ interface TutorAlignmentSummaryData {
   assignmentId: string | null;
   operationalMode: TutorTrainingMode;
   alignmentSummary: BattleTestingTutorSummary | null;
+  sandboxProgress?: {
+    qualification?: {
+      policyVersion: number;
+      developmentCoverageReady: boolean;
+      qualificationReady: boolean;
+      qualifyingSessions: number;
+      requiredSessions: number;
+      phaseCounts: Record<string, number>;
+      phaseMinimums: Record<string, number>;
+      reason: string;
+    };
+    practicalsReady: boolean;
+    reason: string;
+  } | null;
+  developmentPathway?: {
+    currentStage: string;
+    pathway: { status: string; timeline?: { label?: string; daysRemaining?: number | null } | null } | null;
+    training?: { sandboxReady: boolean; summary?: Record<string, { complete: number; total: number }> };
+    sandbox?: { readiness?: { practicalsReady?: boolean; qualification?: { qualificationReady?: boolean; qualifyingSessions?: number; requiredSessions?: number; phaseCounts?: Record<string, number>; phaseMinimums?: Record<string, number>; reason?: string } }; latestAssessment?: { decision?: string } | null };
+    trial?: { status?: string; gate?: { reviewable?: boolean } } | null;
+  } | null;
 }
 
 interface TutorPodSession {
@@ -106,6 +127,27 @@ function formatTutorAlignmentStatus(value: string | null | undefined) {
     return "You are off standard right now. Reconditioning is required before returning to live work.";
   }
   return value;
+}
+
+const SANDBOX_PHASES = ["Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability"] as const;
+
+function formatDevelopmentStage(value: string | null | undefined) {
+  const labels: Record<string, string> = {
+    application: "Application", training: "Training", sandbox: "Sandbox", practicals: "Practicals", trial: "Trial", certification: "Certification", certified_live: "Certified Live",
+  };
+  return labels[String(value || "").toLowerCase()] || "Pathway stage unavailable";
+}
+
+function formatDevelopmentNextAction(stage: string | null | undefined, pathway: TutorAlignmentSummaryData["developmentPathway"]) {
+  const value = String(stage || "").toLowerCase();
+  if (value === "application") return "Complete application and onboarding requirements before Training begins.";
+  if (value === "training") return pathway?.training?.sandboxReady ? "Training gate complete; Sandbox is the next governed stage." : "Complete the assigned Deep Dives and Mastery Checks to establish the Training gate.";
+  if (value === "sandbox") return pathway?.sandbox?.readiness?.qualification?.qualificationReady ? "Sandbox evidence is complete; assigned TD review is the next gate." : "Complete the prescribed phase-balanced Sandbox evidence run."; 
+  if (value === "practicals") return "Complete Prepare, Execute and Evidence for the assigned Practicals."; 
+  if (value === "trial") return "Complete the two-family Trial evidence window and outcome reviews."; 
+  if (value === "certification") return "Complete the remaining certification review decisions."; 
+  if (value === "certified_live") return "Certified Live. Continue operating under the RI-OS evidence standard."; 
+  return "The next governed pathway requirement will appear here."; 
 }
 
 function formatTutorMode(value: TutorAlignmentSummaryData["operationalMode"]) {
@@ -230,6 +272,14 @@ export default function TutorPod() {
     queryKey: ["/api/tutor/pod-alignment-summary"],
     enabled: isAuthenticated && !authLoading,
     refetchInterval: false,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
+  });
+  const { data: developmentPathway } = useQuery<TutorAlignmentSummaryData["developmentPathway"]>({
+    queryKey: ["/api/tutor/development-pathway"],
+    queryFn: async () => authorizedGetJson("/api/tutor/development-pathway"),
+    enabled: isAuthenticated && !authLoading,
     refetchOnWindowFocus: !emergencyDbMode,
     refetchOnReconnect: !emergencyDbMode,
     retry: emergencyDbMode ? false : undefined,
@@ -525,6 +575,8 @@ export default function TutorPod() {
   const selectedStudent = (students as any[]).find((s: any) => s.id === selectedStudentId) || null;
 
   const firstName = user?.name?.split(" ")[0] || "Specialist";
+  const standingSummary = tutorAlignmentSummary ? { ...tutorAlignmentSummary, developmentPathway: developmentPathway || tutorAlignmentSummary.developmentPathway || null } : tutorAlignmentSummary;
+
   const specialistOperationalMode = String(
     trialCaseData?.mode ||
       tutorAlignmentSummary?.operationalMode ||
@@ -648,7 +700,7 @@ export default function TutorPod() {
                 <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Specialist Alignment</p>
                 <h2 className="mt-1 text-xl font-semibold tracking-[-0.01em]">Your standing in the system</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  This shows your latest audited alignment state and the battle-test modules already completed.
+                  This is the authoritative Specialist Development Pathway standing: current stage, evidence state and next governed requirement.
                 </p>
               </div>
             </div>
@@ -661,18 +713,72 @@ export default function TutorPod() {
                 </p>
               </div>
               <div className="ri-alignment-info-card rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
-                <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Last Audit</p>
+                <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Current Stage</p>
                 <p className="mt-2 text-sm font-medium text-foreground">
-                  {formatTutorAuditTimestamp(tutorAlignmentSummary?.alignmentSummary?.lastAuditAt)}
+                  {formatDevelopmentStage(standingSummary?.developmentPathway?.currentStage || tutorAlignmentSummary?.operationalMode)}
                 </p>
               </div>
               <div className="ri-alignment-info-card rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
                 <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Status</p>
                 <p className="mt-2 text-sm font-medium text-foreground">
-                  {formatTutorAlignmentStatus(tutorAlignmentSummary?.alignmentSummary?.actionRequired)}
+                  {tutorAlignmentSummary?.sandboxProgress?.qualification
+                    ? tutorAlignmentSummary.sandboxProgress.qualification.qualificationReady
+                      ? "Qualified pending TD review. Practicals do not open automatically."
+                      : tutorAlignmentSummary.sandboxProgress.qualification.developmentCoverageReady
+                        ? "Final qualification run in progress."
+                        : "Sandbox coverage developing."
+                    : formatTutorAlignmentStatus(tutorAlignmentSummary?.alignmentSummary?.actionRequired)}
                 </p>
               </div>
             </div>
+
+            <div className="ri-alignment-info-card rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
+              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Next governed requirement</p>
+              <p className="mt-2 text-sm font-medium text-foreground">
+                {formatDevelopmentNextAction(standingSummary?.developmentPathway?.currentStage, standingSummary?.developmentPathway)}
+              </p>
+            </div>
+
+            {tutorAlignmentSummary?.sandboxProgress?.qualification ? (
+              <div className="ri-alignment-section rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Sandbox Qualification</p>
+                    <p className="mt-2 text-sm font-semibold text-foreground">
+                      {tutorAlignmentSummary.sandboxProgress.qualification.qualifyingSessions}/
+                      {tutorAlignmentSummary.sandboxProgress.qualification.requiredSessions} clean sessions credited
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">Two clean sessions are required in each RI-OS phase.</p>
+                  </div>
+                  <Badge variant={tutorAlignmentSummary.sandboxProgress.qualification.qualificationReady ? "default" : "outline"}>
+                    {tutorAlignmentSummary.sandboxProgress.qualification.qualificationReady ? "Ready for TD review" : "In progress"}
+                  </Badge>
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {SANDBOX_PHASES.map((phase) => {
+                    const count = tutorAlignmentSummary.sandboxProgress?.qualification?.phaseCounts?.[phase] || 0;
+                    const required = tutorAlignmentSummary.sandboxProgress?.qualification?.phaseMinimums?.[phase] || 2;
+                    return (
+                      <div key={phase} className="ri-alignment-info-card rounded-xl border border-primary/15 bg-background px-3 py-2 text-sm text-foreground">
+                        <span className="font-medium">{phase}</span>
+                        <span className="ml-2 text-muted-foreground">{count}/{required}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  {tutorAlignmentSummary.sandboxProgress.qualification.qualificationReady
+                    ? "All numeric requirements are complete. TD approval is still required before Practicals."
+                    : (() => {
+                        const next = SANDBOX_PHASES.find((phase) =>
+                          (tutorAlignmentSummary.sandboxProgress?.qualification?.phaseCounts?.[phase] || 0) <
+                          (tutorAlignmentSummary.sandboxProgress?.qualification?.phaseMinimums?.[phase] || 2),
+                        );
+                        return next ? "Next requirement: one clean " + next + " session." : tutorAlignmentSummary.sandboxProgress?.qualification?.reason;
+                      })()}
+                </p>
+              </div>
+            ) : null}
 
             {tutorAlignmentSummary?.alignmentSummary?.certificationRecoveryNote && (
               <div className="ri-alignment-info-card rounded-xl border border-primary/35 bg-primary/10 px-4 py-4">
