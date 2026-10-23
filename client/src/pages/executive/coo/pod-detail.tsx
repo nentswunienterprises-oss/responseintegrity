@@ -1422,21 +1422,6 @@ export default function PodDetail() {
 
       </div>
 
-      <BattleTestRunnerDialog
-        open={tdBattleTestOpen}
-        onOpenChange={setTdBattleTestOpen}
-        title={`TD System Integrity - ${tdName}`}
-        description={`Run the COO-side TD integrity drill for ${tdName} inside ${podName}.`}
-        phaseOptions={tdBattleTestPhases}
-        selectionMode="fixed"
-        submitLabel="Save TD Battle Test"
-        onSubmit={async ({ responses }) => {
-          await submitTdBattleTestMutation.mutateAsync({
-            responses,
-          });
-        }}
-      />
-
       {/* Student Dialogs - COO read-only view */}
       <StudentIdentitySheet
         open={identitySheetOpen}
