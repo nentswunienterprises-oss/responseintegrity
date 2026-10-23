@@ -61,7 +61,7 @@ export function AccountMenu({
   showIssueAction = false,
 }: AccountMenuProps) {
   const { theme, setTheme } = useRITheme();
-  const showAppearance = isTutor(user) || isTD(user) || isCOO(user);
+  const showAppearance =\n    isTutor(user) ||\n    isTD(user) ||\n    isCOO(user) ||\n    user?.role === "parent" ||\n    user?.role === "student";
 
   return (
     <DropdownMenu>
