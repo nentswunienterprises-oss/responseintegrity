@@ -19076,7 +19076,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (operationalMode === "sandbox") {
             try {
               const readiness = await getSandboxCapabilityReadiness({ tutorAssignmentId: assignment.id, tutorId });
-              sandboxProgress = { qualification: readiness.qualification, practicalsReady: readiness.practicalsReady, reason: readiness.reason };
+              sandboxProgress = { qualification: (readiness as any).qualification || null, practicalsReady: readiness.practicalsReady, reason: readiness.reason };
             } catch (error) {
               console.error("Failed to load Specialist Sandbox progress:", error);
             }
@@ -19157,7 +19157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if ((alignmentSummary?.mode || assignment.operationalMode) === "sandbox") {
           try {
             const readiness = await getSandboxCapabilityReadiness({ tutorAssignmentId: assignment.id, tutorId });
-            sandboxProgress = { qualification: readiness.qualification, practicalsReady: readiness.practicalsReady, reason: readiness.reason };
+            sandboxProgress = { qualification: (readiness as any).qualification || null, practicalsReady: readiness.practicalsReady, reason: readiness.reason };
           } catch (error) {
             console.error("Failed to load Specialist Sandbox progress:", error);
           }
