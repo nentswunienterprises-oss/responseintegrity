@@ -513,6 +513,7 @@ export default function PodDetail() {
   const {
     data: assignedTutorIds,
     isLoading: assignedTutorsLoading,
+    isError: assignedTutorsError,
   } = useQuery<string[]>({
     queryKey: ["/api/coo/all-tutor-assignments"],
     enabled: isAuthenticated && !authLoading,
@@ -523,6 +524,7 @@ export default function PodDetail() {
   const {
     data: podTutors,
     isLoading: podTutorsLoading,
+    isError: podTutorsError,
     refetch: refetchPodTutors,
   } = useQuery<any[]>({
     queryKey: [`/api/coo/pods/${podId}/tutors`],
@@ -551,6 +553,7 @@ export default function PodDetail() {
   const {
     data: podStats,
     isLoading: statsLoading,
+    isError: podStatsError,
   } = useQuery<{ totalTutors: number; totalStudents: number; sessionsCompleted: number }>({
     queryKey: [`/api/coo/pods/${podId}/stats`],
     enabled: isAuthenticated && !authLoading && !!podId,
@@ -558,7 +561,12 @@ export default function PodDetail() {
     refetchOnWindowFocus: true,
   });
 
-  const { data: podOperatingOverview = [] } = useQuery<any[]>({
+  const {
+    data: podOperatingOverview = [],
+    isLoading: operatingOverviewLoading,
+    isError: operatingOverviewError,
+    refetch: refetchOperatingOverview,
+  } = useQuery<any[]>({
     queryKey: ["/api/coo/pods/operating-overview"],
     enabled: isAuthenticated && !authLoading,
     refetchInterval: 10000,
@@ -911,11 +919,20 @@ export default function PodDetail() {
 
   const podName = (currentPod as Pod).podName;
   const tdName = getTDName((currentPod as Pod).tdId);
-  const tutorCount = podTutors?.length || 0;
+  const tutorCount = typeof podStats?.totalTutors === "number"
+    ? podStats.totalTutors
+    : Array.isArray(podTutors) ? podTutors.length : 0;
   const maxTutors = MAX_TUTORS_PER_POD;
-  const availableSlots = maxTutors - tutorCount;
+  // A failed query must never be interpreted as spare assignment capacity.
+  const canEditRoster = !podTutorsError && !podStatsError && !assignedTutorsError
+    && Array.isArray(podTutors) && typeof podStats?.totalTutors === "number"
+    && podTutors.length === podStats.totalTutors
+    && Array.isArray(assignedTutorIds) && !assignedTutorsLoading;
+  const availableSlots = canEditRoster ? Math.max(0, maxTutors - tutorCount) : 0;
   const maxStudentsPerTutor = getMaxStudentsPerTutorForVehicle((currentPod as Pod).vehicle);
-  const operatingOverview = podOperatingOverview.find((entry: any) => entry.podId === podId);
+  const operatingOverview = Array.isArray(podOperatingOverview)
+    ? podOperatingOverview.find((entry: any) => entry?.podId === podId)
+    : undefined;
 
   // Debug logging
   console.log("Approved tutors:", approvedTutors?.map((t: any) => ({ id: t.id, name: t.name })));
@@ -993,7 +1010,7 @@ export default function PodDetail() {
             <div className="px-4 py-4 sm:px-5 sm:py-5">
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Specialists</p>
               <p className="mt-2 text-3xl font-semibold tabular-nums text-foreground sm:text-4xl">
-                {podStats?.totalTutors || 0}
+                {podStatsError ? "Unavailable" : podStats?.totalTutors ?? "Unavailable"}
               </p>
             </div>
           </Card>
@@ -1002,7 +1019,7 @@ export default function PodDetail() {
             <div className="px-4 py-4 sm:px-5 sm:py-5">
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Students</p>
               <p className="mt-2 text-3xl font-semibold tabular-nums text-foreground sm:text-4xl">
-                {podStats?.totalStudents || 0}
+                {podStatsError ? "Unavailable" : podStats?.totalStudents ?? "Unavailable"}
               </p>
             </div>
           </Card>
@@ -1011,7 +1028,7 @@ export default function PodDetail() {
             <div className="px-4 py-4 sm:px-5 sm:py-5">
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Sessions Done</p>
               <p className="mt-2 text-3xl font-semibold tabular-nums text-foreground sm:text-4xl">
-                {podStats?.sessionsCompleted || 0}
+                {podStatsError ? "Unavailable" : podStats?.sessionsCompleted ?? "Unavailable"}
               </p>
             </div>
           </Card>
@@ -1042,14 +1059,24 @@ export default function PodDetail() {
                 </div>
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-sm text-muted-foreground">Operating State</span>
-                  <Badge className={getOperatingStateBadgeClass(operatingOverview?.operatingState?.key)}>
-                    {operatingOverview?.operatingState?.label || "Loading"}
+                  <Badge className={getOperatingStateBadgeClass(operatingOverviewError ? undefined : operatingOverview?.operatingState?.key)}>
+                    {operatingOverviewError
+                      ? "Unavailable"
+                      : operatingOverviewLoading && !operatingOverview
+                        ? "Loading"
+                        : operatingOverview?.operatingState?.label || "Unavailable"}
                   </Badge>
                 </div>
-                {operatingOverview?.operatingState?.description ? (
+                {operatingOverviewError || (!operatingOverviewLoading && !operatingOverview) ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm text-muted-foreground">Operating state unavailable. No state has been inferred.</p>
+                    <Button variant="outline" size="sm" onClick={() => refetchOperatingOverview()}>Retry</Button>
+                  </div>
+                ) : null}
+                {!operatingOverviewError && operatingOverview?.operatingState?.description ? (
                   <p className="text-sm text-muted-foreground">{operatingOverview.operatingState.description}</p>
                 ) : null}
-                {operatingOverview ? (
+                {!operatingOverviewError && operatingOverview?.operatingState?.key ? (
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-lg border bg-muted/20 p-3">
                       <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Specialist Mix</p>
@@ -1112,7 +1139,7 @@ export default function PodDetail() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs sm:text-sm text-muted-foreground">
-                      {tutorCount}/{maxTutors}
+                      {podStatsError && podTutorsError ? "Unavailable" : `${tutorCount}/${maxTutors}`}
                     </span>
                     <Button
                       variant="ghost"
@@ -1136,13 +1163,27 @@ export default function PodDetail() {
                       <Skeleton className="h-14" />
                       <Skeleton className="h-14" />
                     </div>
-                  ) : !podTutors || podTutors.length === 0 ? (
+                  ) : podTutorsError ? (
+                    <div className="space-y-3 py-6 text-center">
+                      <p className="text-sm text-muted-foreground">Assigned Specialist roster could not be loaded. The assignment count is not a roster.</p>
+                      <Button variant="outline" size="sm" onClick={() => refetchPodTutors()}>Retry roster</Button>
+                    </div>
+                  ) : !Array.isArray(podTutors) ? (
+                    <div className="text-sm text-muted-foreground py-6 text-center">Specialist roster returned an invalid response. No assignments have been changed.</div>
+                  ) : podTutors.length === 0 && (podStats?.totalTutors || 0) > 0 ? (
+                    <div className="text-sm text-muted-foreground py-6 text-center">Assigned Specialist roster is incomplete; the authoritative count has not been cleared.</div>
+                  ) : podTutors.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <p className="text-sm">No Specialists assigned yet</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
-                        {podTutors.map((assignment: any) => {
+                        {typeof podStats?.totalTutors === "number" && podStats.totalTutors !== podTutors.length ? (
+                          <p role="status" className="text-sm text-muted-foreground">
+                            Roster incomplete: {podTutors.length} of {podStats.totalTutors} assigned Specialist records loaded.
+                          </p>
+                        ) : null}
+                        {podTutors.filter((assignment: any) => assignment && typeof assignment.id === "string" && typeof assignment.tutorId === "string").map((assignment: any) => {
                           const isExpanded = expandedTutors.has(assignment.id);
                           const tutorAudit = battleTestingSummary?.tutorSummaries.find(
                             (entry) => entry.assignmentId === assignment.id
@@ -1174,10 +1215,10 @@ export default function PodDetail() {
                                 <div className="flex items-start justify-between gap-2 sm:gap-4">
                                   <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
                                     <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center text-xs sm:text-sm font-bold text-primary shrink-0">
-                                      {assignment.tutorName.charAt(0).toUpperCase()}
+                                      {String(assignment.tutorName || "?").charAt(0).toUpperCase()}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      <p className="font-semibold text-sm sm:text-base truncate">{assignment.tutorName}</p>
+                                      <p className="font-semibold text-sm sm:text-base truncate">{assignment.tutorName || "Specialist record unavailable"}</p>
                                       <p className="text-xs sm:text-sm text-muted-foreground truncate">{assignment.tutorEmail}</p>
                                     </div>
                                   </div>
