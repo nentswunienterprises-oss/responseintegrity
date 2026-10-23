@@ -12,8 +12,8 @@ test("Specialist, TD and COO account menus expose the shared RI Appearance contr
   assert.match(source, /isTD/);
   assert.match(source, /isCOO/);
   assert.match(source, /showAppearance =/);
-  assert.match(source, /user\\?\\.role === "parent"/);
-  assert.match(source, /user\\?\\.role === "student"/);
+  assert.match(source, /user\?\.role === "parent"/);
+  assert.match(source, /user\?\.role === "student"/);
   assert.match(source, /Appearance/);
   assert.match(source, /Warm Dark/);
   assert.match(source, /value="dark"/);
