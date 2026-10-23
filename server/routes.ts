@@ -1,4 +1,7 @@
-Y™Áäx-ÆÈ‹j◊ù¢Îi∫⁄+äßj[hëÈ‹¢ÈÌ„5ﬂﬁÙﬂﬂ4o+^≤â¢∂◊ùimport { tutorScheduleWeekRange } from "./tutorScheduleWeek";
+Warning: truncated output (original token count: 328604)
+... 265839 bytes omitted ...
+
+import { tutorScheduleWeekRange } from "./tutorScheduleWeek";
 import { overlaySandboxDiagnosisTopicPlacement } from "./sandboxDiagnosisTopicProjection";
 import { registerProofTrainingBooking, proofSandboxCoverageReceipt, isCapabilityProofPreview } from "./proofTrainingBooking";
 import { confidentialReference, ensurePrivateBucket, createConfidentialDownloadHandler } from "./confidentialStorage";
@@ -7805,7 +7808,4490 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const explicitEnrollmentId = String(
               (student as any)?.parentEnrollmentId || (student as any)?.parent_enrollment_id || ""
             ).trim();
-            if (expliÎmy⁄⁄$z{-ÆÈ‹j◊ùd", applicationId)
+            if (explicitEnrollmentId) {
+              const { data: enrollmentById } = await supabase
+                .from("parent_enrollments")
+                .select("status")
+                .eq("assigned_tutor_id", tutorId)
+                .eq("id", explicitEnrollmentId)
+                .maybeSingle();
+              enrollmentForStudent = enrollmentById;
+            }
+
+            if (!enrollmentForStudent) {
+              const parentId = (student as any)?.parentId || (student as any)?.parent_id || null;
+              if (parentId) {
+                const { data: enrollmentByParent } = await supabase
+                  .from("parent_enrollments")
+                  .select("status")
+                  .eq("assigned_tutor_id", tutorId)
+                  .eq("user_id", parentId)
+                  .eq("status", "awaiting_tutor_acceptance")
+                  .maybeSingle();
+                enrollmentForStudent = enrollmentByParent;
+              }
+            }
+
+            return enrollmentForStudent?.status !== "awaiting_tutor_acceptance";
+          };
+
+          const createWeeklyStructuredDataFromDrills = (drillRows: any[]) => {
+            const deterministicSessions = mapDeterministicSessionsForReport(drillRows);
+            const groupedSessions = aggregateDeterministicSessions(drillRows || []);
+
+            if (!deterministicSessions.length) return null;
+
+            const sorted = [...deterministicSessions].sort(
+              (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+            );
+
+            const phaseRank = (phase: string) => {
+              if (phase === "Clarity") return 0;
+              if (phase === "Structured Execution") return 1;
+              if (phase === "Controlled Discomfort") return 2;
+              if (phase === "Time Pressure Stability") return 3;
+              return -1;
+            };
+            const stabilityRank = (stability: string) => {
+              if (stability === "Low") return 0;
+              if (stability === "Medium") return 1;
+              if (stability === "High") return 2;
+              if (stability === "High Maintenance") return 3;
+              return -1;
+            };
+            const scoreState = (state: { phase: string; stability: string }) =>
+              phaseRank(state.phase) * 10 + stabilityRank(state.stability);
+            const topicSnapshots = buildTopicSnapshots(sorted);
+
+            const topics = sortTopicsForReport(Object.keys(topicSnapshots), topicSnapshots);
+            const includeTopicLabels = topics.length > 1;
+
+            // Final weekly report structure
+            const topicsWorkedOn = topics;
+            const whatChanged = topics.map(topic => {
+              const snapshot = topicSnapshots[topic];
+              const line = buildWeeklyWhatChangedLine({
+                topic,
+                firstDrillState: snapshot.firstDrillState,
+                lastDrillState: snapshot.lastDrillState,
+                transitionReasons: snapshot.transitionReasons,
+                drillBehaviors: snapshot.drillBehaviors,
+                hasTrainingEvidence: snapshot.hasTrainingEvidence,
+              });
+              return includeTopicLabels ? line : formatSingleTopicMovementLine(line);
+            });
+
+            const breakdownPattern = topics.map(topic => {
+              const snapshot = topicSnapshots[topic];
+              const weakSignals = buildTopicWeakSignals(snapshot.allBehaviors);
+              const isInitialTopicBaseline = snapshot.drillCount <= 1;
+              return formatTopicScopedLine(
+                topic,
+                weakSignals.length > 0
+                  ? naturalJoin(weakSignals)
+                  : isInitialTopicBaseline
+                    ? "initial baseline established; no recurring breakdown pattern yet"
+                    : "no consistent breakdown pattern identified",
+                includeTopicLabels
+              );
+            });
+
+            const whatThisMeans = topics.map(topic => {
+              const snapshot = topicSnapshots[topic];
+              return formatTopicScopedLine(
+                topic,
+                buildParentMeaningForContext({
+                  phaseBefore: snapshot.firstDrillState.phase as TopicPhase,
+                  phaseAfter: snapshot.lastDrillState.phase as TopicPhase,
+                  stabilityAfter: snapshot.lastDrillState.stability as TopicStability,
+                  transitionReasons: snapshot.transitionReasons,
+                }),
+                includeTopicLabels
+              );
+            });
+
+            const nextMove = topics.map(topic => {
+              const snapshot = topicSnapshots[topic];
+              return formatTopicScopedLine(
+                topic,
+                buildParentNextMoveForContext({
+                  phaseBefore: snapshot.firstDrillState.phase as TopicPhase,
+                  phaseAfter: snapshot.lastDrillState.phase as TopicPhase,
+                  stabilityBefore: snapshot.firstDrillState.stability as TopicStability,
+                  stabilityAfter: snapshot.lastDrillState.stability as TopicStability,
+                  transitionReasons: snapshot.transitionReasons,
+                }),
+                includeTopicLabels
+              );
+            });
+
+            const startDate = sorted[0].date;
+            const endDate = sorted[sorted.length - 1].date;
+            const reportDecisionAuthority = resolveResponseEvidenceReportAuthority(
+              sorted.map((session) =>
+                Array.isArray(session?.responseEvidenceSignals) ? session.responseEvidenceSignals : []
+              ),
+            );
+
+            return {
+              version: "weekly-v3-evidence",
+              weekStartDate: new Date(startDate).toISOString().slice(0, 10),
+              weekEndDate: new Date(endDate).toISOString().slice(0, 10),
+              sessionsCompletedThisWeek: groupedSessions.length,
+              topicsWorkedOn,
+              whatChanged,
+              breakdownPattern: breakdownPattern.length > 0 ? breakdownPattern : ["No consistent breakdown pattern identified"],
+              whatThisMeans,
+              nextMove,
+              internalWeeklyTutorNote: "",
+              drillCount: deterministicSessions.length,
+              sourceSessionIds: groupedSessions.map((session) => session.id),
+              reportDecisionAuthority,
+              evidenceLineage: topics.map((topic) => ({
+                topic,
+                evidenceIds: topicSnapshots[topic].evidenceIds,
+                claims: topicSnapshots[topic].claimEvidence.map((signal) => ({
+                  evidenceId: signal.evidenceId,
+                  dimensionId: signal.dimensionId,
+                  rawOption: signal.rawOption,
+                  polarity: signal.polarity,
+                  label: signal.label,
+                  claimEligible: signal.claimEligible,
+                  recoveredAfterBreakdown: signal.recoveredAfterBreakdown,
+                  sourceAuthority: signal.sourceAuthority,
+                })),
+              })),
+            };
+          };
+
+          const createMonthlyStructuredDataFromDrills = (drillRows: any[]) => {
+            const deterministicSessions = mapDeterministicSessionsForReport(drillRows);
+            const groupedSessions = aggregateDeterministicSessions(drillRows || []);
+
+            if (!deterministicSessions.length) return null;
+
+            const sorted = [...deterministicSessions].sort(
+              (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+            );
+
+            const phaseRank = (phase: string) => {
+              if (phase === "Clarity") return 0;
+              if (phase === "Structured Execution") return 1;
+              if (phase === "Controlled Discomfort") return 2;
+              if (phase === "Time Pressure Stability") return 3;
+              return -1;
+            };
+            const stabilityRank = (stability: string) => {
+              if (stability === "Low") return 0;
+              if (stability === "Medium") return 1;
+              if (stability === "High") return 2;
+              if (stability === "High Maintenance") return 3;
+              return -1;
+            };
+            const scoreState = (state: { phase: string; stability: string }) =>
+              phaseRank(state.phase) * 10 + stabilityRank(state.stability);
+            const topicSnapshots = buildTopicSnapshots(sorted);
+
+            const topics = sortTopicsForReport(Object.keys(topicSnapshots), topicSnapshots);
+            const includeTopicLabels = topics.length > 1;
+
+            // Final monthly report structure
+            const topicsConditioned = topics;
+            const systemMovement = topics.map(topic => {
+              const snapshot = topicSnapshots[topic];
+              const line = buildMonthlyMovementLine({
+                topic,
+                firstDrillState: snapshot.firstDrillState,
+                lastDrillState: snapshot.lastDrillState,
+                transitionReasons: snapshot.transitionReasons,
+                hasTrainingEvidence: snapshot.hasTrainingEvidence,
+              });
+              return includeTopicLabels ? line : formatSingleTopicMovementLine(line);
+            });
+
+            const whatBecameStronger = topics
+              .map(topic => {
+                const snapshot = topicSnapshots[topic];
+                if (!snapshot.hasTrainingEvidence) {
+                  return formatTopicScopedLine(
+                    topic,
+                    "baseline established; no training strength claim made yet",
+                    includeTopicLabels,
+                  );
+                }
+                const strongSignals = buildTopicStrongSignals(snapshot.allBehaviors);
+                return buildMonthlyStrengthLine(topic, strongSignals, includeTopicLabels);
+              })
+              .filter(Boolean);
+
+            const breakdownPattern = topics.map(topic => {
+              const snapshot = topicSnapshots[topic];
+              const weakSignals = buildTopicWeakSignals(snapshot.allBehaviors);
+              const isInitialTopicBaseline = snapshot.drillCount <= 1;
+              return formatTopicScopedLine(
+                topic,
+                weakSignals.length > 0
+                  ? naturalJoin(weakSignals)
+                  : isInitialTopicBaseline
+                    ? "initial baseline established; no recurring breakdown pattern yet"
+                    : "no consistent breakdown pattern identified",
+                includeTopicLabels
+              );
+            });
+
+            const currentPosition = topics.map(topic => {
+              const snapshot = topicSnapshots[topic];
+              return {
+                topic,
+                state: `${snapshot.lastDrillState.phase} (${snapshot.lastDrillState.stability})`,
+                position: buildCurrentPositionText(
+                  snapshot.lastDrillState.phase as TopicPhase,
+                  snapshot.lastDrillState.stability as TopicStability
+                ),
+              };
+            });
+
+            const whatThisMeans = topics.map(topic => {
+              const snapshot = topicSnapshots[topic];
+              return formatTopicScopedLine(
+                topic,
+                buildParentMeaningForContext({
+                  phaseBefore: snapshot.firstDrillState.phase as TopicPhase,
+                  phaseAfter: snapshot.lastDrillState.phase as TopicPhase,
+                  stabilityAfter: snapshot.lastDrillState.stability as TopicStability,
+                  transitionReasons: snapshot.transitionReasons,
+                }),
+                includeTopicLabels
+              );
+            });
+
+            const nextMonthMove = topics.map(topic => {
+              const snapshot = topicSnapshots[topic];
+              return formatTopicScopedLine(
+                topic,
+                buildParentNextMove(
+                  snapshot.lastDrillState.phase as TopicPhase,
+                  snapshot.lastDrillState.stability as TopicStability
+                ),
+                includeTopicLabels
+              );
+            });
+
+            const startDate = sorted[0].date;
+            const endDate = sorted[sorted.length - 1].date;
+            const reportDecisionAuthority = resolveResponseEvidenceReportAuthority(
+              sorted.map((session) =>
+                Array.isArray(session?.responseEvidenceSignals) ? session.responseEvidenceSignals : []
+              ),
+            );
+
+            return {
+              version: "monthly-v3-evidence",
+              monthStartDate: new Date(startDate).toISOString().slice(0, 10),
+              monthEndDate: new Date(endDate).toISOString().slice(0, 10),
+              totalSessionsCompletedThisMonth: groupedSessions.length,
+              topicsConditioned,
+              systemMovement: systemMovement.length > 0 ? systemMovement : ["No clear system movement recorded this month"],
+              whatBecameStronger: whatBecameStronger.length > 0 ? whatBecameStronger : ["No consistent strength pattern recognized yet"],
+              breakdownPattern: breakdownPattern.length > 0 ? breakdownPattern : ["No consistent breakdown pattern identified"],
+              currentPosition,
+              whatThisMeans,
+              nextMonthMove,
+              drillCount: topics.reduce((sum, topic) => sum + topicSnapshots[topic].drillCount, 0),
+              monthRange: `${new Date(startDate).toISOString().slice(0, 10)} to ${new Date(endDate).toISOString().slice(0, 10)}`,
+              sourceSessionIds: groupedSessions.map((session) => session.id),
+              reportDecisionAuthority,
+              evidenceLineage: topics.map((topic) => ({
+                topic,
+                evidenceIds: topicSnapshots[topic].evidenceIds,
+                claims: topicSnapshots[topic].claimEvidence.map((signal) => ({
+                  evidenceId: signal.evidenceId,
+                  dimensionId: signal.dimensionId,
+                  rawOption: signal.rawOption,
+                  polarity: signal.polarity,
+                  label: signal.label,
+                  claimEligible: signal.claimEligible,
+                  recoveredAfterBreakdown: signal.recoveredAfterBreakdown,
+                  sourceAuthority: signal.sourceAuthority,
+                })),
+              })),
+            };
+          };
+
+
+          const resolveReportSessionGroupId = (row: any) => {
+            const mappedSession = mapDrillRowToDeterministicSession(row);
+            return String(
+              row?.report_scheduled_session_id ||
+                resolveScheduledSessionIdFromDrillRow(row) ||
+                mappedSession?.sessionGroupId ||
+                mappedSession?.id ||
+                row?.id ||
+                "",
+            ).trim();
+          };
+
+          const buildDeterministicReportWindowKey = (reportType: "weekly" | "monthly", structuredData: any) => {
+            const sourceSessionIds = Array.from(
+              new Set(
+                (Array.isArray(structuredData?.sourceSessionIds) ? structuredData.sourceSessionIds : [])
+                  .map((id: unknown) => String(id || "").trim())
+                  .filter(Boolean),
+              ),
+            ).sort();
+
+            if (sourceSessionIds.length === 0) return null;
+            return `${reportType}:${sourceSessionIds.join("|")}`;
+          };
+
+          const insertDeterministicParentReport = async (payload: Record<string, any>, reportWindowKey: string | null) => {
+            const insertPayload = reportWindowKey
+              ? { ...payload, report_window_key: reportWindowKey }
+              : payload;
+
+            if (isEmergencyDbMode()) {
+              try {
+                const inserted = await pool.query(
+                  `INSERT INTO public.parent_reports
+                    (tutor_id, student_id, parent_id, report_type, week_number, month_name,
+                     summary, topics_learned, strengths, areas_for_growth,
+                     boss_battles_completed, solutions_unlocked, confidence_growth,
+                     next_steps, sent_at, report_window_key)
+                   VALUES
+                    ($1, $2, $3, $4, $5, $6,
+                     $7, $8, $9, $10,
+                     $11, $12, $13,
+                     $14, $15, $16)
+                   RETURNING id`,
+                  [
+                    insertPayload.tutor_id,
+                    insertPayload.student_id,
+                    insertPayload.parent_id,
+                    insertPayload.report_type,
+                    insertPayload.week_number ?? null,
+                    insertPayload.month_name ?? null,
+                    insertPayload.summary,
+                    insertPayload.topics_learned ?? null,
+                    insertPayload.strengths ?? null,
+                    insertPayload.areas_for_growth ?? null,
+                    Number(insertPayload.boss_battles_completed || 0),
+                    Number(insertPayload.solutions_unlocked || 0),
+                    insertPayload.confidence_growth ?? null,
+                    insertPayload.next_steps ?? null,
+                    insertPayload.sent_at,
+                    reportWindowKey,
+                  ],
+                );
+                return { ...inserted.rows[0], created: true };
+              } catch (error: any) {
+                if (error?.code === "23505" && reportWindowKey) {
+                  const existing = await pool.query(
+                    `SELECT id
+                       FROM public.parent_reports
+                      WHERE tutor_id = $1
+                        AND student_id = $2
+                        AND report_type = $3
+                        AND report_window_key = $4
+                      LIMIT 1`,
+                    [payload.tutor_id, payload.student_id, payload.report_type, reportWindowKey],
+                  );
+                  if (existing.rows[0]) {
+                    return { ...existing.rows[0], created: false };
+                  }
+                }
+                throw error;
+              }
+            }
+
+            const { data, error } = await supabase
+              .from("parent_reports")
+              .insert(insertPayload)
+              .select("id")
+              .single();
+
+            if (!error) return { ...data, created: true };
+
+            // A concurrent trigger may have inserted the same deterministic window.
+            if (error.code === "23505" && reportWindowKey) {
+              const { data: existing, error: existingError } = await supabase
+                .from("parent_reports")
+                .select("id")
+                .eq("tutor_id", payload.tutor_id)
+                .eq("student_id", payload.student_id)
+                .eq("report_type", payload.report_type)
+                .eq("report_window_key", reportWindowKey)
+                .maybeSingle();
+
+              if (!existingError && existing) return { ...existing, created: false };
+            }
+
+            throw error;
+          };
+
+          const insertWeeklyReport = async ({
+            tutorId,
+            studentId,
+            parentId,
+            structuredData,
+          }: {
+            tutorId: string;
+            studentId: string;
+            parentId: string;
+            structuredData: any;
+          }) => {
+            const weekNumber = getIsoWeekNumber(new Date(structuredData.weekStartDate));
+            const reportWindowKey = buildDeterministicReportWindowKey("weekly", structuredData);
+
+            return insertDeterministicParentReport({
+                tutor_id: tutorId,
+                student_id: studentId,
+                parent_id: parentId,
+                report_type: "weekly",
+                week_number: weekNumber,
+                month_name: null,
+                summary: JSON.stringify(structuredData),
+                topics_learned: Array.isArray(structuredData.topicsWorkedOn) ? structuredData.topicsWorkedOn.join(", ") : "",
+                strengths: Array.isArray(structuredData.whatChanged) ? structuredData.whatChanged.join(" | ") : "",
+                areas_for_growth: Array.isArray(structuredData.breakdownPattern) ? structuredData.breakdownPattern.join(" | ") : "",
+                boss_battles_completed: Number(structuredData.bossBattlesCompletedThisWeek || 0),
+                solutions_unlocked: Number(structuredData.sessionsCompletedThisWeek || 0),
+                confidence_growth: null,
+                next_steps: Array.isArray(structuredData.nextMove) ? structuredData.nextMove.join(" | ") : "",
+                sent_at: new Date().toISOString(),
+              }, reportWindowKey);
+          };
+
+          const insertMonthlyReport = async ({
+            tutorId,
+            studentId,
+            parentId,
+            structuredData,
+          }: {
+            tutorId: string;
+            studentId: string;
+            parentId: string;
+            structuredData: any;
+          }) => {
+            const monthName = formatMonthName(new Date(structuredData.monthStartDate));
+            const reportWindowKey = buildDeterministicReportWindowKey("monthly", structuredData);
+
+            return insertDeterministicParentReport({
+                tutor_id: tutorId,
+                student_id: studentId,
+                parent_id: parentId,
+                report_type: "monthly",
+                week_number: null,
+                month_name: monthName,
+                summary: JSON.stringify(structuredData),
+                topics_learned: Array.isArray(structuredData.topicsConditioned) ? structuredData.topicsConditioned.join(", ") : "",
+                strengths: Array.isArray(structuredData.whatBecameStronger) ? structuredData.whatBecameStronger.join(" | ") : "",
+                areas_for_growth: Array.isArray(structuredData.breakdownPattern) ? structuredData.breakdownPattern.join(" | ") : "",
+                boss_battles_completed: 0,
+                solutions_unlocked: Number(structuredData.totalSessionsCompletedThisMonth || 0),
+                confidence_growth: null,
+                next_steps: Array.isArray(structuredData.nextMonthMove) ? structuredData.nextMonthMove.join(" | ") : "",
+                sent_at: new Date().toISOString(),
+              }, reportWindowKey);
+          };
+
+          const maybeAutoSendDeterministicReports = async (studentId: string, tutorId: string) => {
+            let parentId = "";
+            let drillRows: any[] = [];
+            let existingWeeklyReports: any[] = [];
+            let existingMonthlyReports: any[] = [];
+
+            if (isEmergencyDbMode()) {
+              const studentResult = await pool.query(
+                `SELECT id, tutor_id, parent_id, parent_enrollment_id
+                   FROM public.students
+                  WHERE id = $1
+                  LIMIT 1`,
+                [studentId],
+              );
+              const student = studentResult.rows[0] || null;
+              if (!student || String(student.tutor_id || "") !== String(tutorId)) return;
+
+              parentId = String(student.parent_id || "").trim();
+              if (!parentId && student.parent_enrollment_id) {
+                const enrollmentResult = await pool.query(
+                  `SELECT user_id
+                     FROM public.parent_enrollments
+                    WHERE id = $1
+                    LIMIT 1`,
+                  [student.parent_enrollment_id],
+                );
+                parentId = String(enrollmentResult.rows[0]?.user_id || "").trim();
+              }
+              if (!parentId) return;
+
+              const [drillResult, weeklyResult, monthlyResult] = await Promise.all([
+                pool.query(
+                  `SELECT id, drill, submitted_at, scheduled_session_id
+                     FROM public.intro_session_drills
+                    WHERE student_id = $1 AND tutor_id = $2
+                    ORDER BY submitted_at ASC`,
+                  [studentId, tutorId],
+                ),
+                pool.query(
+                  `SELECT summary, report_window_key
+                     FROM public.parent_reports
+                    WHERE student_id = $1
+                      AND tutor_id = $2
+                      AND report_type = 'weekly'
+                    ORDER BY sent_at DESC
+                    LIMIT 1000`,
+                  [studentId, tutorId],
+                ),
+                pool.query(
+                  `SELECT summary, report_window_key
+                     FROM public.parent_reports
+                    WHERE student_id = $1
+                      AND tutor_id = $2
+                      AND report_type = 'monthly'
+                    ORDER BY sent_at DESC
+                    LIMIT 1000`,
+                  [studentId, tutorId],
+                ),
+              ]);
+              drillRows = drillResult.rows || [];
+              existingWeeklyReports = weeklyResult.rows || [];
+              existingMonthlyReports = monthlyResult.rows || [];
+            } else {
+              const student = await storage.getStudent(studentId);
+              if (!student || student.tutorId !== tutorId) return;
+
+              parentId = String(await resolveParentIdForStudent(student, tutorId) || "").trim();
+              if (!parentId) return;
+
+              const { data, error: drillRowsError } = await supabase
+                .from("intro_session_drills")
+                .select("id, drill, submitted_at, scheduled_session_id")
+                .eq("student_id", studentId)
+                .eq("tutor_id", tutorId)
+                .order("submitted_at", { ascending: true });
+
+              if (drillRowsError) return;
+              drillRows = data || [];
+
+              const [{ data: weeklyData }, { data: monthlyData }] = await Promise.all([
+                supabase
+                  .from("parent_reports")
+                  .select("summary, report_window_key")
+                  .eq("student_id", studentId)
+                  .eq("tutor_id", tutorId)
+                  .eq("report_type", "weekly")
+                  .limit(1000),
+                supabase
+                  .from("parent_reports")
+                  .select("summary, report_window_key")
+                  .eq("student_id", studentId)
+                  .eq("tutor_id", tutorId)
+                  .eq("report_type", "monthly")
+                  .limit(1000),
+              ]);
+              existingWeeklyReports = weeklyData || [];
+              existingMonthlyReports = monthlyData || [];
+            }
+
+            if (drillRows.length === 0) return;
+
+            const anchoredDrillRows = await attachReportAnchorTimes(drillRows);
+            // Two-session and eight-session windows are delivery windows. The
+            // intro diagnosis establishes the starting state but is not one of
+            // the paid/qualifying training sessions in those windows.
+            const reportEligibleDrillRows = anchoredDrillRows.filter((row: any) => {
+              const mapped = mapDrillRowToDeterministicSession(row);
+              return mapped?.drillType === "training";
+            });
+
+            const coveredSessionIds = (reports: any[] | null | undefined) => new Set(
+              (reports || []).flatMap((report: any) => {
+                let summary: any = {};
+                try {
+                  summary = typeof report?.summary === "string"
+                    ? JSON.parse(report.summary)
+                    : report?.summary || {};
+                } catch {
+                  summary = {};
+                }
+                return Array.isArray(summary?.sourceSessionIds)
+                  ? summary.sourceSessionIds.map((id: unknown) => String(id || "").trim()).filter(Boolean)
+                  : [];
+              }),
+            );
+
+            const weeklyCoveredSessionIds = coveredSessionIds(existingWeeklyReports);
+            const monthlyCoveredSessionIds = coveredSessionIds(existingMonthlyReports);
+            const weeklyPending = reportEligibleDrillRows.filter(
+              (row: any) => !weeklyCoveredSessionIds.has(resolveReportSessionGroupId(row))
+            );
+            const monthlyPending = reportEligibleDrillRows.filter(
+              (row: any) => !monthlyCoveredSessionIds.has(resolveReportSessionGroupId(row))
+            );
+
+            const weeklyWindows = buildSessionAwareWeeklyWindows(weeklyPending);
+            let weeklyReportsCreated = 0;
+            if (weeklyWindows.length > 0) {
+              for (const weeklyWindow of weeklyWindows) {
+                const structuredData = createWeeklyStructuredDataFromDrills(weeklyWindow);
+                if (structuredData) {
+                  const weeklyReport = await insertWeeklyReport({ tutorId, studentId, parentId, structuredData });
+                  if (weeklyReport.created !== false) {
+                    weeklyReportsCreated += 1;
+                  }
+                }
+              }
+            }
+
+            if (weeklyReportsCreated > 0) {
+              await safeSendPush(
+                parentId,
+                {
+                  title: weeklyReportsCreated === 1 ? "Conditioning update available" : "Conditioning updates available",
+                  body: weeklyReportsCreated === 1
+                    ? "A new two-session conditioning update is available for your child."
+                    : `${weeklyReportsCreated} two-session conditioning updates are available for your child.`,
+                  url: "/client/parent/progress",
+                  tag: "parent-weekly-report-catch-up",
+                },
+                "parent weekly report catch-up",
+              );
+            }
+
+            const monthlyWindows = buildSessionAwareMonthlyWindows(monthlyPending);
+            let monthlyReportsCreated = 0;
+            if (monthlyWindows.length > 0) {
+              for (const monthlyWindow of monthlyWindows) {
+                const structuredData = createMonthlyStructuredDataFromDrills(monthlyWindow);
+                if (structuredData) {
+                  const monthlyReport = await insertMonthlyReport({ tutorId, studentId, parentId, structuredData });
+                  if (monthlyReport.created !== false) {
+                    monthlyReportsCreated += 1;
+                  }
+                }
+              }
+            }
+
+            if (monthlyReportsCreated > 0) {
+              await safeSendPush(
+                parentId,
+                {
+                  title: monthlyReportsCreated === 1 ? "Eight-session report available" : "Eight-session reports available",
+                  body: monthlyReportsCreated === 1
+                    ? "A new eight-session conditioning report is available for your child."
+                    : `${monthlyReportsCreated} eight-session conditioning reports are available for your child.`,
+                  url: "/client/parent/progress",
+                  tag: "parent-monthly-report-catch-up",
+                },
+                "parent monthly report catch-up",
+              );
+            }
+          };
+
+          // Tutor submits intro session drill results
+          app.post("/api/tutor/intro-session-drill", isAuthenticated, requireRole(["tutor"]), async (req: Request, res: Response) => {
+            try {
+              const tutorId = (req as any).dbUser.id;
+              const { studentId, drill, introTopic, phase: rawPhase, startingPhase: rawStartingPhase, adaptiveBlocks: rawAdaptiveBlocks, scheduledSessionId } = req.body;
+              const drillSets = normalizeIntroDrillSets(drill);
+              const adaptiveBlocks = normalizeAdaptiveDiagnosisBlocks(rawAdaptiveBlocks);
+              const drillPhase = parseAuthoritativePhase(rawPhase);
+              const startingPhase = parseAuthoritativePhase(rawStartingPhase) || drillPhase;
+              const normalizedIntroTopic = String(introTopic || "").trim();
+              const isAdaptiveDiagnosis = adaptiveBlocks.length > 0;
+
+              if (!studentId || (!isAdaptiveDiagnosis && drillSets.length === 0)) {
+                return res.status(400).json({ message: "Missing or invalid studentId or drill data" });
+              }
+              if (!isAdaptiveDiagnosis && !drillPhase) {
+                return res.status(400).json({ message: "Invalid or missing diagnostic phase" });
+              }
+              if (isAdaptiveDiagnosis && !startingPhase) {
+                return res.status(400).json({ message: "Adaptive diagnosis requires a valid starting phase" });
+              }
+              if (!normalizedIntroTopic) {
+                return res.status(400).json({ message: "Diagnostic topic is required before intro drill submission" });
+              }
+
+              const drillValidationError = isAdaptiveDiagnosis
+                ? validateAdaptiveDiagnosisBlocks(adaptiveBlocks)
+                : validateDrillStructure("diagnosis", drillPhase!, drillSets);
+              if (drillValidationError) {
+                return res.status(400).json({ message: drillValidationError });
+              }
+
+              const requestedSessionContextKind = String(req.body.sessionContextKind || "").trim().toLowerCase();
+              const sessionContextKindOverride =
+                requestedSessionContextKind === "training" ? "training" : requestedSessionContextKind === "intro" ? "intro" : null;
+
+              // Validate student ownership
+              const student = await storage.getStudent(studentId);
+              if (!student || student.tutorId !== tutorId) {
+                return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+              }
+
+              const assignmentAccepted = await isTutorAssignmentAcceptedForStudent(student, tutorId);
+              if (!assignmentAccepted) {
+                return res.status(403).json({ message: "Accept this assignment before running drills for this student." });
+              }
+
+              const operationalMode = await getTutorOperationalMode(tutorId);
+              const normalizedScheduledSessionId =
+                typeof scheduledSessionId === "string" && String(scheduledSessionId).trim().length > 0
+                  ? String(scheduledSessionId).trim()
+                  : null;
+              let diagnosisSessionKind: "intro" | "training" = sessionContextKindOverride === "training" ? "training" : "intro";
+              let scheduledSession: any = null;
+
+              const { session: pendingTrainingConfirmation, error: pendingTrainingConfirmationError } =
+                await getPendingTrainingConfirmationSession(tutorId, studentId);
+              if (pendingTrainingConfirmationError) {
+                return res.status(500).json({ message: "Failed to validate training session confirmation state" });
+              }
+
+              if (normalizedScheduledSessionId) {
+                const explicitScheduledSessionResult = isEmergencyDbMode()
+                  ? { data: (await pool.query(
+                      `SELECT ${SCHEDULED_SESSION_SELECT}
+                         FROM public.scheduled_sessions
+                        WHERE id = $1 AND tutor_id = $2 AND student_id = $3
+                          AND type IN ('intro', 'training')
+                        LIMIT 1`,
+                      [normalizedScheduledSessionId, tutorId, studentId],
+                    )).rows[0] || null, error: null }
+                  : await supabase
+                      .from("scheduled_sessions")
+                      .select(SCHEDULED_SESSION_SELECT)
+                      .eq("id", normalizedScheduledSessionId)
+                      .eq("tutor_id", tutorId)
+                      .eq("student_id", studentId)
+                      .in("type", ["intro", "training"])
+                      .maybeSingle();
+                const { data: explicitScheduledSession, error: explicitScheduledSessionError } = explicitScheduledSessionResult;
+
+                if (explicitScheduledSessionError) {
+                  return res.status(500).json({ message: "Failed to validate drill session context" });
+                }
+
+                if (!explicitScheduledSession) {
+                  return res.status(400).json({ message: "The selected drill session could not be found for this student." });
+                }
+
+                diagnosisSessionKind = explicitScheduledSession.type === "training" ? "training" : "intro";
+                scheduledSession = explicitScheduledSession;
+              }
+
+              if (
+                pendingTrainingConfirmation &&
+                diagnosisSessionKind === "training" &&
+                normalizedScheduledSessionId !== String(pendingTrainingConfirmation.id)
+              ) {
+                return res.status(400).json({
+                  message: "A proposed Response Integrity training lesson is still waiting for parent confirmation before drills can run.",
+                });
+              }
+
+              if (!scheduledSession) {
+                if (isLiveSchedulingMode(operationalMode)) {
+                  const { session: resolvedIntroSession, error: scheduledSessionError } = await resolveTutorScheduledSession(
+                    tutorId,
+                    studentId,
+                    "intro",
+                    null
+                  );
+                  if (scheduledSessionError) {
+                    return res.status(500).json({ message: "Failed to validate intro session context" });
+                  }
+                  if (!resolvedIntroSession) {
+                    return res.status(400).json({ message: "A confirmed scheduled intro session is required before drill submission." });
+                  }
+                  scheduledSession = resolvedIntroSession;
+                }
+              }
+
+              if (scheduledSession) {
+                const diagnosisLaunch = getSessionLaunchState(scheduledSession, diagnosisSessionKind);
+                if (!diagnosisLaunch.canLaunch) {
+                  return res.status(400).json({
+                    message:
+                      diagnosisSessionKind === "training"
+                        ? "Diagnosis submission is blocked until the training lesson is confirmed."
+                        : "Intro drill submission is blocked until the intro session is confirmed.",
+                  });
+                }
+              }
+
+              const diagnosisSummary = isAdaptiveDiagnosis
+                ? computeAdaptiveDiagnosisSummary(startingPhase!, adaptiveBlocks)
+                : computeIntroDiagnosisSummary(drillPhase!, drillSets);
+              const adaptiveDiagnosisSummary = isAdaptiveDiagnosis
+                ? (diagnosisSummary as ReturnType<typeof computeAdaptiveDiagnosisSummary>)
+                : null;
+              const introDiagnosisSummary = !isAdaptiveDiagnosis
+                ? (diagnosisSummary as ReturnType<typeof computeIntroDiagnosisSummary>)
+                : null;
+              if (isAdaptiveDiagnosis) {
+                const adaptivePathError = validateAdaptiveDiagnosisPath(startingPhase!, adaptiveDiagnosisSummary!);
+                if (adaptivePathError) {
+                  return res.status(400).json({ message: adaptivePathError });
+                }
+              }
+
+              const diagnosisScheduledSessionId = scheduledSession?.id ? String(scheduledSession.id) : null;
+              const id = uuidv4();
+              const responseSnapshot = buildResponseSnapshotV1({
+                sourceDrillId: id,
+                topic: normalizedIntroTopic,
+                mode: "diagnosis",
+                phase: isAdaptiveDiagnosis ? startingPhase! : drillPhase!,
+                sets: (isAdaptiveDiagnosis ? adaptiveBlocks : drillSets) as any,
+                drillScore: Number((diagnosisSummary as any).diagnosisScore ?? 0),
+                setScores: isAdaptiveDiagnosis
+                  ? adaptiveDiagnosisSummary!.phaseChecks.map((check: any) => Number(check.phaseScore || 0))
+                  : introDiagnosisSummary!.setScores,
+                engineOutcomeRef: {
+                  phaseBefore: null,
+                  stabilityBefore: null,
+                  phaseAfter: diagnosisSummary.phase,
+                  stabilityAfter: normalizeStability(diagnosisSummary.stability),
+                  transitionReason: "remain",
+                },
+              });
+
+              // Store drill results in intro_session_drills table
+              const drillPayload = JSON.stringify({
+                introTopic: normalizedIntroTopic,
+                phase: diagnosisSummary.phase,
+                startingPhase: isAdaptiveDiagnosis ? startingPhase : drillPhase,
+                drillType: "diagnosis",
+                diagnosisMode: isAdaptiveDiagnosis ? "adaptive" : "legacy",
+                scheduledSessionId: diagnosisScheduledSessionId,
+                sessionContextKind: diagnosisSessionKind,
+                sets: isAdaptiveDiagnosis ? adaptiveBlocks : drillSets,
+                summary: diagnosisSummary,
+                responseSnapshot,
+              });
+              const submittedAt = new Date().toISOString();
+              const inserted = isEmergencyDbMode()
+                ? (await pool.query(
+                    `INSERT INTO public.intro_session_drills
+                      (id, student_id, tutor_id, drill, scheduled_session_id, submitted_at)
+                     VALUES ($1, $2, $3, $4, $5, $6)
+                     RETURNING *`,
+                    [id, studentId, tutorId, drillPayload, diagnosisScheduledSessionId, submittedAt],
+                  )).rows[0]
+                : (await supabase
+                    .from("intro_session_drills")
+                    .insert({
+                      id,
+                      student_id: studentId,
+                      tutor_id: tutorId,
+                      drill: drillPayload,
+                      scheduled_session_id: diagnosisScheduledSessionId,
+                      submitted_at: submittedAt,
+                    })
+                    .select()
+                    .single()).data;
+              const error = inserted ? null : new Error("Failed to store drill results");
+              if (error) {
+                console.error("Error inserting intro session drill:", error);
+                return res.status(500).json({ message: "Failed to store drill results" });
+              }
+
+              await persistEvidenceLedgerShadow({
+                sourceDrillId: String(inserted?.id || id),
+                studentId: String(studentId),
+                tutorId: String(tutorId),
+                topic: normalizedIntroTopic,
+                scheduledSessionId: diagnosisScheduledSessionId,
+                trainingSessionRunId: null,
+                sessionGroupId: diagnosisScheduledSessionId || String(inserted?.id || id),
+                sessionContext: diagnosisSessionKind === "intro" ? "intro" : "active_training",
+                drillType: "diagnosis",
+                observedPhase: isAdaptiveDiagnosis ? startingPhase! : drillPhase!,
+                statePhaseBefore: null,
+                stabilityBefore: null,
+                statePhaseAfter: diagnosisSummary.phase,
+                stabilityAfter: normalizeStability(diagnosisSummary.stability),
+                transitionReason: "remain",
+                observedAt: String(inserted?.submitted_at || new Date().toISOString()),
+                sets: (isAdaptiveDiagnosis ? adaptiveBlocks : drillSets) as any,
+              });
+
+              // Mark intro completed on the first successful diagnosis submission.
+              // Sandbox/training-mode intros can run without a scheduled intro shell, so this
+              // cannot depend on `diagnosisSessionKind === "intro"`.
+              const existingProfile = (student.personalProfile as any) || {};
+              const existingWorkflow = (existingProfile.workflow as any) || {};
+              if (!existingWorkflow.introCompletedAt) {
+                await storage.updateStudent(studentId, {
+                  personalProfile: {
+                    ...existingProfile,
+                    workflow: {
+                      ...existingWorkflow,
+                      introCompletedAt: new Date().toISOString(),
+                    },
+                  },
+                } as any);
+              }
+
+              const scoringResults = isAdaptiveDiagnosis
+                ? adaptiveDiagnosisSummary!.phaseChecks.flatMap((check: any) =>
+                    check.repRows.map((row: any) => ({
+                      set: check.setName,
+                      rep: row.rep,
+                      score: row.repScore,
+                      setScore: check.phaseScore,
+                      setPoints: check.phaseScore,
+                      setMaxPoints: 100,
+                      sessionScore: check.phaseScore,
+                      phase: check.phase,
+                      stability: check.stability,
+                      band: check.band,
+                      bandLabel: labelAdaptiveDiagnosisBand(check.band),
+                      nextPhase: check.nextPhase,
+                      nextAction: adaptiveDiagnosisSummary!.nextAction,
+                      constraint: adaptiveDiagnosisSummary!.constraint,
+                    }))
+                  )
+                : introDiagnosisSummary!.repRows.map((row) => {
+                    const setIndex = introDiagnosisSummary!.repRows.findIndex(
+                      (candidate) => candidate.set === row.set && candidate.rep === row.rep
+                    );
+                    const scoredSetIndex = Math.max(0, Math.floor(setIndex / 3));
+                    const setScore = introDiagnosisSummary!.setScores[scoredSetIndex] ?? row.repScore;
+
+                    return {
+                      set: row.set,
+                      rep: row.rep,
+                      score: row.repScore,
+                      setScore,
+                      setPoints: setScore,
+                      setMaxPoints: 100,
+                      sessionScore: introDiagnosisSummary!.diagnosisScore,
+                      phase: introDiagnosisSummary!.phase,
+                      stability: introDiagnosisSummary!.stability,
+                      nextAction: introDiagnosisSummary!.nextAction,
+                      constraint: introDiagnosisSummary!.constraint,
+                    };
+                  });
+
+              const conceptMastery: any =
+                student.conceptMastery && typeof student.conceptMastery === "object"
+                  ? { ...(student.conceptMastery as any) }
+                  : {};
+              const topicConditioningStore: any =
+                conceptMastery.topicConditioning && typeof conceptMastery.topicConditioning === "object"
+                  ? { ...conceptMastery.topicConditioning }
+                  : {};
+              const topicsStore: Record<string, any> =
+                topicConditioningStore.topics && typeof topicConditioningStore.topics === "object"
+                  ? { ...topicConditioningStore.topics }
+                  : {};
+              const existingTopic = topicsStore[normalizedIntroTopic] && typeof topicsStore[normalizedIntroTopic] === "object"
+                ? topicsStore[normalizedIntroTopic]
+                : {};
+              const existingHistory = Array.isArray(existingTopic.history) ? [...existingTopic.history] : [];
+              const nowIso = new Date().toISOString();
+
+              topicsStore[normalizedIntroTopic] = {
+                ...existingTopic,
+                topic: normalizedIntroTopic,
+                phase: diagnosisSummary.phase,
+                stability: diagnosisSummary.stability,
+                lastUpdated: nowIso,
+                nextAction: diagnosisSummary.nextAction,
+                observationNotes: [
+                  `Intro Diagnosis Score: ${diagnosisSummary.diagnosisScore}`,
+                  diagnosisSummary.constraint ? `Constraint: ${diagnosisSummary.constraint}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" | "),
+                history: [
+                  ...existingHistory,
+                  {
+                    date: nowIso,
+                    phase: diagnosisSummary.phase,
+                    stability: diagnosisSummary.stability,
+                    nextAction: diagnosisSummary.nextAction,
+                    observationNotes: `Intro diagnosis update. Score ${diagnosisSummary.diagnosisScore}.`,
+                    structuredObservation: {
+                      drillType: "diagnosis",
+                      observedPhase: isAdaptiveDiagnosis ? diagnosisSummary.phase : drillPhase,
+                      startingPhase: isAdaptiveDiagnosis ? startingPhase : drillPhase,
+                      diagnosisMode: isAdaptiveDiagnosis ? "adaptive" : "legacy",
+                      diagnosisScore: diagnosisSummary.diagnosisScore,
+                      finalBand: isAdaptiveDiagnosis ? adaptiveDiagnosisSummary?.finalBand || null : null,
+                      pathLength: isAdaptiveDiagnosis ? adaptiveDiagnosisSummary?.pathLength || null : null,
+                      nextAction: diagnosisSummary.nextAction,
+                      constraint: diagnosisSummary.constraint,
+                    },
+                    drillId: inserted.id,
+                  },
+                ].slice(-60),
+              };
+
+              topicConditioningStore.topic = normalizedIntroTopic;
+              topicConditioningStore.entry_phase = diagnosisSummary.phase;
+              topicConditioningStore.stability = diagnosisSummary.stability;
+              topicConditioningStore.lastUpdatedAt = nowIso;
+              topicConditioningStore.topics = topicsStore;
+              conceptMastery.topicConditioning = topicConditioningStore;
+
+              await storage.updateStudent(studentId, { conceptMastery });
+
+              try {
+                await maybeAutoSendDeterministicReports(studentId, tutorId);
+              } catch (autoReportError) {
+                console.error("Auto report generation failed after intro drill:", autoReportError);
+              }
+
+              if (diagnosisSessionKind === "intro" && scheduledSession) {
+                if (isEmergencyDbMode()) {
+                  await pool.query(
+                    `UPDATE public.scheduled_sessions
+                        SET status = 'completed', attendance_status = 'both_joined',
+                            recording_status = 'manual_not_tracked',
+                            transcript_status = 'manual_not_tracked', updated_at = NOW()
+                      WHERE id = $1 AND tutor_id = $2`,
+                    [scheduledSession.id, tutorId],
+                  );
+                } else {
+                  await supabase
+                    .from("scheduled_sessions")
+                    .update({
+                      status: "completed",
+                      attendance_status: "both_joined",
+                      recording_status: "manual_not_tracked",
+                      transcript_status: "manual_not_tracked",
+                      updated_at: new Date().toISOString(),
+                    })
+                    .eq("id", scheduledSession.id);
+                }
+              }
+
+              res.json({
+                success: true,
+                id: inserted.id,
+                introTopic: normalizedIntroTopic,
+                scoring: scoringResults,
+                summary: diagnosisSummary,
+                responseSnapshot,
+              });
+            } catch (err) {
+              console.error("Exception in intro session drill submission:", err);
+              res.status(500).json({ message: "Internal server error" });
+            }
+          });
+
+          app.post("/api/tutor/handover-verification-drill", isAuthenticated, requireRole(["tutor"]), async (req: Request, res: Response) => {
+            try {
+              const tutorId = (req as any).dbUser.id;
+              const {
+                studentId,
+                drill,
+                handoverTopic,
+                phase: rawPhase,
+                startingPhase: rawStartingPhase,
+                stability: rawStability,
+                adaptiveBlocks: rawAdaptiveBlocks,
+                scheduledSessionId,
+                rediagnosis,
+              } = req.body;
+              const handoverBlocks = normalizeAdaptiveDiagnosisBlocks(
+                Array.isArray(drill)
+                  ? drill.map((set: any) => ({
+                      ...set,
+                      phase: rawPhase,
+                    }))
+                  : []
+              );
+              const adaptiveBlocks = normalizeAdaptiveDiagnosisBlocks(rawAdaptiveBlocks);
+              const legacyTargetedRediagnosisRequested = !!rediagnosis || adaptiveBlocks.length > 0;
+              if (legacyTargetedRediagnosisRequested) {
+                return res.status(409).json({
+                  message:
+                    "Legacy Handover re-diagnosis is retired. Launch evidence-complete targeted re-diagnosis from the Handover result.",
+                  decisionAuthority: "evidence_native",
+                  requiredRoute: "evidence_complete_diagnosis",
+                });
+              }
+              const isTargetedRediagnosis = false;
+              const verificationBlocks = handoverBlocks;
+              const verificationPhase = parseAuthoritativePhase(rawPhase);
+              const startingPhase = parseAuthoritativePhase(rawStartingPhase) || verificationPhase;
+              const previousStability = normalizeStability(rawStability || "Low");
+              const normalizedTopic = String(handoverTopic || "").trim();
+
+              if (!studentId || verificationBlocks.length === 0) {
+                return res.status(400).json({ message: "Missing or invalid studentId or verification drill data" });
+              }
+              if (!verificationPhase) {
+                return res.status(400).json({ message: "Handover verification requires a valid inherited phase" });
+              }
+              if (isTargetedRediagnosis && !startingPhase) {
+                return res.status(400).json({ message: "Targeted re-diagnosis requires a valid starting phase" });
+              }
+              if (!normalizedTopic) {
+                return res.status(400).json({ message: "Handover verification topic is required" });
+              }
+              if (!isTargetedRediagnosis && verificationBlocks.length !== 1) {
+                return res.status(400).json({ message: "Handover verification must submit exactly one phase verification block" });
+              }
+
+              const verificationValidationError = isTargetedRediagnosis
+                ? validateAdaptiveDiagnosisBlocks(verificationBlocks, "diagnosis")
+                : validateAdaptiveDiagnosisBlocks(verificationBlocks, "verification");
+              if (verificationValidationError) {
+                return res.status(400).json({ message: verificationValidationError });
+              }
+
+              const student = await storage.getStudent(studentId);
+              const normalizedStudent = normalizeStudentRecord(student);
+              let tutorOwnsStudent = !!normalizedStudent && String(normalizedStudent.tutorId || "") === String(tutorId);
+
+              if (!tutorOwnsStudent) {
+                const parentEnrollmentId = String(
+                  (normalizedStudent as any)?.parentEnrollmentId || (normalizedStudent as any)?.parent_enrollment_id || ""
+                ).trim();
+
+                if (parentEnrollmentId) {
+                  const { data: linkedEnrollment } = await supabase
+                    .from("parent_enrollments")
+                    .select("id, assigned_tutor_id, user_id, student_full_name, student_grade")
+                    .eq("id", parentEnrollmentId)
+                    .maybeSingle();
+
+                  tutorOwnsStudent = String(linkedEnrollment?.assigned_tutor_id || "") === String(tutorId);
+
+                  if (tutorOwnsStudent && linkedEnrollment) {
+                    try {
+                      await ensureStudentForEnrollment(linkedEnrollment, tutorId);
+                    } catch (error) {
+                      console.error("Failed to backfill canonical tutor link for intro drill:", error);
+                    }
+                  }
+                }
+              }
+
+              if (!normalizedStudent || !tutorOwnsStudent) {
+                return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+              }
+
+              const assignmentAccepted = await isTutorAssignmentAcceptedForStudent(student, tutorId);
+              if (!assignmentAccepted) {
+                return res.status(403).json({ message: "Accept this assignment before running handover verification." });
+              }
+
+              const workflow = ((student.personalProfile as any) || {}).workflow || {};
+              if (!workflow.handoverRequiredAt || workflow.handoverCompletedAt) {
+                return res.status(400).json({ message: "This student is not currently in handover verification." });
+              }
+
+              const { session: scheduledSession, error: scheduledSessionError } = await resolveTutorScheduledSession(
+                tutorId,
+                studentId,
+                "handover",
+                typeof scheduledSessionId === "string" ? scheduledSessionId : null
+              );
+              if (scheduledSessionError) {
+                return res.status(500).json({ message: "Failed to validate handover session context" });
+              }
+              if (!scheduledSession) {
+                return res.status(400).json({ message: "A confirmed continuity check session is required before handover verification can submit." });
+              }
+
+              const handoverLaunch = getSessionLaunchState(scheduledSession, "handover");
+              if (!handoverLaunch.canLaunch) {
+                return res.status(400).json({ message: "Handover verification is blocked until the continuity check session is confirmed." });
+              }
+
+              if (verificationPhase === "Time Pressure Stability") {
+                const inheritedTimerContract = await loadLatestTpsTimerContract({
+                  studentId: String(studentId),
+                  topic: normalizedTopic,
+                });
+                if (!inheritedTimerContract) {
+                  return res.status(409).json({
+                    code: TPS_TIMER_BASELINE_INCOMPLETE,
+                    message:
+                      "Inherited Time Pressure Stability cannot be verified without the student/topic Timer Contract. Re-establish timing authority through targeted evidence-native re-diagnosis.",
+                    decisionAuthority: "evidence_native",
+                    requiredRoute: "evidence_complete_diagnosis",
+                    targetedRediagnosisStartPhase: "Structured Execution",
+                  });
+                }
+                const handoverTimingLineageError =
+                  await validateTpsHandoverTimedAttemptLineage({
+                    contract: inheritedTimerContract,
+                    sets: verificationBlocks,
+                  });
+                if (handoverTimingLineageError) {
+                  return res.status(409).json({
+                    code: "TPS_HANDOVER_TIMING_LINEAGE_INVALID",
+                    message: handoverTimingLineageError,
+                    decisionAuthority: "evidence_native",
+                  });
+                }
+              }
+
+              let handoverSummary:
+                | ReturnType<typeof computeHandoverVerificationSummary>
+                | ReturnType<typeof computeHandoverRediagnosisSummary>;
+              let verificationBlock = verificationBlocks[0];
+
+              if (isTargetedRediagnosis) {
+                const adaptiveSummary = computeAdaptiveDiagnosisSummary(startingPhase!, verificationBlocks);
+                const adaptivePathError = validateAdaptiveDiagnosisPath(startingPhase!, adaptiveSummary);
+                if (adaptivePathError) {
+                  return res.status(400).json({ message: adaptivePathError });
+                }
+                handoverSummary = computeHandoverRediagnosisSummary(
+                  startingPhase!,
+                  previousStability,
+                  verificationBlocks
+                );
+              } else {
+                const verificationSummary = computeHandoverVerificationSummary(
+                  verificationPhase,
+                  previousStability,
+                  verificationBlock,
+                );
+                if (verificationSummary.status !== "evaluated") {
+                  return res.status(400).json({
+                    message: `Handover evidence is not decision-eligible: ${verificationSummary.reason}`,
+                  });
+                }
+                if (verificationSummary.verificationOutcome === "continue_verification") {
+                  return res.status(409).json({
+                    message: "Handover continuity evidence is not yet sufficient. Record another clean opportunity under the same inherited phase conditions.",
+                    decisionAuthority: "evidence_native",
+                    requiredAction: "record_additional_continuity_evidence",
+                    dimensions: verificationSummary.dimensions,
+                  });
+                }
+                handoverSummary = verificationSummary;
+              }
+
+              const id = uuidv4();
+              const responseSnapshot = buildResponseSnapshotV1({
+                sourceDrillId: id,
+                topic: normalizedTopic,
+                mode: isTargetedRediagnosis ? "handover_rediagnosis" : "handover_verification",
+                phase: isTargetedRediagnosis ? startingPhase! : verificationPhase!,
+                sets: verificationBlocks as any,
+                drillScore: Number(handoverSummary.verificationScore || 0),
+                setScores: isTargetedRediagnosis
+                  ? (handoverSummary as ReturnType<typeof computeHandoverRediagnosisSummary>).phaseChecks.map((check: any) =>
+                      Number(check.phaseScore || 0),
+                    )
+                  : [Number(handoverSummary.verificationScore || 0)],
+                engineOutcomeRef: {
+                  phaseBefore: verificationPhase,
+                  stabilityBefore: previousStability,
+                  phaseAfter: handoverSummary.resultingPhase,
+                  stabilityAfter: handoverSummary.resultingStability,
+                  transitionReason: String(handoverSummary.verificationOutcome),
+                },
+              });
+              const { data: inserted, error } = await supabase
+                .from("intro_session_drills")
+                .insert({
+                  id,
+                  student_id: studentId,
+                  tutor_id: tutorId,
+                  drill: JSON.stringify({
+                    handoverTopic: normalizedTopic,
+                    phase: verificationPhase,
+                    startingPhase: startingPhase,
+                    previousStability,
+                    drillType: "handover_verification",
+                    handoverMode: isTargetedRediagnosis ? "targeted_re_diagnosis" : "verification",
+                    scheduledSessionId: scheduledSession.id,
+                    sets: verificationBlocks,
+                    summary: handoverSummary,
+                    responseSnapshot,
+                  }),
+                  scheduled_session_id: scheduledSession.id,
+                  submitted_at: new Date().toISOString(),
+                })
+                .select()
+                .single();
+              if (error) {
+                console.error("Error inserting handover verification drill:", error);
+                return res.status(500).json({ message: "Failed to store handover verification results" });
+              }
+
+              await persistEvidenceLedgerShadow({
+                sourceDrillId: String(inserted?.id || id),
+                studentId: String(studentId),
+                tutorId: String(tutorId),
+                topic: normalizedTopic,
+                scheduledSessionId: String(scheduledSession.id),
+                trainingSessionRunId: null,
+                sessionGroupId: String(scheduledSession.id),
+                sessionContext: "handover_verification",
+                drillType: isTargetedRediagnosis ? "diagnosis" : "verification",
+                observedPhase: startingPhase!,
+                statePhaseBefore: verificationPhase,
+                stabilityBefore: previousStability,
+                statePhaseAfter: handoverSummary.resultingPhase,
+                stabilityAfter: handoverSummary.resultingStability,
+                transitionReason: String(handoverSummary.verificationOutcome),
+                observedAt: String(inserted?.submitted_at || new Date().toISOString()),
+                sets: verificationBlocks as any,
+              });
+
+              const conceptMastery: any =
+                student.conceptMastery && typeof student.conceptMastery === "object"
+                  ? { ...(student.conceptMastery as any) }
+                  : {};
+              const topicConditioningStore: any =
+                conceptMastery.topicConditioning && typeof conceptMastery.topicConditioning === "object"
+                  ? { ...conceptMastery.topicConditioning }
+                  : {};
+              const topicsStore: Record<string, any> =
+                topicConditioningStore.topics && typeof topicConditioningStore.topics === "object"
+                  ? { ...topicConditioningStore.topics }
+                  : {};
+              const existingTopic = topicsStore[normalizedTopic] && typeof topicsStore[normalizedTopic] === "object"
+                ? topicsStore[normalizedTopic]
+                : {};
+              const existingHistory = Array.isArray(existingTopic.history) ? [...existingTopic.history] : [];
+              const nowIso = new Date().toISOString();
+
+              topicsStore[normalizedTopic] = {
+                ...existingTopic,
+                topic: normalizedTopic,
+                phase: handoverSummary.resultingPhase,
+                stability: handoverSummary.resultingStability,
+                lastUpdated: nowIso,
+                nextAction: handoverSummary.nextAction,
+                observationNotes: [
+                  `Handover evidence decision: ${handoverSummary.verificationOutcomeLabel}`,
+                  (handoverSummary as any).evidenceReason
+                    ? `Evidence: ${(handoverSummary as any).evidenceReason}`
+                    : null,
+                  handoverSummary.constraint ? `Constraint: ${handoverSummary.constraint}` : null,
+                  typeof handoverSummary.verificationScore === "number"
+                    ? `Compatibility score (non-authoritative): ${handoverSummary.verificationScore}`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" | "),
+                history: [
+                  ...existingHistory,
+                  {
+                    date: nowIso,
+                    phase: handoverSummary.resultingPhase,
+                    stability: handoverSummary.resultingStability,
+                    nextAction: handoverSummary.nextAction,
+                    observationNotes: `Handover evidence decision: ${handoverSummary.verificationOutcomeLabel}.`,
+                    structuredObservation: {
+                      drillType: "handover_verification",
+                      handoverMode: isTargetedRediagnosis ? "targeted_re_diagnosis" : "verification",
+                      observedPhase: handoverSummary.phase,
+                      previousStability: handoverSummary.previousStability,
+                      decisionAuthority: (handoverSummary as any).decisionAuthority || "evidence_native",
+                      scoreAuthority: (handoverSummary as any).scoreAuthority ?? false,
+                      compatibilityScore: handoverSummary.verificationScore,
+                      verificationScore: handoverSummary.verificationScore,
+                      verificationOutcome: handoverSummary.verificationOutcome,
+                      verificationOutcomeLabel: handoverSummary.verificationOutcomeLabel,
+                      verificationConfidence: handoverSummary.confidence,
+                      evidenceReason: (handoverSummary as any).evidenceReason || null,
+                      dimensionDecisions: (handoverSummary as any).dimensions || [],
+                      resultingPhase: handoverSummary.resultingPhase,
+                      resultingStability: handoverSummary.resultingStability,
+                      reDiagnosisRequired: handoverSummary.reDiagnosisRequired,
+                      nextAction: handoverSummary.nextAction,
+                      constraint: handoverSummary.constraint,
+                    },
+                    drillId: inserted.id,
+                  },
+                ].slice(-60),
+              };
+
+              topicConditioningStore.topics = topicsStore;
+              topicConditioningStore.lastUpdatedAt = nowIso;
+              conceptMastery.topicConditioning = topicConditioningStore;
+
+              await storage.updateStudent(studentId, { conceptMastery });
+
+              await supabase
+                .from("scheduled_sessions")
+                .update({
+                  status: "completed",
+                  attendance_status: "both_joined",
+                  recording_status: "manual_not_tracked",
+                  transcript_status: "manual_not_tracked",
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", scheduledSession.id);
+
+              const scoring = handoverSummary.repRows.map((row) => ({
+                set: verificationBlocks[0]?.setName || verificationBlock?.setName || "Verification Block",
+                rep: row.rep,
+                score: row.repScore,
+                setScore: handoverSummary.verificationScore,
+                setPoints: handoverSummary.verificationScore,
+                setMaxPoints: 100,
+                sessionScore: handoverSummary.verificationScore,
+                decisionAuthority: (handoverSummary as any).decisionAuthority || "evidence_native",
+                scoreAuthority: (handoverSummary as any).scoreAuthority ?? false,
+                phase: handoverSummary.phase,
+                stability: handoverSummary.resultingStability,
+                previousStability: handoverSummary.previousStability,
+                verificationOutcome: handoverSummary.verificationOutcome,
+                verificationOutcomeLabel: handoverSummary.verificationOutcomeLabel,
+                confidence: handoverSummary.confidence,
+                reDiagnosisRequired: handoverSummary.reDiagnosisRequired,
+                nextAction: handoverSummary.nextAction,
+                constraint: handoverSummary.constraint,
+              }));
+
+              res.json({
+                success: true,
+                id: inserted.id,
+                handoverTopic: normalizedTopic,
+                scoring,
+                summary: handoverSummary,
+                responseSnapshot,
+              });
+            } catch (err) {
+              console.error("Exception in handover verification submission:", err);
+              res.status(500).json({ message: "Internal server error" });
+            }
+          });
+
+          app.post("/api/tutor/training-session-drill", isAuthenticated, requireRole(["tutor"]), async (req: Request, res: Response) => {
+            let emergencyDbClient: any = null;
+            try {
+              const tutorId = (req as any).dbUser.id;
+              const { studentId, sessionDrills, scheduledSessionId } = req.body;
+
+              if (!studentId || !Array.isArray(sessionDrills) || sessionDrills.length === 0) {
+                return res.status(400).json({ message: "Missing or invalid studentId or sessionDrills array" });
+              }
+
+              const student = await storage.getStudent(studentId);
+              if (!student || student.tutorId !== tutorId) {
+                return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+              }
+
+              const assignmentAccepted = await isTutorAssignmentAcceptedForStudent(student, tutorId);
+              if (!assignmentAccepted) {
+                return res.status(403).json({ message: "Accept this assignment before running drills for this student." });
+              }
+
+              const operationalMode = await getTutorOperationalMode(tutorId);
+              let scheduledSession: any = null;
+
+              if (isLiveSchedulingMode(operationalMode) || operationalMode === "training" || operationalMode === "sandbox") {
+                const { session: resolvedScheduledSession, error: scheduledSessionError } = await resolveTutorScheduledSession(
+                  tutorId,
+                  studentId,
+                  "training",
+                  typeof scheduledSessionId === "string" ? scheduledSessionId : null
+                );
+                if (scheduledSessionError) {
+                  return res.status(500).json({ message: "Failed to validate training session context" });
+                }
+                if (!resolvedScheduledSession) {
+                  return res.status(400).json({ message: "A Response Integrity training lesson must be attached before drill submission." });
+                }
+
+                const authoritativeScheduledSession = await reconcileTrainingSessionCompletionFromRun({
+                  session: resolvedScheduledSession,
+                  tutorId,
+                  studentId,
+                });
+
+                if (operationalMode === "training" || operationalMode === "sandbox") {
+                  const status = String(authoritativeScheduledSession.status || "").trim();
+                  const hasConfirmedSchedule =
+                    ["confirmed", "ready", "live"].includes(status) &&
+                    !!resolvedScheduledSession.parent_confirmed &&
+                    !!resolvedScheduledSession.tutor_confirmed;
+
+                  if (!hasConfirmedSchedule) {
+                    return res.status(400).json({
+                      message: "Training drills must submit from a tutor-confirmed weekly Response Integrity lesson.",
+                    });
+                  }
+                } else {
+                  const trainingLaunch = getSessionLaunchState(authoritativeScheduledSession, "training");
+                  if (!trainingLaunch.canLaunch) {
+                    return res.status(400).json({ message: "Training drills must submit from an active or imminently scheduled Response Integrity lesson." });
+                  }
+                }
+
+                const quotaAuthority = await getTrainingPackageQuotaAuthority({
+                  operationalMode,
+                  studentId,
+                  student,
+                  session: authoritativeScheduledSession,
+                });
+                if (quotaAuthority.decision.blocked) {
+                  return res.status(409).json({
+                    message: trainingPackageQuotaMessage(quotaAuthority.decision),
+                    code: quotaAuthority.decision.code,
+                    monthlyQuota: quotaAuthority.monthlyQuota,
+                  });
+                }
+
+                scheduledSession = authoritativeScheduledSession;
+              }
+
+              emergencyDbClient = isEmergencyDbMode() ? await pool.connect() : null;
+              if (emergencyDbClient) await emergencyDbClient.query("BEGIN");
+              const pendingEmergencyLedgerInputs: EvidenceLedgerProjectionInput[] = [];
+              const pendingEmergencyShadowComparisons: TrainingEvidenceShadowDatasetInput[] = [];
+
+              const conceptMastery: any =
+                student.conceptMastery && typeof student.conceptMastery === "object"
+                  ? { ...(student.conceptMastery as any) }
+                  : {};
+              const topicConditioningStore: any =
+                conceptMastery.topicConditioning && typeof conceptMastery.topicConditioning === "object"
+                  ? { ...conceptMastery.topicConditioning }
+                  : {};
+              const topicsStore: Record<string, any> =
+                topicConditioningStore.topics && typeof topicConditioningStore.topics === "object"
+                  ? { ...topicConditioningStore.topics }
+                  : {};
+
+              const sessionId = uuidv4();
+              const sessionStartTime = new Date().toISOString();
+              const drillResults = [];
+              const scheduledSessionRecordId = scheduledSession?.id || null;
+
+              const trainingRun = isEmergencyDbMode()
+                ? (await emergencyDbClient!.query(
+                    `INSERT INTO public.training_session_runs
+                      (id, scheduled_session_id, student_id, tutor_id, topic_count, started_at, status, created_at, updated_at)
+                     VALUES ($1, $2, $3, $4, $5, $6, 'in_progress', $6, $6)
+                     RETURNING *`,
+                    [sessionId, scheduledSessionRecordId, studentId, tutorId, sessionDrills.length, sessionStartTime],
+                  )).rows[0]
+                : (await supabase
+                    .from("training_session_runs")
+                    .insert({
+                      id: sessionId,
+                      scheduled_session_id: scheduledSessionRecordId,
+                      student_id: studentId,
+                      tutor_id: tutorId,
+                      topic_count: sessionDrills.length,
+                      started_at: sessionStartTime,
+                      status: "in_progress",
+                      created_at: sessionStartTime,
+                      updated_at: sessionStartTime,
+                    })
+                    .select()
+                    .single()).data;
+
+              // Process each drill in the session
+              for (const drillData of sessionDrills) {
+                const {
+                  trainingTopic,
+                  drill,
+                  phase: rawPhase,
+                  previousStability: rawPreviousStability,
+                  tpsTimingSourceContextId,
+                } = drillData;
+                const drillSets = normalizeIntroDrillSets(drill);
+                const observedPhase = parseAuthoritativePhase(rawPhase);
+                const normalizedTopic = String(trainingTopic || "").trim();
+
+                if (drillSets.length === 0) {
+                  throw new Error(`Missing drill data for topic ${normalizedTopic}`);
+                }
+                if (!observedPhase) {
+                  throw new Error(`Invalid or missing phase for topic ${normalizedTopic}`);
+                }
+                if (!normalizedTopic) {
+                  throw new Error("Training topic is required for each drill");
+                }
+
+                const drillValidationError = validateDrillStructure("training", observedPhase, drillSets);
+                if (drillValidationError) {
+                  throw new Error(`Validation error for ${normalizedTopic}: ${drillValidationError}`);
+                }
+                const passiveTimingValidationError = validateTrainingPassiveTimingSubmission({
+                  observedPhase,
+                  sets: drillSets,
+                });
+                if (passiveTimingValidationError) {
+                  throw Object.assign(
+                    new Error(
+                      `Timing evidence invalid for ${normalizedTopic}: ${passiveTimingValidationError}`,
+                    ),
+                    {
+                      statusCode: 400,
+                      code: "TPS_TIMING_EVIDENCE_INVALID",
+                    },
+                  );
+                }
+
+                if (observedPhase === "Structured Execution") {
+                  const passiveTimingSourceContextId =
+                    scheduledSessionRecordId ||
+                    String(tpsTimingSourceContextId || "").trim();
+                  if (!passiveTimingSourceContextId) {
+                    throw Object.assign(
+                      new Error(
+                        `Timing evidence invalid for ${normalizedTopic}: passive baseline lineage is missing its session context.`,
+                      ),
+                      {
+                        statusCode: 400,
+                        code: "TPS_PASSIVE_TIMING_LINEAGE_INVALID",
+                      },
+                    );
+                  }
+                  const passiveTimingLineageError =
+                    await validateTrainingPassiveTimingAttemptLineage({
+                      studentId,
+                      topic: normalizedTopic,
+                      sourceContextId: passiveTimingSourceContextId,
+                      sets: drillSets,
+                    });
+                  if (passiveTimingLineageError) {
+                    throw Object.assign(
+                      new Error(
+                        `Timing evidence invalid for ${normalizedTopic}: ${passiveTimingLineageError}`,
+                      ),
+                      {
+                        statusCode: 409,
+                        code: "TPS_PASSIVE_TIMING_LINEAGE_INVALID",
+                      },
+                    );
+                  }
+                }
+
+                // Get current topic state
+                const existing = topicsStore[normalizedTopic] && typeof topicsStore[normalizedTopic] === "object"
+                  ? topicsStore[normalizedTopic]
+                  : {};
+
+                const previousStability = normalizeStability(
+                  existing?.stability || rawPreviousStability || "Low"
+                );
+                // Score the drill against the phase that was actually run. If persisted topic
+                // state lags behind the launched drill, falling back to the stored phase turns
+                // every later-phase observation into a silent zero because the field aliases differ.
+                const effectivePhase = observedPhase;
+                const existingHistory = Array.isArray(existing.history) ? [...existing.history] : [];
+                let priorConsecutiveLows = 0;
+                if (existingHistory.length > 0) {
+                  for (let idx = existingHistory.length - 1; idx >= 0; idx -= 1) {
+                    const entryStability = normalizeStability(existingHistory[idx]?.stability || "");
+                    if (entryStability === "Low") {
+                      priorConsecutiveLows += 1;
+                    } else {
+                      break;
+                    }
+                  }
+                } else if (previousStability === "Low") {
+                  priorConsecutiveLows = 1;
+                }
+
+                const tpsTimingSourceEpochKey = deriveStructuredExecutionEpochKeyForTraining({
+                  history: existingHistory,
+                  observedPhase: effectivePhase,
+                });
+
+                const proposedTrainingSummary = computeTrainingSessionSummary(
+                  effectivePhase,
+                  previousStability,
+                  drillSets,
+                  priorConsecutiveLows
+                );
+
+                const drillId = uuidv4();
+                let pendingTrainingTimerContract = null as ReturnType<
+                  typeof deriveTrainingTpsTimerContract
+                >;
+                let persistedTimerContract: PersistedTpsTimerContract | null = null;
+
+                const progressingFromStructuredExecution =
+                  effectivePhase === "Structured Execution" &&
+                  proposedTrainingSummary.phase === "Controlled Discomfort" &&
+                  proposedTrainingSummary.transitionReason === "phase progress";
+
+                if (progressingFromStructuredExecution && tpsTimingSourceEpochKey) {
+                  const priorTimingRows = await loadTpsTimingDrillRows({
+                    studentId,
+                    queryClient: isEmergencyDbMode() ? emergencyDbClient : null,
+                  });
+                  const currentTimingRow: StoredDrillRow = {
+                    id: drillId,
+                    student_id: studentId,
+                    submitted_at: sessionStartTime,
+                    drill: {
+                      drillType: "training",
+                      trainingTopic: normalizedTopic,
+                      phase: effectivePhase,
+                      sets: drillSets,
+                      tpsTimingAuthority: {
+                        version: 1,
+                        source: "training_independent_execution",
+                        sourceEpochKey: tpsTimingSourceEpochKey,
+                        measurementBoundary: "begin_to_student_finished",
+                        assignedBy: "server",
+                      },
+                    },
+                  };
+                  pendingTrainingTimerContract = deriveTrainingTpsTimerContract({
+                    rows: [...priorTimingRows, currentTimingRow],
+                    studentId,
+                    topic: normalizedTopic,
+                    sourceEpochKey: tpsTimingSourceEpochKey,
+                  });
+                }
+
+                const needsExistingTimerContract =
+                  effectivePhase === "Time Pressure Stability" ||
+                  effectivePhase === "Controlled Discomfort";
+
+                if (needsExistingTimerContract) {
+                  persistedTimerContract = await loadLatestTpsTimerContract({
+                    studentId,
+                    topic: normalizedTopic,
+                  });
+                }
+
+                const timingReadiness = resolveTpsTrainingReadiness({
+                  observedPhase: effectivePhase,
+                  previousStability,
+                  proposedPhase: proposedTrainingSummary.phase,
+                  proposedStability: proposedTrainingSummary.stability,
+                  transitionReason: proposedTrainingSummary.transitionReason,
+                  hasTimerContract: Boolean(persistedTimerContract),
+                  canFreezeTrainingBaseline: Boolean(pendingTrainingTimerContract),
+                });
+
+                if (timingReadiness.action === "targeted_rediagnosis") {
+                  const timingError = Object.assign(
+                    new Error(timingReadiness.reason),
+                    {
+                      statusCode: 409,
+                      code: TPS_TIMER_BASELINE_INCOMPLETE,
+                      targetedRediagnosisStartPhase:
+                        timingReadiness.targetedRediagnosisStartPhase,
+                    },
+                  );
+                  throw timingError;
+                }
+
+                if (
+                  effectivePhase === "Time Pressure Stability" &&
+                  persistedTimerContract
+                ) {
+                  const timedAttemptLineageError =
+                    await validateTpsTrainingDrillTimedAttemptLineage({
+                      contract: persistedTimerContract,
+                      sets: drillSets,
+                    });
+                  if (timedAttemptLineageError) {
+                    throw Object.assign(new Error(timedAttemptLineageError), {
+                      statusCode: 409,
+                      code: "TPS_TIMED_EVIDENCE_INVALID",
+                    });
+                  }
+                }
+
+                let trainingSummary = proposedTrainingSummary;
+                if (timingReadiness.action === "hold_structured_execution") {
+                  trainingSummary = {
+                    ...proposedTrainingSummary,
+                    phase: timingReadiness.resultingPhase,
+                    stability: timingReadiness.resultingStability,
+                    transitionReason: "remain",
+                    phaseDecision: "remain",
+                    nextAction:
+                      "Run the next legitimate Structured Execution Training cycle and preserve a complete clean Independent Execution timing set.",
+                    constraint:
+                      "Do not progress to Controlled Discomfort until the current Structured Execution epoch has a complete clean Independent Execution baseline set.",
+                    requiresTargetedRediagnosis: false,
+                    targetedRediagnosisStartPhase: null,
+                    timingReadiness: {
+                      code: timingReadiness.issueCode,
+                      status: "hold_structured_execution",
+                      reason: timingReadiness.reason,
+                    },
+                  };
+                }
+
+                const responseSnapshot = buildResponseSnapshotV1({
+                  sourceDrillId: drillId,
+                  topic: normalizedTopic,
+                  mode: "training",
+                  phase: effectivePhase,
+                  sets: drillSets as any,
+                  drillScore: trainingSummary.sessionScore,
+                  setScores: trainingSummary.setScores,
+                  engineOutcomeRef: {
+                    phaseBefore: effectivePhase,
+                    stabilityBefore: previousStability,
+                    phaseAfter: trainingSummary.phase,
+                    stabilityAfter: trainingSummary.stability,
+                    transitionReason: trainingSummary.transitionReason,
+                  },
+                });
+                const drillPayload = {
+                  trainingTopic: normalizedTopic,
+                  phase: trainingSummary.observedPhase,
+                  previousStability: trainingSummary.previousStability,
+                  drillType: "training",
+                  sets: drillSets,
+                  summary: trainingSummary,
+                  responseSnapshot,
+                  sessionId: sessionId,
+                  scheduledSessionId: scheduledSessionRecordId,
+                  tpsTimingAuthority: tpsTimingSourceEpochKey
+                    ? {
+                        version: 1,
+                        source: "training_independent_execution",
+                        sourceEpochKey: tpsTimingSourceEpochKey,
+                        measurementBoundary: "begin_to_student_finished",
+                        assignedBy: "server",
+                      }
+                    : null,
+                };
+                const inserted = isEmergencyDbMode()
+                  ? (await emergencyDbClient!.query(
+                      `INSERT INTO public.intro_session_drills
+                        (id, student_id, tutor_id, drill, scheduled_session_id, training_session_run_id, submitted_at)
+                       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)
+                       RETURNING *`,
+                      [drillId, studentId, tutorId, JSON.stringify(drillPayload), scheduledSessionRecordId, trainingRun?.id || sessionId, sessionStartTime],
+                    )).rows[0]
+                  : (await supabase
+                      .from("intro_session_drills")
+                      .insert({
+                        id: drillId,
+                        student_id: studentId,
+                        tutor_id: tutorId,
+                        drill: JSON.stringify(drillPayload),
+                        scheduled_session_id: scheduledSessionRecordId,
+                        training_session_run_id: trainingRun?.id || sessionId,
+                        submitted_at: sessionStartTime,
+                      })
+                      .select()
+                      .single()).data;
+                const error = inserted ? null : new Error("Training drill insert returned no row");
+
+                if (error) {
+                  throw new Error(`Failed to store drill for ${normalizedTopic}`);
+                }
+
+                if (
+                  timingReadiness.action === "allow" &&
+                  timingReadiness.shouldFreezeTrainingContract &&
+                  pendingTrainingTimerContract
+                ) {
+                  persistedTimerContract = isEmergencyDbMode()
+                    ? await persistTpsTimerContractDirect({
+                        queryClient: emergencyDbClient!,
+                        contract: pendingTrainingTimerContract,
+                        tutorId,
+                      })
+                    : await persistTpsTimerContract({
+                        contract: pendingTrainingTimerContract,
+                        tutorId,
+                      });
+                }
+
+                const ledgerInput: EvidenceLedgerProjectionInput = {
+                  sourceDrillId: String(inserted?.id || drillId),
+                  studentId: String(studentId),
+                  tutorId: String(tutorId),
+                  topic: normalizedTopic,
+                  scheduledSessionId: scheduledSessionRecordId,
+                  trainingSessionRunId: String(trainingRun?.id || sessionId),
+                  sessionGroupId: String(scheduledSessionRecordId || trainingRun?.id || sessionId),
+                  sessionContext: "active_training",
+                  drillType: "training",
+                  observedPhase: effectivePhase,
+                  statePhaseBefore: effectivePhase,
+                  stabilityBefore: previousStability,
+                  statePhaseAfter: trainingSummary.phase,
+                  stabilityAfter: trainingSummary.stability,
+                  transitionReason: trainingSummary.transitionReason,
+                  observedAt: String(inserted?.submitted_at || sessionStartTime),
+                  sets: drillSets as any,
+                };
+                if (isEmergencyDbMode()) {
+                  pendingEmergencyLedgerInputs.push(ledgerInput);
+                } else {
+                  await persistEvidenceLedgerShadow(ledgerInput);
+                }
+
+                const shadowComparisonInput: TrainingEvidenceShadowDatasetInput = {
+                  sourceDrillId: String(inserted?.id || drillId),
+                  studentId: String(studentId),
+                  tutorId: String(tutorId),
+                  topic: normalizedTopic,
+                  scheduledSessionId: scheduledSessionRecordId,
+                  trainingSessionRunId: String(trainingRun?.id || sessionId),
+                  phase: effectivePhase,
+                  previousStability,
+                  observedAt: String(inserted?.submitted_at || sessionStartTime),
+                  evidenceShadow: trainingSummary.evidenceShadow,
+                  comparison: trainingSummary.evidenceShadowComparison,
+                };
+                if (isEmergencyDbMode()) {
+                  pendingEmergencyShadowComparisons.push(shadowComparisonInput);
+                } else {
+                  await persistTrainingShadowComparison(shadowComparisonInput);
+                }
+
+                // Update topic state
+                const nowIso = new Date().toISOString();
+                const updatedEntry = {
+                  ...existing,
+                  topic: normalizedTopic,
+                  phase: trainingSummary.phase,
+                  stability: trainingSummary.stability,
+                  lastUpdated: nowIso,
+                  nextAction: trainingSummary.nextAction,
+                  requiresTargetedRediagnosis: trainingSummary.requiresTargetedRediagnosis,
+                  targetedRediagnosisStartPhase: trainingSummary.targetedRediagnosisStartPhase,
+                  prerequisiteContradictionStatus: trainingSummary.prerequisiteContradiction.status,
+                  prerequisiteContradictionReason: trainingSummary.prerequisiteContradiction.reason,
+                  tpsTimerContractId:
+                    persistedTimerContract?.contractId ||
+                    existing?.tpsTimerContractId ||
+                    null,
+                  tpsTimerBaselineSeconds:
+                    persistedTimerContract?.baselineSeconds ||
+                    existing?.tpsTimerBaselineSeconds ||
+                    null,
+                  observationNotes: [
+                    `Training evidence decision: ${trainingSummary.observedStability} observed stability`,
+                    `Decision: ${trainingSummary.transitionReason.toUpperCase()}`,
+                    trainingSummary.requiresTargetedRediagnosis
+                      ? `Targeted re-diagnosis start: ${trainingSummary.targetedRediagnosisStartPhase || trainingSummary.observedPhase}`
+                      : null,
+                    `Compatibility score (non-authoritative): ${trainingSummary.sessionScore}`,
+                    trainingSummary.constraint ? `Constraint: ${trainingSummary.constraint}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" | "),
+                  history: [
+                    ...existingHistory,
+                    {
+                      date: nowIso,
+                      phase: trainingSummary.phase,
+                      stability: trainingSummary.stability,
+                      nextAction: trainingSummary.nextAction,
+                      observationNotes: `Training drill update. Evidence decision ${trainingSummary.transitionReason}; compatibility score ${trainingSummary.sessionScore} (non-authoritative).`,
+                      structuredObservation: {
+                        drillType: "training",
+                        observedPhase: trainingSummary.observedPhase,
+                        observedStability: trainingSummary.observedStability,
+                        previousStability: trainingSummary.previousStability,
+                        transitionReason: trainingSummary.transitionReason,
+                        phaseDecision: trainingSummary.phaseDecision,
+                        decisionAuthority: trainingSummary.decisionAuthority,
+                        sessionScore: trainingSummary.sessionScore,
+                        nextAction: trainingSummary.nextAction,
+                        constraint: trainingSummary.constraint,
+                        requiresTargetedRediagnosis: trainingSummary.requiresTargetedRediagnosis,
+                        targetedRediagnosisStartPhase: trainingSummary.targetedRediagnosisStartPhase,
+                        prerequisiteContradiction: trainingSummary.prerequisiteContradiction,
+                      },
+                      drillId: inserted.id,
+                      sessionId: sessionId,
+                    },
+                  ].slice(-60),
+                };
+
+                topicsStore[normalizedTopic] = updatedEntry;
+
+                drillResults.push({
+                  drillId: inserted.id,
+                  topic: normalizedTopic,
+                  responseSnapshot,
+                  scoring: trainingSummary.repRows.map((row) => {
+                    const setIndex = trainingSummary.repRows.findIndex(
+                      (candidate) => candidate.set === row.set && candidate.rep === row.rep
+                    );
+                    const scoredSetIndex = Math.max(0, Math.floor(setIndex / 3));
+                    const setScore = trainingSummary.setScores[scoredSetIndex] ?? row.repScore;
+
+                    return {
+                      set: row.set,
+                      rep: row.rep,
+                      score: row.repScore,
+                      setScore,
+                      setPoints: setScore,
+                      setMaxPoints: 100,
+                      sessionScore: trainingSummary.sessionScore,
+                      decisionAuthority: trainingSummary.decisionAuthority,
+                      scoreAuthority: false,
+                      observedStability: trainingSummary.observedStability,
+                      phaseBefore: trainingSummary.observedPhase,
+                      phase: trainingSummary.phase,
+                      stabilityBefore: trainingSummary.previousStability,
+                      stability: trainingSummary.stability,
+                      transitionReason: trainingSummary.transitionReason,
+                      phaseDecision: trainingSummary.phaseDecision,
+                      nextAction: trainingSummary.nextAction,
+                      constraint: trainingSummary.constraint,
+                      requiresTargetedRediagnosis: trainingSummary.requiresTargetedRediagnosis,
+                      targetedRediagnosisStartPhase: trainingSummary.targetedRediagnosisStartPhase,
+                      prerequisiteContradictionS‚Ä¶62152 tokens truncated‚Ä¶oduction Link has unresolved ownership and cannot create new attribution" });
+          }
+          if (durableUserProductionCode && productionLink.status !== "active") {
+            // Historical attribution remains valid after a link is disabled.
+          } else if (productionLink.status !== "active") {
+            return res.status(400).json({ message: "Production Link is invalid or inactive" });
+          }
+          if (sessionProductionCode && durableProductionCode !== sessionProductionCode) {
+            return res.status(409).json({ message: "Existing Production Link attribution cannot be reassigned" });
+          }
+          if (sessionProductionCode && sessionProductionPipeline !== productionLink.pipeline_type) {
+            return res.status(409).json({ message: "Existing Production Link pipeline cannot be reassigned" });
+          }
+          (req.session as any).productionLinkCode = productionLink.production_link_code;
+          (req.session as any).productionPipeline = productionLink.pipeline_type;
+          if (!durableUserProductionCode) {
+            await storage.claimUserProductionAttribution(
+              userId,
+              productionLink.production_link_code,
+              (req.session as any)?.trackingSource || null,
+              (req.session as any)?.trackingCampaign || null,
+            );
+          }
+        }
+        const data = insertTutorApplicationSchema.parse({
+          ...req.body,
+          userId,
+          productionLinkCode: durableProductionCode || null,
+          trackingSource: durableUserProductionCode
+            ? durableUserTrackingSource
+            : (req.session as any)?.trackingSource || null,
+          trackingCampaign: durableUserProductionCode
+            ? durableUserTrackingCampaign
+            : (req.session as any)?.trackingCampaign || null,
+        }) as any;
+        if (!Number.isInteger(data.age) || data.age < 16 || data.age > 100) {
+          return res.status(400).json({ message: "Age must be between 16 and 100." });
+        }
+        if (data.completedMatric !== "yes") {
+          return res.status(400).json({ message: "Matric is required before Specialist onboarding can continue." });
+        }
+        if (data.age < 18 && data.completedMatric !== "yes") {
+          return res.status(400).json({ message: "Applicants under 18 may only continue if they completed Matric early." });
+        }
+        if (!String(data.matricYear || "").trim()) {
+          return res.status(400).json({ message: "Matric year is required." });
+        }
+        if (!String(data.mathResult || "").trim()) {
+          return res.status(400).json({ message: "Final mathematics result is required." });
+        }
+        const application = await storage.createTutorApplication(data);
+        res.json(application);
+      } catch (error) {
+        console.error("Error submitting tutor application:", error);
+        res.status(400).json({ message: "Failed to submit application" });
+      }
+    }
+  );
+
+  // Get tutor's application status (for gateway)
+  app.get(
+    "/api/tutor/application-status",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser?.id || (req.session as any)?.userId;
+        console.log("üìã Fetching tutor application status for user:", userId);
+        
+        // Add a timeout so this doesn't hang forever (increased to 15s for high-latency networks)
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Database query timeout after 15s")), 15000)
+        );
+        
+        const applicationsPromise = storage.getTutorApplicationsByUser(userId);
+        const applications = await Promise.race([applicationsPromise, timeoutPromise]) as any[];
+        
+        console.log("‚úÖ Got applications:", applications?.length || 0, "for user:", userId);
+        
+        if (!applications || applications.length === 0) {
+          console.log("üìù User has no applications, returning not_applied");
+          return res.json({ status: "not_applied" });
+        }
+
+        const applicationStatus = deriveTutorGatewayApplicationStatus(applications[0]);
+        console.log("‚úÖ Returning status:", applicationStatus.status, "for user:", userId);
+        return res.json(applicationStatus);
+        
+        // Get the most recent application
+        const latestApp = applications[0];
+        console.log("üìù Latest app status:", latestApp.status, "for user:", userId);
+        
+        // Check if under 18 based on age in application
+        const isUnder18 = latestApp.age < 18;
+        
+        const fallbackDocumentsStatus = {
+          "1": "pending_upload",
+          "2": "not_started",
+          "3": "not_started",
+          "4": "not_started",
+          "5": "not_started",
+          "6": "not_started",
+        };
+        const documentsStatus = latestApp.documentsStatus && typeof latestApp.documentsStatus === "object"
+          ? { ...fallbackDocumentsStatus, ...latestApp.documentsStatus }
+          : fallbackDocumentsStatus;
+        const sequentialDocSteps = ["1", "2", "3", "4", "5", "6"];
+        const sequentialReviewStarted = sequentialDocSteps.some((step) => {
+          const docStatus = String((documentsStatus as any)?.[step] || "");
+          return docStatus === "pending_review" || docStatus === "approved" || docStatus === "rejected";
+        });
+        const allSequentialDocumentsApproved = sequentialDocSteps.every(
+          (step) => String((documentsStatus as any)?.[step] || "") === "approved"
+        );
+
+        // Map application status to gateway status
+        let status: string;
+        switch (latestApp.status) {
+          case "pending":
+            status = "pending";
+            break;
+          case "approved":
+            if (allSequentialDocumentsApproved) {
+              status = "confirmed";
+            } else if (sequentialReviewStarted) {
+              status = "verification"; // Docs uploaded, awaiting verification
+            } else {
+              status = "approved"; // Still needs to upload docs
+            }
+            break;
+          case "rejected":
+            status = "rejected";
+            break;
+          default:
+            status = "pending";
+        }
+        
+        console.log("‚úÖ Returning status:", status, "for user:", userId);
+        res.json({
+          status,
+          applicationId: latestApp.id,
+          isUnder18,
+          documentSubmissionStep: latestApp.documentSubmissionStep || (latestApp.status === "approved" ? 1 : 0),
+          documentsStatus,
+          onboardingCompletedAt: latestApp.onboardingCompletedAt ?? null,
+        });
+      } catch (error) {
+        console.error("‚ùå Error fetching tutor application status:", error);
+        res.status(500).json({ message: "Failed to fetch application status" });
+      }
+    }
+  );
+
+  app.patch(
+    "/api/coo/pods/:podId/tutors/:assignmentId/operational-mode",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        return res.status(409).json({
+          message: "Tutor mode is certification-driven and can no longer be switched manually.",
+        });
+      } catch (error) {
+        console.error("Error updating tutor operational mode:", error);
+        res.status(500).json({ message: "Failed to update tutor operational mode" });
+      }
+    }
+  );
+
+  app.get(
+    "/api/tutor/onboarding-documents",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser?.id || (req.session as any)?.userId;
+        const applications = await storage.getTutorApplicationsByUser(userId);
+        const latestApp = applications[0];
+
+        if (!latestApp) {
+          return res.status(404).json({ message: "Tutor application not found" });
+        }
+
+        const documents = await Promise.all(
+          TUTOR_ONBOARDING_DOCUMENTS.map(async (document) => {
+            if (!document.requiresAcceptance) {
+              return document;
+            }
+
+            const loaded = await loadTutorOnboardingDocument(document.step);
+            return {
+              step: loaded.step,
+              code: loaded.code,
+              title: loaded.title,
+              version: loaded.version,
+              effectiveDate: loaded.effectiveDate ?? null,
+              lastUpdatedAt: loaded.lastUpdatedAt ?? null,
+              requiresAcceptance: loaded.requiresAcceptance,
+              requiresUpload: loaded.requiresUpload,
+              mandatoryClauses: loaded.mandatoryClauses,
+              content: loaded.content,
+              contentHash: loaded.contentHash,
+            };
+          })
+        );
+
+        res.json({
+          applicationId: latestApp.id,
+          documents,
+        });
+      } catch (error) {
+        console.error("Error fetching tutor onboarding documents:", error);
+        res.status(500).json({ message: "Failed to fetch onboarding documents" });
+      }
+    }
+  );
+
+  app.post(
+    "/api/tutor/onboarding-documents/:docStep/accept",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser?.id || (req.session as any)?.userId;
+        const docStep = Number(req.params.docStep);
+        const {
+          applicationId,
+          documentVersion,
+          documentHash,
+          typedFullName,
+          acceptedTimezone,
+          locale,
+          platform,
+          sourceFlow,
+          formData,
+          acceptedClauseKeys,
+          scrollCompletionPercent,
+          viewStartedAt,
+          viewCompletedAt,
+          acceptClickedAt,
+        } = req.body ?? {};
+
+        if (!applicationId || !Number.isInteger(docStep) || docStep < 1 || docStep > 5) {
+          return res.status(400).json({ message: "Invalid onboarding acceptance request" });
+        }
+
+        if (!typedFullName || !String(typedFullName).trim()) {
+          return res.status(400).json({ message: "Typed full name is required" });
+        }
+
+        const applications = await storage.getTutorApplicationsByUser(userId);
+        const application = applications.find((entry) => entry.id === applicationId);
+        if (!application) {
+          return res.status(403).json({ message: "Application not found or access denied" });
+        }
+
+        const definition = getTutorOnboardingDocumentDefinition(docStep);
+        if (!definition.requiresAcceptance) {
+          return res.status(400).json({ message: "This onboarding step does not use in-app acceptance." });
+        }
+
+        const loaded = await loadTutorOnboardingDocument(docStep);
+        if (documentVersion && documentVersion !== loaded.version) {
+          return res.status(409).json({ message: "Document version mismatch" });
+        }
+        if (documentHash && documentHash !== loaded.contentHash) {
+          return res.status(409).json({ message: "Document content hash mismatch" });
+        }
+
+        const acceptedClauseKeySet = new Set(
+          Array.isArray(acceptedClauseKeys) ? acceptedClauseKeys.map((value) => String(value)) : []
+        );
+        const missingClause = definition.mandatoryClauses.find((clause) => !acceptedClauseKeySet.has(clause.key));
+        if (missingClause) {
+          return res.status(400).json({ message: `Mandatory clause not acknowledged: ${missingClause.label}` });
+        }
+
+        const parsedViewStartedAt = viewStartedAt ? new Date(viewStartedAt) : null;
+        const parsedViewCompletedAt = viewCompletedAt ? new Date(viewCompletedAt) : null;
+        const parsedAcceptClickedAt = acceptClickedAt ? new Date(acceptClickedAt) : new Date();
+
+        const result = await storage.createTutorOnboardingAcceptance({
+          applicationId,
+          userId,
+          documentStep: docStep,
+          documentCode: loaded.code,
+          documentTitle: loaded.title,
+          documentVersion: loaded.version,
+          documentEffectiveDate: loaded.effectiveDate ?? null,
+          documentLastUpdatedAt: loaded.lastUpdatedAt ? new Date(loaded.lastUpdatedAt) : null,
+          documentSnapshot: loaded.content,
+          documentChecksum: loaded.contentHash,
+          typedFullName: String(typedFullName).trim(),
+          accountEmail: application.email,
+          phoneNumberSnapshot: application.phone ?? null,
+          acceptedTimezone: acceptedTimezone ? String(acceptedTimezone) : null,
+          ipAddress: extractRequestIp(req),
+          userAgent: req.headers["user-agent"] || null,
+          deviceType: inferDeviceType(req.headers["user-agent"]),
+          platform: platform ? String(platform) : "web",
+          sessionId: req.sessionID || null,
+          locale: locale ? String(locale) : null,
+          sourceFlow: sourceFlow ? String(sourceFlow) : "tutor_onboarding_step",
+          formSnapshotJson:
+            formData && typeof formData === "object"
+              ? Object.fromEntries(
+                  Object.entries(formData).map(([key, value]) => [String(key), String(value ?? "").trim()])
+                )
+              : null,
+          acceptedClauses: definition.mandatoryClauses.filter((clause) => acceptedClauseKeySet.has(clause.key)),
+          scrollCompletionPercent:
+            typeof scrollCompletionPercent === "number"
+              ? Math.max(0, Math.min(100, Math.round(scrollCompletionPercent)))
+              : null,
+          viewStartedAt: parsedViewStartedAt && !Number.isNaN(parsedViewStartedAt.getTime()) ? parsedViewStartedAt : null,
+          viewCompletedAt:
+            parsedViewCompletedAt && !Number.isNaN(parsedViewCompletedAt.getTime()) ? parsedViewCompletedAt : null,
+          acceptClickedAt:
+            parsedAcceptClickedAt && !Number.isNaN(parsedAcceptClickedAt.getTime()) ? parsedAcceptClickedAt : new Date(),
+        });
+
+        if (!result.application || !result.acceptance) {
+          return res.status(500).json({ message: "Failed to create onboarding acceptance" });
+        }
+
+        res.json({
+          success: true,
+          application: result.application,
+          acceptance: result.acceptance,
+          receipt: {
+            acceptedAt: result.acceptance.acceptedAt,
+            documentCode: result.acceptance.documentCode,
+            documentVersion: result.acceptance.documentVersion,
+            documentChecksum: result.acceptance.documentChecksum,
+          },
+        });
+      } catch (error) {
+        console.error("Error accepting tutor onboarding document:", error);
+        if (
+          error instanceof Error &&
+          /(step order violation|already been accepted|required|mandatory clause)/i.test(error.message)
+        ) {
+          return res.status(400).json({ message: error.message });
+        }
+        res.status(500).json({ message: "Failed to accept onboarding document" });
+      }
+    }
+  );
+
+  // Upload tutor onboarding document
+  app.post(
+    "/api/tutor/onboarding-documents/upload",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser?.id || (req.session as any)?.userId;
+        const { applicationId, docStep, fileName, fileData, fileType } = req.body;
+        const parsedDocStep = typeof docStep === "number" ? docStep : Number(docStep);
+        const isSequentialUpload = parsedDocStep === 2 || parsedDocStep === 6;
+
+        if (!applicationId || !fileName || !fileData || !isSequentialUpload) {
+          return res.status(400).json({ message: "Only doc step 2 (Matric certificate) and doc step 6 (certified ID) accept file uploads." });
+        }
+
+        const applications = await storage.getTutorApplicationsByUser(userId);
+        const app = applications.find(a => a.id === applicationId) as any;
+        if (!app) {
+          return res.status(403).json({ message: "Application not found or access denied" });
+        }
+
+        const currentDoc2 =
+          parsedDocStep === 2 ? await loadTutorOnboardingDocument(2) : null;
+        const hasCurrentDoc2Acceptance =
+          parsedDocStep !== 2 ||
+          Boolean(
+            selectCurrentTutorOnboardingAcceptance(
+              app?.onboardingAcceptances ?? [],
+              currentDoc2,
+            ),
+          );
+
+        if (parsedDocStep === 2 && !hasCurrentDoc2Acceptance) {
+          return res.status(400).json({ message: "You must accept the current Response Integrity-EQV-002 in app before uploading your certified Matric certificate." });
+        }
+
+        if (isEmergencyDbMode()) {
+          const normalizedFileName = String(fileName || "").trim();
+          if (!normalizedFileName) {
+            return res.status(400).json({ message: "Missing file name." });
+          }
+
+          const normalizedFileType = String(fileType || "").trim().toLowerCase();
+          const fileTypeAllowed = new Set(["application/pdf", "image/png", "image/jpeg", "image/jpg"]);
+          const lowerFileName = normalizedFileName.toLowerCase();
+          const extensionAllowed = lowerFileName.endsWith(".pdf") || lowerFileName.endsWith(".png") || lowerFileName.endsWith(".jpg") || lowerFileName.endsWith(".jpeg");
+
+          if (!fileTypeAllowed.has(normalizedFileType) && !extensionAllowed) {
+            return res.status(400).json({ message: "Only PDF, PNG, JPG, and JPEG files are supported for emergency uploads." });
+          }
+
+          const normalizedBase64 = String(fileData).includes(",")
+            ? (String(fileData).split(",").pop() || "")
+            : String(fileData);
+
+          const buffer = Buffer.from(normalizedBase64, "base64");
+          if (!buffer.byteLength) {
+            return res.status(400).json({ message: "Uploaded file was empty." });
+          }
+
+          if (buffer.byteLength > 25 * 1024 * 1024) {
+            return res.status(400).json({ message: "Uploaded file must be 25 MB or smaller." });
+          }
+
+          let bundle: ReturnType<typeof createEmergencyFileBundle>;
+          try {
+            bundle = createEmergencyFileBundle(buffer, process.env.EMERGENCY_DOCUMENT_ENCRYPTION_KEY);
+          } catch (error) {
+            console.error("Emergency file encryption failed:", error);
+            return res.status(500).json({
+              message: error instanceof Error ? error.message : "Emergency file encryption is unavailable.",
+            });
+          }
+
+          const protectedUrl = `/api/tutor/onboarding-documents/${parsedDocStep}/file?applicationId=${encodeURIComponent(applicationId)}`;
+          const client = await pool.connect();
+
+          try {
+            await client.query("BEGIN");
+
+            const applicationResult = await client.query(
+              `SELECT *
+                 FROM public.tutor_applications
+                WHERE id = $1
+                  AND user_id = $2
+                FOR UPDATE`,
+              [applicationId, userId],
+            );
+            const existing = applicationResult.rows[0];
+            if (!existing) {
+              throw new Error("Application not found or access denied");
+            }
+
+            const documentsStatus = typeof existing.documents_status === "object" && existing.documents_status
+              ? { ...existing.documents_status }
+              : {
+                  "1": "not_started",
+                  "2": "not_started",
+                  "3": "not_started",
+                  "4": "not_started",
+                  "5": "not_started",
+                  "6": "not_started",
+                };
+
+            if (parsedDocStep === 2) {
+              if (!hasCurrentDoc2Acceptance) {
+                throw new Error("You must accept the current Response Integrity-EQV-002 in app before uploading your certified Matric certificate.");
+              }
+
+              if (String(documentsStatus["2"] || "not_started") === "approved") {
+                throw new Error("Step 2 is already approved and cannot be re-uploaded.");
+              }
+
+              documentsStatus["2"] = "pending_review";
+              documentsStatus["3"] = "not_started";
+
+              await client.query(
+                `INSERT INTO private.emergency_tutor_onboarding_files (
+                   application_id,
+                   user_id,
+                   doc_step,
+                   original_file_name,
+                   mime_type,
+                   byte_size,
+                   sha256,
+                   ciphertext,
+                   iv,
+                   auth_tag,
+                   created_at
+                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())`,
+                [
+                  applicationId,
+                  userId,
+                  parsedDocStep,
+                  normalizedFileName,
+                  normalizedFileType || "application/octet-stream",
+                  buffer.byteLength,
+                  bundle.sha256,
+                  bundle.ciphertext,
+                  bundle.iv,
+                  bundle.authTag,
+                ],
+              );
+
+              const updatedResult = await client.query(
+                `UPDATE public.tutor_applications
+                    SET documents_status = $1::jsonb,
+                        document_submission_step = 2,
+                        doc_2_submission_url = $2,
+                        doc_2_submission_uploaded_at = now(),
+                        doc_2_submission_verified = false,
+                        doc_2_submission_verified_by = NULL,
+                        doc_2_submission_verified_at = NULL,
+                        doc_2_submission_rejection_reason = NULL,
+                        updated_at = now()
+                  WHERE id = $3
+                    AND user_id = $4
+                  RETURNING *`,
+                [
+                  JSON.stringify(documentsStatus),
+                  protectedUrl,
+                  applicationId,
+                  userId,
+                ],
+              );
+
+              if (!updatedResult.rows[0]) {
+                throw new Error("Failed to update document record");
+              }
+            } else if (parsedDocStep === 6) {
+              if (String(existing.status || "").toLowerCase() !== "approved") {
+                throw new Error("Application must be approved before uploading the certified ID copy.");
+              }
+
+              if (Number(existing.document_submission_step) !== 6) {
+                throw new Error("Certified ID upload is only allowed while the application is on Step 6.");
+              }
+
+              const allEarlierStepsApproved = ["1", "2", "3", "4", "5"].every(
+                (step) => String(documentsStatus[step] || "") === "approved",
+              );
+
+              if (!allEarlierStepsApproved) {
+                throw new Error("Steps 1 through 5 must all be approved before uploading the certified ID copy.");
+              }
+
+              const currentStep6Status = String(documentsStatus["6"] || "not_started");
+              if (currentStep6Status === "pending_review") {
+                throw new Error("Certified ID copy is already pending COO review and cannot be re-uploaded.");
+              }
+              if (currentStep6Status === "approved") {
+                throw new Error("Certified ID copy is already approved and cannot be re-uploaded.");
+              }
+              if (currentStep6Status !== "pending_upload" && currentStep6Status !== "rejected") {
+                throw new Error("Certified ID upload is only allowed while Step 6 is pending upload or has been rejected for resubmission.");
+              }
+
+              documentsStatus["6"] = "pending_review";
+
+              await client.query(
+                `INSERT INTO private.emergency_tutor_onboarding_files (
+                   application_id,
+                   user_id,
+                   doc_step,
+                   original_file_name,
+                   mime_type,
+                   byte_size,
+                   sha256,
+                   ciphertext,
+                   iv,
+                   auth_tag,
+                   created_at
+                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())`,
+                [
+                  applicationId,
+                  userId,
+                  parsedDocStep,
+                  normalizedFileName,
+                  normalizedFileType || "application/octet-stream",
+                  buffer.byteLength,
+                  bundle.sha256,
+                  bundle.ciphertext,
+                  bundle.iv,
+                  bundle.authTag,
+                ],
+              );
+
+              const updatedResult = await client.query(
+                `UPDATE public.tutor_applications
+                    SET documents_status = $1::jsonb,
+                        document_submission_step = 6,
+                        doc_6_submission_url = $2,
+                        doc_6_submission_uploaded_at = now(),
+                        doc_6_submission_verified = false,
+                        doc_6_submission_verified_by = NULL,
+                        doc_6_submission_verified_at = NULL,
+                        doc_6_submission_rejection_reason = NULL,
+                        onboarding_completed_at = NULL,
+                        updated_at = now()
+                  WHERE id = $3
+                    AND user_id = $4
+                  RETURNING *`,
+                [
+                  JSON.stringify(documentsStatus),
+                  protectedUrl,
+                  applicationId,
+                  userId,
+                ],
+              );
+
+              if (!updatedResult.rows[0]) {
+                throw new Error("Failed to update document record");
+              }
+            }
+
+            await client.query("COMMIT");
+          } catch (error) {
+            await client.query("ROLLBACK").catch(() => undefined);
+            throw error;
+          } finally {
+            client.release();
+          }
+
+          const refreshedApplications = await storage.getTutorApplicationsByUser(userId);
+          const refreshedApp = refreshedApplications.find((entry) => entry.id === applicationId) as any;
+
+          return res.json({
+            success: true,
+            application: refreshedApp,
+            protectedUrl,
+          });
+        }
+
+        // Decode base64 file data
+        const buffer = Buffer.from(fileData, 'base64');
+
+        // Ensure file path begins with userId folder
+        const safeFileName = `${userId}/${randomUUID()}-${String(fileName).replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+
+        // Upload using server (service role) supabase client to avoid RLS issues
+        await ensurePrivateBucket(supabase, "tutor-documents");
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('tutor-documents')
+          .upload(safeFileName, buffer, {
+            contentType: fileType || undefined,
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.error('Supabase storage upload error:', uploadError);
+          return res.status(500).json({ message: 'Storage upload failed', error: uploadError.message });
+        }
+
+        // Persist the immutable object reference; reads require record authorization.
+        const urlData = { publicUrl: confidentialReference('tutor-documents', safeFileName) };
+        if (!urlData?.publicUrl) {
+          console.error('Could not resolve public URL for uploaded onboarding document', {
+            applicationId,
+            docStep: parsedDocStep,
+            safeFileName,
+          });
+          return res.status(500).json({ message: 'Upload succeeded but file URL could not be generated' });
+        }
+
+        // Save to database
+        const updated = await storage.updateTutorSequentialDocument(applicationId, parsedDocStep, urlData.publicUrl);
+
+        if (!updated) {
+          return res.status(500).json({ message: 'Failed to update document record' });
+        }
+
+        res.json({ success: true, application: updated, publicUrl: urlData.publicUrl });
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          /(sequential step order violation|blocked until|already approved|required|pending review)/i.test(
+            error.message
+          )
+        ) {
+          return res.status(400).json({ message: error.message });
+        }
+        console.error('Error uploading onboarding document (server handler):', error);
+        res.status(500).json({ message: 'Failed to upload document' });
+      }
+    }
+  );
+
+  app.get(
+    "/api/tutor/onboarding-documents/:docStep/file",
+    isAuthenticated,
+    requireRole(["tutor", "coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser?.id || (req.session as any)?.userId;
+        const applicationId = String(req.query.applicationId || "").trim();
+        const docStep = Number(req.params.docStep);
+
+        if (!applicationId || !Number.isInteger(docStep) || (docStep !== 2 && docStep !== 6)) {
+          return res.status(400).json({ message: "Invalid emergency document request." });
+        }
+
+        const role = (req as any).dbUser?.role || (req.session as any)?.role;
+        if (role === "tutor") {
+          const applications = await storage.getTutorApplicationsByUser(userId);
+          const app = applications.find((entry) => entry.id === applicationId);
+          if (!app) {
+            return res.status(403).json({ message: "Application not found or access denied" });
+          }
+        }
+
+        const rowResult = await pool.query(
+          `SELECT *
+             FROM private.emergency_tutor_onboarding_files
+            WHERE application_id = $1
+              AND doc_step = $2
+            ORDER BY created_at DESC
+            LIMIT 1`,
+          [applicationId, docStep],
+        );
+
+        const row = rowResult.rows[0];
+        if (!row) {
+          return res.status(404).json({ message: "Emergency document not found." });
+        }
+
+        const normalizeBytea = (value: unknown): Buffer => {
+          if (Buffer.isBuffer(value)) {
+            return value;
+          }
+          if (value instanceof Uint8Array) {
+            return Buffer.from(value);
+          }
+          if (typeof value === "string") {
+            return Buffer.from(value, "binary");
+          }
+          if (value == null) {
+            throw new Error("Emergency document stored value is missing.");
+          }
+          return Buffer.from(value as any);
+        };
+
+        const ciphertext = normalizeBytea(row.ciphertext);
+        const iv = normalizeBytea(row.iv);
+        const authTag = normalizeBytea(row.auth_tag);
+
+        const bundle = {
+          ciphertext,
+          iv,
+          authTag,
+        };
+
+        const plaintext = decryptEmergencyFileBundle(bundle, process.env.EMERGENCY_DOCUMENT_ENCRYPTION_KEY);
+        const expectedSha256 = String(row.sha256 || "").trim().toLowerCase();
+        const actualSha256 = createHash("sha256").update(plaintext).digest("hex");
+
+        if (expectedSha256 && actualSha256 !== expectedSha256) {
+          throw new Error("Emergency document integrity check failed: SHA-256 mismatch.");
+        }
+
+        const rawFileName = String(row.original_file_name || `doc-${docStep}.bin`);
+        const safeFilename = rawFileName.split(/[\\/]/).pop() || `doc-${docStep}.bin`;
+
+        res.setHeader("Content-Type", row.mime_type || "application/octet-stream");
+        res.setHeader("Content-Disposition", `inline; filename="${safeFilename.replace(/[\r\n"]/g, "_")}"`);
+        res.setHeader("Content-Length", String(plaintext.byteLength));
+        res.setHeader("Cache-Control", "private, no-store");
+        return res.end(plaintext);
+      } catch (error) {
+        console.error("Error retrieving emergency onboarding document:", error);
+        res.status(500).json({ message: error instanceof Error ? error.message : "Failed to retrieve emergency document." });
+      }
+    }
+  );
+
+  app.get(
+    "/api/tutor/onboarding-documents/:docStep/download",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const docStep = Number(req.params.docStep);
+        const templateFiles: Record<number, { assetFileName: string; downloadFileName: string }> = {
+          1: { assetFileName: "TT-TCF-001.pdf", downloadFileName: "Response Integrity-TCF-001.pdf" },
+          2: { assetFileName: "TT-EQV-002.pdf", downloadFileName: "Response Integrity-EQV-002.pdf" },
+          3: { assetFileName: "TT-ICA-003.pdf", downloadFileName: "Response Integrity-ICA-003.pdf" },
+          4: { assetFileName: "TT-SCP-004.pdf", downloadFileName: "Response Integrity-SCP-004.pdf" },
+          5: { assetFileName: "TT-DPC-005.pdf", downloadFileName: "Response Integrity-DPC-005.pdf" },
+        };
+
+        const templateFile = templateFiles[docStep];
+        if (!templateFile) {
+          if (docStep === 6) {
+            return res.status(400).json({ message: "Step 6 is a certified ID copy and has no downloadable template." });
+          }
+          return res.status(400).json({ message: "Invalid document step" });
+        }
+
+        const { assetFileName, downloadFileName } = templateFile;
+
+        const templatePathCandidates = [
+          // Source execution (tsx server/index.ts)
+          fileURLToPath(new URL(`../assets/tutor-onboarding/${assetFileName}`, import.meta.url)),
+          // Dist execution (node dist/index.js)
+          fileURLToPath(new URL(`../../assets/tutor-onboarding/${assetFileName}`, import.meta.url)),
+          // Runtime cwd fallback
+          resolve(process.cwd(), "assets", "tutor-onboarding", assetFileName),
+          // Runtime cwd fallback when started from server folder
+          resolve(process.cwd(), "..", "assets", "tutor-onboarding", assetFileName),
+        ];
+
+        const templatePath = templatePathCandidates.find((candidate) => existsSync(candidate));
+
+        if (!templatePath) {
+          console.error("Onboarding template not found", {
+            docStep,
+            assetFileName,
+            downloadFileName,
+            triedPaths: templatePathCandidates,
+          });
+          return res.status(404).json({
+            message: "Template file not found on API server for this step",
+            assetFileName,
+            downloadFileName,
+          });
+        }
+
+        res.download(templatePath, downloadFileName);
+      } catch (error) {
+        console.error("Error downloading onboarding template:", error);
+        res.status(500).json({ message: "Failed to download document template" });
+      }
+    }
+  );
+
+  // Tutor marks onboarding complete (after assignment) - allows leaving gateway permanently
+  app.post(
+    "/api/tutor/complete-onboarding",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser?.id || (req.session as any)?.userId;
+        const { applicationId } = req.body;
+
+        if (!applicationId) {
+          return res.status(400).json({ message: "Missing applicationId" });
+        }
+
+        // Verify ownership
+        const applications = await storage.getTutorApplicationsByUser(userId);
+        const app = applications.find(a => a.id === applicationId);
+        if (!app) {
+          return res.status(403).json({ message: "Application not found or access denied" });
+        }
+
+        const updated = await storage.completeTutorOnboarding(applicationId);
+        if (!updated) {
+          return res.status(500).json({ message: "Failed to complete onboarding" });
+        }
+
+        res.json({ success: true, application: updated });
+      } catch (error) {
+        console.error('Error completing onboarding:', error);
+        res.status(500).json({ message: 'Failed to complete onboarding' });
+      }
+    }
+  );
+
+  // COO: Verify tutor onboarding document
+  app.post(
+    "/api/coo/tutor/:id/document/:docStep/completed-upload",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        const { id } = req.params;
+        const docStep = Number(req.params.docStep);
+        const reviewerId = (req.session as any).userId;
+        const { fileName, fileData, fileType } = req.body;
+
+        if (!Number.isInteger(docStep) || docStep < 1 || docStep > 5) {
+          return res.status(400).json({ message: "Completed template upload is only valid for legacy steps 1 to 5." });
+        }
+
+        return res.status(410).json({ message: "Response Integrity internal copy uploads are no longer used. Agreement steps now use in-app acceptance." });
+        if (!fileName || !fileData) {
+          return res.status(400).json({ message: "Missing required file payload for completed template upload." });
+        }
+
+        const applications = await storage.getTutorApplications();
+        const app = applications.find((a) => a.id === id);
+        if (!app) {
+          return res.status(404).json({ message: "Application not found" });
+        }
+
+        const buffer = Buffer.from(fileData, "base64");
+        const safeFileName = `coo-completed/${id}/doc_${docStep}_completed_${Date.now()}_${String(fileName).replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+
+        await ensurePrivateBucket(supabase, "tutor-documents");
+        const { error: uploadError } = await supabase.storage
+          .from("tutor-documents")
+          .upload(safeFileName, buffer, {
+            contentType: fileType || undefined,
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.error("Supabase storage upload error (completed template):", uploadError);
+          return res.status(500).json({ message: "Storage upload failed", error: uploadError.message });
+        }
+
+        const urlData = { publicUrl: confidentialReference("tutor-documents", safeFileName) };
+        if (!urlData?.publicUrl) {
+          return res.status(500).json({ message: "Upload succeeded but completed template URL could not be generated" });
+        }
+
+        const updated = await storage.uploadCompletedTutorSequentialDocument(
+          id,
+          docStep,
+          urlData.publicUrl,
+          reviewerId
+        );
+
+        if (!updated) {
+          return res.status(500).json({ message: "Failed to save completed template URL" });
+        }
+
+        res.json({
+          success: true,
+          application: updated,
+          completedDocumentUrl: urlData.publicUrl,
+        });
+      } catch (error) {
+        console.error("Error uploading COO completed template:", error);
+        if (
+          error instanceof Error &&
+          /(required|pending review|blocked|already approved|step order)/i.test(error.message)
+        ) {
+          return res.status(400).json({ message: error.message });
+        }
+        res.status(500).json({ message: "Failed to upload completed template" });
+      }
+    }
+  );
+
+  app.post(
+    "/api/coo/tutor/:id/document/:docStep/review",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        const { id } = req.params;
+        const docStep = Number(req.params.docStep);
+        const { approved, rejectionReason, completedDocumentUrl } = req.body;
+        const reviewerId = (req.session as any).userId;
+
+        if (docStep !== 2 && docStep !== 6) {
+          return res.status(400).json({ message: "Only step 2 Matric certificate uploads and step 6 certified ID uploads require COO review." });
+        }
+
+        if (typeof approved !== "boolean") {
+          return res.status(400).json({ message: "Missing approval decision" });
+        }
+
+        const updated = await storage.reviewTutorSequentialDocument(
+          id,
+          docStep,
+          approved,
+          reviewerId,
+          completedDocumentUrl,
+          rejectionReason
+        );
+
+        if (!updated) {
+          return res.status(404).json({ message: "Application not found" });
+        }
+
+        await safeSendPush(
+          updated.userId,
+          {
+            title: approved ? "Document approved" : "Document rejected",
+            body: approved
+              ? `Your onboarding document ${docStep} was approved.`
+              : `Your onboarding document ${docStep} was rejected and needs resubmission.`,
+            url: "/operational/tutor/gateway",
+            tag: `tutor-document-review-${updated.id}-${docStep}-${approved ? "approved" : "rejected"}`,
+          },
+          "tutor document review result",
+        );
+
+        res.json({
+          success: true,
+          application: updated,
+          message: approved
+            ? docStep === 6 && Object.values(updated.documentsStatus || {}).every((status) => status === "approved")
+              ? "Document approved. Tutor onboarding is complete."
+              : docStep === 2
+                ? "Matric certificate approved. Tutor can move to the next agreement."
+                : `Document ${docStep} approved. Tutor can move to the next document.`
+            : `Document ${docStep} rejected. Tutor must resubmit this step.`,
+        });
+      } catch (error) {
+        console.error("Error reviewing sequential tutor document:", error);
+        if (
+          error instanceof Error &&
+          /(required|pending review|blocked|already approved|step order)/i.test(error.message)
+        ) {
+          return res.status(400).json({ message: error.message });
+        }
+        res.status(500).json({ message: "Failed to review document" });
+      }
+    }
+  );
+
+  // Get tutor's own applications
+  app.get(
+    "/api/tutor/applications",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser?.id || (req.session as any)?.userId;
+        const applications = await storage.getTutorApplicationsByUser(userId);
+        res.json(applications);
+      } catch (error) {
+        console.error("Error fetching tutor applications:", error);
+        res.status(500).json({ message: "Failed to fetch applications" });
+      }
+    }
+  );
+
+  // Get all tutor applications (COO and HR)
+  app.get(
+    "/api/coo/traffic-summary",
+    isAuthenticated,
+    requireRole(["coo", "hr"]),
+    async (_req: Request, res: Response) => {
+      try {
+        const result = await pool.query<{
+          pending_applications: string;
+          needs_review: string;
+          waiting_on_tutor: string;
+        }>(`
+          SELECT
+            count(*) FILTER (WHERE status = 'pending')::text AS pending_applications,
+            count(*) FILTER (
+              WHERE status = 'approved'
+                AND (documents_status->>'2' = 'pending_review' OR documents_status->>'6' = 'pending_review')
+            )::text AS needs_review,
+            count(*) FILTER (
+              WHERE status = 'approved'
+                AND documents_status->>'1' <> 'approved'
+                AND documents_status->>'2' <> 'approved'
+                AND documents_status->>'3' <> 'approved'
+                AND documents_status->>'4' <> 'approved'
+                AND documents_status->>'5' <> 'approved'
+                AND documents_status->>'6' <> 'approved'
+                AND documents_status->>'2' <> 'pending_review'
+                AND documents_status->>'6' <> 'pending_review'
+            )::text AS waiting_on_tutor
+          FROM tutor_applications
+        `);
+        const row = result.rows[0] || { pending_applications: "0", needs_review: "0", waiting_on_tutor: "0" };
+        const pendingApplications = Number(row.pending_applications || 0);
+        const needsReview = Number(row.needs_review || 0);
+        const waitingOnTutor = Number(row.waiting_on_tutor || 0);
+        res.json({ pendingApplications, needsReview, waitingOnTutor, totalActionCount: pendingApplications + needsReview + waitingOnTutor });
+      } catch (error) {
+        console.error("Error fetching COO traffic summary:", error);
+        res.status(500).json({ message: "Failed to fetch traffic summary" });
+      }
+    },
+  );
+
+  app.get(
+    "/api/coo/tutor-applications",
+    isAuthenticated,
+    requireRole(["coo", "hr"]),
+    async (req: Request, res: Response) => {
+      try {
+        const { status } = req.query;
+        let applications;
+        
+        if (status && (status === "pending" || status === "approved" || status === "rejected")) {
+          applications = await storage.getTutorApplicationsByStatus(status);
+        } else {
+          applications = await storage.getTutorApplications();
+        }
+        
+        res.json(applications);
+      } catch (error) {
+        console.error("Error fetching tutor applications:", error);
+        res.status(500).json({ message: "Failed to fetch applications" });
+      }
+    }
+  );
+
+  // Approve tutor application (COO)
+  app.post(
+    "/api/coo/tutor-applications/:id/approve",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        const { id } = req.params;
+        const reviewerId = (req.session as any).userId;
+        const application = await storage.approveTutorApplication(id, reviewerId);
+        
+        if (!application) {
+          return res.status(404).json({ message: "Application not found" });
+        }
+        if (!isEmergencyDbMode()) {
+          await ensureSpecialistDevelopmentPathway({
+            tutorId: application.userId,
+            applicationId: application.id,
+            startedAt: application.reviewedAt || new Date(),
+          });
+        }
+        await safeSendPush(
+          application.userId,
+          {
+            title: "Specialist application approved",
+            body: "Your 75-day Specialist Development Pathway has started. Open Response Integrity to continue onboarding.",
+            url: "/operational/tutor/gateway",
+            tag: `tutor-application-approved-${application.id}`,
+          },
+          "Specialist application approved",
+        );
+        
+        res.json(application);
+      } catch (error) {
+        console.error("Error approving tutor application:", error);
+        res.status(500).json({ message: "Failed to approve application" });
+      }
+    }
+  );
+
+  // Reject tutor application (COO)
+  app.post(
+    "/api/coo/tutor-applications/:id/reject",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        const { id } = req.params;
+        const { reason } = req.body;
+        const reviewerId = (req.session as any).userId;
+        const application = await storage.rejectTutorApplication(id, reviewerId, reason || "");
+        
+        if (!application) {
+          return res.status(404).json({ message: "Application not found" });
+        }
+        const trimmedReason = typeof reason === "string" ? reason.trim() : "";
+        const message = trimmedReason
+          ? `Your application was not accepted. Reason: ${trimmedReason}`
+          : "Your application was reviewed and was not accepted.";
+
+        await safeSendPush(
+          application.userId,
+          {
+            title: "Tutor application update",
+            body: message,
+            url: "/operational/tutor/gateway",
+            tag: `tutor-application-rejected-${application.id}`,
+          },
+          "tutor application rejected",
+        );
+        
+        res.json(application);
+      } catch (error) {
+        console.error("Error rejecting tutor application:", error);
+        res.status(500).json({ message: "Failed to reject application" });
+      }
+    }
+  );
+
+  // ========================================
+  // EGP / AFFILIATE GATEWAY ROUTES
+  // ========================================
+
+  app.post(
+    "/api/td/application",
+    isAuthenticated,
+    requireRole(["td"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser.id;
+        const payload = req.body ?? {};
+        const requiredFields = [
+          "fullName",
+          "age",
+          "city",
+          "phone",
+          "idType",
+          "idNumber",
+          "dateOfBirth",
+          "taughtOrMentoredBefore",
+          "ledOrSupervisedOthers",
+          "hoursAvailablePerWeek",
+          "systemUnderstandingDifference",
+          "studentFreezesBreak",
+          "explainingBetterNotEnough",
+          "supervisingTutorAction",
+          "frustrationResponse",
+          "adjustSystemAnswer",
+          "highToMediumCauses",
+          "highScoresNoImprovement",
+          "sharedTutorMistakeMeaning",
+          "correctOlderTutor",
+          "pushbackResponse",
+          "unpopularEnforcementCase",
+          "noRescueExplanation",
+          "moreDangerousTutor",
+          "systemDestructionFactors",
+          "commitmentToStandard",
+          "trustReason",
+        ];
+
+        const missingField = requiredFields.find((field) => {
+          const value = (payload as any)[field];
+          if (typeof value === "number") return Number.isNaN(value);
+          return !String(value ?? "").trim();
+        });
+        if (missingField) {
+          return res.status(400).json({ message: "All Territory Director application fields are required." });
+        }
+
+        const taughtOrMentoredBefore = String(payload.taughtOrMentoredBefore || "").trim().toLowerCase();
+        const ledOrSupervisedOthers = String(payload.ledOrSupervisedOthers || "").trim().toLowerCase();
+        const hoursAvailablePerWeek = Number(payload.hoursAvailablePerWeek);
+        const commitmentToStandard = String(payload.commitmentToStandard || "").trim().toLowerCase();
+        const idType = String(payload.idType || "").trim().toLowerCase();
+        const idNumber = String(payload.idNumber || "").trim();
+        const dateOfBirth = String(payload.dateOfBirth || "").trim();
+        const accountEmail = String((req as any).dbUser?.email || "").trim().toLowerCase();
+
+        if (taughtOrMentoredBefore !== "yes") {
+          return res.status(400).json({ message: "Territory Director applicants must have taught or mentored before." });
+        }
+        if (ledOrSupervisedOthers !== "yes") {
+          return res.status(400).json({ message: "Territory Director applicants must have led or supervised others before." });
+        }
+        if (!Number.isFinite(hoursAvailablePerWeek) || hoursAvailablePerWeek < 6) {
+          return res.status(400).json({ message: "Territory Director applicants must have at least 6 hours available per week." });
+        }
+        if (commitmentToStandard !== "yes") {
+          return res.status(400).json({ message: "This role requires explicit commitment to direct enforcement and standard protection." });
+        }
+        if (idType !== "sa_id" && idType !== "passport") {
+          return res.status(400).json({ message: "TD applicants must choose South African ID or passport." });
+        }
+        if (idNumber.length < 6) {
+          return res.status(400).json({ message: "A valid identification number is required." });
+        }
+        if (!dateOfBirth) {
+          return res.status(400).json({ message: "Date of birth is required." });
+        }
+        if (Number.isNaN(new Date(dateOfBirth).getTime())) {
+          return res.status(400).json({ message: "A valid date of birth is required." });
+        }
+        if (!accountEmail) {
+          return res.status(400).json({ message: "A signed-in account email is required for TD application submission." });
+        }
+
+        const existingApplications = await getTdApplicationsByQuery({ userId });
+        const reusableApplication = existingApplications.find((application: any) =>
+          ["pending", "rejected"].includes(String(application.status || "").toLowerCase())
+        );
+
+        const record = {
+          user_id: userId,
+          full_name: String(payload.fullName).trim(),
+          age: Number(payload.age),
+          city: String(payload.city).trim(),
+          email: accountEmail,
+          phone: String(payload.phone).trim(),
+          id_type: idType,
+          id_number: idNumber,
+          date_of_birth: dateOfBirth,
+          taught_or_mentored_before: taughtOrMentoredBefore,
+          led_or_supervised_others: ledOrSupervisedOthers,
+          hours_available_per_week: hoursAvailablePerWeek,
+          application_responses: {
+            systemUnderstandingDifference: String(payload.systemUnderstandingDifference).trim(),
+            studentFreezesBreak: String(payload.studentFreezesBreak).trim(),
+            explainingBetterNotEnough: String(payload.explainingBetterNotEnough).trim(),
+            supervisingTutorAction: String(payload.supervisingTutorAction).trim(),
+            frustrationResponse: String(payload.frustrationResponse).trim(),
+            adjustSystemAnswer: String(payload.adjustSystemAnswer).trim(),
+            highToMediumCauses: String(payload.highToMediumCauses).trim(),
+            highScoresNoImprovement: String(payload.highScoresNoImprovement).trim(),
+            sharedTutorMistakeMeaning: String(payload.sharedTutorMistakeMeaning).trim(),
+            correctOlderTutor: String(payload.correctOlderTutor).trim(),
+            pushbackResponse: String(payload.pushbackResponse).trim(),
+            unpopularEnforcementCase: String(payload.unpopularEnforcementCase).trim(),
+            noRescueExplanation: String(payload.noRescueExplanation).trim(),
+            moreDangerousTutor: String(payload.moreDangerousTutor).trim(),
+            systemDestructionFactors: String(payload.systemDestructionFactors).trim(),
+            commitmentToStandard,
+            trustReason: String(payload.trustReason).trim(),
+          },
+        };
+
+        let data: any = null;
+        let error: any = null;
+
+        if (reusableApplication) {
+          const result = await supabase
+            .from("td_applications")
+            .update({
+              ...record,
+              status: "pending",
+              reviewed_by: null,
+              reviewed_at: null,
+              rejection_reason: null,
+              onboarding_completed_at: null,
+              doc_7_submission_url: null,
+              doc_7_submission_uploaded_at: null,
+              doc_7_submission_reviewed_at: null,
+              doc_7_submission_reviewed_by: null,
+              doc_7_submission_rejection_reason: null,
+              document_submission_step: 0,
+              documents_status: { ...INITIAL_TD_DOCUMENT_STATUSES, "1": "not_started" },
+              updated_at: new Date(),
+            })
+            .eq("id", reusableApplication.id)
+            .select("*")
+            .single();
+
+          data = result.data;
+          error = result.error;
+        } else {
+          const result = await supabase
+            .from("td_applications")
+            .insert(record)
+            .select("*")
+            .single();
+
+          data = result.data;
+          error = result.error;
+        }
+
+        if (error || !data) {
+          throw new Error(error?.message || "Failed to submit TD application");
+        }
+
+        res.json(data);
+      } catch (error) {
+        console.error("Error submitting TD application:", error);
+        res.status(400).json({ message: error instanceof Error ? error.message : "Failed to submit TD application" });
+      }
+    }
+  );
+
+  app.get(
+    "/api/td/application-status",
+    isAuthenticated,
+    requireRole(["td"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser.id;
+        const applications = await getTdApplicationsByQuery({ userId });
+        const canonicalApplication = selectCanonicalTdApplication(applications);
+        if (!canonicalApplication) {
+          return res.json({ status: "not_applied" });
+        }
+
+        res.json(deriveTdGatewayApplicationStatus(canonicalApplication));
+      } catch (error) {
+        console.error("Error fetching TD application status:", error);
+        res.status(500).json({ message: "Failed to fetch TD application status" });
+      }
+    }
+  );
+
+  app.get(
+    "/api/td/gateway-session",
+    isAuthenticated,
+    requireRole(["td"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser.id;
+        const applications = await getTdApplicationsByQuery({ userId });
+        const latestApp = selectCanonicalTdApplication(applications);
+        const assignedPods = await storage.getPodsByTD(userId);
+
+        res.json({
+          role: (req as any).dbUser?.role || "td",
+          applicationStatus: latestApp ? deriveTdGatewayApplicationStatus(latestApp) : null,
+          assignedPods,
+          hasAssignedPods: assignedPods.length > 0,
+        });
+      } catch (error) {
+        console.error("Error fetching TD gateway session:", error);
+        res.status(500).json({ message: "Failed to fetch TD gateway session" });
+      }
+    }
+  );
+
+  app.get(
+    "/api/td/onboarding-documents",
+    isAuthenticated,
+    requireRole(["td"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser.id;
+        const applications = await getTdApplicationsByQuery({ userId });
+        const latestApp = selectCanonicalTdApplication(applications);
+
+        if (!latestApp) {
+          return res.status(404).json({ message: "TD application not found" });
+        }
+
+        const documents = await Promise.all(
+          TD_ONBOARDING_DOCUMENTS.map(async (document) => {
+            const loaded = await loadTdOnboardingDocument(document.step);
+            return {
+              step: loaded.step,
+              code: loaded.code,
+              title: loaded.title,
+              version: loaded.version,
+              requiresAcceptance: loaded.requiresAcceptance,
+              requiresUpload: loaded.requiresUpload,
+              uploadTitle: loaded.uploadTitle,
+              uploadDescription: loaded.uploadDescription,
+              mandatoryClauses: loaded.mandatoryClauses,
+              content: loaded.content,
+              contentHash: loaded.contentHash,
+            };
+          })
+        );
+
+        res.json({
+          applicationId: latestApp.id,
+          documents,
+        });
+      } catch (error) {
+        console.error("Error fetching TD onboarding documents:", error);
+        res.status(500).json({ message: "Failed to fetch TD onboarding documents" });
+      }
+    }
+  );
+
+  app.post(
+    "/api/td/onboarding-documents/:docStep/accept",
+    isAuthenticated,
+    requireRole(["td"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser.id;
+        const docStep = Number(req.params.docStep);
+        const {
+          applicationId,
+          documentVersion,
+          documentHash,
+          typedFullName,
+          acceptedTimezone,
+          locale,
+          platform,
+          sourceFlow,
+          formData,
+          acceptedClauseKeys,
+          scrollCompletionPercent,
+          viewStartedAt,
+          viewCompletedAt,
+          acceptClickedAt,
+        } = req.body ?? {};
+
+        if (!applicationId || !Number.isInteger(docStep) || docStep < 1 || docStep > 7) {
+          return res.status(400).json({ message: "Invalid TD onboarding acceptance request" });
+        }
+        if (!String(typedFullName || "").trim()) {
+          return res.status(400).json({ message: "Typed full name is required" });
+        }
+
+        const applications = await getTdApplicationsByQuery({ userId });
+        const application =
+          applications.find((entry: any) => entry.id === applicationId) || selectCanonicalTdApplication(applications);
+        if (!application) {
+          return res.status(403).json({ message: "Application not found or access denied" });
+        }
+
+        const definition = getTdOnboardingDocumentDefinition(docStep);
+        if (!definition.requiresAcceptance) {
+          return res.status(400).json({ message: "This TD onboarding step requires file upload, not agreement acceptance." });
+        }
+        const loaded = await loadTdOnboardingDocument(docStep);
+        if (documentVersion && documentVersion !== loaded.version) {
+          return res.status(409).json({ message: "Document version mismatch" });
+        }
+        if (documentHash && documentHash !== loaded.contentHash) {
+          return res.status(409).json({ message: "Document content hash mismatch" });
+        }
+
+        const documentsStatus = buildTdOnboardingStatuses(application.documentsStatus || application.documents_status);
+        const currentStep = getCurrentTdStepFromStatuses(documentsStatus);
+        if (docStep !== currentStep) {
+          return res.status(400).json({ message: `Sequential step order violation: current acceptance step is ${currentStep}.` });
+        }
+
+        const acceptedClauseKeySet = new Set(
+          Array.isArray(acceptedClauseKeys) ? acceptedClauseKeys.map((value: unknown) => String(value)) : []
+        );
+        const missingClause = definition.mandatoryClauses.find((clause) => !acceptedClauseKeySet.has(clause.key));
+        if (missingClause) {
+          return res.status(400).json({ message: `Mandatory clause not acknowledged: ${missingClause.label}` });
+        }
+
+        const { data: acceptanceRow, error: acceptanceError } = await supabase
+          .from("td_onboarding_acceptances")
+          .insert({
+            application_id: applicationId,
+            user_id: userId,
+            document_step: docStep,
+            document_code: loaded.code,
+            document_title: loaded.title,
+            document_version: loaded.version,
+            document_snapshot: loaded.content,
+            document_checksum: loaded.contentHash,
+            typed_full_name: String(typedFullName).trim(),
+            account_email: application.email,
+            phone_number_snapshot: application.phone || null,
+            accepted_timezone: acceptedTimezone ? String(acceptedTimezone) : null,
+            acceptance_method: "checkbox_typed_name",
+            ip_address: extractRequestIp(req),
+            user_agent: req.headers["user-agent"] || null,
+            device_type: inferDeviceType(req.headers["user-agent"]),
+            platform: platform ? String(platform) : "web",
+            session_id: req.sessionID || null,
+            locale: locale ? String(locale) : null,
+            source_flow: sourceFlow ? String(sourceFlow) : `td_onboarding_step_${docStep}`,
+            form_snapshot_json:
+              formData && typeof formData === "object"
+                ? Object.fromEntries(Object.entries(formData).map(([key, value]) => [String(key), String(value ?? "").trim()]))
+                : null,
+            accepted_clauses_json: definition.mandatoryClauses
+              .filter((clause) => acceptedClauseKeySet.has(clause.key))
+              .map((clause) => clause.key),
+            scroll_completion_percent:
+              typeof scrollCompletionPercent === "number"
+                ? Math.max(0, Math.min(100, Math.round(scrollCompletionPercent)))
+                : null,
+            view_started_at: viewStartedAt ? new Date(viewStartedAt) : null,
+            view_completed_at: viewCompletedAt ? new Date(viewCompletedAt) : null,
+            accept_clicked_at: acceptClickedAt ? new Date(acceptClickedAt) : new Date(),
+          })
+          .select("*")
+          .single();
+
+        if (acceptanceError || !acceptanceRow) {
+          throw new Error(acceptanceError?.message || "Failed to create TD onboarding acceptance");
+        }
+
+        if (definition.mandatoryClauses.length) {
+          const { error: clauseError } = await supabase
+            .from("td_onboarding_clause_acknowledgements")
+            .insert(
+              definition.mandatoryClauses
+                .filter((clause) => acceptedClauseKeySet.has(clause.key))
+                .map((clause) => ({
+                  acceptance_id: acceptanceRow.id,
+                  clause_key: clause.key,
+                  clause_label: clause.label,
+                }))
+            );
+
+          if (clauseError) {
+            throw new Error(clauseError.message);
+          }
+        }
+
+        const { error: eventError } = await supabase
+          .from("td_onboarding_acceptance_events")
+          .insert([
+            {
+              acceptance_id: acceptanceRow.id,
+              application_id: applicationId,
+              user_id: userId,
+              document_step: docStep,
+              event_type: "accepted",
+              payload: {
+                clauses: definition.mandatoryClauses.filter((clause) => acceptedClauseKeySet.has(clause.key)).map((clause) => clause.key),
+                acceptedAt: new Date().toISOString(),
+              },
+            },
+          ]);
+
+        if (eventError) {
+          throw new Error(eventError.message);
+        }
+
+        documentsStatus[String(docStep)] = "approved";
+        if (docStep < 7 && documentsStatus[String(docStep + 1)] !== "approved") {
+          documentsStatus[String(docStep + 1)] = "pending_upload";
+        }
+
+        const allApproved = ["1", "2", "3", "4", "5", "6", "7"].every((step) => String(documentsStatus[step] || "") === "approved");
+        const { error: updateError } = await supabase
+          .from("td_applications")
+          .update({
+            documents_status: documentsStatus,
+            document_submission_step: docStep < 7 ? docStep + 1 : 7,
+            onboarding_completed_at: allApproved ? new Date() : null,
+            updated_at: new Date(),
+          })
+          .eq("id", applicationId);
+
+        if (updateError) {
+          throw new Error(updateError.message);
+        }
+
+        const updatedApplications = await getTdApplicationsByQuery({ userId });
+        const updatedApplication =
+          updatedApplications.find((entry: any) => entry.id === applicationId) ||
+          selectCanonicalTdApplication(updatedApplications);
+
+        res.json({
+          success: true,
+          application: updatedApplication,
+          acceptance: acceptanceRow,
+          receipt: {
+            acceptedAt: acceptanceRow.accepted_at,
+            documentCode: acceptanceRow.document_code,
+            documentVersion: acceptanceRow.document_version,
+            documentChecksum: acceptanceRow.document_checksum,
+          },
+        });
+      } catch (error) {
+        console.error("Error accepting TD onboarding document:", error);
+        res.status(500).json({ message: error instanceof Error ? error.message : "Failed to accept TD onboarding document" });
+      }
+    }
+  );
+
+  app.post(
+    "/api/td/onboarding-documents/upload",
+    isAuthenticated,
+    requireRole(["td"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser.id;
+        const { applicationId, docStep, fileName, fileData, fileType } = req.body ?? {};
+        const parsedDocStep = typeof docStep === "number" ? docStep : Number(docStep);
+
+        if (!applicationId || parsedDocStep !== 7 || !fileName || !fileData) {
+          return res.status(400).json({ message: "Only TD step 7 accepts identification uploads." });
+        }
+
+        const applications = await getTdApplicationsByQuery({ userId });
+        const application =
+          applications.find((entry: any) => entry.id === applicationId) || selectCanonicalTdApplication(applications);
+
+        if (!application) {
+          return res.status(403).json({ message: "Application not found or access denied" });
+        }
+
+        const documentsStatus = buildTdOnboardingStatuses(application.documentsStatus || application.documents_status);
+        const currentStep = getCurrentTdStepFromStatuses(documentsStatus);
+        if (currentStep !== 7) {
+          return res.status(400).json({ message: "Identification upload is blocked until the first six TD agreements are approved." });
+        }
+
+        const stepStatus = String(documentsStatus["7"] || "not_started");
+        if (stepStatus === "pending_review") {
+          return res.status(400).json({ message: "Your identification copy is already with COO for review." });
+        }
+        if (stepStatus === "approved") {
+          return res.status(400).json({ message: "Your identification copy has already been approved." });
+        }
+
+        const buffer = Buffer.from(fileData, "base64");
+        const sanitizedName = String(fileName).replace(/[^a-zA-Z0-9._-]/g, "_");
+        const safeFileName = `td-documents/${userId}/td-certified-id-${applicationId}-${Date.now()}-${sanitizedName}`;
+
+        await ensurePrivateBucket(supabase, "tutor-documents");
+        const { error: uploadError } = await supabase.storage
+          .from("tutor-documents")
+          .upload(safeFileName, buffer, {
+            contentType: fileType || undefined,
+            upsert: false,
+          });
+
+        if (uploadError) {
+          return res.status(500).json({ message: uploadError.message });
+        }
+
+        const urlData = { publicUrl: confidentialReference("tutor-documents", safeFileName) };
+        if (!urlData?.publicUrl) {
+          return res.status(500).json({ message: "Upload succeeded but file URL could not be generated." });
+        }
+
+        documentsStatus["7"] = "pending_review";
+
+        const { error: updateError } = await supabase
+          .from("td_applications")
+          .update({
+            doc_7_submission_url: urlData.publicUrl,
+            doc_7_submission_uploaded_at: new Date(),
+            doc_7_submission_reviewed_at: null,
+            doc_7_submission_reviewed_by: null,
+            doc_7_submission_rejection_reason: null,
+            document_submission_step: 7,
+            documents_status: documentsStatus,
+            onboarding_completed_at: null,
+            updated_at: new Date(),
+          })
+          .eq("id", applicationId)
+          .eq("user_id", userId);
+
+        if (updateError) {
+          throw new Error(updateError.message);
+        }
+
+        const refreshedApplications = await getTdApplicationsByQuery({ userId });
+        const refreshedApplication =
+          refreshedApplications.find((entry: any) => entry.id === applicationId) ||
+          selectCanonicalTdApplication(refreshedApplications);
+
+        res.json({ success: true, application: refreshedApplication, publicUrl: urlData.publicUrl });
+      } catch (error) {
+        console.error("Error uploading TD onboarding identification:", error);
+        if (
+          error instanceof Error &&
+          /(blocked until|already|required|pending review)/i.test(error.message)
+        ) {
+          return res.status(400).json({ message: error.message });
+        }
+        res.status(500).json({ message: error instanceof Error ? error.message : "Failed to upload certified identification copy" });
+      }
+    }
+  );
+
+  app.post(
+    "/api/td/complete-onboarding",
+    isAuthenticated,
+    requireRole(["td"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser.id;
+        const { applicationId } = req.body ?? {};
+        const applications = await getTdApplicationsByQuery({ userId });
+        const application =
+          applications.find((entry: any) => entry.id === applicationId) || selectCanonicalTdApplication(applications);
+
+        if (!application) {
+          return res.status(403).json({ message: "Application not found or access denied" });
+        }
+
+        const documentsStatus = buildTdOnboardingStatuses(application.documentsStatus || application.documents_status);
+        const allApproved = ["1", "2", "3", "4", "5", "6", "7"].every((step) => String(documentsStatus[step] || "") === "approved");
+        if (!allApproved) {
+          return res.status(400).json({ message: "All TD onboarding steps must be approved before onboarding can be completed." });
+        }
+
+        const { error } = await supabase
+          .from("td_applications")
+          .update({ onboarding_completed_at: new Date(), updated_at: new Date() })
+          .eq("id", applicationId)
+          .eq("user_id", userId);
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        const assignedPods = await storage.getPodsByTD(userId);
+        res.json({ success: true, redirectTo: assignedPods.length > 0 ? "/operational/td/dashboard" : "/operational/td/no-pod" });
+      } catch (error) {
+        console.error("Error completing TD onboarding:", error);
+        res.status(500).json({ message: error instanceof Error ? error.message : "Failed to complete TD onboarding" });
+      }
+    }
+  );
+
+  app.get(
+    "/api/coo/td-applications",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        const status = typeof req.query?.status === "string" ? req.query.status : undefined;
+        const applications = await getTdApplicationsByQuery({ status });
+        res.json(applications);
+      } catch (error) {
+        console.error("Error fetching TD applications:", error);
+        res.status(500).json({ message: "Failed to fetch TD applications" });
+      }
+    }
+  );
+
+  app.post(
+    "/api/coo/td-applications/:id/approve",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        const reviewerId = (req.session as any).userId;
+        const { id } = req.params;
+        const { data, error } = await supabase
+          .from("td_applications")
+          .update({
+            status: "approved",
+            reviewed_by: reviewerId,
+            reviewed_at: new Date(),
+            document_submission_step: 1,
+            documents_status: INITIAL_TD_DOCUMENT_STATUSES,
+            updated_at: new Date(),
+          })
+          .eq("id", id)
+          .select("*")
+          .single();
+
+        if (error || !data) {
+          return res.status(404).json({ message: "TD application not found" });
+        }
+
+        await safeSendPush(
+          data.user_id,
+          {
+            title: "TD application approved",
+            body: "Your Territory Director application was approved. Open Response Integrity to complete onboarding.",
+            url: "/operational/td/gateway",
+            tag: `td-application-approved-${data.id}`,
+          },
+          "td application approved",
+        );
+
+        res.json(data);
+      } catch (error) {
+        console.error("Error approving TD application:", error);
+        res.status(500).json({ message: "Failed to approve TD application" });
+      }
+    }
+  );
+
+  app.post(
+    "/api/coo/td-applications/:id/reject",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        const reviewerId = (req.session as any).userId;
+        const { id } = req.params;
+        const reason = String(req.body?.reason || "").trim() || "Application not accepted";
+        const { data, error } = await supabase
+          .from("td_applications")
+          .update({
+            status: "rejected",
+            reviewed_by: reviewerId,
+            reviewed_at: new Date(),
+            rejection_reason: reason,
+            updated_at: new Date(),
+          })
+          .eq("id", id)
+          .select("*")
+          .single();
+
+        if (error || !data) {
+          return res.status(404).json({ message: "TD application not found" });
+        }
+
+        await safeSendPush(
+          data.user_id,
+          {
+            title: "TD application update",
+            body: "Your Territory Director application was not accepted. Open Response Integrity to review the update.",
+            url: "/operational/td/gateway",
+            tag: `td-application-rejected-${data.id}`,
+          },
+          "td application rejected",
+        );
+
+        res.json(data);
+      } catch (error) {
+        console.error("Error rejecting TD application:", error);
+        res.status(500).json({ message: "Failed to reject TD application" });
+      }
+    }
+  );
+
+  app.post(
+    "/api/coo/td-applications/:id/document/7/review",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        const reviewerId = (req.session as any).userId;
+        const { id } = req.params;
+        if (typeof req.body?.approved !== "boolean") {
+          return res.status(400).json({ message: "Missing approval decision" });
+        }
+        const approved = req.body.approved as boolean;
+        const rejectionReason = String(req.body?.rejectionReason || "").trim();
+
+        const applications = await getTdApplicationsByQuery({});
+        const application = applications.find((entry: any) => entry.id === id);
+        if (!application) {
+          return res.status(404).json({ message: "TD application not found" });
+        }
+
+        const documentsStatus = buildTdOnboardingStatuses(application.documentsStatus || application.documents_status);
+        if (String(documentsStatus["7"] || "") !== "pending_review") {
+          return res.status(400).json({ message: "TD identification is not awaiting COO review." });
+        }
+
+        documentsStatus["7"] = approved ? "approved" : "rejected";
+        const allApproved = ["1", "2", "3", "4", "5", "6", "7"].every((step) => String(documentsStatus[step] || "") === "approved");
+
+        const { data, error } = await supabase
+          .from("td_applications")
+          .update({
+            documents_status: documentsStatus,
+            document_submission_step: 7,
+            doc_7_submission_reviewed_at: new Date(),
+            doc_7_submission_reviewed_by: reviewerId,
+            doc_7_submission_rejection_reason: approved ? null : (rejectionReason || "Identification copy rejected"),
+            onboarding_completed_at: allApproved ? new Date() : null,
+            updated_at: new Date(),
+          })
+          .eq("id", id)
+          .select("*")
+          .single();
+
+        if (error || !data) {
+          throw new Error(error?.message || "Failed to review TD identification");
+        }
+
+        await safeSendPush(
+          data.user_id,
+          {
+            title: approved ? "TD identification approved" : "TD identification rejected",
+            body: approved
+              ? "Your certified identification copy was approved."
+              : "Your certified identification copy was rejected and needs resubmission.",
+            url: "/operational/td/gateway",
+            tag: `td-document-review-${data.id}-7-${approved ? "approved" : "rejected"}`,
+          },
+          "td document review result",
+        );
+
+        res.json({
+          success: true,
+          application: data,
+          message: approved ? "TD identification approved." : "TD identification rejected.",
+        });
+      } catch (error) {
+        console.error("Error reviewing TD identification document:", error);
+        if (error instanceof Error && /(awaiting COO review|required)/i.test(error.message)) {
+          return res.status(400).json({ message: error.message });
+        }
+        res.status(500).json({ message: error instanceof Error ? error.message : "Failed to review TD identification" });
+      }
+    }
+  );
+
+  app.post(
+    "/api/affiliate/application",
+    isAuthenticated,
+    requireRole(["affiliate"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser?.id || (req.session as any)?.userId;
+        const productionLinkCode = String((req.body?.productionLinkCode || (req.session as any)?.productionLinkCode || "")).trim().toUpperCase() || null;
+        const payload = {
+          user_id: userId,
+          production_link_code: productionLinkCode,
+          full_name: String(req.body?.fullName || "").trim(),
+          id_number: String(req.body?.idNumber || "").trim(),
+          phone: String(req.body?.phone || "").trim(),
+          email: String(req.body?.email || "").trim(),
+          reach_in_7_days: String(req.body?.reachIn7Days || "").trim(),
+          first_parents: String(req.body?.firstParents || "").trim(),
+          student_breakdown_case: String(req.body?.studentBreakdownCase || "").trim(),
+          marks_signal: String(req.body?.marksSignal || "").trim(),
+          extra_lessons_response: String(req.body?.extraLessonsResponse || "").trim(),
+          not_recommend_cases: String(req.body?.notRecommendCases || "").trim(),
+          unclear_problem_response: String(req.body?.unclearProblemResponse || "").trim(),
+          ten_parents_filter: String(req.body?.tenParentsFilter || "").trim(),
+          first_academic_question: String(req.body?.firstAcademicQuestion || "").trim(),
+          no_earnings_response: String(req.body?.noEarningsResponse || "").trim(),
+          next_five_days_plan: String(req.body?.nextFiveDaysPlan || "").trim(),
+          proceed_reason: String(req.body?.proceedReason || "").trim(),
+          trust_reason: String(req.body?.trustReason || "").trim(),
+        };
+
+        const requiredFields = [
+          "full_name",
+          "id_number",
+          "phone",
+          "email",
+          "reach_in_7_days",
+          "first_parents",
+          "student_breakdown_case",
+          "marks_signal",
+          "extra_lessons_response",
+          "not_recommend_cases",
+          "unclear_problem_response",
+          "ten_parents_filter",
+          "first_academic_question",
+          "no_earnings_response",
+          "next_five_days_plan",
+          "proceed_reason",
+          "trust_reason",
+        ];
+
+        const missingField = requiredFields.find((field) => !String((payload as any)[field] || "").trim());
+        if (missingField) {
+          return res.status(400).json({ message: "All EGP application fields are required." });
+        }
+
+        const existingApplications = await getAffiliateApplicationsByQuery({ userId });
+        const reusableApplication = existingApplications.find((application: any) =>
+          ["pending", "rejected"].includes(String(application.status || "").toLowerCase())
+        );
+
+        let data: any = null;
+        let error: any = null;
+
+        if (reusableApplication) {
+          const result = await supabase
+            .from("affiliate_applications")
+            .update({
+              ...payload,
+              status: "pending",
+              reviewed_by: null,
+              reviewed_at: null,
+              rejection_reason: null,
+              onboarding_completed_at: null,
+              document_submission_step: 0,
+              doc_5_submission_url: null,
+              doc_5_submission_uploaded_at: null,
+              doc_5_submission_reviewed_at: null,
+              doc_5_submission_reviewed_by: null,
+              doc_5_submission_rejection_reason: null,
+              documents_status: { ...INITIAL_EGP_DOCUMENT_STATUSES, "1": "not_started" },
+              updated_at: new Date(),
+            })
+            .eq("id", reusableApplication.id)
+            .select("*")
+            .single();
+
+          data = result.data;
+          error = result.error;
+        } else {
+          const result = await supabase
+            .from("affiliate_applications")
+            .insert(payload)
+            .select("*")
+            .single();
+
+          data = result.data;
+          error = result.error;
+        }
+
+        if (error || !data) {
+          throw new Error(error?.message || "Failed to submit affiliate application");
+        }
+
+        res.json(data);
+      } catch (error) {
+        console.error("Error submitting affiliate application:", error);
+        res.status(400).json({ message: error instanceof Error ? error.message : "Failed to submit affiliate application" });
+      }
+    }
+  );
+
+  app.get(
+    "/api/affiliate/application-status",
+    isAuthenticated,
+    requireRole(["affiliate"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser?.id || (req.session as any)?.userId;
+        const applications = await getAffiliateApplicationsByQuery({ userId });
+        const canonicalApplication = selectCanonicalAffiliateApplication(applications);
+        if (!canonicalApplication) {
+          return res.json({ status: "not_applied" });
+        }
+
+        res.json(deriveEgpGatewayApplicationStatus(canonicalApplication));
+      } catch (error) {
+        console.error("Error fetching affiliate application status:", error);
+        res.status(500).json({ message: "Failed to fetch affiliate application status" });
+      }
+    }
+  );
+
+  app.get(
+    "/api/affiliate/gateway-session",
+    isAuthenticated,
+    requireRole(["affiliate"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser.id;
+        const applications = await getAffiliateApplicationsByQuery({ userId });
+        const latestApp = selectCanonicalAffiliateApplication(applications);
+
+        res.json({
+          role: (req as any).dbUser?.role || "affiliate",
+          applicationStatus: latestApp ? deriveEgpGatewayApplicationStatus(latestApp) : null,
+        });
+      } catch (error) {
+        console.error("Error fetching affiliate gateway session:", error);
+        res.status(500).json({ message: "Failed to fetch affiliate gateway session" });
+      }
+    }
+  );
+
+  app.get(
+    "/api/affiliate/onboarding-documents",
+    isAuthenticated,
+    requireRole(["affiliate"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser?.id || (req.session as any)?.userId;
+        const applications = await getAffiliateApplicationsByQuery({ userId });
+        const latestApp = selectCanonicalAffiliateApplication(applications);
+
+        if (!latestApp) {
+          return res.status(404).json({ message: "Affiliate application not found" });
+        }
+
+        const documents = await Promise.all(
+          EGP_ONBOARDING_DOCUMENTS.map(async (document) => {
+            const loaded = await loadEgpOnboardingDocument(document.step);
+            return {
+              step: loaded.step,
+              code: loaded.code,
+              title: loaded.title,
+              version: loaded.version,
+              requiresAcceptance: loaded.requiresAcceptance,
+              requiresUpload: loaded.requiresUpload,
+              uploadTitle: loaded.uploadTitle,
+              uploadDescription: loaded.uploadDescription,
+              mandatoryClauses: loaded.mandatoryClauses,
+              content: loaded.content,
+              contentHash: loaded.contentHash,
+            };
+          })
+        );
+
+        res.json({
+          applicationId: latestApp.id,
+          documents,
+        });
+      } catch (error) {
+        console.error("Error fetching affiliate onboarding documents:", error);
+        res.status(500).json({ message: "Failed to fetch affiliate onboarding documents" });
+      }
+    }
+  );
+
+  app.post(
+    "/api/affiliate/onboarding-documents/:docStep/accept",
+    isAuthenticated,
+    requireRole(["affiliate"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser?.id || (req.session as any)?.userId;
+        const docStep = Number(req.params.docStep);
+        const {
+          applicationId,
+          documentVersion,
+          documentHash,
+          typedFullName,
+          acceptedTimezone,
+          locale,
+          platform,
+          sourceFlow,
+          formData,
+          acceptedClauseKeys,
+          scrollCompletionPercent,
+          viewStartedAt,
+          viewCompletedAt,
+          acceptClickedAt,
+        } = req.body ?? {};
+
+        if (!applicationId || !Number.isInteger(docStep) || docStep < 1 || docStep > 4) {
+          return res.status(400).json({ message: "Invalid EGP onboarding acceptance request" });
+        }
+        if (!String(typedFullName || "").trim()) {
+          return res.status(400).json({ message: "Typed full name is required" });
+        }
+
+        const applications = await getAffiliateApplicationsByQuery({ userId });
+        const application = applications.find((entry: any) => entry.id === applicationId) || selectCanonicalAffiliateApplication(applications);
+        if (!application) {
+          return res.status(403).json({ message: "Application not found or access denied" });
+        }
+
+        const definition = getEgpOnboardingDocumentDefinition(docStep);
+        const loaded = await loadEgpOnboardingDocument(docStep);
+        if (documentVersion && documentVersion !== loaded.version) {
+          return res.status(409).json({ message: "Document version mismatch" });
+        }
+        if (documentHash && documentHash !== loaded.contentHash) {
+          return res.status(409).json({ message: "Document content hash mismatch" });
+        }
+
+        const documentsStatus = buildEgpOnboardingStatuses(application.documentsStatus || application.documents_status);
+        const currentStep = getCurrentEgpStepFromStatuses(documentsStatus);
+        if (docStep !== currentStep) {
+          return res.status(400).json({ message: `Sequential step order violation: current acceptance step is ${currentStep}.` });
+        }
+
+        const acceptedClauseKeySet = new Set(
+          Array.isArray(acceptedClauseKeys) ? acceptedClauseKeys.map((value: unknown) => String(value)) : []
+        );
+        const missingClause = definition.mandatoryClauses.find((clause) => !acceptedClauseKeySet.has(clause.key));
+        if (missingClause) {
+          return res.status(400).json({ message: `Mandatory clause not acknowledged: ${missingClause.label}` });
+        }
+
+        const { data: acceptanceRow, error: acceptanceError } = await supabase
+          .from("affiliate_onboarding_acceptances")
+          .insert({
+            application_id: applicationId,
+            user_id: userId,
+            document_step: docStep,
+            document_code: loaded.code,
+            document_title: loaded.title,
+            document_version: loaded.version,
+            document_snapshot: loaded.content,
+            document_checksum: loaded.contentHash,
+            typed_full_name: String(typedFullName).trim(),
+            account_email: application.email,
+            phone_number_snapshot: application.phone || null,
+            accepted_timezone: acceptedTimezone ? String(acceptedTimezone) : null,
+            acceptance_method: "checkbox_typed_name",
+            ip_address: extractRequestIp(req),
+            user_agent: req.headers["user-agent"] || null,
+            device_type: inferDeviceType(req.headers["user-agent"]),
+            platform: platform ? String(platform) : "web",
+            session_id: req.sessionID || null,
+            locale: locale ? String(locale) : null,
+            source_flow: sourceFlow ? String(sourceFlow) : `affiliate_onboarding_step_${docStep}`,
+            form_snapshot_json:
+              formData && typeof formData === "object"
+                ? Object.fromEntries(Object.entries(formData).map(([key, value]) => [String(key), String(value ?? "").trim()]))
+                : null,
+            accepted_clauses_json: definition.mandatoryClauses
+              .filter((clause) => acceptedClauseKeySet.has(clause.key))
+              .map((clause) => clause.key),
+            scroll_completion_percent:
+              typeof scrollCompletionPercent === "number"
+                ? Math.max(0, Math.min(100, Math.round(scrollCompletionPercent)))
+                : null,
+            view_started_at: viewStartedAt ? new Date(viewStartedAt) : null,
+            view_completed_at: viewCompletedAt ? new Date(viewCompletedAt) : null,
+            accept_clicked_at: acceptClickedAt ? new Date(acceptClickedAt) : new Date(),
+          })
+          .select("*")
+          .single();
+
+        if (acceptanceError || !acceptanceRow) {
+          throw new Error(acceptanceError?.message || "Failed to create affiliate onboarding acceptance");
+        }
+
+        if (definition.mandatoryClauses.length) {
+          const { error: clauseError } = await supabase
+            .from("affiliate_onboarding_clause_acknowledgements")
+            .insert(
+              definition.mandatoryClauses
+                .filter((clause) => acceptedClauseKeySet.has(clause.key))
+                .map((clause) => ({
+                  acceptance_id: acceptanceRow.id,
+                  clause_key: clause.key,
+                  clause_label: clause.label,
+                }))
+            );
+
+          if (clauseError) {
+            throw new Error(clauseError.message);
+          }
+        }
+
+        const { error: eventError } = await supabase
+          .from("affiliate_onboarding_acceptance_events")
+          .insert([
+            {
+              acceptance_id: acceptanceRow.id,
+              application_id: applicationId,
+              user_id: userId,
+              document_step: docStep,
+              event_type: "accepted",
+              payload: {
+                clauses: definition.mandatoryClauses.filter((clause) => acceptedClauseKeySet.has(clause.key)).map((clause) => clause.key),
+                acceptedAt: new Date().toISOString(),
+              },
+            },
+          ]);
+
+        if (eventError) {
+          throw new Error(eventError.message);
+        }
+
+        documentsStatus[String(docStep)] = "approved";
+        if (docStep < 5 && documentsStatus[String(docStep + 1)] !== "approved") {
+          documentsStatus[String(docStep + 1)] = "pending_upload";
+        }
+
+        const allApproved = ["1", "2", "3", "4", "5"].every((step) => String(documentsStatus[step] || "") === "approved");
+        const { error: updateError } = await supabase
+          .from("affiliate_applications")
+          .update({
+            documents_status: documentsStatus,
+            document_submission_step: docStep < 5 ? docStep + 1 : 5,
+            onboarding_completed_at: allApproved ? new Date() : null,
+            updated_at: new Date(),
+          })
+          .eq("id", applicationId);
+
+        if (updateError) {
+          throw new Error(updateError.message);
+        }
+
+        const updatedApplications = await getAffiliateApplicationsByQuery({ userId });
+        const updatedApplication =
+          updatedApplications.find((entry: any) => entry.id === applicationId) ||
+          selectCanonicalAffiliateApplication(updatedApplications);
+
+        res.json({
+          success: true,
+          application: updatedApplication,
+          acceptance: acceptanceRow,
+          receipt: {
+            acceptedAt: acceptanceRow.accepted_at,
+            documentCode: acceptanceRow.document_code,
+            documentVersion: acceptanceRow.document_version,
+            documentChecksum: acceptanceRow.document_checksum,
+          },
+        });
+      } catch (error) {
+        console.error("Error accepting affiliate onboarding document:", error);
+        res.status(500).json({ message: error instanceof Error ? error.message : "Failed to accept onboarding document" });
+      }
+    }
+  );
+
+  app.post(
+    "/api/affiliate/onboarding-documents/upload",
+    isAuthenticated,
+    requireRole(["affiliate"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser?.id || (req.session as any)?.userId;
+        const { applicationId, docStep, fileName, fileData, fileType } = req.body ?? {};
+        const parsedDocStep = typeof docStep === "number" ? docStep : Number(docStep);
+
+        if (!applicationId || parsedDocStep !== 5 || !fileName || !fileData) {
+          return res.status(400).json({ message: "Only Response Integrity-EGP-005 accepts a certified ID upload." });
+        }
+
+        const applications = await getAffiliateApplicationsByQuery({ userId });
+        const application =
+          applications.find((entry: any) => entry.id === applicationId) || selectCanonicalAffiliateApplication(applications);
+
+        if (!application) {
+          return res.status(403).json({ message: "Application not found or access denied" });
+        }
+
+        const documentsStatus = buildEgpOnboardingStatuses(application.documentsStatus || application.documents_status);
+        const currentStep = getCurrentEgpStepFromStatuses(documentsStatus);
+        if (currentStep !== 5) {
+          return res.status(400).json({ message: "Certified ID upload is blocked until the first four EGP agreements are approved." });
+        }
+
+        const stepStatus = String(documentsStatus["5"] || "not_started");
+        if (stepStatus === "pending_review") {
+          return res.status(400).json({ message: "Your certified ID copy is already with COO for review." });
+        }
+        if (stepStatus === "approved") {
+          return res.status(400).json({ message: "Your certified ID copy has already been approved." });
+        }
+
+        const buffer = Buffer.from(fileData, "base64");
+        const sanitizedName = String(fileName).replace(/[^a-zA-Z0-9._-]/g, "_");
+        const safeFileName = `affiliate-documents/${userId}/egp-certified-id-${applicationId}-${Date.now()}-${sanitizedName}`;
+
+        await ensurePrivateBucket(supabase, "tutor-documents");
+        const { error: uploadError } = await supabase.storage
+          .from("tutor-documents")
+          .upload(safeFileName, buffer, {
+            contentType: fileType || undefined,
+            upsert: false,
+          });
+
+        if (uploadError) {
+          return res.status(500).json({ message: uploadError.message });
+        }
+
+        const urlData = { publicUrl: confidentialReference("tutor-documents", safeFileName) };
+        if (!urlData?.publicUrl) {
+          return res.status(500).json({ message: "Upload succeeded but file URL could not be generated." });
+        }
+
+        documentsStatus["5"] = "pending_review";
+
+        const { error: updateError } = await supabase
+          .from("affiliate_applications")
+          .update({
+            doc_5_submission_url: urlData.publicUrl,
+            doc_5_submission_uploaded_at: new Date(),
+            doc_5_submission_reviewed_at: null,
+            doc_5_submission_reviewed_by: null,
+            doc_5_submission_rejection_reason: null,
+            document_submission_step: 5,
+            documents_status: documentsStatus,
+            onboarding_completed_at: null,
+            updated_at: new Date(),
+          })
+          .eq("id", applicationId)
+          .eq("user_id", userId);
+
+        if (updateError) {
+          throw new Error(updateError.message);
+        }
+
+        const refreshedApplications = await getAffiliateApplicationsByQuery({ userId });
+        const refreshedApplication =
+          refreshedApplications.find((entry: any) => entry.id === applicationId) ||
+          selectCanonicalAffiliateApplication(refreshedApplications);
+
+        res.json({ success: true, application: refreshedApplication, publicUrl: urlData.publicUrl });
+      } catch (error) {
+        console.error("Error uploading affiliate onboarding document:", error);
+        if (
+          error instanceof Error &&
+          /(blocked until|already|required|pending review)/i.test(error.message)
+        ) {
+          return res.status(400).json({ message: error.message });
+        }
+        res.status(500).json({ message: error instanceof Error ? error.message : "Failed to upload certified ID copy" });
+      }
+    }
+  );
+
+  app.post(
+    "/api/affiliate/complete-onboarding",
+    isAuthenticated,
+    requireRole(["affiliate"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser?.id || (req.session as any)?.userId;
+        const { applicationId } = req.body ?? {};
+        const applications = await getAffiliateApplicationsByQuery({ userId });
+        const application = applications.find((entry: any) => entry.id === applicationId) || selectCanonicalAffiliateApplication(applications);
+
+        if (!application) {
+          return res.status(403).json({ message: "Application not found or access denied" });
+        }
+
+        const documentsStatus = buildEgpOnboardingStatuses(application.documentsStatus || application.documents_status);
+        const allApproved = ["1", "2", "3", "4", "5"].every((step) => String(documentsStatus[step] || "") === "approved");
+        if (!allApproved) {
+          return res.status(400).json({ message: "All EGP onboarding steps must be approved before onboarding can be completed." });
+        }
+
+        const { error } = await supabase
+          .from("affiliate_applications")
+          .update({ onboarding_completed_at: new Date(), updated_at: new Date() })
+          .eq("id", applicationId)
           .eq("user_id", userId);
 
         if (error) {
