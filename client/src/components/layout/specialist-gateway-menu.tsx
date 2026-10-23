@@ -39,7 +39,12 @@ export function SpecialistGatewayMenu() {
             <Palette className="h-4 w-4" />
             Appearance
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="min-w-[10rem]">
+          <DropdownMenuSubContent
+                side="bottom"
+                align="start"
+                sideOffset={4}
+                className="min-w-[10rem] max-w-[calc(100vw-1rem)]"
+              >
             <DropdownMenuRadioGroup
               value={theme}
               onValueChange={(value) => {
