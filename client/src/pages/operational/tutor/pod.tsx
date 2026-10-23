@@ -60,6 +60,20 @@ interface TutorAlignmentSummaryData {
   assignmentId: string | null;
   operationalMode: TutorTrainingMode;
   alignmentSummary: BattleTestingTutorSummary | null;
+  sandboxProgress?: {
+    qualification?: {
+      policyVersion: number;
+      developmentCoverageReady: boolean;
+      qualificationReady: boolean;
+      qualifyingSessions: number;
+      requiredSessions: number;
+      phaseCounts: Record<string, number>;
+      phaseMinimums: Record<string, number>;
+      reason: string;
+    };
+    practicalsReady: boolean;
+    reason: string;
+  } | null;
 }
 
 interface TutorPodSession {
@@ -107,6 +121,8 @@ function formatTutorAlignmentStatus(value: string | null | undefined) {
   }
   return value;
 }
+
+const SANDBOX_PHASES = ["Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability"] as const;
 
 function formatTutorMode(value: TutorAlignmentSummaryData["operationalMode"]) {
   if (!value) return "Unavailable";
@@ -648,7 +664,7 @@ export default function TutorPod() {
                 <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Specialist Alignment</p>
                 <h2 className="mt-1 text-xl font-semibold tracking-[-0.01em]">Your standing in the system</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  This shows your latest audited alignment state and the battle-test modules already completed.
+                  This shows your current operating mode, audited alignment and Sandbox qualification progress.
                 </p>
               </div>
             </div>
@@ -669,10 +685,57 @@ export default function TutorPod() {
               <div className="ri-alignment-info-card rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
                 <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Status</p>
                 <p className="mt-2 text-sm font-medium text-foreground">
-                  {formatTutorAlignmentStatus(tutorAlignmentSummary?.alignmentSummary?.actionRequired)}
+                  {tutorAlignmentSummary?.sandboxProgress?.qualification
+                    ? tutorAlignmentSummary.sandboxProgress.qualification.qualificationReady
+                      ? "Qualified pending TD review. Practicals do not open automatically."
+                      : tutorAlignmentSummary.sandboxProgress.qualification.developmentCoverageReady
+                        ? "Final qualification run in progress."
+                        : "Sandbox coverage developing."
+                    : formatTutorAlignmentStatus(tutorAlignmentSummary?.alignmentSummary?.actionRequired)}
                 </p>
               </div>
             </div>
+
+            {tutorAlignmentSummary?.sandboxProgress?.qualification ? (
+              <div className="ri-alignment-section rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Sandbox Qualification</p>
+                    <p className="mt-2 text-sm font-semibold text-foreground">
+                      {tutorAlignmentSummary.sandboxProgress.qualification.qualifyingSessions}/
+                      {tutorAlignmentSummary.sandboxProgress.qualification.requiredSessions} clean sessions credited
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">Two clean sessions are required in each RI-OS phase.</p>
+                  </div>
+                  <Badge variant={tutorAlignmentSummary.sandboxProgress.qualification.qualificationReady ? "default" : "outline"}>
+                    {tutorAlignmentSummary.sandboxProgress.qualification.qualificationReady ? "Ready for TD review" : "In progress"}
+                  </Badge>
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {SANDBOX_PHASES.map((phase) => {
+                    const count = tutorAlignmentSummary.sandboxProgress?.qualification?.phaseCounts?.[phase] || 0;
+                    const required = tutorAlignmentSummary.sandboxProgress?.qualification?.phaseMinimums?.[phase] || 2;
+                    return (
+                      <div key={phase} className="ri-alignment-info-card rounded-xl border border-primary/15 bg-background px-3 py-2 text-sm text-foreground">
+                        <span className="font-medium">{phase}</span>
+                        <span className="ml-2 text-muted-foreground">{count}/{required}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  {tutorAlignmentSummary.sandboxProgress.qualification.qualificationReady
+                    ? "All numeric requirements are complete. TD approval is still required before Practicals."
+                    : (() => {
+                        const next = SANDBOX_PHASES.find((phase) =>
+                          (tutorAlignmentSummary.sandboxProgress?.qualification?.phaseCounts?.[phase] || 0) <
+                          (tutorAlignmentSummary.sandboxProgress?.qualification?.phaseMinimums?.[phase] || 2),
+                        );
+                        return next ? "Next requirement: one clean " + next + " session." : tutorAlignmentSummary.sandboxProgress?.qualification?.reason;
+                      })()}
+                </p>
+              </div>
+            ) : null}
 
             {tutorAlignmentSummary?.alignmentSummary?.certificationRecoveryNote && (
               <div className="ri-alignment-info-card rounded-xl border border-primary/35 bg-primary/10 px-4 py-4">
