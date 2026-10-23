@@ -1083,82 +1083,6 @@ export default function PodDetail() {
               <p className="font-medium text-sm sm:text-base mb-4">{tdName}</p>
             </Card>
 
-            {/* Pod Integrity */}
-            <Card className="p-4 sm:p-6 border">
-              <div className="flex items-center justify-between gap-3 mb-2 sm:mb-3">
-                <div className="flex items-center gap-2">
-                  <Activity className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
-                  <p className="text-xs sm:text-sm font-medium text-muted-foreground uppercase">Pod Integrity</p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={togglePodIntegrity}
-                  className="whitespace-nowrap"
-                >
-                  {podIntegrityExpanded ? "Hide stats" : "Show stats"}
-                </Button>
-              </div>
-
-              {podIntegrityExpanded ? (
-                <div className="pt-4 border-t space-y-3">
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <div>
-                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Weekly Alignment</p>
-                      <p className="mt-1 text-lg font-semibold">
-                        {battleTestingSummary.weeklyAlignmentPercent == null
-                          ? "N/A"
-                          : `${Math.round(battleTestingSummary.weeklyAlignmentPercent)}%`}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Violation Spikes</p>
-                      <p className="mt-1 text-lg font-semibold">{battleTestingSummary.driftIncidents}</p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">At Risk Specialists</p>
-                      <p className="mt-1 text-lg font-semibold">{battleTestingSummary.watchlistTutors + battleTestingSummary.failTutors}</p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Locked Specialists</p>
-                      <p className="mt-1 text-lg font-semibold">{battleTestingSummary.lockedTutors}</p>
-                    </div>
-                  </div>
-
-                  {battleTestingSummary.tdOperationalFlags.length ? (
-                    <div className="border border-amber-500/25 bg-amber-500/10 px-4 py-3">
-                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-foreground">
-                        TD Accountability Flags
-                      </p>
-                      <div className="mt-2 space-y-1">
-                        {battleTestingSummary.tdOperationalFlags.map((flag) => (
-                          <p key={flag.phaseKey} className="text-sm text-foreground">
-                            <span className="font-medium">{flag.title}</span>
-                            <span className="ml-2 text-foreground">
-                              {flag.affectedTutors} Specialists drifted in the last {flag.windowDays} days.
-                            </span>
-                          </p>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {battleTestingSummary?.tdSummary && (
-                    <div className="pt-4 border-t space-y-3">
-                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">TD Integrity</p>
-                      <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                        <Badge className={getBattleTestStateBadgeClass(battleTestingSummary.tdSummary.state)}>
-                          {getBattleTestStateLabel(battleTestingSummary.tdSummary.state)}
-                        </Badge>
-                        <Button size="sm" className="w-full sm:w-auto" onClick={() => setTdBattleTestOpen(true)}>
-                          Run TD Audit
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </Card>
 
             {/* Start Date */}
             {(currentPod as Pod).startDate && (
@@ -1336,16 +1260,9 @@ export default function PodDetail() {
                                 </div>
 
                                 <div className="flex items-center justify-between gap-3">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <p className="text-sm font-medium text-muted-foreground">Specialist Alignment</p>
-                                    <Badge className={getBattleTestStateBadgeClass(tutorAudit?.state)}>
-                                      {getBattleTestStateLabel(tutorAudit?.state)}
-                                    </Badge>
-                                    <Badge variant="outline">
-                                      {tutorAudit?.alignmentPercent == null
-                                        ? "Audit N/A"
-                                        : `Audit ${Math.round(tutorAudit.alignmentPercent)}%`}
-                                    </Badge>
+                                  <div>
+                                    <p className="text-sm font-medium text-foreground">Development Pathway</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">The pathway stage and governed next requirement are the Specialist standing source of truth.</p>
                                   </div>
                                   <Button
                                     variant="ghost"
@@ -1353,177 +1270,17 @@ export default function PodDetail() {
                                     onClick={() => toggleTutorDetails(assignment.id)}
                                     className="whitespace-nowrap"
                                   >
-                                    {expandedTutorDetails[assignment.id] ? "Hide details" : "Show details"}
+                                    {expandedTutorDetails[assignment.id] ? "Hide pathway detail" : "Show pathway detail"}
                                   </Button>
                                 </div>
 
                                 {expandedTutorDetails[assignment.id] ? (
-                                  <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
-                                    <div className="rounded-xl border border-border/60 bg-muted/20 p-3 sm:p-4">
-                                      <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                                        Alignment Audit
-                                      </p>
-                                      <div className="mt-3 space-y-3">
-                                        {(["transformation_phases", "session_infrastructure"] as TutorAuditGroupKey[]).map((groupKey) => {
-                                          const groupMeta = getTutorAuditGroupMeta(groupKey);
-                                          const groupPhases = groupedTutorPhaseOptions[groupKey];
-                                          const moduleSummary = summarizeModuleDeepDiveProgress(tutorAudit?.deepDiveProgress, groupKey);
-                                          const expandKey = `${assignment.id}:${groupKey}`;
-                                          const isGroupExpanded = expandedTutorAuditGroups[expandKey] ?? false;
-
-                                          return (
-                                            <div key={expandKey} className="rounded-xl border border-border/60 bg-background/60">
-                                              <button
-                                                type="button"
-                                                onClick={() => toggleTutorAuditGroup(assignment.id, groupKey)}
-                                                className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-muted/30"
-                                              >
-                                                <div>
-                                                  <p className="text-sm font-semibold text-foreground">{groupMeta.title}</p>
-                                                  <p className="text-xs text-muted-foreground">{groupMeta.description}</p>
-                                                  <p className="mt-1 text-xs text-muted-foreground">
-                                                    {moduleSummary.completedCount}/{moduleSummary.totalCount} deep dives have reached 3/3 clean passes.
-                                                  </p>
-                                                </div>
-                                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border/70 bg-background text-foreground shadow-sm">
-                                                  {isGroupExpanded ? (
-                                                    <ChevronUp className="h-4 w-4 text-foreground" />
-                                                  ) : (
-                                                    <ChevronDown className="h-4 w-4 text-foreground" />
-                                                  )}
-                                                </div>
-                                              </button>
-
-                                              {isGroupExpanded ? (
-                                                <div className="grid gap-2 border-t border-border/60 px-3 py-3">
-                                                  {groupPhases.map((phaseDefinition) => {
-                                                    const phaseAudit =
-                                                      latestPhaseScores.find(
-                                                        (entry) => entry.phaseKey === phaseDefinition.key
-                                                      ) ||
-                                                      tutorAudit?.phaseScores?.find(
-                                                        (entry) => entry.phaseKey === phaseDefinition.key
-                                                      );
-                                                    const deepDiveEntry =
-                                                      tutorAudit?.deepDiveProgress?.find(
-                                                        (entry) => entry.phaseKey === phaseDefinition.key
-                                                      ) || null;
-                                                    const deepDiveView = getDeepDiveProgressView(deepDiveEntry);
-
-                                                    return (
-                                                      <div
-                                                        key={`${assignment.id}-${phaseDefinition.key}`}
-                                                        className="flex items-start justify-between gap-3 rounded-lg border border-border/60 bg-background/80 px-3 py-2"
-                                                      >
-                                                        <div className="min-w-0">
-                                                          <span className="text-sm font-medium text-foreground">
-                                                            {phaseDefinition.title}
-                                                          </span>
-                                                          <p className="mt-1 text-xs text-muted-foreground">
-                                                            {deepDiveView.detail}
-                                                            {phaseAudit ? ` • Last score ${Math.round(phaseAudit.percent)}%` : ""}
-                                                          </p>
-                                                        </div>
-                                                        <Badge className={deepDiveView.badgeClass}>
-                                                          {deepDiveView.badgeLabel}
-                                                        </Badge>
-                                                      </div>
-                                                    );
-                                                  })}
-                                                </div>
-                                              ) : null}
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                      <div className="mt-3 border border-sky-500/25 bg-sky-500/10 px-3 py-2 text-xs text-foreground">
-                                        Certification progress is earned deep dive by deep dive. A phase only counts as complete after 3 clean passes in a row.
-                                      </div>
-                                      {tutorAudit?.actionRequired ? (
-                                        <p className="mt-3 text-sm text-muted-foreground">{tutorAudit.actionRequired}</p>
-                                      ) : null}
-                                      {tutorAudit?.deepDiveProgress?.some((entry) => entry.consecutiveDriftCount > 0) ? (
-                                        <div className="mt-3 border border-amber-500/25 bg-amber-500/10 px-3 py-2">
-                                          <p className="text-[10px] uppercase tracking-[0.08em] text-foreground">Drift Pressure</p>
-                                          <p className="mt-1 text-xs text-foreground">
-                                            {tutorAudit.deepDiveProgress
-                                              .filter((entry) => entry.consecutiveDriftCount > 0)
-                                              .map((entry) => `${entry.title} ${entry.consecutiveDriftCount}/3`)
-                                              .join(" • ")}
-                                          </p>
-                                        </div>
-                                      ) : null}
-                                      {tutorAudit?.lastAuditAt ? (
-                                        <p className="mt-2 text-xs text-muted-foreground">
-                                          Last audit: {formatAuditTimestamp(tutorAudit.lastAuditAt)}
-                                        </p>
-                                      ) : (
-                                        <p className="mt-2 text-xs text-muted-foreground">
-                                          Last audit: Not yet recorded
-                                        </p>
-                                      )}
-                                      {Array.isArray(assignment.next_battle_tests) && assignment.next_battle_tests.length > 0 ? (
-                                        <div className="mt-3 rounded-lg border border-border/60 bg-background/80 p-3">
-                                          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Next Alignment Audits</p>
-                                          <p className="mt-1 text-sm text-foreground">
-                                            {assignment.next_battle_tests
-                                              .slice(0, 3)
-                                              .map((entry: any) => entry.title)
-                                              .join(" • ")}
-                                          </p>
-                                        </div>
-                                      ) : null}
-                                    </div>
-                                    <div className="rounded-xl border border-border/60 bg-muted/20 p-3 sm:p-4">
-                                      <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                                        Operating Responsibility
-                                      </p>
-                                      <div className="mt-3 grid gap-3">
-                                        <div className="rounded-lg border border-border/60 bg-background/80 p-3">
-                                          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Mode Capability</p>
-                                          <p className="mt-1 text-sm font-medium text-foreground">
-                                            {formatModeCapability(operationalMode)}
-                                          </p>
-                                        </div>
-                                        <div className={`rounded-lg border p-3 ${responsibilityView.toneClass}`}>
-                                          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                                            {responsibilityView.title}
-                                          </p>
-                                          <p className="mt-1 text-sm font-medium text-foreground">
-                                            {responsibilityView.primary}
-                                          </p>
-                                          <p className="mt-1 text-xs text-muted-foreground">
-                                            {responsibilityView.secondary}
-                                          </p>
-                                        </div>
-                                        <div className="rounded-lg border border-border/60 bg-background/80 p-3">
-                                          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Reassignment / Acceptance Pressure</p>
-                                          <p className="mt-1 text-sm font-medium text-foreground">
-                                            Awaiting Specialist acceptance: {assignment.awaiting_tutor_acceptance_count || 0}
-                                          </p>
-                                          {assignment.certification_recovery_note ? (
-                                            <p className="mt-2 text-xs text-foreground">
-                                              {assignment.certification_recovery_note}
-                                            </p>
-                                          ) : null}
-                                        </div>
-                                      </div>
-                                      <p className="mt-3 text-sm text-muted-foreground">
-                                        {assignment.student_count || 0}/{maxStudentsPerTutor} students assigned.
-                                      </p>
-                                      <p className="mt-2 text-xs text-muted-foreground">
-                                        Development progression remains system-driven. Use the Development Record for the evidence behind the current stage.
-                                      </p>
-
-                                    </div>
+                                  <div className="rounded-xl border border-border/60 bg-muted/20 p-3 sm:p-4">
+                                    <p className="text-sm text-muted-foreground">Use the Development Record for the current stage, evidence state and next governed requirement. Historical evaluation evidence remains available through the TD Sandbox readiness review when the Specialist is in Sandbox.</p>
                                   </div>
-                                ) : (
-                                  <p className="text-sm text-muted-foreground">
-                                    Expand to view alignment evidence and current operating responsibility.
-                                  </p>
-                                )}
+                                ) : null}
 
-                                <div className="flex items-center justify-between gap-3 pt-1">
+<div className="flex items-center justify-between gap-3 pt-1">
                                   <p className="text-sm font-medium text-muted-foreground">Assigned Students</p>
                                   <Button
                                     variant="ghost"
@@ -1664,21 +1421,6 @@ export default function PodDetail() {
 
 
       </div>
-
-      <BattleTestRunnerDialog
-        open={tdBattleTestOpen}
-        onOpenChange={setTdBattleTestOpen}
-        title={`TD System Integrity - ${tdName}`}
-        description={`Run the COO-side TD integrity drill for ${tdName} inside ${podName}.`}
-        phaseOptions={tdBattleTestPhases}
-        selectionMode="fixed"
-        submitLabel="Save TD Battle Test"
-        onSubmit={async ({ responses }) => {
-          await submitTdBattleTestMutation.mutateAsync({
-            responses,
-          });
-        }}
-      />
 
       {/* Student Dialogs - COO read-only view */}
       <StudentIdentitySheet

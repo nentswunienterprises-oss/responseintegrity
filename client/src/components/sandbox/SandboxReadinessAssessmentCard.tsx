@@ -110,6 +110,29 @@ function humanize(value: string | null | undefined) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function formatEvidenceValue(value: unknown): string {
+  if (value == null || value === "") return "Not recorded";
+  if (typeof value === "object" && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+    if (record.optionId || record.evidenceStatus) {
+      return [record.optionId ? humanize(String(record.optionId)) : null, record.evidenceStatus ? humanize(String(record.evidenceStatus)) : null]
+        .filter(Boolean)
+        .join(" · ");
+    }
+    return Object.entries(record)
+      .map(([key, entry]) => humanize(key) + ": " + formatEvidenceValue(entry))
+      .join(" · ");
+  }
+  if (Array.isArray(value)) return value.map((entry) => formatEvidenceValue(entry)).join(", ");
+  return humanize(String(value));
+}
+
+function formatDossierTimestamp(value?: string | null) {
+  if (!value) return "Time not recorded";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Time not recorded" : date.toLocaleString();
+}
+
 export function SandboxReadinessAssessmentCard({
   tutorId,
   tutorName,
@@ -371,38 +394,80 @@ export function SandboxReadinessAssessmentCard({
             {showDossier && dossierLoading ? <p className="text-sm">Loading committed Sandbox evidence...</p> : null}
             {showDossier && dossierError ? <p className="text-sm text-destructive">Evidence unavailable; readiness must not be inferred.</p> : null}
             {showDossier && !dossierLoading && !dossierError && dossier ? (
-              <div className="space-y-3 max-h-[650px] overflow-y-auto">
-                <p className="text-xs font-medium">Completed sessions ({dossier.sessions.length})</p>
-                {dossier.sessions.map(session => (
-                  <details key={session.id} className="rounded-md border p-2">
-                    <summary className="cursor-pointer text-sm font-medium">
-                      Session {session.sessionNumber} · {session.phase} · {session.truthPresent && session.authorityAligned && session.stateTrackAligned ? "Aligned" : "Diverged / incomplete"}
-                    </summary>
-                    <div className="mt-2 text-xs space-y-2">
-                      <p>Authority aligned: {String(session.authorityAligned)} · State aligned: {String(session.stateTrackAligned)} · Canonical evidence available: {String(session.truthPresent)}</p>
-                      <p><strong>Specialist authority:</strong> <code className="break-all">{JSON.stringify(session.specialistAuthority)}</code></p>
-                      <p><strong>Canonical authority:</strong> <code className="break-all">{JSON.stringify(session.canonicalAuthority)}</code></p>
-                    </div>
-                  </details>
-                ))}
-                <p className="text-xs font-medium">Completed rep evidence ({dossier.reps.length})</p>
-                {dossier.reps.map(rep => (
-                  <details key={rep.id} className="rounded-md border p-2">
-                    <summary className="cursor-pointer text-sm font-medium">
-                      Session {rep.sessionNumber} · {rep.phase} · {rep.setId} · Rep {rep.repNumber} · {rep.truthPresent && rep.observationExact && rep.evidenceExact && rep.conditionKept === true ? "Aligned" : "Review divergence"}
-                    </summary>
-                    <div className="mt-2 space-y-2 text-xs">
-                      <p><strong>Student behavior:</strong> {rep.studentBehavior}</p>
-                      <p>Condition preserved: {String(rep.conditionKept)} · Canonical evidence available: {String(rep.truthPresent)}</p>
-                      {rep.comparisons.map(c => <div key={c.fieldKey} className="rounded border p-2">
-                        <strong>{c.fieldKey} — {c.matched ? "Aligned" : "Diverged"}</strong>
-                        <p>Recorded: {JSON.stringify(c.recorded)}</p>
-                        <p>Expected: {JSON.stringify(c.expected)}</p>
-                      </div>)}
-                    </div>
-                  </details>
-                ))}
-                {dossier.reps.length === 0 && dossier.sessions.length === 0 ? <p className="text-sm">No completed Sandbox evaluation evidence.</p> : null}
+              <div className="space-y-4 max-h-[700px] overflow-y-auto">
+                <div className="rounded-lg border bg-muted/20 px-3 py-3 text-xs text-muted-foreground">
+                  This is committed Sandbox evidence. It compares the Specialist’s recorded decision with the TD-only canonical authority and the resulting state track.
+                </div>
+                <section className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Completed sessions</p>
+                    <Badge variant="outline">{dossier.sessions.length} recorded</Badge>
+                  </div>
+                  {dossier.sessions.map(session => (
+                    <details key={session.id} className="rounded-lg border bg-background p-3">
+                      <summary className="cursor-pointer list-none text-sm font-medium">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span>Session {session.sessionNumber} · {humanize(session.phase)}{session.topicKey ? " · " + humanize(session.topicKey) : ""}</span>
+                          <span className="flex flex-wrap gap-1">
+                            <Badge variant={session.authorityAligned ? "default" : "destructive"}>{session.authorityAligned ? "Decision aligned" : "Decision needs review"}</Badge>
+                            <Badge variant={session.stateTrackAligned ? "default" : "destructive"}>{session.stateTrackAligned ? "State aligned" : "State diverged"}</Badge>
+                          </span>
+                        </div>
+                      </summary>
+                      <div className="mt-3 space-y-3 border-t pt-3 text-xs">
+                        <p className="text-muted-foreground">Completed {formatDossierTimestamp(session.completedAt)} · State change observed: {session.stateChangeObserved == null ? "Not recorded" : session.stateChangeObserved ? "Yes" : "No"}</p>
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div className="rounded-md border bg-muted/20 p-3">
+                            <p className="font-semibold text-foreground">Specialist decision</p>
+                            <p className="mt-2 leading-5 text-muted-foreground">{formatEvidenceValue(session.specialistAuthority)}</p>
+                          </div>
+                          <div className="rounded-md border bg-muted/20 p-3">
+                            <p className="font-semibold text-foreground">Canonical authority</p>
+                            <p className="mt-2 leading-5 text-muted-foreground">{formatEvidenceValue(session.canonicalAuthority)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </details>
+                  ))}
+                  {dossier.sessions.length === 0 ? <p className="text-sm text-muted-foreground">No completed Sandbox sessions recorded.</p> : null}
+                </section>
+                <section className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Rep evidence</p>
+                    <Badge variant="outline">{dossier.reps.length} recorded</Badge>
+                  </div>
+                  {dossier.reps.map(rep => (
+                    <details key={rep.id} className="rounded-lg border bg-background p-3">
+                      <summary className="cursor-pointer list-none text-sm font-medium">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span>Session {rep.sessionNumber} · {humanize(rep.phase)} · Rep {rep.repNumber}</span>
+                          <Badge variant={rep.truthPresent && rep.observationExact && rep.evidenceExact && rep.conditionKept === true ? "default" : "destructive"}>
+                            {rep.truthPresent && rep.observationExact && rep.evidenceExact && rep.conditionKept === true ? "Evidence aligned" : "Review required"}
+                          </Badge>
+                        </div>
+                      </summary>
+                      <div className="mt-3 space-y-3 border-t pt-3 text-xs">
+                        <p><span className="font-semibold text-foreground">Student behaviour:</span> <span className="text-muted-foreground">{rep.studentBehavior}</span></p>
+                        <p className="text-muted-foreground">Condition preserved: {rep.conditionKept == null ? "Not recorded" : rep.conditionKept ? "Yes" : "No"} · Canonical evidence: {rep.truthPresent ? "Available" : "Unavailable"}</p>
+                        <div className="space-y-2">
+                          {rep.comparisons.map(c => (
+                            <div key={c.fieldKey} className="rounded-md border bg-muted/20 p-3">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="font-semibold text-foreground">{humanize(c.fieldKey)}</p>
+                                <Badge variant={c.matched ? "default" : "destructive"}>{c.matched ? "Aligned" : "Diverged"}</Badge>
+                              </div>
+                              <div className="mt-2 grid gap-2 md:grid-cols-2">
+                                <p className="text-muted-foreground"><span className="font-medium text-foreground">Recorded:</span> {formatEvidenceValue(c.recorded)}</p>
+                                <p className="text-muted-foreground"><span className="font-medium text-foreground">Expected:</span> {formatEvidenceValue(c.expected)}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </details>
+                  ))}
+                  {dossier.reps.length === 0 ? <p className="text-sm text-muted-foreground">No completed rep evidence recorded.</p> : null}
+                </section>
               </div>
             ) : null}
           </div>
