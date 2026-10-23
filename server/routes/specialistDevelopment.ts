@@ -518,6 +518,43 @@ export function registerSpecialistDevelopmentRoutes(app: Express) {
   );
 
   app.get(
+    "/api/tutor/development-pathway",
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const user = (req as any).dbUser;
+        if (!user?.id) return res.status(401).json({ message: "Authentication required." });
+        if (String(user.role || "").toLowerCase() !== "tutor") {
+          return res.status(403).json({ message: "Specialist access required." });
+        }
+        const record = await loadSpecialistDevelopmentRecordPayload(String(user.id));
+        if (!record) return res.status(404).json({ message: "Specialist Development Pathway not found." });
+        const payload = record.payload;
+        return res.json({
+          currentStage: payload.currentStage,
+          pathway: payload.pathway,
+          assignment: payload.assignment,
+          application: payload.application,
+          training: {
+            sandboxReady: payload.training.sandboxReady,
+            summary: payload.training.summary,
+          },
+          sandbox: {
+            readiness: payload.sandbox.readiness,
+            latestAssessment: payload.sandbox.latestAssessment,
+          },
+          trial: payload.trial,
+          certification: payload.certification,
+        });
+      } catch (error) {
+        console.error("Failed to load Specialist Development Pathway:", error);
+        const status = Number((error as any)?.status || 500);
+        return res.status(status).json({ message: "Failed to load Specialist Development Pathway." });
+      }
+    },
+  );
+
+  app.get(
     "/api/td/tutors/:tutorId/development-record",
     isAuthenticated,
     async (req: Request, res: Response) => {
