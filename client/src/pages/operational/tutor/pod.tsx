@@ -771,8 +771,7 @@ export default function TutorPod() {
                 </p>
               </div>
             )}
-
-
+          </div>
         </Card>
 
         <div className="grid gap-4 md:grid-cols-2 md:gap-6">
