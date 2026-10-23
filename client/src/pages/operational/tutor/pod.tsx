@@ -550,11 +550,6 @@ export default function TutorPod() {
     const cycleProgress = completed > 0 ? (((completed - 1) % progressTotal) + 1) : 0;
     return cycleProgress === 0 ? progressTotal : Math.max(0, progressTotal - cycleProgress);
   };
-  const totalSessions = students.reduce((sum: number, s: any) => sum + sessionsUsedForStudent(s), 0);
-  const remainingSessions = students.reduce((sum: number, s: any) => {
-    return sum + sessionsRemainingForStudent(s);
-  }, 0);
-  const studentsImpacted = students.filter((s: any) => sessionsUsedForStudent(s) > 0).length;
   const selectedStudent = (students as any[]).find((s: any) => s.id === selectedStudentId) || null;
 
   const firstName = user?.name?.split(" ")[0] || "Specialist";
@@ -647,40 +642,11 @@ export default function TutorPod() {
           </Card>
         ) : null}
 
-        <div className="tutor-pod-stats grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-          <Card className="ri-metric-card border-primary/15 bg-background shadow-sm">
-            <div className="px-4 py-4 sm:px-5 sm:py-5">
-              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Sessions Done</p>
-              <p className="mt-2 text-3xl font-semibold tabular-nums text-foreground sm:text-4xl" data-testid="text-sessions-done">
-                {totalSessions}
-              </p>
-            </div>
-          </Card>
-
-          <Card className="ri-metric-card border-primary/15 bg-background shadow-sm">
-            <div className="px-4 py-4 sm:px-5 sm:py-5">
-              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Remaining</p>
-              <p className="mt-2 text-3xl font-semibold tabular-nums text-foreground sm:text-4xl" data-testid="text-remaining">
-                {remainingSessions}
-              </p>
-            </div>
-          </Card>
-
-          <Card className="ri-metric-card border-primary/15 bg-background shadow-sm">
-            <div className="px-4 py-4 sm:px-5 sm:py-5">
-              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Students Impacted</p>
-              <p className="mt-2 text-3xl font-semibold tabular-nums text-foreground sm:text-4xl" data-testid="text-students-impacted">
-                {studentsImpacted}
-              </p>
-            </div>
-          </Card>
-        </div>
-
         <Card className="ri-alignment-shell ri-metric-card border-primary/15 bg-background shadow-sm">
           <div className="space-y-4 p-5 sm:p-6">
             <div className="flex flex-col gap-3">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Specialist Alignment</p>
+                <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Specialist Development Pathway</p>
                 <h2 className="mt-1 text-xl font-semibold tracking-[-0.01em]">Your standing in the system</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   This is the authoritative Specialist Development Pathway standing: current stage, evidence state and next governed requirement.
