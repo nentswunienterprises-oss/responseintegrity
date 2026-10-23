@@ -567,6 +567,23 @@ test("all-clear diagnosis requires individualized baseline plus repeated tempora
   }
 });
 
+test("neutral baseline timing accepts deliberately unobserved clarity fields", () => {
+  let state = createEvidenceCompleteDiagnosisState("Controlled Discomfort");
+  state = run(state, "stack.normal_independent", {
+    "clarity.vocabulary": "not_observed",
+    "clarity.method": "correct_method_cleanly",
+    "clarity.reason": "not_observed",
+    "clarity.immediate_apply": "engages_cleanly",
+    ...executionImmediateSupported,
+  });
+  state = run(state, "execution.repeatability", executionSupported);
+  state = run(state, "execution.repeatability", executionSupported);
+
+  const decision = evaluateEvidenceCompleteDiagnosis(state);
+  assert.equal(decision.timingBaseline.sampleCount, 3);
+  assert.equal(decision.timingBaseline.ready, true);
+});
+
 
 test("Independent Normal Probe forbids deliberate Clarity elicitation during the live response", () => {
   const protocol = DIAGNOSIS_PROBE_EXECUTION_PROTOCOLS["stack.normal_independent"];
@@ -609,4 +626,53 @@ test("Clarity Recognition Probe deliberately elicits the four Clarity questions 
         ),
     ),
   );
+});
+
+test("mixed supported and conditional execution establishes Medium rather than permanent conflict", () => {
+  let state = createEvidenceCompleteDiagnosisState("Structured Execution");
+  state = run(state, "stack.normal_independent", { ...claritySupported, ...executionImmediateSupported });
+  state = run(state, "execution.repeatability", { ...executionSupported, "execution.start": "guessing_or_disordered_start" });
+  const before = JSON.stringify(state.probeHistory);
+  const decision = evaluateEvidenceCompleteDiagnosis(state);
+  assert.equal(decision.complete, true);
+  assert.equal(decision.placementPhase, "Structured Execution");
+  assert.equal(decision.stability, "Medium");
+  assert.equal(decision.phaseStates[1].dimensions.find(d => d.dimensionId === "execution.start")?.conflict, true);
+  assert.equal(JSON.stringify(state.probeHistory), before);
+});
+
+test("mixed minor drift places High, true breakdown places Low, and contamination cannot supply either", () => {
+  for (const [behaviorId, stability] of [["valid_start_after_hesitation", "High"], ["cannot_start", "Low"]] as const) {
+    // Use the matrix rather than a fabricated failure option.
+    const id = stability === "Low" ? DIAGNOSIS_OBSERVATION_MATRIX["execution.start"].options.find(o => o.behaviorClass === "breakdown")!.id : behaviorId;
+    let state = createEvidenceCompleteDiagnosisState("Structured Execution");
+    state = run(state, "stack.normal_independent", { ...claritySupported, ...executionImmediateSupported });
+    const contaminated = run(state, "execution.repeatability", { ...executionSupported, "execution.start": id }, "teaching");
+    assert.equal(evaluateEvidenceCompleteDiagnosis(contaminated).complete, false);
+    state = run(state, "execution.repeatability", { ...executionSupported, "execution.start": id });
+    assert.equal(evaluateEvidenceCompleteDiagnosis(state).stability, stability);
+  }
+});
+
+test("session limit prescribes continuation; next session retains evidence and can resolve placement", () => {
+  let state = createEvidenceCompleteDiagnosisState("Clarity");
+  for (let i=0;i<2;i++) state = run(state, "clarity.recognition", { ...claritySupported, "clarity.reason": "not_observed" });
+  const paused = evaluateEvidenceCompleteDiagnosis(state);
+  assert.equal(paused.complete, false);
+  assert.equal(paused.nextProbeId, null);
+  assert.equal(paused.continuation?.nextProbeId, "clarity.recognition");
+  state.sessionStartProbeIndex = state.probeHistory.length;
+  assert.equal(evaluateEvidenceCompleteDiagnosis(state).nextProbeId, "clarity.recognition");
+  state = run(state, "clarity.recognition", { ...claritySupported, "clarity.reason": "partial_reason" });
+  assert.equal(state.probeHistory.length, 3);
+  assert.equal(evaluateEvidenceCompleteDiagnosis(state).stability, "Medium");
+});
+
+test("assisted attempts also exhaust the per-session budget instead of looping", () => {
+  let state = createEvidenceCompleteDiagnosisState("Clarity");
+  for(let i=0;i<2;i++) state=run(state,"clarity.recognition",claritySupported,"teaching");
+  const decision=evaluateEvidenceCompleteDiagnosis(state);
+  assert.equal(decision.complete,false);
+  assert.equal(decision.nextProbeId,null);
+  assert.equal(decision.continuation?.nextProbeId,"clarity.recognition");
 });

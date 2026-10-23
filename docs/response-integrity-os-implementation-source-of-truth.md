@@ -30,6 +30,62 @@ Read this file with these rules:
 
 ## 2026-10-13 Founder-Approved Evidence-Exception Doctrine
 
+### Versioned synthetic learner development — 21 October 2026
+
+Diagnosis replay distinguishes inherited timer authority from a contract earned by that same run. A contract whose source epoch is `diagnosis-v1:<current run ID>` remains the output of the run's three clean comparable measurements; GET restore, ordinary submission and cross-lesson continuation replay those original measurements without injecting that contract at the beginning. Contracts earned by earlier runs or Training retain inherited authority. This preserves the prescribed historical probe order and timer lineage without changing observations or relaxing timed-placement requirements.
+
+Founder-approved correction: Sandbox must deliberately provide the situations required for Specialist development. Exposure is planned; captured observations, independent state evaluation and qualification remain earned evidence.
+
+The initial rollout is bounded to **new trajectories** in the isolated Capability Proof Preview Specialist account. A server-owned `sandbox-development-plan:v1` marker is persisted in private continuity history at creation. Existing unmarked V1/V2 trajectories, seeds, issued forms, submitted observations and evaluations retain their historical selection rules. Production does not opt in through this rollout.
+
+New profile allocation reads unmet profile requirements from the persisted qualification ledger and balances new plans within that unmet set. Assignment earns no coverage. The controlled Preview setup can add two fresh students, bringing its bounded roster from eight to ten; it reuses the ordinary owned provisioning and booking paths without resetting any earlier account or evidence.
+
+The isolated account uses a versioned transaction-scoped provisioning lock with a five-second lock deadline. The database backend is pinned for the lock lifetime; the earlier session-lock protocol and Production provisioning remain unchanged outside this bounded rollout. Setup is exposed as authenticated, owner-restricted Preview forms and still writes only through the existing provisioning and booking handlers.
+
+The development plan gives each synthetic profile coherent phase strengths and an initial challenge sequence. Clarity fragility appears in Clarity, reassurance seeking in Structured Execution and pressure fragility in Time Pressure Stability. Fast recovery and uneven performance have explicit response transitions. Intermediate recovery remains required after breakdown. Complete lessons with preserved conditions accumulate topic- and phase-specific experience; incomplete or disrupted lessons do not. Consolidation retains strength, with later maintenance opportunities revisiting difficulty. Specialist observation accuracy is evaluated independently and cannot rewrite simulated learner conduct.
+
+Training selects compatible existing response scenes within the planned response class, retaining the narrowly gated visible-reference exception during initial development. Missing compatible content blocks issuance with a repair error; no phase, score or observation is fabricated to bypass it. Only within-class scene variation uses the new mixed deterministic weighted draw; historical random streams remain unchanged.
+
+New-plan Diagnosis/Handover responses are authored dimension by dimension from the public canonical observation contract before issuance. A cross-layer timed probe may show intact Clarity and independent execution alongside timed difficulty. The native protocol still excludes unelicited vocabulary and reason from an independent-solving probe. These authored observations are described in the native opportunity and persisted as that turn's truth. Diagnosis and Training evaluators alone establish placement and movement, including required baseline evidence; the plan cannot directly assign either.
+
+Qualification policy, profile opportunity minima, all seven modes, condition and comparison checks, final eight clean sessions with two per phase, and governed TD sign-off remain unchanged. Local synthetic-contract reachability tests do not count as deployed acceptance or qualification evidence.
+
+### Sandbox profile breadth — 18 October 2026
+
+V2 capability targeting keeps state-compatible intermediate recovery candidates eligible alongside the earliest unsupported Specialist capability challenge. After breakdown, conditional or near-stable responses may compete; after an observed intermediate, stronger responses may compete. After support, supported, near-stable and conditional responses may compete so the learner can either retain support or show a valid uneven transition. Challenge targeting cannot force a relapse that makes a clean lesson impossible or suppress every observable uneven-performance signature. Selection remains deterministic and profile-weighted, never guarantees recovery or instability, and cannot bypass phase/stability compatibility, repetition rules or the ban on an immediate breakdown-to-supported jump. Historical V1 selection and submitted evidence remain unchanged.
+
+First-use trajectory allocation fills unrepresented behavior profiles within the same Specialist assignment and bank before repeating a profile. Allocation is serialized. Existing seeds, completed observations and identity remain authoritative and are never rewritten. Profile assignment alone earns no signature coverage; qualifying observed Training behavior is still required.
+
+The isolated Capability Proof acceptance setup can add the two missing practice students, up to eight in that controlled account. It reuses the ordinary provisioning workflow and owner-bound booking path. Current Diagnosis, Handover, preparation and qualification requirements remain in force.
+
+### Preparation plan continuation — 18 October 2026
+
+A changed unstarted Sandbox plan can be reviewed again in the native Map and saved as an additive preparation receipt. Current fingerprint, actor/student/topic ownership, prescribed phase, conditions and zero delivered repetitions remain required. Earlier receipts remain on the audit ledger. Qualification projects only the last owned confirmation before the first delivered repetition; a later confirmation cannot repair or conceal submitted evidence. Preparation alone grants no observed capability, score, placement or qualification.
+
+### Controlled Preview continuation — 17 October 2026
+
+The Sandbox Map loads server-owned Training bookings and package capacity once the Specialist accepts the assignment. It does not wait for a simulated proposal to be accepted before reading that data. Server ownership, package capacity, confirmation and native Diagnosis/Handover/preparation requirements continue to govern launch; reading a confirmed booking grants no learning state or qualification evidence.
+
+The controlled native Training setup creates or reuses one confirmed booking for the three existing QA 02/09/10 students owned by the acceptance Specialist. The server requires Preview and the exact Capability Proof project, authenticated tutor ownership and an actual Sandbox enrollment. It never resets topic state, marks Handover complete, changes enrollment, creates scored evidence or activates qualification. Current native Map gates remain authoritative. Concurrent setup clicks serialize and reuse an unfinished confirmed booking.
+
+TD coverage displays historical technical blockers separately from missing source-query results and development coverage. Additional clean sessions cannot repair missing historical identity or incomplete source evidence. Existing history remains intact; qualification fails closed until a supported evidence disposition exists.
+
+### Native Handover historical source storage — 17 October 2026
+
+The owned Specialist topic-state read model includes normalized observed history and explicit progression authority. The Sessions Map has no Pod snapshot and must receive that history to distinguish a completed Diagnosis from an activated, unobserved topic. A fallback last-updated timestamp is never fabricated into observation history. Reading the Map does not rewrite state or evidence.
+
+Completed native Handover drills may store their payload as a JSON object or a JSON-encoded object string. Qualification reads both representations without rewriting evidence. Invalid JSON strings, arrays and scalar values do not qualify. Existing owner, student, completed booking, exact Handover mode/phase, timestamp and rep-observation lineage checks remain mandatory. A persisted native completion must not disappear from TD review solely because of the storage representation.
+
+### Native Diagnosis observation contract — 16 October 2026
+
+This protocol projection also governs newly issued stateful Sandbox targeted re-diagnosis turns. The turn fingerprint includes the protocol version; previously issued forms become stale rather than receiving changed scoring. The Map must show targeted re-diagnosis preparation whenever the current Sandbox prescription requires it, even when the historical student topic displays a Training phase. No Training preparation receipt is created for a re-diagnosis turn. Newly created V2 stateful Sandbox re-diagnosis episodes persist selection version 2 in server-owned continuation lineage. Random selection is salted by episode ID while the trajectory seed continues to own profile identity. Refresh and later-lesson continuation retain the episode selection stream. Existing episodes without that version retain their historical stream; no observations, seeds, weights or placements are rewritten. Distinct episode inputs allow fresh evidence without guaranteeing a different or stronger outcome. For an observed Sandbox topic, the native Map launch stays in the stateful Sandbox runner even when re-diagnosis is required; that runner owns both independently evaluated trajectory lanes. The general live Diagnosis runner must not replace that continuation merely because the display flag is present. The Sandbox Map reads the current owned public trajectory route before trusting a historical student display snapshot. A required re-diagnosis keeps the recorded checkpoint visible, replaces ordinary Training directions and set preparation, and explains to the parent that a follow-up check will establish the next starting point. This read does not rewrite observations or placement history.
+
+The independent normal Diagnosis probe requests independent solving and expressly prohibits eliciting mathematical vocabulary or a reason for the method. Its simulated canonical observations must therefore retain `clarity.vocabulary` and `clarity.reason` as `not_observed`; successful working alone cannot establish either. This is a prescribed observation boundary, not a fictional missing-evidence learner profile. A later recognition opportunity elicits those dimensions. Newly issued native Diagnosis/Handover simulations describe the evidence for each dimension, rather than asking an operator to infer a specific step drift or help-seeking pattern from an abstract overall judgment. Native protocol version 2 is included in the form fingerprint; stale forms fail rather than acquiring altered truth. Existing submitted evidence is preserved.
+
+### Native Clarity Handover protocol correction — 16 October 2026
+
+Clarity Handover observes vocabulary, method, reason and immediate use of understanding. Its live opportunity must elicit all four: ask what the student sees, which method fits, why it fits and how they would start. Reuse the established Clarity recognition execution protocol without teaching, hints, first-step confirmation, rescue or time pressure. Legacy recognition-only/no-execution instructions cannot be shown beside an immediate-application observation requirement. This remains a continuity check of the inherited phase; it does not restart Diagnosis or train the student forward.
+
 This section supersedes earlier derivative examples that scripted missing observations, forgotten explanations, camera freezes or interruptions as ordinary simulated student behaviour. It applies across Specialist Deep Dives, Mastery, Retrieval, Transfer, Sandbox, Diagnosis, Handover and Practicals content, without rewriting historical attempts.
 
 - **Observed capability is the default.** Present the prescribed mathematical problem, method, step order, timing and support condition, and record the response actually seen. Normal hesitation, collapse, partial recovery and independent execution are not evidence-integrity exceptions.
@@ -108,13 +164,6 @@ As of 2026-09-03, the live implementation uses these operating constants:
 - Specialist earnings accrue per evidence-backed completed session.
 - Specialist payout is released according to package-completion rules, not ad-hoc per-session cash-out.
 - Evidence integrity gates payable delivery.
-
-## Approved targeted re-diagnosis package policy (21 October 2026)
-
-A scheduled package session and its diagnostic activity have separate authorities. A system-authorized, completed, evidence-backed targeted re-diagnosis delivered in a confirmed package-bearing Training session consumes exactly one family package session, including in Sandbox. This does not by itself earn Training progression, Trial qualification, or Specialist compensation. Those decisions require independently qualifying evidence.
-
-Consumption is written only at accepted completion, after verifying parent/student/Specialist scope, booked session, completed diagnosis, persisted source drill, and Evidence Ledger. The event and package update must be atomic, idempotent, cycle-scoped, and auditable. Reads must not grant or restore credits. Missing or contradictory authority blocks rather than invents a balance. A diagnostic activity outside an authorized package-bearing Training session does not consume package capacity solely because evidence exists. Existing live calendar billing and explicit simulated Sandbox renewal rules remain unchanged.
-
 
 Do not describe the live commercial model as a R1,000 Premium plan, loose session credits, or ad-hoc session capacity.
 
@@ -2834,6 +2883,26 @@ The runner and authority do not change merely because the Specialist is in Sandb
 
 The Specialist may see the simulated student response required to perform the operating task. The canonical observation record remains private. Hidden canonical truth never becomes authoritative real-student evidence.
 
+V2 Training response narration version 5 includes a behavioral description for every field exposed by the current rep, including Light Apply's immediate application and Required Structure's plan check. A scene that merely asks for a response cannot substitute for describing what the simulated student did. Public descriptions contain no private option IDs, profile keys or scoring classes. Canonical observations and historical submissions remain unchanged; the narrative version changes the pending form fingerprint.
+
+Completed Sandbox Training records its owned topic, phase and stability at the start alongside its Specialist authority. Reconstructed response snapshots prefer that immutable boundary. Legacy snapshots use the latest completed same-topic Training or Diagnosis placement before the first saved rep; legacy Sandbox re-diagnosis also requires the matching session and preceding topic boundary. Current Map state and placements after delivery cannot supply historical Before state. Missing or invalid lineage remains unknown; historical observations and decisions are not rewritten.
+
+The synthetic student's topic projection also retains the completed Training authority's required re-diagnosis route and target phase. It may not unconditionally clear that route while preserving the old phase/stability checkpoint. The server's prescribed route continues to govern preparation and launch.
+
+Native Diagnosis may be the first Sandbox operating surface opened for a newly assigned student. Its simulated-response preparation initializes the ordinary assignment/student trajectory through the same owned synthetic-student and active-bank guards as the Sandbox environment. It does not require an earlier Training/history visit, submit observations, or award capability evidence.
+
+Diagnosis decision policy 2 treats clean supported and less-stable responses in the same dimension as demonstrated variability, not permanent unresolved conflict. Direct clean breakdown / conditional / near-stable evidence establishes the earliest unsupported layer at Low / Medium / High respectively; positive responses remain visible and cannot erase it. Missing observations, supplied steps and teaching do not establish weakness or placement. Earlier-layer and individualized timing authority requirements remain in force.
+
+Probe attempt limits bound one session, including contaminated attempts. At the limit the system preserves all observations and names the remaining evidence question and next probe for a later confirmed lesson. It does not silently restart, invent placement, prescribe an arbitrary timer or award qualification. Continuation must bind to the same student and Specialist, a distinct chronologically later confirmed lesson and an immutable history prefix. The original run/session anchor is retained, with server-owned continuation session boundaries; refreshing the same lesson cannot reset its budget. A pending run is restored across browser sessions rather than replaced.
+
+For an unfinished pre-policy-2 episode, validated historical observations may now establish placement under policy 2. Applying that result is an explicit application action; the previous decision is retained with the new decision and no observation is edited or re-submitted. Completed historical placements are not retroactively reinterpreted. In Sandbox both canonical and Specialist tracks are recomputed independently before the existing Training route is updated.
+
+Sandbox re-diagnosis creation serializes on the owned trajectory and rechecks for an existing current episode. An older active duplicate may be retired to a historical blocked row only when both probe histories and its persisted turn count are empty, neither track claims completion, and another episode from that same session completed placement. Retirement appends its reason, prior status, time and next-session anchor without deleting history or claiming placement. Any nonempty or unproven earlier active episode remains a blocking review requirement.
+
+Valid captured evidence awaiting placement is a pending process, not missing or technically invalid historical evidence. It cannot establish mode coverage, contribute a clean qualifying session or permit readiness while placement is still pending. Completing the same native run resolves that pending state. Missing truth, broken student/source identity, tampered lineage and genuine observation/condition errors retain their existing consequences; the final eight clean phase-balanced sessions and current assigned-TD approval remain mandatory.
+
+V2 Training observation protocol 2 grades auxiliary checks only when the current rep exposes them. A prerequisite sentinel applies only after an observed current-phase breakdown under the same eligibility rule used by the form and submission validator. Conditional execution alone cannot require an unoffered sentinel. The inherited rescue signal applies only in Time Pressure Stability. Historical V1 definitions and persisted event truth remain unchanged, including earlier failed integrity checks; pending V2 forms acquire a new protocol fingerprint.
+
 For simulated Diagnosis and Handover opportunities, the execution boundary remains:
 
 `Ready -> Observe simulated student response -> Student Finished -> Record -> Confirm`
@@ -2957,3 +3026,33 @@ Any change to the live Response Integrity-OS algorithm, reporting logic, drill s
 4. Update any derivative docs whose screenshots, examples, or instructions are now visibly stale.
 
 Do not ship Response Integrity-OS logic changes without updating this file.
+
+## 2026-10-15 Sandbox TD dossier validation boundary (PR #202)
+
+The TD evidence dossier reads committed rep events and session evaluations, with canonical truth joined only by those historical event IDs. Authentication, TD role and ownership of the Specialist's latest assignment are required before any private evidence read. Former-Pod and cross-Pod TDs are denied. Responses disable shared/browser caching; canonical dossiers are excluded from offline query persistence and withheld during revalidation or request failure. Missing canonical truth or missing condition evidence never establishes alignment. The bounded view returns up to 180 reps and 90 session evaluations; it is not the complete longitudinal qualification input.
+
+The clean-window evaluator remains a foundation only: live readiness currently passes no approved policy or persisted session evidence, so Practicals qualification fails closed. Numeric policy approval, persisted longitudinal integration, and authenticated Preview/Proof acceptance remain outstanding. Focused tests do not establish deployed credentials, grants or RLS acceptance.
+
+## 2026-10-16 protected Preview preparation query boundary
+
+Map preparation queries exclude Vercel routing metadata (`path`, `host`, `__previewPath`) before strict domain validation. Student, scheduled lesson and topic remain required; browser-declared authority, rep lineage, invalid session UUIDs and duplicate domain values remain rejected. The Specialist assignment is still derived server-side. This routing fix does not grant readiness, activate capture flags or establish authenticated acceptance.
+
+## 2026-10-16 Sandbox qualification approval binding
+
+Practicals entry consumes only the latest version-2 Practicals-readiness decision by
+the Specialist's currently assigned TD. Current qualification must remain ready and
+the signed policy, bank and evidence fingerprint must match. Fingerprint format 2
+binds every historical qualification-event field, including coverage inputs and source
+lineage; changing phase, observed profile, opportunity identity or condition evidence
+invalidates an earlier approval as well as new errors or new events. Ordering alone
+does not invalidate approval. Prior-format fingerprints require fresh TD review.
+Isolated PostgreSQL acceptance covers persisted sign-off consumption and stale approval;
+it does not establish a deployed native journey or permit automatic stage transition.
+
+### Specialist calendar week boundaries — 19 October 2026
+
+The Specialist Sessions page supplies the UTC instants bounding its displayed local calendar week. The authenticated owner-bound schedule endpoint validates those boundaries and uses them for both database paths. This keeps early Monday lessons in UTC-positive zones and daylight-saving transitions visible in the same week the page renders. Existing callers without boundary instants retain the UTC fallback. Scheduling and learning state are unchanged.
+
+### Sandbox continuity evidence on aligned holding — 21 October 2026
+
+A completed Sandbox Training session whose Specialist and canonical routes align but whose canonical state does not change adds no new Continuity Integrity proof when no prior-track divergence is being resolved. Record that capability occurrence as `not_observed`, rather than `near_stable`: absence of a new longitudinal challenge must not interrupt an already demonstrated support/recovery streak. This is a Specialist-capability opportunity classification, not a student observation exception. The first session still cannot establish continuity; a real route divergence remains breakdown; a later qualifying state condition or recovery can establish support. Required breadth, state-change coverage, recovery minima and phase-exit rules remain separate and unchanged. This applies to newly evaluated sessions; persisted historical occurrences are not backfilled.

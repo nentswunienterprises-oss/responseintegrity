@@ -1,4 +1,3 @@
-import { selectPrivilegedSupabaseKey } from "./privilegedSupabaseKey";
 import { createClient } from "@supabase/supabase-js";
 import { db, pool } from "./db";
 import { isEmergencyDbMode, isTheHubDatabaseRuntime } from "./emergencyMode";
@@ -32,11 +31,16 @@ import { resolveProductionCloseLineage } from "./productionCloseLineage";
 import { TUTOR_ONBOARDING_DOCUMENTS } from "./tutorOnboardingDocuments";
 import { buildCurrentTutorOnboardingAcceptanceMap } from "@shared/tutorOnboardingAcceptanceVersion";
 
-// The privileged data client must never acquire an end-user session.
+// Prefer the modern secret key for privileged server access.
+// While the production secret-key cutover is being completed, the modern
+// publishable key is safer than a disabled legacy service_role credential.
 const supabaseUrl = process.env.SUPABASE_URL!;
-export const supabase = createClient(supabaseUrl, selectPrivilegedSupabaseKey(), {
-  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-});
+const supabaseKey =
+  process.env.SUPABASE_SECRET_KEY ||
+  process.env.SUPABASE_PUBLISHABLE_KEY ||
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_ANON_KEY!;
+export const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Create affiliate code (used by routes.ts)
 export async function createAffiliateCode({ affiliateId, createdBy, ownerUserId, ownerType, ownerName, code, type, personName, entityName, schoolType, pipelineType = "demand", campaignName }: {

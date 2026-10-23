@@ -1,14 +1,20 @@
 import type { Express, Request, Response } from "express";
 import { z } from "zod";
+import { parseSandboxPreparationQuery } from "../sandboxPreparationQuery";
 import { isAuthenticated } from "../supabaseAuth";
 import {
+  armSandboxTimingRediagnosis,
   getSandboxEnvironmentHistory,
   prepareSandboxEnvironment,
+  recordSandboxPreparation,
+  getSandboxSessionPreparationPreview,
   submitSandboxEnvironmentRep,
 } from "../sandboxEnvironment";
 import {
   prepareSandboxLiveEvidenceSimulation,
   prepareSandboxRediagnosis,
+  resolveSandboxRecordedDiagnosis,
+  continueSandboxDiagnosis,
   submitSandboxLiveEvidenceSimulation,
   submitSandboxRediagnosisProbe,
 } from "../sandboxRediagnosis";
@@ -54,6 +60,19 @@ const repSubmissionSchema = z.object({
   }),
 });
 
+
+const preparationSubmissionSchema = z.object({
+  studentId: z.string().trim().min(1),
+  scheduledSessionId: z.string().trim().uuid(),
+  topic: z.string().trim().min(1).max(200),
+  // The existing Map preparation checkbox affirms this displayed phase.
+  // The server must independently verify it against the active Sandbox set.
+  attestedPhase: z.enum(["Clarity","Structured Execution","Controlled Discomfort","Time Pressure Stability"]),
+  planFingerprint: z.string().regex(/^[0-9a-f]{64}$/),
+  problemPrepared: z.literal(true),
+  conditionsReviewed: z.literal(true),
+  evidencePlanReviewed: z.literal(true),
+}).strict();
 
 const sandboxLiveEvidenceQuerySchema = z.object({
   tutorAssignmentId: z.string().trim().min(1),
@@ -117,6 +136,7 @@ const sandboxLiveEvidenceSubmissionSchema = z.object({
 const rediagnosisSubmissionSchema = z.object({
   tutorAssignmentId: z.string().trim().min(1),
   studentId: z.string().trim().min(1),
+  scheduledSessionId: z.string().trim().uuid().optional(),
   bankVersion: z.number().int().positive(),
   trajectoryId: z.string().trim().min(1),
   rediagnosisRunId: z.string().trim().min(1),
@@ -255,6 +275,7 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
       });
       if (environment.status === "targeted_rediagnosis_required") {
         const rediagnosis = await prepareSandboxRediagnosis({
+          scheduledSessionId,
           tutorAssignmentId,
           tutorId: String(user.id),
           studentId,
@@ -271,6 +292,70 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
       return res.json(environment);
     } catch (error) {
       return sendError(res, error, "Failed to prepare the Sandbox environment.");
+    }
+  });
+
+  app.post("/api/tutor/sandbox-environment/timing-rediagnosis", isAuthenticated, async (req, res) => {
+    try {
+      const user = requireSpecialist(req, res);
+      if (!user) return;
+      const studentId = String(req.body?.studentId || "").trim();
+      const scheduledSessionId = String(req.body?.scheduledSessionId || "").trim();
+      const topic = String(req.body?.topic || "").trim();
+      if (!studentId || !scheduledSessionId || !topic) {
+        return res.status(400).json({ message: "studentId, scheduledSessionId and topic are required." });
+      }
+      const authority = await loadTutorOperationalModeAuthorityForTutor(String(user.id));
+      if (!authority || authority.mode !== "sandbox" || !authority.assignmentId) {
+        return res.status(403).json({ message: "Active assigned Sandbox mode is required." });
+      }
+      return res.json(await prepareSandboxRediagnosis({
+        tutorAssignmentId: authority.assignmentId,
+        tutorId: String(user.id), studentId, scheduledSessionId,
+      }));
+    } catch (error) {
+      return sendError(res, error, "Failed to open the Sandbox timing-baseline route.");
+    }
+  });
+
+  app.get("/api/tutor/sandbox-environment/preparation-plan", isAuthenticated, async (req, res) => {
+    try {
+      const user = requireSpecialist(req, res);
+      if (!user) return;
+      const payload = parseSandboxPreparationQuery(req.query);
+      const authority = await loadTutorOperationalModeAuthorityForTutor(String(user.id));
+      if (!authority || authority.mode !== "sandbox" || !authority.assignmentId) {
+        return res.status(403).json({ message: "Active assigned Sandbox mode is required." });
+      }
+      res.setHeader("Cache-Control", "no-store, max-age=0");
+      return res.json(await getSandboxSessionPreparationPreview({
+        ...payload,
+        tutorAssignmentId: authority.assignmentId,
+        tutorId: String(user.id),
+      }));
+    } catch (error) {
+      return sendError(res, error, "Unable to load the current Sandbox preparation plan.");
+    }
+  });
+
+  app.post("/api/tutor/sandbox-environment/preparation", isAuthenticated, async (req, res) => {
+    try {
+      const user = requireSpecialist(req, res);
+      if (!user) return;
+      const payload = preparationSubmissionSchema.parse(req.body);
+      const authority = await loadTutorOperationalModeAuthorityForTutor(String(user.id));
+      if (!authority || authority.mode !== "sandbox" || !authority.assignmentId) {
+        return res.status(403).json({ message: "Active assigned Sandbox mode is required." });
+      }
+      const result = await recordSandboxPreparation({
+        ...payload,
+        tutorAssignmentId: authority.assignmentId,
+        tutorId: String(user.id),
+      });
+      res.setHeader("Cache-Control", "no-store, max-age=0");
+      return res.status(result.recorded ? 201 : 200).json(result);
+    } catch (error) {
+      return sendError(res, error, "Unable to verify Sandbox session preparation.");
     }
   });
 
@@ -298,12 +383,24 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
   });
 
 
+  for (const [action, handler] of [["resolve", resolveSandboxRecordedDiagnosis], ["continue", continueSandboxDiagnosis]] as const) {
+    app.post(`/api/tutor/sandbox-environment/rediagnosis/${action}`, isAuthenticated, async (req, res) => {
+      try {
+        const user = requireSpecialist(req, res); if (!user) return;
+        const payload = z.object({ tutorAssignmentId: z.string().min(1), studentId: z.string().min(1),
+          rediagnosisRunId: z.string().uuid(), scheduledSessionId: z.string().uuid() }).strict().parse(req.body);
+        return res.json(await handler({ ...payload, tutorId: String(user.id) }));
+      } catch (error) { return sendError(res, error, "The prescribed diagnosis continuation could not be applied."); }
+    });
+  }
+
   app.post("/api/tutor/sandbox-environment/rediagnosis", isAuthenticated, async (req, res) => {
     try {
       const user = requireSpecialist(req, res);
       if (!user) return;
       const payload = rediagnosisSubmissionSchema.parse(req.body);
       const result = await submitSandboxRediagnosisProbe({
+        scheduledSessionId: payload.scheduledSessionId,
         tutorAssignmentId: payload.tutorAssignmentId,
         tutorId: String(user.id),
         studentId: payload.studentId,

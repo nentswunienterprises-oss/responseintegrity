@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { queryClient, persister } from "./lib/queryClient";
+import { shouldPersistQuery } from "./lib/queryPersistence";
 import { Toaster } from "@/components/ui/toaster";
 import { RouteSeoManager } from "@/components/RouteSeoManager";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -80,6 +81,8 @@ import TutorGateway from "@/pages/operational/tutor/gateway";
 import TutorGrowth from "@/pages/operational/tutor/growth";
 import TutorAcademics from "@/pages/operational/tutor/academics";
 import TutorSessions from "@/pages/operational/tutor/sessions";
+import NativeHandoverProofSetup from "@/pages/proof/native-handover";
+import NativeTrainingProofSetup from "@/pages/proof/native-training";
 import TutorUpdates from "@/pages/operational/tutor/updates";
 import TutorProfile from "@/pages/operational/tutor/profile";
 
@@ -633,6 +636,8 @@ function Router() {
       <Route path="/specialist/growth" element={<TutorGatewayGuard><TutorGrowth /></TutorGatewayGuard>} />
       <Route path="/specialist/academics" element={<TutorGatewayGuard><TutorAcademics /></TutorGatewayGuard>} />
       <Route path="/specialist/sessions" element={<TutorGatewayGuard><TutorSessions /></TutorGatewayGuard>} />
+      <Route path="/proof/native-handover" element={<TutorGatewayGuard><NativeHandoverProofSetup /></TutorGatewayGuard>} />
+      <Route path="/proof/native-training" element={<TutorGatewayGuard><NativeTrainingProofSetup /></TutorGatewayGuard>} />
       <Route path="/specialist/profile" element={<TutorGatewayGuard><TutorProfile /></TutorGatewayGuard>} />
       <Route path="/specialist/updates" element={<TutorGatewayGuard><DashboardLayout><TutorUpdates /></DashboardLayout></TutorGatewayGuard>} />
       <Route path="/tutor/pod" element={<RedirectWithSearch to="/specialist/pod" />} />
@@ -679,7 +684,7 @@ export default function App() {
   return (
     <PersistQueryClientProvider 
       client={queryClient} 
-      persistOptions={{ persister }}
+      persistOptions={{ persister, dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery } }}
     >
       <TooltipProvider>
         <ScrollToTop />

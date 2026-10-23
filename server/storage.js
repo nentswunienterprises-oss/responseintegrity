@@ -1,4 +1,3 @@
-import { selectPrivilegedSupabaseKey } from "./privilegedSupabaseKey.js";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -59,9 +58,9 @@ import { db } from "./db";
 import { weeklyCheckIns } from "@shared/schema";
 // Initialize Supabase client with service role key to bypass RLS
 var supabaseUrl = process.env.SUPABASE_URL;
-export var supabase = createClient(supabaseUrl, selectPrivilegedSupabaseKey(), {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-});
+// Use service role key if available (bypasses RLS), fall back to anon key
+var supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+export var supabase = createClient(supabaseUrl, supabaseKey);
 // Helper function to transform snake_case to camelCase
 function transformSnakeToCamel(obj) {
     if (!obj || typeof obj !== 'object')

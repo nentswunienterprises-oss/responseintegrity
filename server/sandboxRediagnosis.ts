@@ -1,4 +1,5 @@
 import { createHmac } from "crypto";
+import { diagnosisContinuationContext, diagnosisDecisionWithContext, authorizeDiagnosisContinuation } from "./diagnosisContinuation";
 import { pool } from "./db";
 import { loadTutorOperationalModeAuthority } from "./tutorOperationalModeAuthority";
 import {
@@ -30,13 +31,17 @@ import {
   deriveTpsTimerContractV1,
   type TpsBaselineSnapshot,
 } from "@shared/tpsTimingContract";
+import { deriveDiagnosisTpsTimerContract } from "@shared/tpsTimingRuntime";
 import {
   loadLatestTpsTimerContract,
   persistTpsTimerContract,
   type PersistedTpsTimerContract,
 } from "./tpsTimingAuthority";
-import { getSandboxEnvironmentHistory } from "./sandboxEnvironment";
+import { getSandboxEnvironmentHistory, initializeSandboxNativeEvidenceTrajectory } from "./sandboxEnvironment";
+import { resolveSandboxRediagnosisEpisodeRun, canRetireSupersededEmptySandboxEpisode, sandboxRediagnosisSelectionSeed } from "./sandboxRediagnosisEpisode";
 import { SANDBOX_DIAGNOSIS_EXCEPTION_NARRATIVE_VERSION } from "@shared/sandboxDiagnosisExceptionNarrativesV2";
+
+import { projectSandboxNativeDiagnosisOutcome, SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION } from "./sandboxNativeDiagnosisProjection";
 
 const BANK_KEY = "sandbox_stateful_environment";
 
@@ -53,6 +58,7 @@ type TrajectoryRow = {
   specialist_targeted_rediagnosis_phase: TopicPhase | null;
   session_number: number;
   completed_rep_count: number;
+  active_topic_key: string | null;
   divergence_active: boolean;
 };
 
@@ -63,6 +69,7 @@ type TrajectoryTruthRow = {
   canonical_targeted_rediagnosis_phase: TopicPhase | null;
   trajectory_seed: string;
   behavior_model_version: 1 | 2;
+  continuity_tags: string[];
 };
 
 type RediagnosisRunRow = {
@@ -176,7 +183,7 @@ async function loadTrajectory(input: {
   const result = await pool.query(
     `SELECT t.*, truth.canonical_phase, truth.canonical_stability,
             truth.canonical_route, truth.canonical_targeted_rediagnosis_phase,
-            truth.trajectory_seed, truth.behavior_model_version
+            truth.trajectory_seed, truth.behavior_model_version, truth.continuity_tags
        FROM specialist_sandbox_trajectories t
        JOIN private.specialist_sandbox_trajectory_truth truth
          ON truth.trajectory_id = t.id
@@ -202,6 +209,7 @@ async function loadTrajectory(input: {
         : null,
       trajectory_seed: String(row.trajectory_seed),
       behavior_model_version: Number(row.behavior_model_version) as 1 | 2,
+      continuity_tags: asArray<string>(row.continuity_tags),
     } satisfies TrajectoryTruthRow,
   };
 }
@@ -209,27 +217,37 @@ async function loadTrajectory(input: {
 async function ensureRediagnosisRun(input: {
   trajectory: TrajectoryRow;
   truth: TrajectoryTruthRow;
+  scheduledSessionId?: string | null;
 }) {
+  const inferredTimingBaselineTarget =
+    input.truth.canonical_route === "normal_training" &&
+    (input.truth.canonical_phase === "Controlled Discomfort" || input.truth.canonical_phase === "Time Pressure Stability")
+      ? "Structured Execution"
+      : null;
+  const targetPhase = input.truth.canonical_targeted_rediagnosis_phase || inferredTimingBaselineTarget;
   if (
-    input.truth.canonical_route !== "targeted_rediagnosis" ||
-    !input.truth.canonical_targeted_rediagnosis_phase
+    (input.truth.canonical_route !== "targeted_rediagnosis" && !inferredTimingBaselineTarget) ||
+    !targetPhase
   ) {
     throw httpError(409, "The Sandbox trajectory does not currently require targeted re-diagnosis.");
   }
 
-  const existing = await pool.query(
+  const loadExisting = (db: Pick<typeof pool, "query">) => db.query(
     `SELECT r.*, truth.canonical_probe_history, truth.canonical_decision,
             truth.recent_outcome_keys
        FROM specialist_sandbox_rediagnosis_runs r
        JOIN private.specialist_sandbox_rediagnosis_truth truth
          ON truth.rediagnosis_run_id = r.id
       WHERE r.trajectory_id = $1
-        AND r.status = 'active'
-      LIMIT 1`,
-    [input.trajectory.id],
+        AND r.started_session_number = $2
+        AND r.status IN ('active', 'blocked')
+      ORDER BY r.created_at DESC`,
+    [input.trajectory.id, input.trajectory.session_number],
   );
-  if (existing.rows[0]) {
-    const row = existing.rows[0];
+  const existing = await loadExisting(pool);
+  const episodeRun = resolveSandboxRediagnosisEpisodeRun(existing.rows, input.trajectory.session_number);
+  if (episodeRun) {
+    const row = episodeRun;
     return {
       run: {
         ...row,
@@ -247,11 +265,55 @@ async function ensureRediagnosisRun(input: {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    // Serialize creation and recheck after acquiring the trajectory lock: two
+    // concurrent runner opens must resume the same episode, not race the index.
+    const locked = await client.query(
+      `SELECT session_number FROM specialist_sandbox_trajectories
+        WHERE id=$1 AND tutor_assignment_id=$2 AND tutor_id=$3 AND student_id=$4 FOR UPDATE`,
+      [input.trajectory.id,input.trajectory.tutor_assignment_id,input.trajectory.tutor_id,input.trajectory.student_id],
+    );
+    if (Number(locked.rows[0]?.session_number) !== input.trajectory.session_number)
+      throw httpError(409,"The Sandbox session changed. Reload its prescribed route.");
+    const concurrent = resolveSandboxRediagnosisEpisodeRun((await loadExisting(client)).rows,input.trajectory.session_number);
+    if (concurrent) {
+      await client.query("COMMIT");
+      return { run: {...concurrent,specialist_probe_history:asArray<DiagnosisProbeResult>(concurrent.specialist_probe_history)} as RediagnosisRunRow,
+        truth:{rediagnosis_run_id:String(concurrent.id),canonical_probe_history:asArray<DiagnosisProbeResult>(concurrent.canonical_probe_history),
+          canonical_decision:concurrent.canonical_decision,recent_outcome_keys:asArray<string>(concurrent.recent_outcome_keys)} satisfies RediagnosisTruthRow };
+    }
+    const priorActive = await client.query(
+      `SELECT r.id,r.status,r.started_session_number,
+          jsonb_array_length(r.specialist_probe_history) AS specialist_probe_count,
+          jsonb_array_length(truth.canonical_probe_history) AS canonical_probe_count,
+          (SELECT count(*)::int FROM specialist_sandbox_rediagnosis_turns turn WHERE turn.rediagnosis_run_id=r.id) AS persisted_turn_count,
+          EXISTS (SELECT 1 FROM specialist_sandbox_rediagnosis_runs done
+            WHERE done.trajectory_id=r.trajectory_id AND done.tutor_assignment_id=r.tutor_assignment_id
+              AND done.tutor_id=r.tutor_id AND done.student_id=r.student_id
+              AND done.started_session_number=r.started_session_number
+              AND done.status='completed' AND done.specialist_decision->>'complete'='true') AS completed_sibling,
+          COALESCE(r.specialist_decision->>'complete','false')='true' AS specialist_complete,
+          COALESCE(truth.canonical_decision->>'complete','false')='true' AS canonical_complete
+       FROM specialist_sandbox_rediagnosis_runs r
+       JOIN private.specialist_sandbox_rediagnosis_truth truth ON truth.rediagnosis_run_id=r.id
+       WHERE r.trajectory_id=$1 AND r.status='active' FOR UPDATE OF r`,
+      [input.trajectory.id],
+    );
+    for (const prior of priorActive.rows) {
+      if (!canRetireSupersededEmptySandboxEpisode(prior,input.trajectory.session_number))
+        throw httpError(409,"An earlier re-diagnosis still contains unresolved evidence. Review that episode before starting another.");
+      await client.query(
+        `UPDATE specialist_sandbox_rediagnosis_runs SET status='blocked',
+          specialist_decision=COALESCE(specialist_decision,'{}'::jsonb) || jsonb_build_object(
+            'episodeRetirement',jsonb_build_object('reason','superseded_empty_episode',
+              'priorStatus',status,'retiredAt',now(),'nextSessionNumber',$2::int))
+          WHERE id=$1 AND status='active'`,[prior.id,input.trajectory.session_number],
+      );
+    }
     const created = await client.query(
       `INSERT INTO specialist_sandbox_rediagnosis_runs (
          trajectory_id, tutor_assignment_id, tutor_id, student_id, started_session_number,
-         target_phase, specialist_probe_history, status
-       ) VALUES ($1,$2,$3,$4,$5,$6,'[]'::jsonb,'active')
+         target_phase, specialist_probe_history, status, specialist_decision
+       ) VALUES ($1,$2,$3,$4,$5,$6,'[]'::jsonb,'active',$7::jsonb)
        RETURNING *`,
       [
         input.trajectory.id,
@@ -259,7 +321,15 @@ async function ensureRediagnosisRun(input: {
         input.trajectory.tutor_id,
         input.trajectory.student_id,
         input.trajectory.session_number,
-        input.truth.canonical_targeted_rediagnosis_phase,
+        targetPhase,
+        JSON.stringify(input.truth.behavior_model_version === 2 ? {
+          decisionPolicyVersion: 2,
+          _diagnosisContext: {
+            legacyPrefixLength: 0,
+            sessions: [{ scheduledSessionId: input.scheduledSessionId || null, startProbeIndex: 0 }],
+            sandboxSelectionVersion: 2,
+          },
+        } : {}),
       ],
     );
     const run = created.rows[0] as RediagnosisRunRow;
@@ -361,22 +431,28 @@ async function plan(input: {
   tutorAssignmentId: string;
   tutorId: string;
   studentId: string;
+  scheduledSessionId?: string | null;
 }) {
   const { trajectory, truth } = await loadTrajectory(input);
-  const { run, truth: diagnosisTruth } = await ensureRediagnosisRun({ trajectory, truth });
+  const { run, truth: diagnosisTruth } = await ensureRediagnosisRun({ trajectory, truth, scheduledSessionId: input.scheduledSessionId });
 
+  const context = diagnosisContinuationContext(run.specialist_decision, run.specialist_probe_history.length, input.scheduledSessionId || null);
+  const sessionStartProbeIndex = context.sessions.at(-1)!.startProbeIndex;
   const canonicalState = rebuildSandboxDiagnosisState({
+    sessionStartProbeIndex,
     startingPhase: run.target_phase,
     history: diagnosisTruth.canonical_probe_history,
   });
   const specialistState = rebuildSandboxDiagnosisState({
+    sessionStartProbeIndex,
     startingPhase: run.target_phase,
     history: run.specialist_probe_history,
   });
   const canonicalDecision = evaluateEvidenceCompleteDiagnosis(canonicalState);
 
   if (canonicalDecision.complete) {
-    throw httpError(409, "Targeted re-diagnosis is already complete.");
+    return { trajectory, truth, run, diagnosisTruth, canonicalState, specialistState, canonicalDecision,
+      context, resolved: true as const, blocked: false as const };
   }
   if (!canonicalDecision.nextProbeId) {
     return {
@@ -387,6 +463,7 @@ async function plan(input: {
       canonicalState,
       specialistState,
       canonicalDecision,
+      context, resolved: false as const,
       blocked: true as const,
     };
   }
@@ -396,8 +473,11 @@ async function plan(input: {
     probeId: canonicalDecision.nextProbeId,
   });
   const history = await getSandboxEnvironmentHistory(input);
-  const selected = selectSandboxDiagnosisOutcome({
-    seed: truth.trajectory_seed,
+  const selected = projectSandboxNativeDiagnosisOutcome(selectSandboxDiagnosisOutcome({
+    seed: sandboxRediagnosisSelectionSeed({
+      trajectorySeed: truth.trajectory_seed, runId: run.id,
+      selectionVersion: context.sandboxSelectionVersion,
+    }),
     profileSeed: truth.trajectory_seed,
     outcomes: outcomes.map((item) => item.definition),
     context: {
@@ -410,8 +490,10 @@ async function plan(input: {
           : null,
       recentOutcomeKeys: diagnosisTruth.recent_outcome_keys,
       behaviorModelVersion: truth.behavior_model_version,
+      continuityTags: truth.continuity_tags,
+      developmentTopicKey: trajectory.active_topic_key || "",
     },
-  });
+  }));
   const selectedRecord = outcomes.find(
     (item) => item.definition.key === selected.key && item.definition.version === selected.version,
   );
@@ -421,6 +503,7 @@ async function plan(input: {
   const turnFormId = digest(
     [
       "sandbox-rediagnosis-turn-v1",
+      "native-protocol-v" + SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION,
       run.id,
       sequenceNumber,
       selectedRecord.publicRef,
@@ -437,6 +520,7 @@ async function plan(input: {
     canonicalState,
     specialistState,
     canonicalDecision,
+    context, resolved: false as const,
     blocked: false as const,
     selected,
     selectedRecord,
@@ -584,6 +668,7 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
   probeId?: DiagnosisProbeId | null;
 }) {
   await assertSandboxAccess(input);
+  if (input.scope === "diagnosis") await initializeSandboxNativeEvidenceTrajectory(input);
   const { trajectory, truth } = await loadTrajectory(input);
 
   const timerContract =
@@ -621,7 +706,7 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
     input.scope,
     input.sourceContextId,
   ].join(":");
-  const selected = selectSandboxDiagnosisOutcome({
+  const selected = projectSandboxNativeDiagnosisOutcome(selectSandboxDiagnosisOutcome({
     seed,
     profileSeed: truth.trajectory_seed,
     outcomes: outcomes.map((item) => item.definition),
@@ -632,8 +717,10 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
       earliestUnsupportedCapability: null,
       recentOutcomeKeys: [],
       behaviorModelVersion: truth.behavior_model_version,
+      continuityTags: truth.continuity_tags,
+      developmentTopicKey: input.topic,
     },
-  });
+  }));
   const selectedRecord = outcomes.find(
     (item) =>
       item.definition.key === selected.key &&
@@ -646,6 +733,7 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
   const formId = digest(
     [
       "sandbox-live-evidence-v1",
+      "native-protocol-v" + SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION,
       trajectory.id,
       input.scope,
       input.sourceContextId,
@@ -716,7 +804,7 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
   // Preparation and submission must select the *same* versioned outcome.
   // Re-evaluating a V2 Profile through V1 weighting can silently score the
   // Specialist against a student response they were never shown.
-  const selected = selectSandboxDiagnosisOutcome({
+  const selected = projectSandboxNativeDiagnosisOutcome(selectSandboxDiagnosisOutcome({
     seed: [truth.trajectory_seed, input.scope, input.sourceContextId].join(":"),
     profileSeed: truth.trajectory_seed,
     outcomes: outcomes.map((item) => item.definition),
@@ -727,8 +815,10 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
       earliestUnsupportedCapability: null,
       recentOutcomeKeys: [],
       behaviorModelVersion: truth.behavior_model_version,
+      continuityTags: truth.continuity_tags,
+      developmentTopicKey: input.topic,
     },
-  });
+  }));
 
   // Handover observes only its own phase, and only dimensions actually
   // created by the prescribed probe. In particular, an immediate execution
@@ -811,6 +901,71 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
     reason,
   });
 
+
+
+  // Historical, submitted simulation only. Protected Proof schema + explicit flag required.
+  // A simulation observation never claims native Diagnosis/Handover authority.
+  if (process.env.RI_SANDBOX_CROSSMODE_CAPTURE_V1 === "true") {
+    const selectedRecord = outcomes.find(record =>
+      record.definition.key === selected.key && record.definition.version === selected.version);
+    if (!selectedRecord) throw new Error("Sandbox canonical lineage is missing.");
+    const stored = await pool.query(
+      `WITH recorded AS (
+        INSERT INTO public.specialist_sandbox_live_evidence_turns (
+          tutor_assignment_id,tutor_id,trajectory_id,student_id,scope,source_context_id,
+          form_id,sequence_number,phase,probe_id,bank_version,behavior_model_version,
+          student_behavior,specialist_submission,condition_conformed,observation_exact,
+          matching_observations,total_observations
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15,$16,$17,$18)
+        ON CONFLICT (tutor_assignment_id,form_id) DO NOTHING
+        RETURNING id
+      )
+      INSERT INTO private.specialist_sandbox_live_evidence_truth (
+        event_id,outcome_ref,outcome_key,outcome_version,canonical_observations,
+        trajectory_class,actual_support_event
+      ) SELECT recorded.id,$19,$20,$21,$22::jsonb,$23,$24 FROM recorded`,
+      [input.tutorAssignmentId,input.tutorId,trajectory.id,input.studentId,input.scope,
+       input.sourceContextId,prepared.formId,input.sequenceNumber,input.startingPhase,
+       prepared.probeId,prepared.bankVersion,truth.behavior_model_version,
+       prepared.studentBehavior,JSON.stringify({supportEvent:input.supportEvent,observations:input.observations}),
+       conditionConformed,observationExact,matchingObservations,expectedDimensionIds.length,
+       selectedRecord.publicRef,selected.key,selected.version,
+       JSON.stringify(selected.canonicalObservations),selected.trajectoryClass,input.supportEvent],
+    );
+    if (!stored.rowCount) {
+      // A replay is allowed only when the originally committed public record
+      // AND its private canonical truth match every decision-relevant field.
+      // Never overwrite or reinterpret the first committed observation.
+      const previouslyStored = await pool.query(
+        `SELECT e.id FROM public.specialist_sandbox_live_evidence_turns e
+           JOIN private.specialist_sandbox_live_evidence_truth t ON t.event_id=e.id
+          WHERE e.tutor_assignment_id=$1 AND e.tutor_id=$2
+            AND e.trajectory_id=$3 AND e.student_id=$4
+            AND e.scope=$5 AND e.source_context_id=$6 AND e.form_id=$7
+            AND e.sequence_number=$8 AND e.phase=$9 AND e.probe_id=$10
+            AND e.bank_version=$11 AND e.behavior_model_version=$12
+            AND e.student_behavior=$13 AND e.specialist_submission=$14::jsonb
+            AND e.condition_conformed=$15 AND e.observation_exact=$16
+            AND e.matching_observations=$17 AND e.total_observations=$18
+            AND t.outcome_ref=$19 AND t.outcome_key=$20 AND t.outcome_version=$21
+            AND t.canonical_observations=$22::jsonb
+            AND t.trajectory_class=$23 AND t.actual_support_event=$24
+          LIMIT 1`,
+        [input.tutorAssignmentId,input.tutorId,trajectory.id,input.studentId,input.scope,
+         input.sourceContextId,prepared.formId,input.sequenceNumber,input.startingPhase,
+         prepared.probeId,prepared.bankVersion,truth.behavior_model_version,
+         prepared.studentBehavior,JSON.stringify({supportEvent:input.supportEvent,observations:input.observations}),
+         conditionConformed,observationExact,matchingObservations,expectedDimensionIds.length,
+         selectedRecord.publicRef,selected.key,selected.version,
+         JSON.stringify(selected.canonicalObservations),selected.trajectoryClass,input.supportEvent],
+      );
+      if (!previouslyStored.rows[0]) {
+        throw httpError(409, "The previous Sandbox evidence record conflicts with this submission. Preserve the original and escalate for evidence review.");
+      }
+    }
+  }
+  // Record qualification capability only AFTER immutable capture validation.
+  // A conflicting replay must never write a fresh capability occurrence.
   await insertCapabilityEvidence({
     trajectory,
     sourceType: "turn",
@@ -859,16 +1014,29 @@ export async function prepareSandboxRediagnosis(input: {
   tutorAssignmentId: string;
   tutorId: string;
   studentId: string;
+  scheduledSessionId?: string | null;
 }) {
   await assertSandboxAccess(input);
   const planned = await plan(input);
+  if (planned.resolved) return {
+    status: "rediagnosis_resolution_ready" as const, trajectoryId: planned.trajectory.id,
+    rediagnosisRunId: planned.run.id, targetPhase: planned.run.target_phase,
+    reason: "The recorded responses establish a Training starting point. Apply the evidence-derived result without repeating any opportunity.",
+    studentStateAuthoritative: false as const, evidenceScope: "sandbox" as const,
+  };
   if (planned.blocked) {
+    // Bind the current lesson once; a later lesson must pass explicit continuation authorization.
+    if (!(planned.run.specialist_decision as any)?._diagnosisContext) await pool.query(
+      `UPDATE specialist_sandbox_rediagnosis_runs SET specialist_decision=COALESCE(specialist_decision,'{}'::jsonb) || $2::jsonb
+        WHERE id=$1 AND NOT (COALESCE(specialist_decision,'{}'::jsonb) ? '_diagnosisContext')`,
+      [planned.run.id, JSON.stringify({ _diagnosisContext: planned.context })]);
     return {
       status: "rediagnosis_blocked" as const,
       trajectoryId: planned.trajectory.id,
       rediagnosisRunId: planned.run.id,
       targetPhase: planned.run.target_phase,
-      reason: "The permitted clean targeted probes did not resolve placement. Sandbox Training remains paused for evidence review.",
+      reason: planned.canonicalDecision.continuation?.parentMessage || planned.canonicalDecision.reason,
+      canContinue: !!input.scheduledSessionId && input.scheduledSessionId !== planned.context.sessions.at(-1)?.scheduledSessionId,
       studentStateAuthoritative: false as const,
       evidenceScope: "sandbox" as const,
     };
@@ -901,10 +1069,12 @@ export async function submitSandboxRediagnosisProbe(input: {
   bankVersion: number;
   sequenceNumber: number;
   turnFormId: string;
+  scheduledSessionId?: string | null;
   submission: SandboxDiagnosisSubmittedProbe;
 }) {
   await assertSandboxAccess(input);
   const planned = await plan(input);
+  if (planned.resolved) throw httpError(409, "Apply the recorded diagnosis result before ordinary Training.");
   if (planned.blocked) throw httpError(409, planned.canonicalDecision.reason);
   if (
     planned.trajectory.id !== input.trajectoryId ||
@@ -965,10 +1135,12 @@ export async function submitSandboxRediagnosisProbe(input: {
   ];
   const canonicalState = rebuildSandboxDiagnosisState({
     startingPhase: planned.run.target_phase,
+    sessionStartProbeIndex: planned.context.sessions.at(-1)!.startProbeIndex,
     history: canonicalHistory,
   });
   const specialistState = rebuildSandboxDiagnosisState({
     startingPhase: planned.run.target_phase,
+    sessionStartProbeIndex: planned.context.sessions.at(-1)!.startProbeIndex,
     history: specialistHistory,
   });
   const decisionComparison = compareSandboxDiagnosisDecisions({
@@ -979,6 +1151,32 @@ export async function submitSandboxRediagnosisProbe(input: {
     phase: planned.run.target_phase,
     probeId: input.submission.probeId,
   });
+
+  const complete = decisionComparison.canonicalDecision.complete;
+  const blocked =
+    !complete && !decisionComparison.canonicalDecision.nextProbeId;
+  const completedPlacementNeedsTimer =
+    complete &&
+    ["Controlled Discomfort", "Time Pressure Stability"].includes(
+      String(decisionComparison.canonicalDecision.placementPhase || ""),
+    ) &&
+    decisionComparison.canonicalDecision.timingBaseline.ready &&
+    decisionComparison.canonicalDecision.timingBaseline.source === "diagnosis_run";
+  const diagnosisTimerContract = completedPlacementNeedsTimer
+    ? deriveDiagnosisTpsTimerContract({
+        state: canonicalState,
+        studentId: input.studentId,
+        topic: planned.trajectory.active_topic_key || "",
+        sourceEpochKey: `sandbox-rediagnosis-v1:${planned.run.id}`,
+        baselineGroupId: `sandbox-rediagnosis:${planned.run.id}`,
+      })
+    : null;
+  if (completedPlacementNeedsTimer && !diagnosisTimerContract) {
+    throw httpError(
+      409,
+      "Sandbox re-diagnosis timing evidence reports ready but its Timer Contract could not be derived.",
+    );
+  }
 
   const turn = await pool.query(
     `INSERT INTO specialist_sandbox_rediagnosis_turns (
@@ -1039,10 +1237,6 @@ export async function submitSandboxRediagnosisProbe(input: {
     planned.selected.key,
   ].slice(-3);
 
-  const complete = decisionComparison.canonicalDecision.complete;
-  const blocked =
-    !complete && !decisionComparison.canonicalDecision.nextProbeId;
-
   await Promise.all([
     pool.query(
       `UPDATE specialist_sandbox_rediagnosis_runs
@@ -1054,7 +1248,7 @@ export async function submitSandboxRediagnosisProbe(input: {
       [
         planned.run.id,
         JSON.stringify(specialistHistory),
-        JSON.stringify(decisionComparison.specialistDecision),
+        JSON.stringify(diagnosisDecisionWithContext(decisionComparison.specialistDecision, planned.context, planned.run.specialist_decision)),
         complete ? "completed" : blocked ? "blocked" : "active",
       ],
     ),
@@ -1068,59 +1262,19 @@ export async function submitSandboxRediagnosisProbe(input: {
       [
         planned.run.id,
         JSON.stringify(canonicalHistory),
-        JSON.stringify(decisionComparison.canonicalDecision),
+        JSON.stringify(diagnosisDecisionWithContext(decisionComparison.canonicalDecision, planned.context, planned.diagnosisTruth.canonical_decision)),
         JSON.stringify(recentOutcomeKeys),
       ],
     ),
   ]);
 
-  if (complete) {
-    const canonicalPhase = decisionComparison.canonicalDecision.placementPhase;
-    const canonicalStability = decisionComparison.canonicalDecision.stability;
-    if (!canonicalPhase || !canonicalStability) {
-      throw new Error("Completed Sandbox re-diagnosis is missing canonical placement.");
-    }
-
-    const specialistComplete =
-      decisionComparison.specialistDecision.complete &&
-      decisionComparison.specialistDecision.placementPhase &&
-      decisionComparison.specialistDecision.stability;
-    await Promise.all([
-      pool.query(
-        `UPDATE private.specialist_sandbox_trajectory_truth
-            SET canonical_phase = $2,
-                canonical_stability = $3,
-                canonical_route = 'normal_training',
-                canonical_targeted_rediagnosis_phase = NULL,
-                prior_tracks_diverged = $4,
-                updated_at = now()
-          WHERE trajectory_id = $1`,
-        [
-          planned.trajectory.id,
-          canonicalPhase,
-          canonicalStability,
-          !decisionComparison.placementAligned,
-        ],
-      ),
-      pool.query(
-        `UPDATE specialist_sandbox_trajectories
-            SET specialist_phase = CASE WHEN $2 THEN $3 ELSE specialist_phase END,
-                specialist_stability = CASE WHEN $2 THEN $4 ELSE specialist_stability END,
-                specialist_route = 'normal_training',
-                specialist_targeted_rediagnosis_phase = NULL,
-                divergence_active = $5,
-                updated_at = now()
-          WHERE id = $1`,
-        [
-          planned.trajectory.id,
-          Boolean(specialistComplete),
-          decisionComparison.specialistDecision.placementPhase,
-          decisionComparison.specialistDecision.stability,
-          !decisionComparison.placementAligned,
-        ],
-      ),
-    ]);
+  if (diagnosisTimerContract) {
+    await persistTpsTimerContract({
+      contract: diagnosisTimerContract,
+      tutorId: input.tutorId,
+    });
   }
+  if (complete) await persistSandboxDiagnosisPlacement(pool, planned.trajectory.id, decisionComparison);
 
   const history = await getSandboxEnvironmentHistory(input);
   return {
@@ -1147,4 +1301,95 @@ export async function submitSandboxRediagnosisProbe(input: {
     studentStateAuthoritative: false as const,
     evidenceScope: "sandbox" as const,
   };
+}
+
+async function persistSandboxDiagnosisPlacement(db: Pick<typeof pool, "query">, trajectoryId: string,
+  decisionComparison: ReturnType<typeof compareSandboxDiagnosisDecisions>) {
+    const canonicalPhase = decisionComparison.canonicalDecision.placementPhase;
+    const canonicalStability = decisionComparison.canonicalDecision.stability;
+    if (!canonicalPhase || !canonicalStability) {
+      throw new Error("Completed Sandbox re-diagnosis is missing canonical placement.");
+    }
+
+    const specialistComplete =
+      decisionComparison.specialistDecision.complete &&
+      decisionComparison.specialistDecision.placementPhase &&
+      decisionComparison.specialistDecision.stability;
+    await Promise.all([
+      db.query(
+        `UPDATE private.specialist_sandbox_trajectory_truth
+            SET canonical_phase = $2,
+                canonical_stability = $3,
+                canonical_route = 'normal_training',
+                canonical_targeted_rediagnosis_phase = NULL,
+                prior_tracks_diverged = $4,
+                updated_at = now()
+          WHERE trajectory_id = $1`,
+        [
+          trajectoryId,
+          canonicalPhase,
+          canonicalStability,
+          !decisionComparison.placementAligned,
+        ],
+      ),
+      db.query(
+        `UPDATE specialist_sandbox_trajectories
+            SET specialist_phase = CASE WHEN $2 THEN $3 ELSE specialist_phase END,
+                specialist_stability = CASE WHEN $2 THEN $4 ELSE specialist_stability END,
+                specialist_route = 'normal_training',
+                specialist_targeted_rediagnosis_phase = NULL,
+                divergence_active = $5,
+                updated_at = now()
+          WHERE id = $1`,
+        [
+          trajectoryId,
+          Boolean(specialistComplete),
+          decisionComparison.specialistDecision.placementPhase,
+          decisionComparison.specialistDecision.stability,
+          !decisionComparison.placementAligned,
+        ],
+      ),
+    ]);
+}
+
+export async function resolveSandboxRecordedDiagnosis(input: {
+  tutorAssignmentId: string; tutorId: string; studentId: string; rediagnosisRunId: string;
+  scheduledSessionId?: string | null;
+}) {
+  await assertSandboxAccess(input);
+  const planned = await plan(input);
+  if (!planned.resolved || planned.run.id !== input.rediagnosisRunId) throw httpError(409, "The recorded episode does not establish a complete placement.");
+  const comparison = compareSandboxDiagnosisDecisions({ canonicalState: planned.canonicalState,
+    specialistState: planned.specialistState, sequenceNumber: planned.run.specialist_probe_history.length,
+    sessionNumber: planned.trajectory.session_number, phase: planned.run.target_phase,
+    probeId: planned.run.specialist_probe_history.at(-1)!.probeId });
+  const db = await pool.connect();
+  try {
+    await db.query("BEGIN");
+    const lock = await db.query("SELECT status, completed_at FROM specialist_sandbox_rediagnosis_runs WHERE id=$1 FOR UPDATE", [planned.run.id]);
+    if (!lock.rows[0] || !["active","blocked"].includes(lock.rows[0].status)) throw httpError(409, "The episode has already changed. Refresh the prescribed route.");
+    await db.query(`UPDATE specialist_sandbox_rediagnosis_runs SET specialist_decision=$2::jsonb, status='completed', completed_at=now() WHERE id=$1`,
+      [planned.run.id, JSON.stringify({ ...diagnosisDecisionWithContext(comparison.specialistDecision, planned.context, planned.run.specialist_decision), resolutionAudit: { priorStatus: lock.rows[0].status, priorCompletedAt: lock.rows[0].completed_at, resolvedAt: new Date().toISOString(), reason: "mixed_behavior_policy_v2" } })]);
+    await db.query(`UPDATE private.specialist_sandbox_rediagnosis_truth SET canonical_decision=$2::jsonb, updated_at=now() WHERE rediagnosis_run_id=$1`,
+      [planned.run.id, JSON.stringify(diagnosisDecisionWithContext(comparison.canonicalDecision, planned.context, planned.diagnosisTruth.canonical_decision))]);
+    await persistSandboxDiagnosisPlacement(db as any, planned.trajectory.id, comparison);
+    await db.query("COMMIT");
+    return { success: true, diagnosisComplete: true, studentStateAuthoritative: false, evidenceScope: "sandbox" };
+  } catch (error) { await db.query("ROLLBACK"); throw error; } finally { db.release(); }
+}
+
+export async function continueSandboxDiagnosis(input: {
+  tutorAssignmentId: string; tutorId: string; studentId: string; rediagnosisRunId: string; scheduledSessionId: string;
+}) {
+  await assertSandboxAccess(input);
+  const planned = await plan(input);
+  if (!planned.blocked || planned.run.id !== input.rediagnosisRunId) throw httpError(409, "Continue only the paused, unfinished episode.");
+  const context = await authorizeDiagnosisContinuation({ tutorId: input.tutorId, studentId: input.studentId,
+    scheduledSessionId: input.scheduledSessionId, context: planned.context,
+    historyLength: planned.run.specialist_probe_history.length, decision: planned.canonicalDecision }, pool);
+  const updated = await pool.query(`UPDATE specialist_sandbox_rediagnosis_runs SET specialist_decision=COALESCE(specialist_decision,'{}'::jsonb) || $2::jsonb, status='active'
+    WHERE id=$1 AND status='blocked' AND jsonb_array_length(specialist_probe_history)=$3 RETURNING id`,
+    [planned.run.id, JSON.stringify({ _diagnosisContext: context }), planned.run.specialist_probe_history.length]);
+  if (!updated.rows[0]) throw httpError(409, "The episode changed. Refresh before continuing.");
+  return { success: true, studentStateAuthoritative: false, evidenceScope: "sandbox" };
 }

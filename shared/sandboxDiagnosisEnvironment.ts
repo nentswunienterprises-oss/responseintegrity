@@ -1,3 +1,5 @@
+import { hasSandboxDevelopmentPlan, sandboxDevelopmentLessons, sandboxProfileDifficultyPhase, sandboxDevelopmentDraw } from "./sandboxDevelopmentPlan";
+import { resolveSandboxBehaviorProfile } from "./sandboxBehaviorProfiles";
 import {
   DIAGNOSIS_PROBES,
   createEvidenceCompleteDiagnosisState,
@@ -15,6 +17,7 @@ import {
 } from "./evidenceCompleteDiagnosis";
 import {
   getDiagnosisObservationOption,
+  DIAGNOSIS_OBSERVATION_MATRIX,
 } from "./diagnosisObservationMatrix";
 import {
   buildPassiveExecutionTimingEvidence,
@@ -81,6 +84,8 @@ export type SandboxDiagnosisOutcomeSelectionContext = {
   recentOutcomeKeys?: string[];
   /** V1 preserves issued diagnostic outcomes; V2 uses the student's profile. */
   behaviorModelVersion?: 1 | 2;
+  continuityTags?: string[];
+  developmentTopicKey?: string;
 };
 
 export type SandboxDiagnosisSubmittedProbe = {
@@ -219,6 +224,41 @@ export function selectSandboxDiagnosisOutcome(input: {
   if (!eligible.length) {
     throw new Error("Sandbox diagnosis has no observable, eligible V2 outcomes; preserve evidence and do not fabricate one.");
   }
+  if (hasSandboxDevelopmentPlan(input.context.continuityTags)) {
+    if (input.context.behaviorModelVersion !== 2 || !input.profileSeed || !input.context.developmentTopicKey) {
+      throw new Error("Sandbox development Diagnosis requires versioned, owned topic context.");
+    }
+    const phase = DIAGNOSIS_PROBES[input.context.probeId].primaryPhase;
+    const lessons = sandboxDevelopmentLessons(input.context.continuityTags!, input.context.developmentTopicKey, phase);
+    const weak = sandboxProfileDifficultyPhase(resolveSandboxBehaviorProfile(input.profileSeed)) === phase;
+    const desired = weak && lessons === 0 && input.context.probeId !== "stack.normal_independent" ? "conditional" : "supported";
+    const scenes = eligible.filter(item => item.trajectoryClass === desired);
+    if (!scenes.length) throw new Error(`Sandbox development Diagnosis has no compatible ${desired} response; preserve evidence for scenario repair.`);
+    const score = (item: SandboxDiagnosisOutcomeDefinition) => -Math.log(sandboxDevelopmentDraw([
+      "sandbox-development-diagnosis-v1", input.seed, input.context.sequenceNumber,
+      input.context.probeId, item.key, item.version,
+    ].join(":"))) / Math.max(0.05, item.weight);
+    const chosen = [...scenes].sort((a,b) => score(a)-score(b) || a.key.localeCompare(b.key))[0];
+    // New-plan authoring only. Cross-layer probes must preserve demonstrated
+    // prerequisite strengths while exposing the profile's difficulty. The
+    // native projector describes every authored dimension before submission;
+    // the resulting canonical observations are persisted with the issued turn.
+    // This never reinterprets a historical response or assigns a placement.
+    return {
+      ...chosen,
+      studentBehavior: "The student responds to the prescribed probe under its stated conditions.",
+      canonicalObservations: chosen.canonicalObservations.map(observation => {
+        const dimension = DIAGNOSIS_OBSERVATION_MATRIX[observation.dimensionId];
+        const difficulty = dimension.phase === sandboxProfileDifficultyPhase(resolveSandboxBehaviorProfile(input.profileSeed!));
+        const dimensionLessons = sandboxDevelopmentLessons(input.context.continuityTags!, input.context.developmentTopicKey!, dimension.phase);
+        const behaviorClass = difficulty && dimensionLessons === 0 && input.context.probeId !== "stack.normal_independent" ? "conditional" : "supported";
+        const option = dimension.options.find(item => item.behaviorClass === behaviorClass);
+        if (!option) throw new Error("Sandbox development Diagnosis lacks an authored dimension response.");
+        return { ...observation, behaviorId: option.id };
+      }),
+    };
+  }
+
   const recent = new Set(input.context.recentOutcomeKeys || []);
   const nonRepeated = eligible.filter((definition) => !recent.has(definition.key));
   const repetitionEligible = nonRepeated.length ? nonRepeated : eligible;
@@ -421,12 +461,14 @@ export function buildSandboxDiagnosisProbeResult(input: {
 export function rebuildSandboxDiagnosisState(input: {
   startingPhase: TopicPhase;
   history: DiagnosisProbeResult[];
+  sessionStartProbeIndex?: number;
   inheritedTimingBaselineSeconds?: number | null;
 }): EvidenceCompleteDiagnosisState {
   let state = createEvidenceCompleteDiagnosisState(
     input.startingPhase,
     input.inheritedTimingBaselineSeconds || null,
   );
+  state.sessionStartProbeIndex = input.sessionStartProbeIndex || 0;
   for (const result of input.history) {
     state = recordEvidenceCompleteDiagnosisProbe(state, result);
   }

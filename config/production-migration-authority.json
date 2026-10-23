@@ -141,20 +141,6 @@
       "path": "migrations/20261014013834_sandbox_behavior_model_v2.sql",
       "description": "Add versioned Sandbox behaviour authority; existing trajectories remain V1 and new trajectories can elect V2.",
       "risk": "additive"
-    },
-    {
-      "path": "migrations/20261013_p0_anon_containment.sql",
-      "description": "P0 #178: fail closed across 62 reviewed no-RLS tables and three reviewed permissive-RLS tables for anon and authenticated direct access; retain existing privileged grants, abort global catalog drift, preserve previous containment.",
-      "risk": "destructive",
-      "sha256": "cc49ebb71bab6053ea7a780d0ceae7f0e0cea62f82cf58520b1ee0b9141c8731",
-      "authority": "Founder emergency containment authorization 2026-10-11; protected production-db PLAN/APPLY only"
-    },
-    {
-      "path": "migrations/20261013_p0_confidential_storage_private.sql",
-      "description": "P0 #178: make confidential tutor, COO Library and existing executive proof buckets private; retain object bytes, keys and intentionally public profile images. Requires protected download application release first.",
-      "risk": "destructive",
-      "sha256": "86f9f3794b02c5341ec2c47975046dd4dd0bae3349416337dbc5a1c6f4b8a89f",
-      "authority": "Founder emergency containment authorization 2026-10-11; protected production-db PLAN/APPLY only"
     }
   ]
 }

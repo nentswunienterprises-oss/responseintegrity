@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import StudentTopicConditioningDialog from "@/components/tutor/StudentTopicConditioningDialog";
 import { apiRequest } from "@/lib/queryClient";
 import { getAuthMode } from "@/lib/authMode";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -127,6 +128,7 @@ function formatTutorGradeLabel(grade?: string | null) {
 export default function TutorSessions() {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [selectedLogSession, setSelectedLogSession] = useState<TutorWeeklyScheduleSession | null>(null);
+  const [selectedMapSession, setSelectedMapSession] = useState<TutorWeeklyScheduleSession | null>(null);
   const [emergencyDbMode, setEmergencyDbMode] = useState(false);
 
   useEffect(() => {
@@ -142,9 +144,9 @@ export default function TutorSessions() {
 
   const weekKey = format(weekStart, "yyyy-MM-dd");
   const { data, isLoading } = useQuery<TutorWeeklyScheduleResponse>({
-    queryKey: ["/api/tutor/weekly-schedule", weekKey],
+    queryKey: ["/api/tutor/weekly-schedule", weekKey, weekStart.toISOString()],
     queryFn: async () => {
-      const response = await apiRequest("GET", `/api/tutor/weekly-schedule?weekStart=${weekKey}`);
+      const response = await apiRequest("GET", `/api/tutor/weekly-schedule?${new URLSearchParams({weekStart: weekKey, weekStartUtc: weekStart.toISOString(), weekEndUtc: addDays(weekStart, 7).toISOString()})}`);
       return response.json();
     },
     refetchInterval: emergencyDbMode ? false : 15000,
@@ -314,6 +316,13 @@ export default function TutorSessions() {
                               </Button>
                             ) : null}
 
+                            {operationalMode === "sandbox" && session.student?.id &&
+                              ["confirmed", "ready", "live"].includes(String(session.status || "").toLowerCase()) ? (
+                              <Button size="sm" variant="outline" onClick={() => setSelectedMapSession(session)}>
+                                Open Map
+                              </Button>
+                            ) : null}
+
                             {String(session.status || "").toLowerCase() === "completed" ? (
                               <Button
                                 size="sm"
@@ -334,6 +343,17 @@ export default function TutorSessions() {
           </>
         ) : null}
       </div>
+
+      {selectedMapSession?.student ? (
+        <StudentTopicConditioningDialog
+          open={true}
+          onOpenChange={(open) => { if (!open) setSelectedMapSession(null); }}
+          studentId={selectedMapSession.student.id}
+          studentName={selectedMapSession.student.name}
+          studentGrade={selectedMapSession.student.grade}
+          operationalMode="sandbox"
+        />
+      ) : null}
 
       <Dialog open={!!selectedLogSession} onOpenChange={(open) => !open && setSelectedLogSession(null)}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">

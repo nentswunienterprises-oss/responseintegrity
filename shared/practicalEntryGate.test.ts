@@ -2,11 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { evaluatePracticalEntryGate, type PracticalEntryGateInput } from "./practicalEntryGate";
 
+const qualified={policyId:"ri-sandbox-qualification",policyVersion:1,qualificationReady:true,evidenceFingerprint:"fingerprint-accepted"};
+
 const ready:PracticalEntryGateInput = {
  operationalMode:"sandbox",
  assignedTdId:"td-a",
- currentReadiness:{practicalsReady:true,policyStatus:"approved",policyVersion:2,bankKey:"sandbox_stateful_environment",bankVersion:3},
- latestAssignedTdSignoff:{decision:"passed",capabilitySnapshot:{practicalsReady:true,policyStatus:"approved",policyVersion:2,bankKey:"sandbox_stateful_environment",bankVersion:3}},
+ currentReadiness:{practicalsReady:true,policyStatus:"approved",policyVersion:2,bankKey:"sandbox_stateful_environment",bankVersion:3,qualification:{...qualified}},
+ latestAssignedTdSignoff:{decision:"passed",capabilitySnapshot:{practicalsReady:true,policyStatus:"approved",policyVersion:2,bankKey:"sandbox_stateful_environment",bankVersion:3,qualification:{...qualified}}},
 };
 const gate=(change:Partial<PracticalEntryGateInput>)=>evaluatePracticalEntryGate({...ready,...change});
 
@@ -44,4 +46,17 @@ test("Missing provenance or non-positive readiness fails closed",()=>{
  assert.equal(r.ready,false);
  assert.equal(gate({currentReadiness:{...ready.currentReadiness,practicalsReady:false}}).ready,false);
  assert.equal(gate({latestAssignedTdSignoff:{decision:"passed",capabilitySnapshot:{...ready.latestAssignedTdSignoff!.capabilitySnapshot,practicalsReady:false}}}).ready,false);
+});
+
+test("TD approval is invalidated by a new error, clean-run evidence, or policy version",()=>{
+ const changed=gate({currentReadiness:{...ready.currentReadiness,
+  qualification:{...qualified,evidenceFingerprint:"new-evidence"}}});
+ assert.equal(changed.ready,false);
+ assert.match(changed.blockers.join(" "),/fingerprint/i);
+ const newPolicy=gate({currentReadiness:{...ready.currentReadiness,
+  qualification:{...qualified,policyVersion:2}}});
+ assert.equal(newPolicy.ready,false);
+ const legacy=gate({latestAssignedTdSignoff:{decision:"passed",
+  capabilitySnapshot:{...ready.latestAssignedTdSignoff!.capabilitySnapshot,qualification:null}}});
+ assert.equal(legacy.ready,false);
 });

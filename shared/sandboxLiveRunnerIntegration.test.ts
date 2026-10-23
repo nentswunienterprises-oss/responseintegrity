@@ -525,6 +525,14 @@ test("Sandbox trajectory initialization is serialized across environment and his
     sandboxEnvironmentSource,
     /Both the environment form and history can initialize at the same time/,
   );
+  assert.match(
+    sandboxEnvironmentSource,
+    /sandbox-profile-allocation[\s\S]*selectSandboxBehaviorProfileSeed/,
+  );
+  assert.match(
+    sandboxEnvironmentSource,
+    /existing\.tutor_assignment_id = \$1[\s\S]*existing\.id <> \$5/,
+  );
 });
 
 test("stateful Sandbox surfaces the actual environment request failure", () => {
@@ -830,4 +838,45 @@ test("Sandbox history stays separate from the current package balance in the stu
   assert.match(serverRoutesSource, /sandbox-session:/);
   assert.match(serverRoutesSource, /specialist_phase, specialist_stability/);
   assert.match(serverRoutesSource, /certificationMode !== "sandbox"/);
+});
+
+
+test("required re-diagnosis launches the owner of the active operational lane", () => {
+  assert.match(topicMapSource, /sandbox-environment\/timing-rediagnosis/);
+  assert.match(sandboxAuthoritySource, /export async function armSandboxTimingRediagnosis/);
+  assert.match(sandboxAuthoritySource, /loadLatestTpsTimerContract/);
+  assert.match(
+    sandboxAuthoritySource,
+    /specialist_sandbox_rediagnosis_runs[\s\S]*status='completed'[\s\S]*deriveDiagnosisTpsTimerContract[\s\S]*persistTpsTimerContract/,
+    "a completed clean re-diagnosis repairs its missing timer lineage instead of opening another episode",
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /completedPlacementNeedsTimer[\s\S]*deriveDiagnosisTpsTimerContract[\s\S]*persistTpsTimerContract/,
+    "new completed re-diagnoses persist timing authority before ordinary Training resumes",
+  );
+  assert.match(sandboxAuthoritySource, /canonical_targeted_rediagnosis_phase='Structured Execution'/);
+  const start = topicMapSource.indexOf("      const topicParam = encodeURIComponent(topicState.topic);");
+  const end = topicMapSource.indexOf("\n    }", start);
+  assert.ok(start >= 0 && end > start);
+  const launch = new Function("topicState", "studentId", "sessionId", "isSandboxMode",
+    "setSessionTopicsModalOpen", "navigate", topicMapSource.slice(start, end));
+  const topicState = { topic: "Quadratic equations", phase: "Structured Execution", stability: "High",
+    hasObservedState: true, requiresTargetedRediagnosis: true, targetedRediagnosisStartPhase: "Clarity" };
+  for (const sandbox of [true, false]) {
+    let destination = "";
+    launch(topicState, "owned-student", "confirmed-booking", sandbox, () => {}, (url: string) => { destination = url; });
+    const url = new URL(destination, "https://preview.example");
+    assert.equal(url.pathname, "/specialist/intro-session/owned-student");
+    assert.equal(url.searchParams.get("topic"), "Quadratic equations");
+    assert.equal(url.searchParams.get("scheduledSessionId"), "confirmed-booking");
+    if (sandbox) {
+      assert.equal(url.searchParams.get("mode"), "training", "stateful runner owns Sandbox re-diagnosis and both lanes");
+      assert.equal(url.searchParams.get("rediagnosis"), null);
+    } else {
+      assert.equal(url.searchParams.get("rediagnosis"), "1");
+      assert.equal(url.searchParams.get("phase"), "Clarity");
+      assert.equal(url.searchParams.get("context"), "training");
+    }
+  }
 });

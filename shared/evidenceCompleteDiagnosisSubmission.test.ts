@@ -4,12 +4,15 @@ import {
   buildEvidenceCompleteDiagnosisLedgerRows,
   canonicalizeEvidenceJson,
   replayEvidenceCompleteDiagnosis,
+  diagnosisReplayInheritedBaselineSeconds,
 } from "./evidenceCompleteDiagnosisSubmission";
 import type {
   DiagnosisDimensionId,
   DiagnosisProbeId,
   DiagnosisProbeResult,
 } from "./evidenceCompleteDiagnosis";
+import { DIAGNOSIS_PROBES, isDiagnosisBaselineTimingOpportunity } from "./evidenceCompleteDiagnosis";
+import { DIAGNOSIS_OBSERVATION_MATRIX } from "./diagnosisObservationMatrix";
 import {
   buildPassiveExecutionTimingEvidence,
   buildTimedExecutionEvidence,
@@ -166,6 +169,56 @@ test("authoritative replay permits TPS-first probing when a valid inherited Time
   assert.equal(replay.decision.nextProbeId, "stack.timed_challenge");
   assert.equal(replay.decision.timingBaseline.source, "inherited_contract");
   assert.equal(replay.decision.timingBaseline.baselineSeconds, 54);
+});
+
+test("a newly earned timer contract cannot reroute earlier baseline probes on reload or submit", () => {
+  const runId = "synthetic-diagnosis";
+  const history: DiagnosisProbeResult[] = [];
+  let replay = replayEvidenceCompleteDiagnosis("Clarity", history);
+  for (let i = 0; i < 12; i++) {
+    assert.ok(replay.ok);
+    if (!replay.ok || replay.decision.timingBaseline.ready) break;
+    const probeId = replay.decision.nextProbeId!;
+    const values = Object.fromEntries(DIAGNOSIS_PROBES[probeId].dimensions.map(d => [d,
+      probeId === "stack.normal_independent" && ["clarity.vocabulary", "clarity.reason"].includes(d)
+        ? "not_observed"
+        : DIAGNOSIS_OBSERVATION_MATRIX[d].options.find(o => o.behaviorClass === "supported")!.id,
+    ]));
+    history.push(full(probeId, values, "none", isDiagnosisBaselineTimingOpportunity(probeId)
+      ? { passiveSeconds: 60 } : undefined));
+    replay = replayEvidenceCompleteDiagnosis("Clarity", history);
+  }
+  assert.ok(replay.ok);
+  if (!replay.ok) return;
+  assert.equal(replay.decision.timingBaseline.ready, true);
+  assert.equal(replay.decision.nextProbeId, "stack.timed_challenge");
+  const snapshot = JSON.stringify(history);
+  // Reproduces the old bug: newly persisted authority invalidates the very
+  // sequence that earned it by pretending the baseline existed at run start.
+  assert.equal(replayEvidenceCompleteDiagnosis("Clarity", history, 60).ok, false);
+  const inherited = diagnosisReplayInheritedBaselineSeconds(runId, `diagnosis-v1:${runId}`, 60);
+  const restored = replayEvidenceCompleteDiagnosis("Clarity", history, inherited);
+  assert.ok(restored.ok);
+  if (!restored.ok) return;
+  assert.equal(restored.decision.timingBaseline.source, "diagnosis_run");
+  assert.equal(restored.decision.timingBaseline.baselineSeconds, 60);
+  assert.equal(JSON.stringify(history), snapshot);
+  history.push(full("stack.timed_challenge", {
+    ...claritySupported, ...executionImmediateSupported, ...difficultySupported, ...timeBreakdown,
+  }, "none", { timed: { prescribedSeconds: 60, elapsedSeconds: 50 } }));
+  const submitted = replayEvidenceCompleteDiagnosis("Clarity", history, inherited);
+  assert.ok(submitted.ok);
+  if (!submitted.ok) return;
+  assert.equal(submitted.decision.complete, true);
+  assert.equal(submitted.decision.placementPhase, "Time Pressure Stability");
+  // A contract earned by a different run or Training remains legitimate
+  // inherited authority, including legacy seconds without an epoch marker.
+  for (const epoch of ["diagnosis-v1:other-run", "training:other", null]) {
+    const baseline = diagnosisReplayInheritedBaselineSeconds(runId, epoch, 54);
+    const prior = replayEvidenceCompleteDiagnosis("Time Pressure Stability", [], baseline);
+    assert.ok(prior.ok);
+    if (prior.ok) assert.equal(prior.decision.nextProbeId, "stack.timed_challenge");
+  }
 });
 
 test("TPS starting signal cannot jump directly to an arbitrary timed challenge", () => {
@@ -350,4 +403,38 @@ test("canonical evidence comparison ignores jsonb object-key reordering but pres
       observations: [...jsonbRoundTrip.observations].reverse(),
     }),
   );
+});
+
+test("persisted pre-fix mixed episode can resolve without discarding later historical observations",()=>{
+ const history=[
+  full("clarity.recognition",claritySupported),
+  full("stack.normal_independent",{...claritySupported,...executionImmediateSupported}),
+  full("execution.repeatability",{...executionSupported,"execution.start":"guessing_or_disordered_start"}),
+  full("execution.repeatability",executionSupported),
+  full("execution.repeatability",{...executionSupported,"execution.start":"valid_start_after_hesitation","execution.repeatability":"repeat_with_minor_drift"}),
+ ];
+ const snapshot=JSON.stringify(history);
+ const restored=replayEvidenceCompleteDiagnosis("Clarity",history,null,{legacyPrefixLength:history.length});
+ assert.equal(restored.ok,true);
+ if(!restored.ok)return;
+ assert.equal(restored.decision.complete,true);
+ assert.equal(restored.decision.placementPhase,"Structured Execution");
+ assert.equal(restored.decision.stability,"Medium");
+ assert.equal(restored.state.probeHistory.length,5);
+ assert.equal(JSON.stringify(history),snapshot);
+ // A new client cannot submit extra responses after placement is already known.
+ assert.equal(replayEvidenceCompleteDiagnosis("Clarity",history).ok,false);
+});
+
+test("server session boundaries resume the precise missing question while retaining prior observations",()=>{
+ const missing=full("clarity.recognition",{...claritySupported,"clarity.reason":"not_observed"});
+ const history=[missing,missing,full("clarity.recognition",{...claritySupported,"clarity.reason":"partial_reason"})];
+ assert.equal(replayEvidenceCompleteDiagnosis("Clarity",history).ok,false);
+ const resumed=replayEvidenceCompleteDiagnosis("Clarity",history,null,{sessionStarts:[0,2]});
+ assert.equal(resumed.ok,true);
+ if(!resumed.ok)return;
+ assert.equal(resumed.decision.complete,true);
+ assert.equal(resumed.decision.stability,"Medium");
+ assert.equal(resumed.state.probeHistory.length,3);
+ assert.equal(replayEvidenceCompleteDiagnosis("Clarity",history,null,{sessionStarts:[0,0]}).ok,false);
 });

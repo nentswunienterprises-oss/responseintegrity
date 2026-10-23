@@ -33,6 +33,7 @@ type DiagnosisApiResponse = {
   success: boolean;
   runId: string;
   finalized: boolean;
+  startingPhase?: TopicPhase;
   sourceDrillId?: string | null;
   probeHistory: DiagnosisProbeResult[];
   decision: EvidenceCompleteDiagnosisDecision;
@@ -368,6 +369,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
   const postHistory = async (
     id: string,
     probeHistory: DiagnosisProbeResult[],
+    effectiveStartingPhase: TopicPhase = apiState?.startingPhase || startingPhase,
   ): Promise<DiagnosisApiResponse> => {
     const headers = await authHeaders();
     const response = await fetch(
@@ -380,7 +382,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
           diagnosisRunId: id,
           studentId,
           topic,
-          startingPhase,
+          startingPhase: effectiveStartingPhase,
           scheduledSessionId,
           sessionContextKind,
           probeHistory,
@@ -469,21 +471,20 @@ export default function EvidenceCompleteDiagnosisRunner() {
         const runtime = await loadRuntimeAuthority();
         if (!cancelled) setRuntimeAuthority(runtime);
 
+        const headers = await authHeaders();
+        const pendingResponse = await fetch(`${API_URL}/api/tutor/evidence-complete-diagnosis/pending?studentId=${encodeURIComponent(studentId)}&topic=${encodeURIComponent(topic)}`,
+          { headers, credentials: "include" });
+        if (!pendingResponse.ok) throw new Error("The existing evidence process could not be checked. Retry before starting a new diagnosis.");
+        const pending = await pendingResponse.json();
         const storedRunId = window.sessionStorage.getItem(storageKey);
-        const id =
-          storedRunId && isUuidLike(storedRunId) ? storedRunId : createRunId();
+        let id = pending.runId || (storedRunId && isUuidLike(storedRunId) ? storedRunId : createRunId());
+        let state = (pending.runId || storedRunId) ? await loadExisting(id) : null;
+        // This also authorizes a new session boundary against the server-owned booking.
+        if (state && !state.finalized) state = await postHistory(id, state.probeHistory, state.startingPhase || startingPhase);
+        if (!state) state = await postHistory(id, []);
+        id = state.runId;
         window.sessionStorage.setItem(storageKey, id);
         if (!cancelled) setRunId(id);
-
-        let state = storedRunId ? await loadExisting(id) : null;
-        if (!state) {
-          state = await postHistory(id, []);
-        } else if (!state.finalized && state.decision?.complete) {
-          // A prior finalization can fail after probe_history is durable but before
-          // ledger/topic-state completion. Re-submit the exact stored history to
-          // resume finalization instead of stranding the specialist outside the runner.
-          state = await postHistory(id, state.probeHistory);
-        }
 
         const nextProbe = state.nextProbe || null;
         const nextOpportunityNumber =
@@ -1487,14 +1488,15 @@ export default function EvidenceCompleteDiagnosisRunner() {
         ) : blocked && decision ? (
           <section className="rounded-2xl border border-amber-500/30 bg-card p-6">
             <h2 className="text-xl font-semibold">
-              Evidence review required
+              Continue evidence gathering next session
             </h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               {decision.reason}
             </p>
             <p className="mt-4 text-sm font-medium">
-              Do not guess a placement or choose another probe manually.
+              {decision.continuation?.parentMessage || "Preserve the observations and continue the remaining evidence question at the next confirmed lesson."}
             </p>
+            <button type="button" className="mt-4 rounded-lg bg-primary px-4 py-2 text-primary-foreground" onClick={() => navigate("/specialist/sessions")}>Open Sessions for the next confirmed lesson</button>
           </section>
         ) : currentProbe ? (
           !opportunityStarted ? (

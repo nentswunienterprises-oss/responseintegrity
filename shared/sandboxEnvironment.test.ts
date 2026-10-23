@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { DIAGNOSIS_OBSERVATION_MATRIX, type DiagnosisDimensionId } from "./diagnosisObservationMatrix";
 import {
   SANDBOX_CAPABILITY_LAYERS,
   compareSandboxTurn,
@@ -26,7 +27,8 @@ import {
   resolveEvidenceSelection,
 } from "./responseIntegrityDrillRegistry";
 import type { TopicPhase } from "./topicConditioningEngine";
-import { SANDBOX_BEHAVIOR_PROFILE_MODEL_VERSION, isSandboxBehaviorTransitionPlausible, resolveSandboxBehaviorProfile, sandboxBehaviorObservableSignatureMultiplier, sandboxBehaviorProfileMultiplier, sandboxBehaviorTransitionMultiplier } from "./sandboxBehaviorProfiles";
+import { resolveResponseEvidenceDimension } from "./responseEvidenceModel";
+import { SANDBOX_BEHAVIOR_PROFILE_IDS_V1, SANDBOX_BEHAVIOR_PROFILE_MODEL_VERSION, isSandboxBehaviorTransitionPlausible, resolveSandboxBehaviorProfile, sandboxBehaviorObservableSignatureMultiplier, sandboxBehaviorProfileMultiplier, sandboxBehaviorTransitionMultiplier, selectSandboxBehaviorProfileSeed } from "./sandboxBehaviorProfiles";
 import { SANDBOX_BEHAVIOR_NARRATIVE_VERSION, renderSandboxBehaviorNarrativeV2 } from "./sandboxBehaviorNarrativesV2";
 import {
   getLegacyStatefulSandboxV1ScenarioTruthAudit,
@@ -310,6 +312,100 @@ test("constrained shuffle is deterministic and can target the earliest unsupport
   assert.notEqual(withoutRepeat.key, "b");
 });
 
+test("V2 capability targeting cannot starve intermediate recovery after a breakdown", () => {
+  const candidates = [
+    outcomeFor({ setId: "clarity.identification", repNumber: 1, key: "target.breakdown", trajectoryClass: "breakdown", challenge: "continuity_integrity" }),
+    outcomeFor({ setId: "clarity.identification", repNumber: 1, key: "intermediate", trajectoryClass: "near_stable" }),
+    outcomeFor({ setId: "clarity.identification", repNumber: 1, key: "clean", trajectoryClass: "supported" }),
+  ];
+  const context = {
+    canonicalPhase: phase, canonicalStability: "Low" as const,
+    prescribedPhase: phase, setId: "clarity.identification", repNumber: 1,
+    sequenceNumber: 7, earliestUnsupportedCapability: "continuity_integrity" as const,
+    previousTrajectoryClass: "breakdown" as const, behaviorModelVersion: 2 as const,
+  };
+  const selected = new Set(Array.from({ length: 64 }, (_, index) => {
+    const input = { seed: `synthetic-recovery-${index}`, outcomes: candidates, context };
+    const first = selectSandboxOutcome(input);
+    assert.equal(first.key, selectSandboxOutcome(input).key);
+    assert.notEqual(first.key, "clean", "immediate breakdown-to-supported remains forbidden");
+    return first.key;
+  }));
+  assert.ok(selected.has("intermediate"), "a non-targeted intermediate must remain eligible");
+  assert.ok(selected.has("target.breakdown"), "recovery must not be guaranteed");
+  const afterIntermediate = new Set(Array.from({ length: 64 }, (_, index) =>
+    selectSandboxOutcome({ seed: `synthetic-recovery-${index}`, outcomes: candidates,
+      context: { ...context, previousTrajectoryClass: "near_stable" } }).key,
+  ));
+  assert.ok(afterIntermediate.has("clean"), "recovery can continue after an observed intermediate");
+  const afterSupported = new Set(Array.from({ length: 64 }, (_, index) =>
+    selectSandboxOutcome({ seed: `synthetic-retention-${index}`, outcomes: candidates,
+      context: { ...context, previousTrajectoryClass: "supported" } }).key,
+  ));
+  assert.ok(afterSupported.has("clean"), "hard targeting must not force relapse after recovery");
+  const incompatibleRecovery = { ...candidates[1], allowedCanonicalStabilities: ["High" as const] };
+  assert.equal(selectSandboxOutcome({ seed: "state-boundary", outcomes: [candidates[0], incompatibleRecovery, candidates[2]], context }).key, "target.breakdown", "recovery cannot bypass state compatibility");
+  assert.equal(selectSandboxOutcome({ seed: "legacy", outcomes: candidates, context: { ...context, behaviorModelVersion: 1 } }).key, "target.breakdown", "historical V1 targeting stays unchanged");
+});
+
+test("V2 capability targeting cannot starve observable uneven performance after support", () => {
+  const candidates = [
+    outcomeFor({ setId: "clarity.identification", repNumber: 1, key: "target.breakdown", trajectoryClass: "breakdown", challenge: "continuity_integrity" }),
+    outcomeFor({ setId: "clarity.identification", repNumber: 1, key: "uneven.near-stable", trajectoryClass: "near_stable" }),
+    outcomeFor({ setId: "clarity.identification", repNumber: 1, key: "uneven.conditional", trajectoryClass: "conditional" }),
+    outcomeFor({ setId: "clarity.identification", repNumber: 1, key: "clean", trajectoryClass: "supported" }),
+  ];
+  const context = {
+    canonicalPhase: phase, canonicalStability: "High" as const,
+    prescribedPhase: phase, setId: "clarity.identification", repNumber: 1,
+    sequenceNumber: 7, earliestUnsupportedCapability: "continuity_integrity" as const,
+    previousTrajectoryClass: "supported" as const, behaviorModelVersion: 2 as const,
+  };
+  const unevenSeeds = Array.from({ length: 512 }, (_, index) => `synthetic-uneven-${index}`)
+    .filter((seed) => resolveSandboxBehaviorProfile(seed) === "uneven_performer");
+  const selected = new Set(unevenSeeds.map((seed) =>
+    selectSandboxOutcome({ seed, outcomes: candidates, context }).trajectoryClass,
+  ));
+  assert.ok(selected.has("near_stable") || selected.has("conditional"),
+    "hard targeting must preserve an observable supported-to-weaker transition");
+  assert.ok(selected.has("supported"), "uneven behavior must not be forced");
+  assert.ok(selected.has("breakdown"), "capability challenge must remain eligible");
+});
+
+test("V2 capability targeting keeps phase-specific profile signatures eligible", () => {
+  const template = outcomeFor({
+    setId: "clarity.identification", repNumber: 1, key: "template",
+  });
+  const candidates = [
+    { ...template, phase: "Structured Execution" as const,
+      setId: "structured_execution.required_structure", key: "structured.required.pattern_1",
+      trajectoryClass: "breakdown" as const, challengeCapabilities: ["continuity_integrity" as const] },
+    { ...template, phase: "Structured Execution" as const,
+      setId: "structured_execution.required_structure", key: "structured.required.pattern_3",
+      trajectoryClass: "conditional" as const, challengeCapabilities: [] },
+    { ...template, phase: "Structured Execution" as const,
+      setId: "structured_execution.required_structure", key: "structured.required.pattern_2",
+      trajectoryClass: "supported" as const, challengeCapabilities: [] },
+  ];
+  const seed = Array.from({ length: 128 }, (_, index) => `synthetic-reassurance-${index}`)
+    .find((candidate) => resolveSandboxBehaviorProfile(candidate) === "reassurance_seeker");
+  assert.ok(seed);
+  const selected = new Set(Array.from({ length: 96 }, (_, index) =>
+    selectSandboxOutcome({ seed: seed!, outcomes: candidates, context: {
+      canonicalPhase: "Structured Execution", canonicalStability: "Medium",
+      prescribedPhase: "Structured Execution",
+      setId: "structured_execution.required_structure", repNumber: 1,
+      sequenceNumber: index + 1,
+      earliestUnsupportedCapability: "continuity_integrity",
+      previousTrajectoryClass: "near_stable", behaviorModelVersion: 2,
+    } }).key,
+  ));
+  assert.ok(selected.has("structured.required.pattern_3"),
+    "hard targeting must preserve the profile's observable signature scene");
+  assert.ok(selected.has("structured.required.pattern_1"),
+    "capability challenge must remain eligible");
+});
+
 test("Sandbox student behavior profile is deterministic and changes phase tendencies without suppressing evidence anomalies", () => {
   const seed = "student-profile-seed";
   const first = resolveSandboxBehaviorProfile(seed);
@@ -533,6 +629,52 @@ test("three distinct evidence-native Sandbox sessions establish High, repeatabil
   }
 });
 
+test("aligned held state neither earns new continuity proof nor erases demonstrated recovery", () => {
+  const turns = fullClaritySession().map((turn) => {
+    const outcome = outcomeFor({
+      setId: turn.setId,
+      repNumber: turn.repNumber,
+      key: `${turn.setId}.${turn.repNumber}.near-stable`,
+      optionIndex: 2,
+      trajectoryClass: "near_stable",
+    });
+    return { ...turn, outcome, specialistObservations: specialistCopy(outcome) };
+  });
+  const result = evaluateSandboxCompletedSession({
+    phase: "Clarity",
+    canonicalPreviousStability: "High",
+    specialistPreviousStability: "High",
+    turns,
+    priorCompletedSessions: 3,
+    priorTracksDiverged: false,
+  });
+  assert.equal(result.systemOutcomeMatched, true);
+  assert.deepEqual(result.canonicalNext, {
+    phase: "Clarity", stability: "High", progressionAuthority: "building",
+  });
+  const held = result.capabilityEvidence.find((item) => item.layer === "continuity_integrity")!;
+  assert.equal(held.evidenceClass, "not_observed");
+  assert.equal(resolveResponseEvidenceDimension({
+    evidence: [held], minimumValidOpportunities: 2,
+  }).state, "UNRESOLVED", "holding alone must not mint continuity readiness");
+  const recovery = resolveResponseEvidenceDimension({
+    evidence: [
+      { evidenceClass: "breakdown" as const },
+      { evidenceClass: "supported" as const },
+      { evidenceClass: "supported" as const },
+      { evidenceClass: "supported" as const },
+      held,
+    ], minimumValidOpportunities: 2,
+  });
+  assert.equal(recovery.state, "SUPPORTED");
+  assert.equal(recovery.recoveredAfterBreakdown, true);
+  assert.equal(recovery.validOpportunityCount, 4);
+  assert.equal(resolveResponseEvidenceDimension({
+    evidence: [{ evidenceClass: "breakdown" as const }, held],
+    minimumValidOpportunities: 1,
+  }).state, "BREAKDOWN", "neutral holding must not repair a real divergence");
+});
+
 test("legacy checkpoint and separated checkpoint give identical held continuity, without false state changes", () => {
   const turns = fullClaritySession();
   const priorSessions = 2;
@@ -694,6 +836,33 @@ test("versioned Sandbox behavioural continuity preserves legacy assignments and 
       context: { ...ctx, behaviorModelVersion: 1 } }).key,
     supported.key,
   );
+});
+
+test("new trajectory seeds fill every missing behavior profile before repeating", () => {
+  const allocated: string[] = [];
+  for (let index = 0; index < SANDBOX_BEHAVIOR_PROFILE_IDS_V1.length; index += 1) {
+    allocated.push(selectSandboxBehaviorProfileSeed({
+      baseSeed: `new-trajectory-${index}`,
+      existingSeeds: allocated,
+    }));
+  }
+
+  assert.deepEqual(
+    new Set(allocated.map(resolveSandboxBehaviorProfile)),
+    new Set(SANDBOX_BEHAVIOR_PROFILE_IDS_V1),
+  );
+  const baseSeed = "seventh-trajectory";
+  assert.equal(selectSandboxBehaviorProfileSeed({
+    baseSeed,
+    existingSeeds: allocated,
+  }), baseSeed);
+});
+
+test("profile seed allocation preserves every previously persisted assignment", () => {
+  const persisted = ["identity-v1-0", "identity-v1-4"];
+  const before = persisted.map(resolveSandboxBehaviorProfile);
+  selectSandboxBehaviorProfileSeed({baseSeed:"new-trajectory",existingSeeds:persisted});
+  assert.deepEqual(persisted.map(resolveSandboxBehaviorProfile), before);
 });
 
 test("V2 Sandbox cannot erase a breakdown without an observable intermediate response", () => {
@@ -889,7 +1058,7 @@ test("all four Training phases evaluate V4 rep-specific Sandbox observations wit
 
 
 test("V2 renders 231 credible outcomes and excludes all invented not-observed encounters while V1 is unchanged", () => {
-  assert.equal(SANDBOX_BEHAVIOR_NARRATIVE_VERSION, 4);
+  assert.equal(SANDBOX_BEHAVIOR_NARRATIVE_VERSION, 5);
   const seen = new Map<string, string>();
   const counts: Record<string, number> = {};
   for (const trainingPhase of [
@@ -924,10 +1093,15 @@ test("V2 renders 231 credible outcomes and excludes all invented not-observed en
           const legacy = projectSandboxOutcomeToCurrentTrainingContract(authored,1,1);
           const v2 = projectSandboxOutcomeToCurrentTrainingContract(authored,1,2);
           assert.notEqual(legacy.studentBehavior,v2.studentBehavior,key+" did not change");
-          assert.equal(v2.studentBehavior,
+          assert.ok(v2.studentBehavior.startsWith(
             renderSandboxBehaviorNarrativeV2({
               phase:trainingPhase,setId:set.setId,outcomeKey:key,repNumber:rep,
-            }));
+            })!));
+          for (const field of getFieldDefinitionsForRep(set, rep - 1)) {
+            const dimension = DIAGNOSIS_OBSERVATION_MATRIX[field.dimensionId as DiagnosisDimensionId];
+            assert.ok(v2.studentBehavior.includes(dimension?.label || field.observationQuestion!),
+              key + " omitted visible evidence for " + field.dimensionId);
+          }
           // Except for downstream evidence also contaminated by a rare
           // reference cue, canonical meaning must remain byte-for-byte equal.
           // V1 has no overrides; the six ordinary outcome patterns are intact.
@@ -970,7 +1144,7 @@ test("V2 renders 231 credible outcomes and excludes all invented not-observed en
             key+" altered state, selected options or capability authority",
           );
           const text = v2.studentBehavior;
-          assert.ok(text.length >= 100 && text.length < 850,key+" has an unsuitable length");
+          assert.ok(text.length >= 100 && text.length < 2400,key+" has an unsuitable length");
           assert.ok(!/\b(?:outcome[_ ]key|pattern_\d|rep_\d|evidence class|not_observed|confounded|near_stable|high maintenance)\b/i.test(text),
             key+" exposed implementation or scoring language");
           const previous = seen.get(text);
@@ -999,6 +1173,37 @@ test("V2 renders 231 credible outcomes and excludes all invented not-observed en
     phase:"Clarity",setId:"clarity.identification",
     outcomeKey:"clarity.identification.rep_1.pattern_7",repNumber:1,
   }),null,"V2 may not author a missing-observation incident");
+});
+
+test("V2 does not grade an unrequested prerequisite check after conditional execution", () => {
+  const phase = "Structured Execution" as const;
+  const setId = "structured_execution.required_structure";
+  const sourceSet = getDrillSchemaDefinitionByVersion("training", phase, 1)!.sets.find(s => s.setId === setId)!;
+  for (const pattern of [4, 6]) {
+    const original: SandboxOutcomeDefinition = {
+      key: `${setId}.rep_1.pattern_${pattern}`, version: 1, phase, setId, repNumber: 1,
+      studentBehavior: "Synthetic historical response.", trajectoryClass: "conditional", weight: 1,
+      canonicalPrerequisiteSentinel: "contradicted",
+      canonicalInheritedRescueSignal: "none",
+      canonicalObservations: Object.fromEntries(sourceSet.fields.map(field => [field.fieldKey, {
+        optionId: `${getRepPurposeId(sourceSet,0)}.${field.dimensionId}.option_1`,
+        evidenceStatus: "observed" as const,
+      }])),
+    };
+    const projected = projectSandboxOutcomeToCurrentTrainingContract(original, 1, 2);
+    assert.equal(projected.canonicalPrerequisiteSentinel, pattern === 6 ? "contradicted" : undefined);
+    assert.equal(projected.canonicalInheritedRescueSignal, undefined);
+    const compared = compareSandboxTurn({
+      sequenceNumber:1,sessionNumber:1,phase,setId,repNumber:1,outcome:projected,
+      specialistObservations:projected.canonicalObservations,
+      actualInterventionEvent:"none",recordedInterventionEvent:"none",conditionConformed:true,
+      ...(pattern === 6 ? {specialistPrerequisiteSentinel:"contradicted" as const} : {}),
+    });
+    assert.equal(compared.observationExact, true);
+    assert.equal(compared.evidenceExact, true, "Exact observations must not fail for a check the runner forbids submitting");
+    assert.equal(original.canonicalPrerequisiteSentinel, "contradicted", "Preserve authored/historical source truth");
+    assert.equal(projectSandboxOutcomeToCurrentTrainingContract(original,1,1).canonicalPrerequisiteSentinel,"contradicted");
+  }
 });
 
 test("V2 rep-to-rep conduct changes even when the same pattern repeats", () => {

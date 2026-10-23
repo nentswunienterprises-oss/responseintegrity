@@ -27,9 +27,9 @@ import {
 } from "./tpsTimingContract";
 
 export const EVIDENCE_COMPLETE_DIAGNOSIS_SCHEMA_ID = "ri.diagnosis.evidence_native";
-export const EVIDENCE_COMPLETE_DIAGNOSIS_SCHEMA_VERSION = 2;
+export const EVIDENCE_COMPLETE_DIAGNOSIS_SCHEMA_VERSION = 3;
 export const EVIDENCE_COMPLETE_DIAGNOSIS_DEFINITION_HASH =
-  "d5af9c66f1b8e807b325e898884416662a0c743ad1b82f446b08ff34f16d9de2";
+  "a3d3104c9bcd9b6c64805320f5e9f2fdc6f7246c4a2a356ac72dab2533221cc3";
 export const MAX_EVIDENCE_COMPLETE_DIAGNOSIS_PROBES = 12;
 
 export const canonicalizeEvidenceJson = (value: unknown): string => {
@@ -165,15 +165,32 @@ const validateExactProbeDimensions = (
   return null;
 };
 
+// A contract earned inside this run is an output of replay, never authority
+// inherited at its beginning. Otherwise it retroactively changes probe routing.
+export function diagnosisReplayInheritedBaselineSeconds(
+  runId: string,
+  contractSourceEpochKey: string | null | undefined,
+  boundBaselineSeconds: number | null,
+): number | null {
+  return runId && contractSourceEpochKey === `diagnosis-v1:${runId}`
+    ? null
+    : boundBaselineSeconds;
+}
+
 export function replayEvidenceCompleteDiagnosis(
   startingPhase: TopicPhase | null,
   rawProbeHistory: unknown,
   inheritedTimingBaselineSeconds: number | null = null,
+  context: { sessionStarts?: number[]; legacyPrefixLength?: number } = {},
 ): EvidenceCompleteDiagnosisReplay {
   if (!Array.isArray(rawProbeHistory)) {
     return { ok: false, error: "probeHistory must be an array" };
   }
-  if (rawProbeHistory.length > MAX_EVIDENCE_COMPLETE_DIAGNOSIS_PROBES) {
+  const starts = context.sessionStarts || [0];
+  if (starts[0] !== 0 || starts.some((n, i) => !Number.isInteger(n) || n < 0 || n > rawProbeHistory.length || (i > 0 && n <= starts[i - 1]))) {
+    return { ok: false, error: "Invalid persisted diagnosis session boundaries" };
+  }
+  if (rawProbeHistory.length - starts[starts.length - 1] > MAX_EVIDENCE_COMPLETE_DIAGNOSIS_PROBES) {
     return {
       ok: false,
       error: `Diagnosis exceeded the ${MAX_EVIDENCE_COMPLETE_DIAGNOSIS_PROBES}-probe safety limit`,
@@ -184,9 +201,14 @@ export function replayEvidenceCompleteDiagnosis(
     startingPhase,
     inheritedTimingBaselineSeconds,
   );
+  const legacyPrefixLength = context.legacyPrefixLength || 0;
+  if (legacyPrefixLength) state.decisionPolicyVersion = 1;
   let decision = evaluateEvidenceCompleteDiagnosis(state);
 
   for (let index = 0; index < rawProbeHistory.length; index += 1) {
+    if (index === legacyPrefixLength) state.decisionPolicyVersion = 2;
+    if (index > 0 && starts.includes(index)) state.sessionStartProbeIndex = index;
+    decision = evaluateEvidenceCompleteDiagnosis(state);
     if (decision.complete) {
       return {
         ok: false,
@@ -280,6 +302,9 @@ export function replayEvidenceCompleteDiagnosis(
     decision = evaluateEvidenceCompleteDiagnosis(state);
   }
 
+  state.decisionPolicyVersion = 2;
+  state.sessionStartProbeIndex = starts[starts.length - 1];
+  decision = evaluateEvidenceCompleteDiagnosis(state);
   return {
     ok: true,
     state,

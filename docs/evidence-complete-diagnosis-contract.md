@@ -10,7 +10,7 @@ A diagnostic opportunity exists only because the system has an unresolved eviden
 
 1. placement is sufficiently determined -> stop diagnosis;
 2. a specific evidence question remains unresolved -> issue the next named probe;
-3. the evidence was contaminated or remains irreconcilable -> do not guess; request a clean system-selected probe or block placement for review.
+3. the evidence is missing or contaminated -> do not guess; request the clean system-selected probe. At the session limit preserve the episode and prescribe continuation in a later confirmed lesson.
 
 Training remains separate. Training can deliberately use volume, repeated exposure, modeling, correction and reinforcement. Diagnosis cannot silently become training.
 
@@ -424,3 +424,12 @@ A response must not be called a Clarity breakdown merely because the student has
 The observation matrix therefore allows the Specialist to record that a behavior was not meaningfully observable or was confounded by uncertain content exposure. Such evidence remains unresolved/confounded rather than being converted into Low.
 
 A dedicated content-readiness workflow may later make this precondition explicit before diagnosis begins; until then the engine must block rather than invent a response-conditioning placement from unavailable content.
+
+
+## Decision policy 2 — mixed evidence and session continuation (18 October 2026)
+
+Clean success plus clean instability in a dimension demonstrates variability. It does not create an absorbing conflict state. The earliest unsupported response layer decides Training; clean breakdown, conditional response and near-stable response continue to derive Low, Medium and High categorically. Missing and contaminated evidence cannot become weakness. Required repeatability evidence and the three clean comparable TPS timing intervals are unchanged.
+
+Attempt limits apply to the current session, including contaminated attempts. An exhausted budget returns a named continuation probe and a parent-comprehensible explanation. Opening the next confirmed, later lesson restores the same run and earlier observations, with server-authorized session boundaries. The Specialist cannot select placement, reset the current session budget, replace previous evidence or choose a different probe. Higher-phase placement and timed testing remain unavailable without the required earlier-layer and timing authority.
+
+Unfinished historical runs can be interpreted with policy 2 while validating their persisted prefix against the original protocol. The previous decision is retained when a result is applied. Historical completed runs keep their recorded outcome. Valid pending placement is tracked separately from invalid source evidence in Sandbox qualification and cannot award coverage or readiness.

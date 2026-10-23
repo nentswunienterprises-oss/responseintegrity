@@ -1,5 +1,4 @@
 import "./loadEnv";
-import { verifyP0RenderPrivilegedCredential } from "./p0RenderRuntimePreflight";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes.ts";
 import { registerEvidenceCompleteDiagnosisRoutes } from "./evidenceCompleteDiagnosisRoutes";
@@ -145,19 +144,5 @@ app.use((req, res, next) => {
     host: "0.0.0.0"
   }, () => {
     console.log(`[express] serving on port ${finalPort}`);
-    // One-time P0 release preflight in the actual existing Render runtime.
-    // Never expose a public diagnostic route, credentials or user records.
-    if (process.env.RENDER_SERVICE_ID === "srv-d544dnu3jp1c739139vg") {
-      void verifyP0RenderPrivilegedCredential().then((receipt) => {
-        if (receipt) console.log("[P0_RENDER_PREFLIGHT] " + JSON.stringify(receipt));
-      }).catch(() => {
-        console.error("[P0_RENDER_PREFLIGHT] " + JSON.stringify({
-          event: "P0_RENDER_PRIVILEGED_CREDENTIAL",
-          status: "BLOCKED",
-          reason: "unexpected_probe_failure",
-          sourceCommit: process.env.RENDER_GIT_COMMIT || null,
-        }));
-      });
-    }
   });
 })();

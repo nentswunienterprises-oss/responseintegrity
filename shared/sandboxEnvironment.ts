@@ -1,3 +1,4 @@
+import { hasSandboxDevelopmentPlan, sandboxDevelopmentCandidates, sandboxDevelopmentLessons, sandboxDevelopmentDraw } from "./sandboxDevelopmentPlan";
 import { PHASES, type TopicPhase, type TopicStability } from "./topicConditioningEngine";
 import { normalizeCapabilityProgressionState, type CapabilityStability, type ProgressionAuthority } from "./capabilityProgressionAuthority";
 import {
@@ -24,6 +25,7 @@ import {
   evaluateTrainingEvidence,
   resolveTrainingEvidenceAuthorityRoute,
   trainingEvidenceClassForRawBehavior,
+  trainingRawObservationRequiresPrerequisiteSentinel,
   type TrainingEvidenceAuthorityRoute,
 } from "./trainingEvidenceEvaluator";
 import {
@@ -32,8 +34,10 @@ import {
   type ResponseEvidenceDimensionState,
 } from "./responseEvidenceModel";
 import type { TrainingDimensionId } from "./trainingEvidenceContract";
-import { isSandboxBehaviorTransitionPlausible, sandboxBehaviorProfileMultiplier, sandboxBehaviorTransitionMultiplier } from "./sandboxBehaviorProfiles";
+import { isSandboxBehaviorTransitionPlausible, sandboxBehaviorObservableSignatureMultiplier, sandboxBehaviorProfileMultiplier, sandboxBehaviorTransitionMultiplier } from "./sandboxBehaviorProfiles";
 import { renderSandboxBehaviorNarrativeV2 } from "./sandboxBehaviorNarrativesV2";
+import { DIAGNOSIS_OBSERVATION_MATRIX, type DiagnosisDimensionId } from "./diagnosisObservationMatrix";
+import { getTrainingObservationDefinitionV2 } from "./trainingObservationContractV2";
 import {
   getLegacyStatefulSandboxV1RequiredStructureStepPlanAudit,
   getLegacyStatefulSandboxV1ScenarioTruthAudit,
@@ -47,6 +51,8 @@ export const SANDBOX_CAPABILITY_LAYERS = [
   "authority_integrity",
   "continuity_integrity",
 ] as const;
+
+export const SANDBOX_TRAINING_OBSERVATION_PROTOCOL_VERSION = 2;
 
 export type SandboxCapabilityLayer = typeof SANDBOX_CAPABILITY_LAYERS[number];
 export type SandboxTrajectoryClass = ResponseEvidenceClass;
@@ -108,6 +114,8 @@ export type SandboxOutcomeSelectionContext = {
   recentOutcomeKeys?: string[];
   /** Legacy trajectories remain V1; new trajectories opt into V2. */
   behaviorModelVersion?: 1 | 2;
+  developmentTopicKey?: string;
+  developmentRepIndex?: number;
 };
 
 export type SandboxSubmittedObservation = {
@@ -460,6 +468,34 @@ export function projectSandboxOutcomeToCurrentTrainingContract(
     );
   }
 
+  // A scene alone can omit a dimension the runner requires (for example,
+  // immediate application in Light Apply). Describe every exposed observation
+  // without publishing private option IDs or changing its scoring truth.
+  const observationDetails = behaviorModelVersion === 2
+    ? currentFields.map(field => {
+        const canonical = canonicalObservations[field.fieldKey];
+        const resolved = resolveEvidenceSelection({
+          mode: "training", phase: definition.phase, setId: definition.setId,
+          repIndex, fieldKey: field.fieldKey, optionId: canonical.optionId,
+          schemaVersion: currentSchema.schemaVersion,
+        });
+        if (!resolved) throw new Error("Sandbox response has unknown observation truth.");
+        const dimension = getTrainingObservationDefinitionV2(field.dimensionId as TrainingDimensionId);
+        const label = resolved.field.optionLabels?.[resolved.optionIndex];
+        const status = normalizeStatus(canonical.evidenceStatus);
+        const detail = status === "observed"
+          ? (label && (resolved.field.optionDetails?.[label] ||
+              dimension?.options.find(option => option.label === label)?.detail))
+          : (DIAGNOSIS_OBSERVATION_MATRIX[field.dimensionId as DiagnosisDimensionId]
+              ?.options.find(option => option.id === status)?.detail ||
+              (field.dimensionId === "condition.required_structure.step_plan_accuracy" && status === "confounded"
+                ? "A visible worked example supplied the step plan; independent planning cannot be established."
+                : null));
+        if (!detail) throw new Error("Sandbox response has no observable behavior description.");
+        return `${dimension?.label || field.observationQuestion}: ${detail}`;
+      })
+    : [];
+
   const continuityTags = new Set(definition.emitsContinuityTags || []);
   if (auditedTrajectoryClass === "breakdown") {
     continuityTags.add("recent_breakdown");
@@ -467,12 +503,38 @@ export function projectSandboxOutcomeToCurrentTrainingContract(
     continuityTags.delete("recent_breakdown");
   }
 
+  const requiresPrerequisiteCheck = currentFields.some(field => {
+    const canonical = canonicalObservations[field.fieldKey];
+    const resolved = resolveEvidenceSelection({
+      mode: "training", phase: definition.phase, setId: definition.setId,
+      repIndex, fieldKey: field.fieldKey, optionId: canonical.optionId,
+      schemaVersion: currentSchema.schemaVersion,
+    });
+    return Boolean(resolved && trainingRawObservationRequiresPrerequisiteSentinel({
+      phase: definition.phase, fieldKey: field.fieldKey,
+      rawOption: resolved.field.optionLabels?.[resolved.optionIndex] || "",
+      explicitStatus: canonical.evidenceStatus,
+    }));
+  });
+
   return {
     ...definition,
-    studentBehavior: auditedStudentBehavior || definition.studentBehavior,
+    studentBehavior: [auditedStudentBehavior || definition.studentBehavior, ...observationDetails].join("\n\n"),
     canonicalObservations,
     trajectoryClass: auditedTrajectoryClass,
     emitsContinuityTags: [...continuityTags],
+    ...(behaviorModelVersion === 2 ? {
+      // A historical bank auxiliary result is not an observation opportunity.
+      // Match the current runner's applicability; preserve V1 and stored events.
+      ...(definition.canonicalPrerequisiteSentinel !== undefined ? {
+        canonicalPrerequisiteSentinel: requiresPrerequisiteCheck
+          ? definition.canonicalPrerequisiteSentinel : undefined,
+      } : {}),
+      ...(definition.canonicalInheritedRescueSignal !== undefined ? {
+        canonicalInheritedRescueSignal: definition.phase === "Time Pressure Stability"
+          ? definition.canonicalInheritedRescueSignal : undefined,
+      } : {}),
+    } : {}),
   };
 }
 
@@ -638,6 +700,32 @@ export function selectSandboxOutcome(input: {
     );
   }
 
+  if (hasSandboxDevelopmentPlan(input.context.continuityTags)) {
+    if (input.context.behaviorModelVersion !== 2 || !input.context.developmentTopicKey ||
+        !Number.isInteger(input.context.developmentRepIndex) || input.context.developmentRepIndex! < 0) {
+      throw new Error("Sandbox development plan requires versioned, owned lesson context.");
+    }
+    const planned = sandboxDevelopmentCandidates({
+      seed: input.seed, candidates: plausible, phase: input.context.prescribedPhase,
+      completedLessons: sandboxDevelopmentLessons(input.context.continuityTags!, input.context.developmentTopicKey, input.context.prescribedPhase),
+      repIndex: input.context.developmentRepIndex!, previous: input.context.previousTrajectoryClass,
+    });
+    // Retain the already-gated exceptional worked-example incident during
+    // initial development only, after the profile's opening opportunities.
+    if (input.context.developmentRepIndex === 2 &&
+        sandboxDevelopmentLessons(input.context.continuityTags!, input.context.developmentTopicKey, input.context.prescribedPhase) === 0) {
+      planned.push(...plausible.filter(item => item.trajectoryClass === "confounded"));
+    }
+    const recent = new Set(input.context.recentOutcomeKeys || []);
+    const fresh = planned.filter(item => !recent.has(item.key));
+    const scenes = fresh.length ? fresh : planned;
+    const score = (item: SandboxOutcomeDefinition) => -Math.log(sandboxDevelopmentDraw([
+      "sandbox-development-selection-v1", input.seed, input.context.sequenceNumber,
+      input.context.developmentTopicKey, item.key, item.version,
+    ].join(":"))) / Math.max(0.05, item.weight);
+    return [...scenes].sort((a, b) => score(a) - score(b) || a.key.localeCompare(b.key))[0];
+  }
+
   const recent = new Set(input.context.recentOutcomeKeys || []);
   const nonRepeated = plausible.filter((definition) => !recent.has(definition.key));
   const repetitionEligible = nonRepeated.length ? nonRepeated : plausible;
@@ -647,11 +735,51 @@ export function selectSandboxOutcome(input: {
         definition.challengeCapabilities?.includes(target)
       )
     : [];
-  // Capability targeting is an eligibility preference, not a weak score bonus.
-  // If a plausible non-repeated outcome can expose the earliest unsupported
-  // Specialist layer, choose within that pool. Only fall back to the wider
-  // plausible pool when this rep genuinely cannot expose the target.
-  const candidates = targeted.length ? targeted : repetitionEligible;
+  // Keep V2 recovery, retained support and observable uneven continuation
+  // eligible beside capability challenges.
+  // Hard targeting must not suppress the very transitions that make recovery
+  // and subsequent phase development possible. State compatibility, repetition
+  // and the prohibition on an immediate breakdown-to-supported jump were
+  // already applied above. Eligibility never guarantees a recovery outcome.
+  const recoveryCandidates = input.context.behaviorModelVersion === 2
+    ? repetitionEligible.filter((definition) => {
+        const previous = input.context.previousTrajectoryClass;
+        if (previous === "breakdown") {
+          return definition.trajectoryClass === "conditional" || definition.trajectoryClass === "near_stable";
+        }
+        if (previous === "conditional") {
+          return definition.trajectoryClass === "near_stable" || definition.trajectoryClass === "supported";
+        }
+        if (previous === "near_stable") {
+          return definition.trajectoryClass === "supported";
+        }
+        if (previous === "supported") {
+          // A supported response must be allowed either to hold or to weaken
+          // naturally. Otherwise hard capability targeting can make the
+          // uneven-performer signature unobservable by excluding every
+          // supported -> near-stable/conditional transition.
+          return definition.trajectoryClass === "supported" ||
+            definition.trajectoryClass === "near_stable" ||
+            definition.trajectoryClass === "conditional";
+        }
+        return false;
+      })
+    : [];
+  const profileSignatureCandidates = input.context.behaviorModelVersion === 2
+    ? repetitionEligible.filter((definition) =>
+        sandboxBehaviorObservableSignatureMultiplier({
+          seed: input.seed,
+          phase: definition.phase,
+          trajectoryClass: definition.trajectoryClass,
+          previousTrajectoryClass: input.context.previousTrajectoryClass,
+          continuityTags: input.context.continuityTags,
+          outcomeKey: definition.key,
+        }) > 1
+      )
+    : [];
+  const candidates = targeted.length
+    ? [...new Set([...targeted, ...recoveryCandidates, ...profileSignatureCandidates])]
+    : repetitionEligible;
 
   return [...candidates].sort((a, b) => {
     const scoreFor = (definition: SandboxOutcomeDefinition) =>
@@ -995,6 +1123,8 @@ export function evaluateSandboxCompletedSession(input: {
     canonicalRoute.nextCapabilityStability !== canonicalPreviousState.stability ||
     canonicalRoute.nextProgressionAuthority !== canonicalPreviousState.progression;
 
+  // No new longitudinal condition is absence of fresh capability proof, not
+  // weaker Specialist performance. Never reset demonstrated recovery on a hold.
   const continuityClass: ResponseEvidenceClass =
     !systemOutcomeMatched
       ? "breakdown"
@@ -1002,7 +1132,7 @@ export function evaluateSandboxCompletedSession(input: {
         ? "not_observed"
         : canonicalStateChanged || input.priorTracksDiverged
           ? "supported"
-          : "near_stable";
+          : "not_observed";
 
   return {
     canonicalRoute,
@@ -1031,11 +1161,11 @@ export function evaluateSandboxCompletedSession(input: {
         continuityClass,
         continuityClass === "supported"
           ? "RI truth remained aligned through a longitudinal state condition."
-          : continuityClass === "near_stable"
-            ? "RI truth remained aligned, but this session did not yet establish a meaningful longitudinal change."
-            : continuityClass === "not_observed"
-              ? "A prior session or state change is required before continuity can be established."
-              : "The Specialist record broke longitudinal alignment with canonical student truth.",
+          : continuityClass === "not_observed"
+            ? input.priorCompletedSessions < 1
+              ? "A prior session is required before continuity can be established."
+              : "RI truth remained aligned without a new longitudinal state condition; holding adds no continuity proof and does not weaken existing evidence."
+            : "The Specialist record broke longitudinal alignment with canonical student truth.",
       ),
     ],
     studentStateAuthoritative: false,

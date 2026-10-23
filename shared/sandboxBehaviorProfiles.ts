@@ -25,7 +25,7 @@ type SandboxBehaviorProfile = {
 // V1 identity order is historical authority: never reorder or insert into it.
 // The persisted trajectory seed must continue resolving to the same identity.
 export const SANDBOX_BEHAVIOR_PROFILE_MODEL_VERSION = 1 as const;
-const PROFILE_IDS_V1: readonly SandboxBehaviorProfileId[] = [
+export const SANDBOX_BEHAVIOR_PROFILE_IDS_V1: readonly SandboxBehaviorProfileId[] = [
   "clarity_fragile",
   "reassurance_seeker",
   "pressure_fragile",
@@ -142,7 +142,32 @@ const stableIndex = (seed: string, modulo: number) => {
 export function resolveSandboxBehaviorProfile(
   seed: string,
 ): SandboxBehaviorProfileId {
-  return PROFILE_IDS_V1[stableIndex(String(seed || "sandbox-student"), PROFILE_IDS_V1.length)];
+  return SANDBOX_BEHAVIOR_PROFILE_IDS_V1[
+    stableIndex(String(seed || "sandbox-student"), SANDBOX_BEHAVIOR_PROFILE_IDS_V1.length)
+  ];
+}
+
+/**
+ * New trajectories fill profiles that the Specialist has not yet encountered
+ * before repeating one. Persisted seeds remain authoritative and are never
+ * rewritten; the suffix only affects a trajectory at first creation.
+ */
+export function selectSandboxBehaviorProfileSeed(input: {
+  baseSeed: string;
+  existingSeeds: readonly string[];
+  /** Server-owned unmet ledger profiles for a newly issued development plan. */
+  preferredProfiles?: readonly SandboxBehaviorProfileId[];
+}): string {
+  const occupied = new Set(input.existingSeeds.map(resolveSandboxBehaviorProfile));
+  const preferred = input.preferredProfiles?.length ? new Set(input.preferredProfiles) : null;
+  if (!preferred && occupied.size >= SANDBOX_BEHAVIOR_PROFILE_IDS_V1.length) return input.baseSeed;
+
+  for (let nonce = 0; nonce < 10_000; nonce += 1) {
+    const candidate = nonce === 0 ? input.baseSeed : `${input.baseSeed}:${nonce}`;
+    const profile = resolveSandboxBehaviorProfile(candidate);
+    if (preferred ? preferred.has(profile) : !occupied.has(profile)) return candidate;
+  }
+  throw new Error("Unable to allocate an unrepresented Sandbox behavior profile.");
 }
 
 export function sandboxBehaviorProfileMultiplier(input: {

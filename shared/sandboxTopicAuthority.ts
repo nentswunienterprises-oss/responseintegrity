@@ -21,15 +21,17 @@ export function sandboxTopicKey(value: unknown): string {
 }
 
 /**
- * Historical Sandbox snapshots may only compare against a previous session
- * from the same observed topic. Another topic's phase or stability must never
+ * Sandbox snapshots prefer their immutable recorded start state. Legacy
+ * snapshots use the latest proven same-topic placement before delivery.
+ * Another topic's phase or stability must never
  * become the current topic's "Before" state.
  *
- * When the preceding same-topic session has no usable Specialist authority,
+ * When the same-topic boundary has no usable Specialist authority,
  * preserve an unknown Before state instead of fabricating a baseline.
  */
 export function deriveSandboxSameTopicSnapshotBefore(input: {
   completedTopicKey: string | null;
+  recordedBefore?: { topicKey?: string; phase?: string; stability?: string } | null;
   previousTopicKey: string | null;
   previousSpecialistAuthority: {
     nextPhase?: string | null;
@@ -37,6 +39,13 @@ export function deriveSandboxSameTopicSnapshotBefore(input: {
   } | null;
 }): { phaseBefore: TopicPhase | null; stabilityBefore: TopicStability | null } {
   const currentTopicKey = sandboxTopicKey(input.completedTopicKey);
+  if (input.recordedBefore != null) {
+    const before = input.recordedBefore;
+    return currentTopicKey && currentTopicKey === sandboxTopicKey(before.topicKey) &&
+      isPhase(before.phase) && isStability(before.stability)
+      ? { phaseBefore: before.phase, stabilityBefore: before.stability }
+      : { phaseBefore: null, stabilityBefore: null };
+  }
   if (!currentTopicKey || currentTopicKey !== sandboxTopicKey(input.previousTopicKey)) {
     return { phaseBefore: null, stabilityBefore: null };
   }

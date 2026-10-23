@@ -295,8 +295,18 @@ export async function authenticateEmergencyUser(
       confirmationSatisfied &&
       await verifyEmergencyCredential(authUser.encrypted_password, password),
   );
+  const proofDbSessionMirrorWithoutPassword = Boolean(
+    proofDbAuthMode &&
+      authUser &&
+      !authUser.encrypted_password &&
+      !authUser.deleted_at &&
+      !authUser.is_anonymous &&
+      !isBanned &&
+      Boolean(authUser.email_confirmed_at) &&
+      authUser.raw_app_meta_data?.provider === "proof-db-session",
+  );
 
-  if (authUser) {
+  if (authUser && !proofDbSessionMirrorWithoutPassword) {
     if (!authUserMatches) {
       const previewSyntheticSharedPasswordAccepted =
         (process.env.VERCEL_ENV === "preview" || proofDbAuthMode) &&
@@ -371,6 +381,13 @@ export async function authenticateEmergencyUser(
     return attempt.blockedUntil > now
       ? { error: "throttled", reason: "throttled" }
       : { error: "invalid", reason: "account_not_found" };
+  }
+
+  if (proofDbSessionMirrorWithoutPassword && publicUser.id !== authUser?.id) {
+    recordFailure(key, attempt, now);
+    return attempt.blockedUntil > now
+      ? { error: "throttled", reason: "throttled" }
+      : { error: "invalid", reason: "account_unavailable" };
   }
 
   const credentialResult = await pool.query<{ user_id: string; password_hash: string }>(

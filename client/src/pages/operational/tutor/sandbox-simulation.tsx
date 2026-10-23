@@ -35,6 +35,7 @@ import {
 import { ResponseSnapshotCard } from "@/components/tutor/ResponseSnapshotCard";
 import type { ResponseSnapshotV1 } from "@shared/responseSnapshot";
 import { sandboxRequiresPrerequisiteSentinel } from "@shared/sandboxPrerequisiteProbe";
+import { sandboxTargetedRediagnosisCopy } from "@shared/sandboxCompletionDirection";
 import { displayTopicStability, topicStabilityConfirmationLabel } from "@shared/topicStabilityPresentation";
 import {
   NEXT_ACTION_ENGINE,
@@ -143,7 +144,9 @@ type EnvironmentForm = {
     | "session_complete"
     | "targeted_rediagnosis_required"
     | "rediagnosis_probe_ready"
-    | "rediagnosis_blocked";
+    | "rediagnosis_blocked"
+    | "rediagnosis_resolution_ready";
+  canContinue?: boolean;
   prescribedPhase: string;
   prescribedStability: string;
   targetPhase?: string | null;
@@ -158,6 +161,7 @@ type EnvironmentForm = {
       nextStability: string;
       targetPhase: string | null;
       reason: string;
+      transitionReason?: string | null;
     };
     authorityAligned: boolean;
     stateTrackAligned: boolean;
@@ -193,6 +197,8 @@ type EnvironmentForm = {
   };
   eventSequence?: number;
   eventFormId?: string;
+  preparationCaptureEnabled?: boolean;
+  preparationRecorded?: boolean;
   rep?: {
     setId: string;
     setName: string;
@@ -556,6 +562,21 @@ export default function SpecialistSandboxSimulation({
     });
   };
 
+  const applyDiagnosisRoute = useMutation({
+    mutationFn: async (action: "resolve" | "continue") => {
+      const response = await apiRequest("POST", `/api/tutor/sandbox-environment/rediagnosis/${action}`, {
+        tutorAssignmentId, studentId, rediagnosisRunId: form?.rediagnosisRunId, scheduledSessionId,
+      });
+      return response.json();
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["sandbox-environment", tutorAssignmentId, studentId] }),
+        queryClient.invalidateQueries({ queryKey: ["sandbox-environment-history", tutorAssignmentId, studentId] }),
+      ]);
+    },
+  });
+
   const submitDiagnosisProbe = useMutation({
     mutationFn: async () => {
       if (
@@ -578,6 +599,7 @@ export default function SpecialistSandboxSimulation({
           studentId,
           bankVersion: form.bankVersion,
           trajectoryId: form.trajectoryId,
+          scheduledSessionId,
           rediagnosisRunId: form.rediagnosisRunId,
           sequenceNumber: form.sequenceNumber,
           turnFormId: form.turnFormId,
@@ -804,21 +826,29 @@ export default function SpecialistSandboxSimulation({
       phaseBefore === phaseAfter &&
       stabilityBefore === "High" &&
       stabilityAfter === "High Maintenance";
-    const nextFocusLabel = enteredMaintenanceCheckpoint
-      ? "Immediate Next Drill"
-      : "Next Session Focus";
-    const nextFocus = enteredMaintenanceCheckpoint
-      ? nextActionData?.nextActions?.[0] ||
-        nextActionData?.primaryAction ||
-        "Not recorded"
-      : nextActionData?.primaryAction || "Not recorded";
-    const nextConstraint = nextActionData?.rules?.[0] || null;
+    const targetedRediagnosisCopy = sandboxTargetedRediagnosisCopy({
+      topic: routeTopic,
+      authority,
+    });
+    const nextFocusLabel =
+      targetedRediagnosisCopy?.nextFocusLabel ||
+      (enteredMaintenanceCheckpoint ? "Immediate Next Drill" : "Next Session Focus");
+    const nextFocus =
+      targetedRediagnosisCopy?.nextFocus ||
+      (enteredMaintenanceCheckpoint
+        ? nextActionData?.nextActions?.[0] ||
+          nextActionData?.primaryAction ||
+          "Not recorded"
+        : nextActionData?.primaryAction || "Not recorded");
+    const nextConstraint =
+      targetedRediagnosisCopy?.nextConstraint || nextActionData?.rules?.[0] || null;
     const formatState = (phase?: string | null, stability?: string | null) =>
       phase && stability
         ? `${phase} · ${displayTopicStability(stability)}${topicStabilityConfirmationLabel(stability, phase) ? " · Confirmation required" : ""}`
         : phase || displayTopicStability(stability) || "Not recorded";
     const sessionResult =
-      phaseAfter && stabilityAfter
+      targetedRediagnosisCopy?.sessionResult ||
+      (phaseAfter && stabilityAfter
         ? transitionReason === "stability advance"
           ? `${routeTopic}: stability improved to ${displayTopicStability(stabilityAfter)} in ${phaseAfter}`
           : transitionReason === "stability regress"
@@ -826,7 +856,7 @@ export default function SpecialistSandboxSimulation({
             : transitionReason === "phase progress"
               ? `${routeTopic}: phase advanced to ${phaseAfter} at ${displayTopicStability(stabilityAfter)} stability`
               : `${routeTopic}: stability held at ${displayTopicStability(stabilityAfter)} in ${phaseAfter}${topicStabilityConfirmationLabel(stabilityAfter, phaseAfter) ? "; separate confirmation required" : ""}`
-        : `${routeTopic}: session evidence recorded`;
+        : `${routeTopic}: session evidence recorded`);
     return (
       <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
         <div>
@@ -861,7 +891,9 @@ export default function SpecialistSandboxSimulation({
                 </span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Now</span>
+                <span className="text-muted-foreground">
+                  {targetedRediagnosisCopy?.currentStateLabel || "Now"}
+                </span>
                 <span className="font-medium">
                   {formatState(phaseAfter, stabilityAfter)}
                 </span>
@@ -886,9 +918,33 @@ export default function SpecialistSandboxSimulation({
             Return to Pod
           </Button>
           <p className="w-full text-xs text-muted-foreground">
-            The next Sandbox session starts from the next confirmed weekly lesson.
+            {targetedRediagnosisCopy?.footer ||
+              "The next Sandbox session starts from the next confirmed weekly lesson."}
           </p>
         </div>
+      </div>
+    );
+  }
+
+  // The existing Map -> Start Session preparation is the ONLY confirmation.
+  // Do not create a second checklist before the first Sandbox rep.
+  // Server-side rep submission remains blocked until the Map receipt is verified.
+  if (form.status === "rep_ready" && form.preparationCaptureEnabled &&
+      form.sessionProgress?.completedReps === 0 && !form.preparationRecorded) {
+    return (
+      <div className="mx-auto max-w-3xl p-4 sm:p-6">
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="space-y-3">
+            <p>The preparation for this Sandbox lesson has not been verified.</p>
+            <p>Open the student's Map, choose <strong>Start Session</strong>,
+              review the prescribed preparation rules and confirm once there.
+              The current simulated response remains hidden until that evidence is recorded.</p>
+            <Button variant="outline" onClick={() => navigate("/specialist/pod")}>
+              Return to Pod and Map
+            </Button>
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
@@ -1056,14 +1112,19 @@ export default function SpecialistSandboxSimulation({
               </Alert>
             )}
           </>
-        ) : form.status === "rediagnosis_blocked" ? (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              {form.reason ||
-                "The permitted clean diagnosis probes did not resolve the simulated prerequisite. Training remains paused rather than guessing a placement."}
-            </AlertDescription>
-          </Alert>
+        ) : form.status === "rediagnosis_blocked" || form.status === "rediagnosis_resolution_ready" ? (
+          <Card>
+            <CardHeader><CardTitle>{form.status === "rediagnosis_resolution_ready" ? "Recorded diagnosis result ready" : "Continue evidence gathering next session"}</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <p>{form.reason}</p>
+              {form.status === "rediagnosis_resolution_ready" ? (
+                <Button disabled={applyDiagnosisRoute.isPending} onClick={() => applyDiagnosisRoute.mutate("resolve")}>Apply recorded diagnosis result</Button>
+              ) : form.canContinue ? (
+                <Button disabled={applyDiagnosisRoute.isPending} onClick={() => applyDiagnosisRoute.mutate("continue")}>Continue in this confirmed lesson</Button>
+              ) : <Button onClick={() => navigate("/specialist/sessions")}>Open Sessions for the next confirmed lesson</Button>}
+              {applyDiagnosisRoute.error && <p role="alert">{applyDiagnosisRoute.error instanceof Error ? applyDiagnosisRoute.error.message : "The diagnosis route could not be applied."}</p>}
+            </CardContent>
+          </Card>
         ) : form.status === "targeted_rediagnosis_required" ? (
           <Alert>
             <ShieldCheck className="h-4 w-4" />
@@ -1651,19 +1712,17 @@ export default function SpecialistSandboxSimulation({
               </Alert>
             )}
           </>
-        ) : form.status === "rediagnosis_blocked" ? (
+        ) : form.status === "rediagnosis_blocked" || form.status === "rediagnosis_resolution_ready" ? (
           <Card>
-            <CardHeader>
-              <CardTitle>Targeted re-diagnosis requires evidence review</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  {form.reason ||
-                    "The permitted clean diagnosis probes did not resolve the simulated prerequisite. Training remains paused rather than guessing a placement."}
-                </AlertDescription>
-              </Alert>
+            <CardHeader><CardTitle>{form.status === "rediagnosis_resolution_ready" ? "Recorded diagnosis result ready" : "Continue evidence gathering next session"}</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <p>{form.reason}</p>
+              {form.status === "rediagnosis_resolution_ready" ? (
+                <Button disabled={applyDiagnosisRoute.isPending} onClick={() => applyDiagnosisRoute.mutate("resolve")}>Apply recorded diagnosis result</Button>
+              ) : form.canContinue ? (
+                <Button disabled={applyDiagnosisRoute.isPending} onClick={() => applyDiagnosisRoute.mutate("continue")}>Continue in this confirmed lesson</Button>
+              ) : <Button onClick={() => navigate("/specialist/sessions")}>Open Sessions for the next confirmed lesson</Button>}
+              {applyDiagnosisRoute.error && <p role="alert">{applyDiagnosisRoute.error instanceof Error ? applyDiagnosisRoute.error.message : "The diagnosis route could not be applied."}</p>}
             </CardContent>
           </Card>
         ) : form.status === "targeted_rediagnosis_required" ? (

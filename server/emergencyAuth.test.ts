@@ -105,6 +105,78 @@ test("emergency auth rejects deleted, banned, anonymous, and unconfirmed users",
   }
 });
 
+test("Proof DB auth verifies the private credential behind a passwordless session mirror", async () => {
+  resetEmergencyLoginAttempts();
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousVercelEnv = process.env.VERCEL_ENV;
+  const previousDatabaseUrl = process.env.DATABASE_URL;
+  const previousSupabaseUrl = process.env.SUPABASE_URL;
+
+  process.env.NODE_ENV = "development";
+  delete process.env.VERCEL_ENV;
+  process.env.DATABASE_URL =
+    "postgresql://postgres.jftlxeacphvbnhbsbpxc:secret@localhost:5432/postgres";
+  process.env.SUPABASE_URL = "https://jftlxeacphvbnhbsbpxc.supabase.co";
+
+  const credentialHash = await bcrypt.hash(password, 4);
+  const mirrorUser = await createAuthUser({
+    id: "proof-session-user",
+    email: "specialist@proof.responseintegrity.co.za",
+    encrypted_password: null,
+    raw_app_meta_data: {
+      provider: "proof-db-session",
+      providers: ["proof-db-session"],
+    },
+  });
+  const queries: string[] = [];
+  const pool = {
+    query: async (text: string) => {
+      queries.push(text);
+      if (text.includes("FROM auth.users")) return { rows: [mirrorUser] };
+      if (text.includes("FROM public.users")) {
+        return {
+          rows: [{
+            id: "proof-session-user",
+            email: "specialist@proof.responseintegrity.co.za",
+            role: "tutor",
+          }],
+        };
+      }
+      if (text.includes("FROM private.emergency_auth_credentials")) {
+        return {
+          rows: [{ user_id: "proof-session-user", password_hash: credentialHash }],
+        };
+      }
+      return { rows: [] };
+    },
+  } as any;
+
+  try {
+    const result = await authenticateEmergencyUser(
+      pool,
+      "specialist@proof.responseintegrity.co.za",
+      password,
+      "127.0.0.1",
+    );
+
+    assert.equal("authUser" in result, true);
+    if ("authUser" in result) assert.equal(result.authUser.id, "proof-session-user");
+    assert.equal(
+      queries.some((text) => text.includes("FROM private.emergency_auth_credentials")),
+      true,
+    );
+  } finally {
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+    if (previousVercelEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = previousVercelEnv;
+    if (previousDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = previousDatabaseUrl;
+    if (previousSupabaseUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = previousSupabaseUrl;
+  }
+});
+
 test("emergency auth throttles repeated failures by email and IP", async () => {
   resetEmergencyLoginAttempts();
   const pool = createPool([]);
