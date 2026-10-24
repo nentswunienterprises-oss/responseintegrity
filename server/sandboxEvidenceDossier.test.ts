@@ -96,6 +96,22 @@ test('assigned TD sees committed mismatches and state consequences without forei
   assert.deepEqual(result.body.sessions[0].canonicalAuthority,{phase:'Clarity'});
   assert.doesNotMatch(JSON.stringify(result.body),/FOREIGN SECRET|FUTURE ANSWER/);
 });
+test('legacy human-readable option IDs still resolve to canonical labels', async () => {
+  await database.exec(`
+    UPDATE specialist_sandbox_rep_events
+    SET phase = 'Clarity', set_id = 'clarity.identification', rep_number = 1,
+        specialist_submission = '{"observations":{"immediateApply":{"optionId":"Clarity Identification Opportunity 1 Clarity Immediate Apply Option 2","evidenceStatus":"observed"}}}'
+    WHERE id = 'rep-a';
+    UPDATE private.specialist_sandbox_rep_event_truth
+    SET canonical_observations = '{"immediateApply":{"optionId":"Clarity Identification Opportunity 1 Clarity Immediate Apply Option 2","evidenceStatus":"observed"}}'
+    WHERE event_id = 'rep-a';
+  `);
+  const result = await invoke({id:'td-a',role:'td'});
+  const rep = result.body.reps.find((r: any) => r.id === 'rep-a');
+  const comparison = rep.comparisons.find((entry: any) => entry.fieldKey === 'immediateApply');
+  assert.equal(comparison.recorded.label, 'Engaged only after extended uncertainty');
+  assert.equal(comparison.expected.label, 'Engaged only after extended uncertainty');
+});
 test('missing canonical and condition evidence remains explicitly unresolved', async () => {
   const result = await invoke({id:'td-a',role:'td'});
   const rep = result.body.reps.find((r: any) => r.id === 'missing-truth');
