@@ -68,7 +68,14 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
       const repRows = reps.rows.map((r: any) => {
         const observed = r.specialist_submission?.observations || {};
         const canonical = r.canonical_observations;
-        const keys = canonical && typeof canonical === "object" ? Object.keys(canonical) : [];
+        const schema = getDrillSchemaDefinition("training", String(r.phase) as TopicPhase);
+        const set = schema?.sets.find((candidate) => candidate.setId === String(r.set_id));
+        const orderedKeys = set
+          ? getFieldDefinitionsForRep(set, Math.max(0, Number(r.rep_number) - 1)).map((field) => field.fieldKey)
+          : [];
+        const keys = canonical && typeof canonical === "object"
+          ? [...orderedKeys, ...Object.keys(canonical).filter((key) => !orderedKeys.includes(key))].filter((key) => canonical[key] != null)
+          : [];
         return {
           id: String(r.id), eventSequence: Number(r.event_sequence),
           sessionNumber: Number(r.session_number), phase: r.phase, topicKey: r.topic_key,
