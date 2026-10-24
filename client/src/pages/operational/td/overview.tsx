@@ -812,33 +812,12 @@ export default function TDOverview() {
                                           }
                                         />
 
-                                        <div className="flex items-center justify-between gap-3">
-                                          <div>
-                                            <p className="text-sm font-medium text-foreground">Development Pathway</p>
-                                            <p className="mt-1 text-xs text-muted-foreground">Stage and next governed requirement are the Specialist standing source of truth.</p>
-                                          </div>
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => toggleTutorDetails(tutor.assignment.id)}
-                                            className="whitespace-nowrap"
-                                          >
-                                            {expandedTutorDetails[tutor.assignment.id] ? "Hide pathway detail" : "Show pathway detail"}
-                                          </Button>
-                                        </div>
-
-                                        {expandedTutorDetails[tutor.assignment.id] ? (
-                                          String(operationalMode || "").toLowerCase() === "sandbox" ? (
-                                            <SandboxReadinessAssessmentCard
-                                              tutorId={tutor.id}
-                                              tutorName={tutorName}
-                                              operationalMode={operationalMode}
-                                            />
-                                          ) : (
-                                            <p className="rounded-xl border border-border/60 bg-muted/20 px-3 py-3 text-sm text-muted-foreground">
-                                              The Specialist’s current pathway stage and next governed requirement are shown in the development card above.
-                                            </p>
-                                          )
+                                        {String(operationalMode || "").toLowerCase() === "sandbox" ? (
+                                          <SandboxReadinessAssessmentCard
+                                            tutorId={tutor.id}
+                                            tutorName={tutorName}
+                                            operationalMode={operationalMode}
+                                          />
                                         ) : null}
 
 <div className="flex items-center justify-between gap-3 pt-1">
@@ -1138,4 +1117,5 @@ function TDTutorStudentsSection({
     </div>
   );
 }
+
 
