@@ -1,10 +1,22 @@
 import type { Request, Response } from "express";
+import { getDrillSchemaDefinition, getFieldDefinitionsForRep } from "@shared/responseIntegrityDrillRegistry";
+import type { TopicPhase } from "@shared/topicConditioningEngine";
 
 // The live route retains isAuthenticated middleware; the handler also checks role
 // before reading private truth. Inject only the server-side PostgreSQL query API.
 type DossierDatabase = {
   query: (sql: string, values: string[]) => Promise<{ rows: any[] }>;
 };
+
+function observationLabel(phase: unknown, setId: unknown, repNumber: unknown, fieldKey: string, value: any) {
+  if (!value?.optionId) return null;
+  const optionMatch = String(value.optionId).match(/\.option_(\d+)$/i);
+  if (!optionMatch) return null;
+  const schema = getDrillSchemaDefinition("training", String(phase) as TopicPhase);
+  const set = schema?.sets.find((candidate) => candidate.setId === String(setId));
+  const field = set ? getFieldDefinitionsForRep(set, Math.max(0, Number(repNumber) - 1)).find((candidate) => candidate.fieldKey === fieldKey) : null;
+  return field?.optionLabels?.[Number(optionMatch[1]) - 1] || null;
+}
 
 export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
   return async (req: Request, res: Response) => {
@@ -69,8 +81,8 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
           totalObservations: Number(r.total_observations),
           comparisons: keys.map((fieldKey) => ({
             fieldKey,
-            recorded: observed[fieldKey] || null,
-            expected: canonical[fieldKey],
+            recorded: observed[fieldKey] ? { ...observed[fieldKey], label: observationLabel(r.phase, r.set_id, r.rep_number, fieldKey, observed[fieldKey]) } : null,
+            expected: canonical[fieldKey] ? { ...canonical[fieldKey], label: observationLabel(r.phase, r.set_id, r.rep_number, fieldKey, canonical[fieldKey]) } : null,
             matched: observed[fieldKey]?.optionId === canonical[fieldKey]?.optionId &&
               (observed[fieldKey]?.evidenceStatus || "observed") ===
               (canonical[fieldKey]?.evidenceStatus || "observed"),

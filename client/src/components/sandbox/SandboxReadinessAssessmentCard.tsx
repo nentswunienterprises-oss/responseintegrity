@@ -89,8 +89,8 @@ type SandboxDossier = {
   reps: Array<{id:string; sessionNumber:number; phase:string; setId:string; repNumber:number;
     studentBehavior:string; observationExact:boolean|null; evidenceExact:boolean|null;
     conditionKept:boolean|null; truthPresent:boolean; comparisons:Array<{
-      fieldKey:string; recorded:{optionId:string;evidenceStatus?:string}|null;
-      expected:{optionId:string;evidenceStatus?:string}|null; matched:boolean;
+      fieldKey:string; recorded:{optionId:string;label?:string|null;evidenceStatus?:string}|null;
+      expected:{optionId:string;label?:string|null;evidenceStatus?:string}|null; matched:boolean;
     }> }>;
   sessions:Array<{id:string;sessionNumber:number;phase:string;topicKey?:string|null;completedAt?:string|null;
     stateChangeObserved?:boolean|null;authorityAligned:boolean;stateTrackAligned:boolean;truthPresent:boolean;
@@ -128,8 +128,8 @@ function formatEvidenceValue(value: unknown): string {
   if (value == null || value === "") return "Not recorded";
   if (typeof value === "object" && !Array.isArray(value)) {
     const record = value as Record<string, unknown>;
-    if (record.optionId || record.evidenceStatus) {
-      return [record.optionId ? formatOptionId(String(record.optionId)) : null, record.evidenceStatus ? humanize(String(record.evidenceStatus)) : null]
+    if (record.optionId || record.label || record.evidenceStatus) {
+      return [record.label ? String(record.label) : record.optionId ? formatOptionId(String(record.optionId)) : null, record.evidenceStatus ? humanize(String(record.evidenceStatus)) : null]
         .filter(Boolean)
         .join(" · ");
     }
