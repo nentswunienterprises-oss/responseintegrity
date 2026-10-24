@@ -1198,3 +1198,25 @@ export default function ParentDashboard() {
                       <td className="py-2 px-2">Low</td>
                     </tr>
                     <tr className="border-b border-muted-foreground/10">
+                      <td className="py-2 px-2">Fractions</td>
+                      <td className="py-2 px-2">Clarity</td>
+                      <td className="py-2 px-2">Medium</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-2">Exponents</td>
+                      <td className="py-2 px-2">Time Pressure Stability</td>
+                      <td className="py-2 px-2">High</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-3">This is elite because it is precise.</p>
+              <p className="mt-2 mb-2">It does not say: "The student is weak" or "The student struggles with math."</p>
+              <p>It says: In this specific topic, the student's response breaks here. That is useful.</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
