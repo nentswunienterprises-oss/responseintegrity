@@ -26,7 +26,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import StudentTopicConditioningDialog from "@/components/tutor/StudentTopicConditioningDialog";
 import ViewAssignmentsDialog from "@/components/tutor/ViewAssignmentsDialog";
 import ViewTrackingSystemsDialog from "@/components/tutor/ViewTrackingSystemsDialog";
-import { SandboxReadinessAssessmentCard } from "@/components/sandbox/SandboxReadinessAssessmentCard";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -687,14 +686,6 @@ export default function TDOverview() {
                                           </Button>
                                         </div>
 
-                                        {String(operationalMode || "").toLowerCase() === "sandbox" ? (
-                                          <SandboxReadinessAssessmentCard
-                                            tutorId={tutor.id}
-                                            tutorName={tutorName}
-                                            operationalMode={operationalMode}
-                                          />
-                                        ) : null}
-
 <div className="flex items-center justify-between gap-3 pt-1">
                                           <p className="text-sm font-medium text-muted-foreground">Assigned Students</p>
                                           <Button
@@ -992,7 +983,6 @@ function TDTutorStudentsSection({
     </div>
   );
 }
-
 
 
 
