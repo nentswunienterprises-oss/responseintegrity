@@ -165,19 +165,15 @@ function formatDevelopmentStageLabel(stage?: string | null) {
 
 function SpecialistDevelopmentCardSummary({
   summary,
-  operationalMode,
   isLoading,
   isUnavailable,
   onOpen,
 }: {
   summary?: SpecialistDevelopmentCardRecord;
-  operationalMode: string;
   isLoading: boolean;
   isUnavailable: boolean;
   onOpen: () => void;
 }) {
-  const permissionMode = summary?.assignment?.operationalMode || operationalMode;
-
   return (
     <div className="border-y border-border/60 py-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -193,19 +189,7 @@ function SpecialistDevelopmentCardSummary({
                   ? "Record unavailable"
                   : formatDevelopmentStageLabel(summary.currentStage)}
             </p>
-            <Badge variant="outline">
-              Permission: {formatOperationalModeLabel(permissionMode)}
-            </Badge>
           </div>
-          {summary?.pathway ? (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Day {summary.pathway.timeline.elapsedDays} · {summary.pathway.timeline.daysRemaining} days remaining in the current development window
-            </p>
-          ) : isUnavailable ? (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Open the record to inspect the latest development evidence.
-            </p>
-          ) : null}
         </div>
         <Button
           size="sm"
@@ -802,7 +786,6 @@ export default function TDOverview() {
                                       <div className="flex flex-col gap-3">
                                         <SpecialistDevelopmentCardSummary
                                           summary={specialistDevelopmentSummaries[tutor.id]}
-                                          operationalMode={operationalMode}
                                           isLoading={specialistDevelopmentSummariesLoading}
                                           isUnavailable={specialistDevelopmentSummariesError}
                                           onOpen={() =>
@@ -1117,5 +1100,6 @@ function TDTutorStudentsSection({
     </div>
   );
 }
+
 
 

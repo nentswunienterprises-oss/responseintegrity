@@ -92,8 +92,9 @@ type SandboxDossier = {
       fieldKey:string; recorded:{optionId:string;evidenceStatus?:string}|null;
       expected:{optionId:string;evidenceStatus?:string}|null; matched:boolean;
     }> }>;
-  sessions:Array<{id:string;sessionNumber:number;phase:string;authorityAligned:boolean;
-    stateTrackAligned:boolean;truthPresent:boolean;specialistAuthority:any;canonicalAuthority:any}>;
+  sessions:Array<{id:string;sessionNumber:number;phase:string;topicKey?:string|null;completedAt?:string|null;
+    stateChangeObserved?:boolean|null;authorityAligned:boolean;stateTrackAligned:boolean;truthPresent:boolean;
+    specialistAuthority:any;canonicalAuthority:any}>;
 };
 
 const CAPABILITY_LABELS: Record<string, string> = {
@@ -213,6 +214,7 @@ export function SandboxReadinessAssessmentCard({
       }),
   });
 
+  const [showTrainingEvidence, setShowTrainingEvidence] = useState(false);
   const [showCoverage, setShowCoverage] = useState(false);
   const { data: coverageReview, isFetching: coverageLoading, isError: coverageError } = useQuery<SandboxQualificationReview>({
     queryKey: ["/api/td/tutors", tutorId, "sandbox-qualification-review"],
@@ -293,96 +295,37 @@ export function SandboxReadinessAssessmentCard({
         </p>
       ) : (
         <div className="mt-5 space-y-5">
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            {(readiness?.layers || []).map((layer) => (
-              <div
-                key={layer.layer}
-                className="rounded-lg border bg-background p-3"
-              >
-                <p className="text-sm font-medium text-foreground">
-                  {CAPABILITY_LABELS[layer.layer] || humanize(layer.layer)}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {humanize(layer.state)}
-                </p>
-                <p className="mt-2 text-[11px] text-muted-foreground">
-                  {layer.validOpportunityCount}/{layer.minimumValidOpportunities} valid opportunities
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {readiness ? (
-            <div className="grid gap-2 sm:grid-cols-3">
-              <div className="rounded-lg border bg-background p-3">
-                <p className="text-xs text-muted-foreground">Capability stack</p>
-                <p className="mt-1 text-sm font-semibold">
-                  {readiness.earliestUnsupportedCapability
-                    ? `Developing ${CAPABILITY_LABELS[readiness.earliestUnsupportedCapability] || humanize(readiness.earliestUnsupportedCapability)}`
-                    : "All required layers supported"}
-                </p>
-              </div>
-              <div className="rounded-lg border bg-background p-3">
-                <p className="text-xs text-muted-foreground">Breadth</p>
-                <p className="mt-1 text-sm font-semibold">
-                  {readiness.breadthReady ? "Established" : "Still developing"}
-                </p>
-              </div>
-              <div className="rounded-lg border bg-background p-3">
-                <p className="text-xs text-muted-foreground">Longitudinal proof</p>
-                <p className="mt-1 text-sm font-semibold">
-                  {readiness.longitudinalReady
-                    ? "Established"
-                    : "Still developing"}
-                </p>
-              </div>
-            </div>
-          ) : null}
-
           <div className="rounded-lg border bg-background p-3 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <p className="text-sm font-semibold">Development coverage and qualification</p>
-                <p className="text-xs text-muted-foreground">TD-only evidence: encountered behavior, correct decisions, independent repetition and recovery.</p>
+                <p className="text-sm font-semibold">Training capability evidence</p>
+                <p className="text-xs text-muted-foreground">Deep Dive and qualification evidence is retained here for review when needed.</p>
               </div>
-              <Button variant="outline" size="sm" onClick={() => setShowCoverage(value => !value)}>
-                {showCoverage ? "Hide coverage" : "Inspect coverage"}
+              <Button variant="outline" size="sm" onClick={() => setShowTrainingEvidence(value => !value)}>
+                {showTrainingEvidence ? "Hide evidence" : "Inspect evidence"}
               </Button>
             </div>
-            {showCoverage && coverageLoading ? <p className="text-sm">Loading protected coverage evidence...</p> : null}
-            {showCoverage && coverageError ? <p className="text-sm text-destructive">Coverage evidence unavailable. Readiness remains blocked.</p> : null}
-            {showCoverage && !coverageLoading && !coverageError && coverageReview ? (
-              <div className="space-y-3">
-                <p className="text-sm font-medium">{coverageReview.qualification.reason}</p>
-                <p className="text-xs text-muted-foreground">
-                  Final clean sessions: {coverageReview.qualification.qualifyingSessions}/{coverageReview.qualification.requiredSessions}.
-                  Policy v{coverageReview.qualification.policyVersion}.
-                  {coverageReview.qualification.activated ? " Controlled activation on." : " Production qualification inactive."}
-                </p>
-                {!!coverageReview.qualification.pendingPlacements && <p className="text-xs" role="status">Evidence gathering is pending. Resume the prescribed Diagnosis or re-diagnosis through the next confirmed lesson before readiness can be established.</p>}
-                {coverageReview.sourceGaps.length > 0 ? <p className="text-xs text-destructive">
-                  Unresolved evidence sources: {coverageReview.sourceGaps.join("; ")}
-                </p> : null}
-                {coverageReview.qualification.technicalBlockers.length > 0 ? <div className="text-xs text-destructive" role="status">
-                  <p className="font-medium">Evidence needing review</p>
-                  <ul className="list-disc pl-4">
-                    {coverageReview.qualification.technicalBlockers.map(blocker => <li key={blocker}>{blocker}</li>)}
-                  </ul>
-                  <p>Additional clean sessions do not resolve missing historical evidence.</p>
-                </div> : null}
-                <div className="max-h-[450px] overflow-y-auto space-y-2">
-                  {coverageReview.qualification.requirements.map(requirement => (
-                    <div key={requirement.key} className="rounded border p-2 text-xs">
-                      <p className="font-medium">{requirement.key.replace(":", ": ").replaceAll("_", " ")} — {requirement.met ? "Established" : "Not established"}</p>
-                      <p className="text-muted-foreground">
-                        Encountered {requirement.encountered} · Correct {requirement.correct} ·
-                        Distinct clean opportunities {requirement.distinctCorrect}/{requirement.required}
-                        {requirement.priorErrors > 0 ? ` · Prior errors ${requirement.priorErrors}` : ""}
-                        {requirement.recoveredAfterError ? " · Fresh recovery observed" : ""}
-                      </p>
-                    </div>
-                  ))}
+            {showTrainingEvidence ? (
+              <div className="space-y-4 border-t border-border/60 pt-3">
+                {readiness ? <p className="text-sm text-muted-foreground">{readiness.reason}</p> : null}
+                <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                  <span>Capability stack: {readiness?.breadthReady ? "Established" : "Developing"}</span>
+                  <span>Longitudinal proof: {readiness?.longitudinalReady ? "Established" : "Developing"}</span>
                 </div>
+                <Button variant="ghost" size="sm" onClick={() => setShowCoverage(value => !value)}>
+                  {showCoverage ? "Hide qualification detail" : "View qualification detail"}
+                </Button>
+                {showCoverage && coverageLoading ? <p className="text-sm">Loading protected coverage evidence...</p> : null}
+                {showCoverage && coverageError ? <p className="text-sm text-destructive">Coverage evidence unavailable. Readiness remains blocked.</p> : null}
+                {showCoverage && !coverageLoading && !coverageError && coverageReview ? (
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium">{coverageReview.qualification.reason}</p>
+                    <p className="text-xs text-muted-foreground">Final clean sessions: {coverageReview.qualification.qualifyingSessions}/{coverageReview.qualification.requiredSessions}. Policy v{coverageReview.qualification.policyVersion}.</p>
+                    {coverageReview.sourceGaps.length > 0 ? <p className="text-xs text-destructive">Unresolved evidence sources: {coverageReview.sourceGaps.join("; ")}</p> : null}
+                    {coverageReview.qualification.technicalBlockers.length > 0 ? <div className="text-xs text-destructive"><p className="font-medium">Evidence needing review</p><ul className="list-disc pl-4">{coverageReview.qualification.technicalBlockers.map(blocker => <li key={blocker}>{blocker}</li>)}</ul></div> : null}
+                    <div className="max-h-[450px] space-y-2 overflow-y-auto">{coverageReview.qualification.requirements.map(requirement => <div key={requirement.key} className="rounded border p-2 text-xs"><p className="font-medium">{requirement.key.replace(":", ": ").replaceAll("_", " ")} — {requirement.met ? "Established" : "Not established"}</p><p className="text-muted-foreground">Encountered {requirement.encountered} · Correct {requirement.correct} · Distinct clean opportunities {requirement.distinctCorrect}/{requirement.required}</p></div>)}</div>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -404,75 +347,31 @@ export function SandboxReadinessAssessmentCard({
                 <div className="rounded-lg border bg-muted/20 px-3 py-3 text-xs text-muted-foreground">
                   This is committed Sandbox evidence. It compares the Specialist’s recorded decision with the TD-only canonical authority and the resulting state track.
                 </div>
-                <section className="space-y-2">
+                <section className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Completed sessions</p>
-                    <Badge variant="outline">{dossier.sessions.length} recorded</Badge>
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Sessions and evidence</p>
+                    <Badge variant="outline">{dossier.sessions.length} sessions · {dossier.reps.length} reps</Badge>
                   </div>
-                  {dossier.sessions.map(session => (
-                    <details key={session.id} className="rounded-lg border bg-background p-3">
-                      <summary className="cursor-pointer list-none text-sm font-medium">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span>Session {session.sessionNumber} · {humanize(session.phase)}{session.topicKey ? " · " + humanize(session.topicKey) : ""}</span>
-                          <span className="flex flex-wrap gap-1">
-                            <Badge variant={session.authorityAligned ? "default" : "destructive"}>{session.authorityAligned ? "Decision aligned" : "Decision needs review"}</Badge>
-                            <Badge variant={session.stateTrackAligned ? "default" : "destructive"}>{session.stateTrackAligned ? "State aligned" : "State diverged"}</Badge>
-                          </span>
-                        </div>
-                      </summary>
-                      <div className="mt-3 space-y-3 border-t pt-3 text-xs">
-                        <p className="text-muted-foreground">Completed {formatDossierTimestamp(session.completedAt)} · State change observed: {session.stateChangeObserved == null ? "Not recorded" : session.stateChangeObserved ? "Yes" : "No"}</p>
-                        <div className="grid gap-3 md:grid-cols-2">
-                          <div className="rounded-md border bg-muted/20 p-3">
-                            <p className="font-semibold text-foreground">Specialist decision</p>
-                            <p className="mt-2 leading-5 text-muted-foreground">{formatEvidenceValue(session.specialistAuthority)}</p>
+                  {dossier.sessions.map(session => {
+                    const sessionReps = dossier.reps.filter(rep => rep.sessionNumber === session.sessionNumber);
+                    const setIds = Array.from(new Set(sessionReps.map(rep => rep.setId)));
+                    return (
+                      <details key={session.id} className="rounded-lg border bg-background p-3">
+                        <summary className="cursor-pointer list-none text-sm font-medium">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span>Session {session.sessionNumber} · {humanize(session.phase)}{session.topicKey ? " · " + humanize(session.topicKey) : ""}</span>
+                            <span className="flex flex-wrap gap-1"><Badge variant={session.authorityAligned ? "default" : "destructive"}>{session.authorityAligned ? "Decision aligned" : "Decision needs review"}</Badge><Badge variant={session.stateTrackAligned ? "default" : "destructive"}>{session.stateTrackAligned ? "State aligned" : "State diverged"}</Badge></span>
                           </div>
-                          <div className="rounded-md border bg-muted/20 p-3">
-                            <p className="font-semibold text-foreground">Canonical authority</p>
-                            <p className="mt-2 leading-5 text-muted-foreground">{formatEvidenceValue(session.canonicalAuthority)}</p>
-                          </div>
+                        </summary>
+                        <div className="mt-3 space-y-3 border-t pt-3 text-xs">
+                          <p className="text-muted-foreground">Completed {formatDossierTimestamp(session.completedAt)} · State change observed: {session.stateChangeObserved == null ? "Not recorded" : session.stateChangeObserved ? "Yes" : "No"}</p>
+                          <div className="grid gap-3 md:grid-cols-2"><div className="rounded-md border bg-muted/20 p-3"><p className="font-semibold text-foreground">Specialist decision</p><p className="mt-2 leading-5 text-muted-foreground">{formatEvidenceValue(session.specialistAuthority)}</p></div><div className="rounded-md border bg-muted/20 p-3"><p className="font-semibold text-foreground">Canonical authority</p><p className="mt-2 leading-5 text-muted-foreground">{formatEvidenceValue(session.canonicalAuthority)}</p></div></div>
+                          <div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Sets</p>{setIds.map(setId => { const setReps = sessionReps.filter(rep => rep.setId === setId); return <details key={setId} className="rounded-md border bg-muted/10 p-3"><summary className="cursor-pointer list-none font-medium">Set {humanize(setId)} · {setReps.length} reps</summary><div className="mt-3 space-y-2">{setReps.map(rep => <details key={rep.id} className="rounded-md border bg-background p-3"><summary className="cursor-pointer list-none"><div className="flex items-center justify-between gap-2"><span>Rep {rep.repNumber}</span><Badge variant={rep.truthPresent && rep.observationExact && rep.evidenceExact && rep.conditionKept === true ? "default" : "destructive"}>{rep.truthPresent && rep.observationExact && rep.evidenceExact && rep.conditionKept === true ? "Evidence aligned" : "Review required"}</Badge></div></summary><div className="mt-3 space-y-3 border-t pt-3"><p><span className="font-semibold text-foreground">Student behaviour:</span> <span className="text-muted-foreground">{rep.studentBehavior}</span></p><p className="text-muted-foreground">Condition preserved: {rep.conditionKept == null ? "Not recorded" : rep.conditionKept ? "Yes" : "No"} · Canonical evidence: {rep.truthPresent ? "Available" : "Unavailable"}</p><div className="space-y-2">{rep.comparisons.map(c => <div key={c.fieldKey} className="rounded-md border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><p className="font-semibold text-foreground">{humanize(c.fieldKey)}</p><Badge variant={c.matched ? "default" : "destructive"}>{c.matched ? "Aligned" : "Diverged"}</Badge></div><div className="mt-2 grid gap-2 md:grid-cols-2"><p className="text-muted-foreground"><span className="font-medium text-foreground">Recorded:</span> {formatEvidenceValue(c.recorded)}</p><p className="text-muted-foreground"><span className="font-medium text-foreground">Expected:</span> {formatEvidenceValue(c.expected)}</p></div></div>)}</div></div></details>)}</div></details>; })}</div>
                         </div>
-                      </div>
-                    </details>
-                  ))}
+                      </details>
+                    );
+                  })}
                   {dossier.sessions.length === 0 ? <p className="text-sm text-muted-foreground">No completed Sandbox sessions recorded.</p> : null}
-                </section>
-                <section className="space-y-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Rep evidence</p>
-                    <Badge variant="outline">{dossier.reps.length} recorded</Badge>
-                  </div>
-                  {dossier.reps.map(rep => (
-                    <details key={rep.id} className="rounded-lg border bg-background p-3">
-                      <summary className="cursor-pointer list-none text-sm font-medium">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span>Session {rep.sessionNumber} · {humanize(rep.phase)} · Rep {rep.repNumber}</span>
-                          <Badge variant={rep.truthPresent && rep.observationExact && rep.evidenceExact && rep.conditionKept === true ? "default" : "destructive"}>
-                            {rep.truthPresent && rep.observationExact && rep.evidenceExact && rep.conditionKept === true ? "Evidence aligned" : "Review required"}
-                          </Badge>
-                        </div>
-                      </summary>
-                      <div className="mt-3 space-y-3 border-t pt-3 text-xs">
-                        <p><span className="font-semibold text-foreground">Student behaviour:</span> <span className="text-muted-foreground">{rep.studentBehavior}</span></p>
-                        <p className="text-muted-foreground">Condition preserved: {rep.conditionKept == null ? "Not recorded" : rep.conditionKept ? "Yes" : "No"} · Canonical evidence: {rep.truthPresent ? "Available" : "Unavailable"}</p>
-                        <div className="space-y-2">
-                          {rep.comparisons.map(c => (
-                            <div key={c.fieldKey} className="rounded-md border bg-muted/20 p-3">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <p className="font-semibold text-foreground">{humanize(c.fieldKey)}</p>
-                                <Badge variant={c.matched ? "default" : "destructive"}>{c.matched ? "Aligned" : "Diverged"}</Badge>
-                              </div>
-                              <div className="mt-2 grid gap-2 md:grid-cols-2">
-                                <p className="text-muted-foreground"><span className="font-medium text-foreground">Recorded:</span> {formatEvidenceValue(c.recorded)}</p>
-                                <p className="text-muted-foreground"><span className="font-medium text-foreground">Expected:</span> {formatEvidenceValue(c.expected)}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </details>
-                  ))}
-                  {dossier.reps.length === 0 ? <p className="text-sm text-muted-foreground">No completed rep evidence recorded.</p> : null}
                 </section>
               </div>
             ) : null}
@@ -592,4 +491,5 @@ export function SandboxReadinessAssessmentCard({
 }
 
 export default SandboxReadinessAssessmentCard;
+
 
