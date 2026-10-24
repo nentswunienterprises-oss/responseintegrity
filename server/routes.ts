@@ -217,6 +217,7 @@ import {
   recordSandboxReadinessAssessment,
 } from "./sandboxReadiness";
 import { getSandboxCapabilityReadiness } from "./sandboxEnvironment";
+import { getSpecialistCapabilityTrainingState } from "./capabilitySequencing";
 import {
   approveSpecialistPathwayExtension,
   ensureSpecialistDevelopmentPathway,
@@ -786,6 +787,7 @@ async function getTutorSandboxReadiness(tutorId: string) {
     pathway,
     sandboxAccounts,
     capabilityReadiness,
+    trainingState,
   ] = await Promise.all([
     storage.getUser(tutorId),
     storage.getStudentsByTutor(tutorId),
@@ -799,6 +801,10 @@ async function getTutorSandboxReadiness(tutorId: string) {
       .eq("is_sandbox_account", true)
       .in("status", ACTIVE_PARENT_ENROLLMENT_STATUSES),
     getSandboxCapabilityReadiness({
+      tutorAssignmentId: assignment.id,
+      tutorId,
+    }),
+    getSpecialistCapabilityTrainingState({
       tutorAssignmentId: assignment.id,
       tutorId,
     }),
@@ -817,10 +823,18 @@ async function getTutorSandboxReadiness(tutorId: string) {
   );
   const specialistSummary = summary.tutorSummaries[0] || null;
   const moduleProgress = specialistSummary?.moduleProgress || [];
+  const transformationAssessments = trainingState.assessments.filter(
+    (assessment) => assessment.stage === "transformation_mastery",
+  );
+  const sessionInfrastructureAssessments = trainingState.assessments.filter(
+    (assessment) => assessment.stage === "session_infrastructure_mastery",
+  );
   const transformationComplete =
-    moduleProgress.find((entry) => entry.moduleKey === "transformation_phases")?.completed || false;
+    transformationAssessments.length > 0 &&
+    transformationAssessments.every((assessment) => assessment.status === "complete");
   const sessionInfrastructureComplete =
-    moduleProgress.find((entry) => entry.moduleKey === "session_infrastructure")?.completed || false;
+    sessionInfrastructureAssessments.length > 0 &&
+    sessionInfrastructureAssessments.every((assessment) => assessment.status === "complete");
   const hasActiveFailHealth =
     specialistSummary?.state === "fail" ||
     specialistSummary?.hasCriticalFail === true ||
