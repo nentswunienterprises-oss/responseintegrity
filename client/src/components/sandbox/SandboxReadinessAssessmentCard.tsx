@@ -156,7 +156,7 @@ function authorityParts(value: unknown) {
         ? { label: part.slice(0, separator).trim(), value: part.slice(separator + 1).trim() }
         : { label: "Decision", value: part.trim() };
     })
-    .filter((part) => part.value);
+    .filter((part) => part.value && part.value.toLowerCase() !== "not recorded");
 }
 
 export function SandboxReadinessAssessmentCard({
