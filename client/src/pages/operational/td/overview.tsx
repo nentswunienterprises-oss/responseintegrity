@@ -83,30 +83,6 @@ interface StudentActionRecord {
   concept_mastery?: any;
 }
 
-type SpecialistDevelopmentCardRecord = {
-  currentStage:
-    | "application"
-    | "training"
-    | "sandbox"
-    | "practicals"
-    | "trial"
-    | "certification"
-    | "certified_live";
-  assignment: {
-    operationalMode: string;
-    certificationStatus: string;
-  };
-  pathway: {
-    timeline: {
-      state: string;
-      elapsedDays: number;
-      daysRemaining: number;
-      effectiveEndsAt: string;
-      canContinue: boolean;
-    };
-  } | null;
-};
-
 type TutorAuditGroupKey = "transformation_phases" | "session_infrastructure";
 
 const EMPTY_BATTLE_TESTING_SUMMARY: PodBattleTestingSummary = {
@@ -136,72 +112,6 @@ function getStatusColor(status: string) {
   return status === "active"
     ? "bg-green-100 text-green-800 border-green-200"
     : "bg-blue-100 text-blue-800 border-blue-200";
-}
-
-function formatOperationalModeLabel(mode?: string | null) {
-  const normalized = String(mode || "").trim().toLowerCase();
-  if (normalized === "certified_live") return "Certified Live";
-  if (normalized === "sandbox") return "Sandbox";
-  if (normalized === "trial") return "Trial";
-  if (normalized === "suspended") return "Suspended";
-  if (normalized === "applicant") return "Applicant";
-  if (normalized === "training") return "Training";
-  if (!normalized) return "Not recorded";
-  return normalized
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function formatDevelopmentStageLabel(stage?: string | null) {
-  const normalized = String(stage || "").trim().toLowerCase();
-  if (normalized === "certified_live") return "Certified Live";
-  if (normalized === "practicals") return "Practicals";
-  if (normalized === "certification") return "Certification";
-  if (normalized === "trial") return "Trial";
-  if (normalized === "sandbox") return "Sandbox";
-  if (normalized === "training") return "Training";
-  return "Application";
-}
-
-function SpecialistDevelopmentCardSummary({
-  summary,
-  isLoading,
-  isUnavailable,
-  onOpen,
-}: {
-  summary?: SpecialistDevelopmentCardRecord;
-  isLoading: boolean;
-  isUnavailable: boolean;
-  onOpen: () => void;
-}) {
-  return (
-    <div className="border-y border-border/60 py-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
-            Development
-          </p>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-foreground">
-              {isLoading
-                ? "Loading stage..."
-                : isUnavailable || !summary
-                  ? "Record unavailable"
-                  : formatDevelopmentStageLabel(summary.currentStage)}
-            </p>
-          </div>
-        </div>
-        <Button
-          size="sm"
-          variant="outline"
-          className="shrink-0"
-          onClick={onOpen}
-        >
-          Development Record
-        </Button>
-      </div>
-    </div>
-  );
 }
 
 function getTutorAuditGroupMeta(groupKey: TutorAuditGroupKey) {
@@ -348,23 +258,6 @@ export default function TDOverview() {
     enabled: isAuthenticated && !authLoading && !!podId,
     queryFn: async () => {
       const response = await apiRequest("GET", `/api/battle-tests/pods/${podId}/runs`);
-      return response.json();
-    },
-  });
-
-  const {
-    data: specialistDevelopmentSummaries = {},
-    isLoading: specialistDevelopmentSummariesLoading,
-    isError: specialistDevelopmentSummariesError,
-  } = useQuery<Record<string, SpecialistDevelopmentCardRecord>>({
-    queryKey: ["/api/td/pods", podId, "specialist-development-summaries"],
-    enabled: isAuthenticated && !authLoading && !!podId,
-    retry: false,
-    queryFn: async () => {
-      const response = await apiRequest(
-        "GET",
-        `/api/td/pods/${encodeURIComponent(String(podId || ""))}/specialist-development-summaries`,
-      );
       return response.json();
     },
   });
@@ -784,16 +677,15 @@ export default function TDOverview() {
                                       </div>
                                     </div>
                                       <div className="flex flex-col gap-3">
-                                        <SpecialistDevelopmentCardSummary
-                                          summary={specialistDevelopmentSummaries[tutor.id]}
-                                          isLoading={specialistDevelopmentSummariesLoading}
-                                          isUnavailable={specialistDevelopmentSummariesError}
-                                          onOpen={() =>
-                                            navigate(
-                                              `/operational/td/my-pods/${pod.id}/specialists/${tutor.id}/development`,
-                                            )
-                                          }
-                                        />
+                                        <div className="flex justify-end">
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => navigate(`/operational/td/my-pods/${pod.id}/specialists/${tutor.id}/development`)}
+                                          >
+                                            Development Record
+                                          </Button>
+                                        </div>
 
                                         {String(operationalMode || "").toLowerCase() === "sandbox" ? (
                                           <SandboxReadinessAssessmentCard
@@ -1100,6 +992,7 @@ function TDTutorStudentsSection({
     </div>
   );
 }
+
 
 
 
