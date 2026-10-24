@@ -371,8 +371,10 @@ export function SandboxReadinessAssessmentCard({
                     <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Sessions and evidence</p>
                     <Badge variant="outline">{dossier.sessions.length} sessions · {dossier.reps.length} reps</Badge>
                   </div>
-                  {dossier.sessions.map(session => {
-                    const sessionReps = dossier.reps.filter(rep => rep.sessionNumber === session.sessionNumber);
+                  {[...dossier.sessions].sort((a, b) => a.sessionNumber - b.sessionNumber).map(session => {
+                    const sessionReps = dossier.reps
+                      .filter(rep => rep.sessionNumber === session.sessionNumber)
+                      .sort((a, b) => a.repNumber - b.repNumber);
                     const setIds = Array.from(new Set(sessionReps.map(rep => rep.setId)));
                     return (
                       <details key={session.id} className="rounded-lg border bg-background p-3">
