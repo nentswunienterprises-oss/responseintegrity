@@ -32204,7 +32204,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         })
         .filter((row): row is NonNullable<typeof row> => !!row)
-        .filter((row) => row.bucket !== "older")
+        // The parent view must reflect the Specialist's complete current
+        // topic map. Age is presentation metadata, not permission to hide a
+        // topic that is still active in the student's conditioning record.
         .sort((a, b) => {
           if (a.bucket !== b.bucket) return a.bucket === "active" ? -1 : 1;
           return new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime();
@@ -32612,7 +32614,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         })
         .filter((row): row is NonNullable<typeof row> => !!row)
-        .filter((row) => row.bucket !== "older")
+        // The parent view must reflect the Specialist's complete current
+        // topic map. Age is presentation metadata, not permission to hide a
+        // topic that is still active in the student's conditioning record.
         .sort((a, b) => {
           if (a.bucket !== b.bucket) return a.bucket === "active" ? -1 : 1;
           return new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime();
