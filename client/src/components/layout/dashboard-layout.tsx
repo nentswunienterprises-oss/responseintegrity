@@ -465,13 +465,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const useSpecialistTheme = !!effectiveUser && isTutor(effectiveUser);
   const useTDTheme = !!effectiveUser && isTD(effectiveUser);
   const useCOOTheme = !!effectiveUser && isCOO(effectiveUser);
-  const useRIThemeWorld = useSpecialistTheme || useTDTheme || useCOOTheme;
+  // Appearance is shared across authenticated roles. Parent and student
+  // surfaces must receive the theme scope for the selected mode to apply.
+  const useRIThemeWorld = !!effectiveUser;
+  const useRISpecialistWorld = useSpecialistTheme || useTDTheme || useCOOTheme;
   const useSpecialistSurface =
     useSpecialistTheme && location.pathname !== "/specialist/pod";
   const useRIThemeSurface = useSpecialistSurface || useTDTheme || useCOOTheme;
 
   return (
-    <div className={`min-h-screen bg-background${useRIThemeWorld ? " ri-world-page ri-specialist-world" : ""}`}>
+    <div className={`min-h-screen bg-background${useRIThemeWorld ? " ri-world-page" : ""}${useRISpecialistWorld ? " ri-specialist-world" : ""}`}>
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="h-16 px-4 flex items-center justify-between gap-4">

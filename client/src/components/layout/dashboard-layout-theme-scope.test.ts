@@ -13,12 +13,17 @@ test("Specialist, TD and COO dashboard surfaces receive the shared RI appearance
   assert.match(source, /const useCOOTheme = !!effectiveUser && isCOO\(effectiveUser\)/);
   assert.match(
     source,
-    /const useRIThemeWorld = useSpecialistTheme \|\| useTDTheme \|\| useCOOTheme/,
+    /const useRIThemeWorld = !!effectiveUser/,
+  );
+  assert.match(
+    source,
+    /const useRISpecialistWorld = useSpecialistTheme \|\| useTDTheme \|\| useCOOTheme/,
   );
   assert.match(
     source,
     /const useRIThemeSurface = useSpecialistSurface \|\| useTDTheme \|\| useCOOTheme/,
   );
-  assert.match(source, /useRIThemeWorld \? " ri-world-page ri-specialist-world"/);
+  assert.match(source, /useRIThemeWorld \? " ri-world-page"/);
+  assert.match(source, /useRISpecialistWorld \? " ri-specialist-world"/);
   assert.match(source, /useRIThemeSurface \? " ri-specialist-surface"/);
 });
