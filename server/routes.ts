@@ -788,6 +788,7 @@ async function getTutorSandboxReadiness(tutorId: string) {
     sandboxAccounts,
     capabilityReadiness,
     trainingState,
+    criticalFailResult,
   ] = await Promise.all([
     storage.getUser(tutorId),
     storage.getStudentsByTutor(tutorId),
@@ -808,6 +809,14 @@ async function getTutorSandboxReadiness(tutorId: string) {
       tutorAssignmentId: assignment.id,
       tutorId,
     }),
+    pool.query(
+      `SELECT DISTINCT ON (assessment_key) passed, has_critical_fail
+         FROM public.specialist_capability_assessment_attempts
+        WHERE tutor_assignment_id = $1
+          AND tutor_id = $2
+        ORDER BY assessment_key, completed_at DESC`,
+      [assignment.id, tutorId],
+    ),
   ]);
 
   const summary = await buildPodBattleTestingSummary(
@@ -835,12 +844,9 @@ async function getTutorSandboxReadiness(tutorId: string) {
   const sessionInfrastructureComplete =
     sessionInfrastructureAssessments.length > 0 &&
     sessionInfrastructureAssessments.every((assessment) => assessment.status === "complete");
-  const hasActiveFailHealth =
-    specialistSummary?.state === "fail" ||
-    specialistSummary?.hasCriticalFail === true ||
-    (specialistSummary?.deepDiveProgress || []).some(
-      (entry) => entry.currentHealthState === "drift" || entry.criticalFlag,
-    );
+  const hasActiveFailHealth = criticalFailResult.rows.some(
+    (row) => Boolean(row.has_critical_fail) && !Boolean(row.passed),
+  );
 
   const preparationGate = evaluateSandboxPreparationGate({
     docsComplete,
