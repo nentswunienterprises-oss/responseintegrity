@@ -572,21 +572,29 @@ export default function SpecialistDevelopmentRecordPage() {
             title="Transformation Mastery"
             detail="Five Deep Dive Masteries establish the immediate Transformation operating standard."
             assessments={transformation}
+            collapsible
+            defaultOpen={false}
           />
           <AssessmentSection
             title="Retention + Application"
             detail="Delayed Retention tests retrieval after spacing. Application tests the correct RI response across mixed situations."
             assessments={cumulative}
+            collapsible
+            defaultOpen={false}
           />
           <AssessmentSection
             title="Execution Standards"
             detail="Delivery boundaries, intervention, controlled difficulty and Specialist execution discipline."
             assessments={executionStandards}
+            collapsible
+            defaultOpen={false}
           />
           <AssessmentSection
             title="System Intelligence"
             detail="Diagnosis, prompt interpretation, baselines and uncertainty resolution."
             assessments={systemIntelligence}
+            collapsible
+            defaultOpen={false}
           />
           <AssessmentSection
             title="Session Infrastructure"
@@ -599,6 +607,8 @@ export default function SpecialistDevelopmentRecordPage() {
             title="Operating System Retention + Application"
             detail="Final cumulative evidence across Execution Standards, System Intelligence and Session Infrastructure after spacing and mixed-situation application."
             assessments={operatingSystem}
+            collapsible
+            defaultOpen={false}
           />
         </section>
 
