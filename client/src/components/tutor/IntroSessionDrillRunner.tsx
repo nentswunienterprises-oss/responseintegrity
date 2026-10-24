@@ -3600,11 +3600,6 @@ function IntroSessionDrillRunnerCore({
             return `${topicName}: final-phase high stability checkpoint recorded; verify transfer separately`;
           }
           if (transitionReason === "stability regress" || row?.phaseDecision === "regress") {
-            const beforeDisplayed = displayTopicStability(row?.stabilityBefore);
-            const afterDisplayed = displayTopicStability(row?.stability);
-            if (beforeDisplayed === afterDisplayed) {
-              return `${topicName}: stability remains ${afterDisplayed} in ${row?.phase}; phase advancement is not authorized`;
-            }
             return `${topicName}: stability regressed to ${displayTopicStability(row?.stability)} in ${row?.phase}`;
           }
           if (transitionReason === "high maintenance entry") {
