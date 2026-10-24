@@ -268,10 +268,10 @@ export function SandboxReadinessAssessmentCard({
   ];
 
   return (
-    <Card className="border-sky-200 bg-sky-50/30 p-4 sm:p-5">
+    <Card className="border-sky-500/25 bg-sky-500/5 p-4 sm:p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-sky-900">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-sky-700 dark:text-sky-300">
             Sandbox Specialist Evaluation
           </p>
           <h3 className="mt-1 text-lg font-semibold text-foreground">
@@ -336,7 +336,7 @@ export function SandboxReadinessAssessmentCard({
           </div>
 
           {qualification ? (
-            <div className="rounded-lg border border-sky-200 bg-sky-50/50 p-3 space-y-3">
+            <div className="rounded-lg border border-sky-500/25 bg-sky-500/10 p-3 space-y-3">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold">Sandbox graduation gate</p>
@@ -444,7 +444,7 @@ export function SandboxReadinessAssessmentCard({
           </div>
 
           {readiness?.reason ? (
-            <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950">
+            <div className="rounded-lg border border-sky-500/25 bg-sky-500/10 px-3 py-2 text-sm text-foreground">
               {readiness.reason}
             </div>
           ) : null}
