@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Circle,
   Clock3,
-  ShieldCheck,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { Badge } from "@/components/ui/badge";
@@ -184,14 +183,6 @@ const PATHWAY = [
   ["certification", "Certification"],
   ["certified_live", "Certified Live"],
 ] as const;
-
-const CAPABILITY_LABELS: Record<string, string> = {
-  condition_integrity: "Condition Integrity",
-  observation_integrity: "Observation Integrity",
-  evidence_integrity: "Evidence Integrity",
-  authority_integrity: "Authority Integrity",
-  continuity_integrity: "Continuity Integrity",
-};
 
 function humanize(value: string | null | undefined) {
   return String(value || "")
@@ -612,107 +603,15 @@ export default function SpecialistDevelopmentRecordPage() {
           />
         </section>
 
-        <section className="space-y-4">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              Sandbox Evaluation
-            </p>
-            <h2 className="mt-1 text-2xl font-semibold">
-              Operating capability
-            </h2>
-          </div>
-
-          <Card className="rounded-none">
-            <CardContent className="p-5">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                {(record.sandbox.readiness.layers || []).map((layer) => (
-                  <div
-                    key={layer.layer}
-                    className="border border-border/70 p-3"
-                  >
-                    <p className="text-sm font-medium">
-                      {CAPABILITY_LABELS[layer.layer] || humanize(layer.layer)}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {humanize(layer.state)}
-                    </p>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      {layer.validOpportunityCount}/{layer.minimumValidOpportunities} valid opportunities
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <div className="border border-border/70 p-3">
-                  <p className="text-xs text-muted-foreground">Capability stack</p>
-                  <p className="mt-1 text-sm font-medium">
-                    {record.sandbox.readiness.earliestUnsupportedCapability
-                      ? `Developing ${CAPABILITY_LABELS[record.sandbox.readiness.earliestUnsupportedCapability] || humanize(record.sandbox.readiness.earliestUnsupportedCapability)}`
-                      : "All required layers supported"}
-                  </p>
-                </div>
-                <div className="border border-border/70 p-3">
-                  <p className="text-xs text-muted-foreground">Breadth</p>
-                  <p className="mt-1 text-sm font-medium">
-                    {record.sandbox.readiness.breadthReady
-                      ? "Established"
-                      : "Still developing"}
-                  </p>
-                </div>
-                <div className="border border-border/70 p-3">
-                  <p className="text-xs text-muted-foreground">Longitudinal proof</p>
-                  <p className="mt-1 text-sm font-medium">
-                    {record.sandbox.readiness.longitudinalReady
-                      ? "Established"
-                      : "Still developing"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 border border-border/70 p-3">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4" />
-                  <p className="text-sm font-medium">
-                    {record.sandbox.readiness.practicalsReady
-                      ? "System ready for Practicals review"
-                      : "Sandbox development still active"}
-                  </p>
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {record.sandbox.readiness.reason}
-                </p>
-              </div>
-
-              {record.sandbox.latestAssessment ? (
-                <div className="mt-4 border border-border/70 p-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Latest TD decision
-                  </p>
-                  <p className="mt-1 text-sm font-medium">
-                    {record.sandbox.latestAssessment.decision === "passed"
-                      ? "Ready for Practicals"
-                      : "Remediation required"}
-                  </p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {record.sandbox.latestAssessment.evidenceNote}
-                  </p>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {formatDate(record.sandbox.latestAssessment.assessedAt)}
-                  </p>
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
-
-          {!isCooView && record.assignment.operationalMode === "sandbox" ? (
+        {!isCooView && record.assignment.operationalMode === "sandbox" ? (
+          <section className="space-y-4">
             <SandboxReadinessAssessmentCard
               tutorId={record.specialist.id}
               tutorName={record.specialist.name}
               operationalMode={record.assignment.operationalMode}
             />
-          ) : null}
-        </section>
+          </section>
+        ) : null}
 
         <section className="space-y-4">
           <div>
