@@ -44,6 +44,15 @@ type CapabilityReadiness = {
     stateChangeObserved: boolean;
     breakdownRecoveryObserved: boolean;
   };
+  qualification?: {
+    developmentCoverageReady: boolean;
+    qualificationReady: boolean;
+    qualifyingSessions: number;
+    requiredSessions: number | null;
+    phaseCounts: Record<string, number>;
+    phaseMinimums: Record<string, number>;
+    reason: string;
+  };
 };
 
 type SandboxReadinessPayload = {
@@ -250,12 +259,19 @@ export function SandboxReadinessAssessmentCard({
     readiness?.practicalsReady === true &&
     (data?.gate.preparationBlockers?.length || 0) === 0 &&
     !!evidenceNote.trim();
+  const qualification = readiness?.qualification;
+  const graduationPhases = [
+    "Clarity",
+    "Structured Execution",
+    "Controlled Discomfort",
+    "Time Pressure Stability",
+  ];
 
   return (
-    <Card className="border-sky-200 bg-sky-50/30 p-4 sm:p-5">
+    <Card className="border-sky-500/25 bg-sky-500/5 p-4 sm:p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-sky-900">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-sky-700 dark:text-sky-300">
             Sandbox Specialist Evaluation
           </p>
           <h3 className="mt-1 text-lg font-semibold text-foreground">
@@ -318,6 +334,51 @@ export function SandboxReadinessAssessmentCard({
               </div>
             ) : null}
           </div>
+
+          {qualification ? (
+            <div className="rounded-lg border border-sky-500/25 bg-sky-500/10 p-3 space-y-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">Sandbox graduation gate</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Coverage must be established before the protected zero-divergence run can qualify.
+                  </p>
+                </div>
+                <Badge variant={qualification.qualificationReady ? "default" : "outline"}>
+                  {qualification.qualificationReady ? "Ready for TD review" : "In progress"}
+                </Badge>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="rounded-md border bg-background px-3 py-2 text-sm">
+                  <p className="text-xs text-muted-foreground">Development coverage</p>
+                  <p className="mt-1 font-medium">
+                    {qualification.developmentCoverageReady ? "Established" : "Developing"}
+                  </p>
+                </div>
+                <div className="rounded-md border bg-background px-3 py-2 text-sm">
+                  <p className="text-xs text-muted-foreground">Zero-divergence graduation run</p>
+                  <p className="mt-1 font-medium">
+                    {qualification.qualifyingSessions}/{qualification.requiredSessions ?? "—"} clean sessions
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {graduationPhases.map((phase) => {
+                  const count = qualification.phaseCounts?.[phase] || 0;
+                  const minimum = qualification.phaseMinimums?.[phase] || 2;
+                  return (
+                    <div key={phase} className="rounded-md border bg-background px-3 py-2 text-xs">
+                      <p className="font-medium">{phase}</p>
+                      <p className="mt-1 text-muted-foreground">{count}/{minimum} clean sessions</p>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {formatReadinessReason(qualification.reason)}
+              </p>
+            </div>
+          ) : null}
 
           <div className="rounded-lg border bg-background p-3 space-y-3">
             <div className="flex items-center justify-between gap-2">
@@ -382,23 +443,8 @@ export function SandboxReadinessAssessmentCard({
             ) : null}
           </div>
 
-          {readiness?.cleanWindow ? (
-            <div className="rounded-lg border bg-background p-3">
-              <p className="text-sm font-semibold">Zero-divergence graduation gate</p>
-              <p className="mt-1 text-sm">
-                {readiness.cleanWindow.qualified ? "Qualifying evidence established" : "Not yet qualified"}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {readiness.cleanWindow.requiredCleanSessions === null
-                  ? "Consecutive clean-session requirement awaits Founder-approved calibration."
-                  : `${readiness.cleanWindow.completeCleanSessions}/${readiness.cleanWindow.requiredCleanSessions} consecutive clean sessions`}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">{readiness.cleanWindow.reason}</p>
-            </div>
-          ) : null}
-
           {readiness?.reason ? (
-            <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950">
+            <div className="rounded-lg border border-sky-500/25 bg-sky-500/10 px-3 py-2 text-sm text-foreground">
               {readiness.reason}
             </div>
           ) : null}
