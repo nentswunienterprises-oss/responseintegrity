@@ -68,23 +68,6 @@ type SandboxReadinessPayload = {
   };
 };
 
-type SandboxQualificationReview = {
-  assignedByProfile: Record<string,number>;
-  sourceGaps: string[];
-  qualification: {
-    policyId:string;policyVersion:number;activated:boolean;
-    developmentCoverageReady:boolean;qualificationReady:boolean;
-    qualifyingSessions:number;requiredSessions:number;
-    technicalBlockers:string[];materialErrorsSinceCoverage:number;pendingPlacements?:number;
-    reason:string;requirements:Array<{
-      key:string;required:number;encountered:number;correct:number;distinctCorrect:number;
-      priorErrors:number;recoveredAfterError:boolean;met:boolean;
-    }>;
-  };
-  evidence:Array<{id:string;mode:string;phase:string|null;profile:string|null;
-    occurredAt:string;materialError:boolean;technicallyValid:boolean}>;
-};
-
 type SandboxDossier = {
   reps: Array<{id:string; sessionNumber:number; phase:string; setId:string; repNumber:number;
     studentBehavior:string; observationExact:boolean|null; evidenceExact:boolean|null;
@@ -110,6 +93,10 @@ function humanize(value: string | null | undefined) {
     .replace(/[._]/g, " ")
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatReadinessReason(value: string | null | undefined) {
+  return String(value || "Readiness is still developing.").replace(/\b[a-z]+(?:_[a-z]+)+\b/g, (token) => humanize(token));
 }
 
 function formatOptionId(value: string) {
@@ -242,17 +229,6 @@ export function SandboxReadinessAssessmentCard({
   });
 
   const [showTrainingEvidence, setShowTrainingEvidence] = useState(false);
-  const [showCoverage, setShowCoverage] = useState(false);
-  const { data: coverageReview, isFetching: coverageLoading, isError: coverageError } = useQuery<SandboxQualificationReview>({
-    queryKey: ["/api/td/tutors", tutorId, "sandbox-qualification-review"],
-    enabled: !!tutorId && showCoverage && isSandbox,
-    gcTime: 0, staleTime: 0, networkMode: "always",
-    queryFn: async () => {
-      const response = await apiRequest("GET", `/api/td/tutors/${encodeURIComponent(tutorId)}/sandbox-qualification-review`);
-      return response.json();
-    },
-  });
-
   const [showDossier, setShowDossier] = useState(false);
   const { data: dossier, isFetching: dossierLoading, isError: dossierError } = useQuery<SandboxDossier>({
     queryKey: ["/api/td/tutors", tutorId, "sandbox-evidence-dossier"],
@@ -334,25 +310,11 @@ export function SandboxReadinessAssessmentCard({
             </div>
             {showTrainingEvidence ? (
               <div className="space-y-4 border-t border-border/60 pt-3">
-                {readiness ? <p className="text-sm text-muted-foreground">{readiness.reason}</p> : null}
+                {readiness ? <p className="text-sm text-muted-foreground">{formatReadinessReason(readiness.reason)}</p> : null}
                 <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                   <span>Coverage: {readiness?.breadthReady ? "Established" : "Developing"}</span>
                   <span>Consistency: {readiness?.longitudinalReady ? "Established" : "Developing"}</span>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => setShowCoverage(value => !value)}>
-                  {showCoverage ? "Hide qualification detail" : "View qualification detail"}
-                </Button>
-                {showCoverage && coverageLoading ? <p className="text-sm">Loading protected coverage evidence...</p> : null}
-                {showCoverage && coverageError ? <p className="text-sm text-destructive">Coverage evidence unavailable. Readiness remains blocked.</p> : null}
-                {showCoverage && !coverageLoading && !coverageError && coverageReview ? (
-                  <div className="space-y-3">
-                    <p className="text-sm font-medium">{coverageReview.qualification.reason}</p>
-                    <p className="text-xs text-muted-foreground">Final clean sessions: {coverageReview.qualification.qualifyingSessions}/{coverageReview.qualification.requiredSessions}. Policy v{coverageReview.qualification.policyVersion}.</p>
-                    {coverageReview.sourceGaps.length > 0 ? <p className="text-xs text-destructive">Unresolved evidence sources: {coverageReview.sourceGaps.join("; ")}</p> : null}
-                    {coverageReview.qualification.technicalBlockers.length > 0 ? <div className="text-xs text-destructive"><p className="font-medium">Evidence needing review</p><ul className="list-disc pl-4">{coverageReview.qualification.technicalBlockers.map(blocker => <li key={blocker}>{blocker}</li>)}</ul></div> : null}
-                    <div className="max-h-[450px] space-y-2 overflow-y-auto">{coverageReview.qualification.requirements.map(requirement => <div key={requirement.key} className="rounded border p-2 text-xs"><p className="font-medium">{requirement.key.replace(":", ": ").replaceAll("_", " ")} — {requirement.met ? "Established" : "Not established"}</p><p className="text-muted-foreground">Encountered {requirement.encountered} · Correct {requirement.correct} · Distinct clean opportunities {requirement.distinctCorrect}/{requirement.required}</p></div>)}</div>
-                  </div>
-                ) : null}
               </div>
             ) : null}
           </div>
