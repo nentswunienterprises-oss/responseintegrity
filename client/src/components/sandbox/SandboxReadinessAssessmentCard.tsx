@@ -298,8 +298,8 @@ export function SandboxReadinessAssessmentCard({
           <div className="rounded-lg border bg-background p-3 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <p className="text-sm font-semibold">Training capability evidence</p>
-                <p className="text-xs text-muted-foreground">Deep Dive and qualification evidence is retained here for review when needed.</p>
+                <p className="text-sm font-semibold">Training evidence</p>
+                <p className="text-xs text-muted-foreground">Deep Dive and qualification details are available when needed.</p>
               </div>
               <Button variant="outline" size="sm" onClick={() => setShowTrainingEvidence(value => !value)}>
                 {showTrainingEvidence ? "Hide evidence" : "Inspect evidence"}
@@ -309,8 +309,8 @@ export function SandboxReadinessAssessmentCard({
               <div className="space-y-4 border-t border-border/60 pt-3">
                 {readiness ? <p className="text-sm text-muted-foreground">{readiness.reason}</p> : null}
                 <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                  <span>Capability stack: {readiness?.breadthReady ? "Established" : "Developing"}</span>
-                  <span>Longitudinal proof: {readiness?.longitudinalReady ? "Established" : "Developing"}</span>
+                  <span>Coverage: {readiness?.breadthReady ? "Established" : "Developing"}</span>
+                  <span>Consistency: {readiness?.longitudinalReady ? "Established" : "Developing"}</span>
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => setShowCoverage(value => !value)}>
                   {showCoverage ? "Hide qualification detail" : "View qualification detail"}
@@ -333,8 +333,8 @@ export function SandboxReadinessAssessmentCard({
           <div className="rounded-lg border bg-background p-3 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <p className="text-sm font-semibold">Recorded-vs-canonical evidence dossier</p>
-                <p className="text-xs text-muted-foreground">TD-only historical observations and state consequences; no future scenario truth.</p>
+                <p className="text-sm font-semibold">Sandbox evidence</p>
+                <p className="text-xs text-muted-foreground">Compare the Specialist’s decisions with the expected decisions and resulting state.</p>
               </div>
               <Button variant="outline" size="sm" onClick={() => setShowDossier(value => !value)}>
                 {showDossier ? "Hide evidence" : "Inspect evidence"}
@@ -345,7 +345,7 @@ export function SandboxReadinessAssessmentCard({
             {showDossier && !dossierLoading && !dossierError && dossier ? (
               <div className="space-y-4 max-h-[700px] overflow-y-auto">
                 <div className="rounded-lg border bg-muted/20 px-3 py-3 text-xs text-muted-foreground">
-                  This is committed Sandbox evidence. It compares the Specialist’s recorded decision with the TD-only canonical authority and the resulting state track.
+                  Completed Sandbox sessions and rep evidence are shown below. Open a session to review its sets and reps.
                 </div>
                 <section className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
@@ -360,13 +360,13 @@ export function SandboxReadinessAssessmentCard({
                         <summary className="cursor-pointer list-none text-sm font-medium">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <span>Session {session.sessionNumber} · {humanize(session.phase)}{session.topicKey ? " · " + humanize(session.topicKey) : ""}</span>
-                            <span className="flex flex-wrap gap-1"><Badge variant={session.authorityAligned ? "default" : "destructive"}>{session.authorityAligned ? "Decision aligned" : "Decision needs review"}</Badge><Badge variant={session.stateTrackAligned ? "default" : "destructive"}>{session.stateTrackAligned ? "State aligned" : "State diverged"}</Badge></span>
+                            <Badge variant={session.authorityAligned && session.stateTrackAligned ? "default" : "destructive"}>{session.authorityAligned && session.stateTrackAligned ? "Evidence aligned" : "Review required"}</Badge>
                           </div>
                         </summary>
                         <div className="mt-3 space-y-3 border-t pt-3 text-xs">
-                          <p className="text-muted-foreground">Completed {formatDossierTimestamp(session.completedAt)} · State change observed: {session.stateChangeObserved == null ? "Not recorded" : session.stateChangeObserved ? "Yes" : "No"}</p>
+                          <p className="text-muted-foreground">Completed {formatDossierTimestamp(session.completedAt)} · Decision: {session.authorityAligned ? "Aligned" : "Needs review"} · State: {session.stateTrackAligned ? "Aligned" : "Diverged"} · State change observed: {session.stateChangeObserved == null ? "Not recorded" : session.stateChangeObserved ? "Yes" : "No"}</p>
                           <div className="grid gap-3 md:grid-cols-2"><div className="rounded-md border bg-muted/20 p-3"><p className="font-semibold text-foreground">Specialist decision</p><p className="mt-2 leading-5 text-muted-foreground">{formatEvidenceValue(session.specialistAuthority)}</p></div><div className="rounded-md border bg-muted/20 p-3"><p className="font-semibold text-foreground">Canonical authority</p><p className="mt-2 leading-5 text-muted-foreground">{formatEvidenceValue(session.canonicalAuthority)}</p></div></div>
-                          <div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Sets</p>{setIds.map(setId => { const setReps = sessionReps.filter(rep => rep.setId === setId); return <details key={setId} className="rounded-md border bg-muted/10 p-3"><summary className="cursor-pointer list-none font-medium">Set {humanize(setId)} · {setReps.length} reps</summary><div className="mt-3 space-y-2">{setReps.map(rep => <details key={rep.id} className="rounded-md border bg-background p-3"><summary className="cursor-pointer list-none"><div className="flex items-center justify-between gap-2"><span>Rep {rep.repNumber}</span><Badge variant={rep.truthPresent && rep.observationExact && rep.evidenceExact && rep.conditionKept === true ? "default" : "destructive"}>{rep.truthPresent && rep.observationExact && rep.evidenceExact && rep.conditionKept === true ? "Evidence aligned" : "Review required"}</Badge></div></summary><div className="mt-3 space-y-3 border-t pt-3"><p><span className="font-semibold text-foreground">Student behaviour:</span> <span className="text-muted-foreground">{rep.studentBehavior}</span></p><p className="text-muted-foreground">Condition preserved: {rep.conditionKept == null ? "Not recorded" : rep.conditionKept ? "Yes" : "No"} · Canonical evidence: {rep.truthPresent ? "Available" : "Unavailable"}</p><div className="space-y-2">{rep.comparisons.map(c => <div key={c.fieldKey} className="rounded-md border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><p className="font-semibold text-foreground">{humanize(c.fieldKey)}</p><Badge variant={c.matched ? "default" : "destructive"}>{c.matched ? "Aligned" : "Diverged"}</Badge></div><div className="mt-2 grid gap-2 md:grid-cols-2"><p className="text-muted-foreground"><span className="font-medium text-foreground">Recorded:</span> {formatEvidenceValue(c.recorded)}</p><p className="text-muted-foreground"><span className="font-medium text-foreground">Expected:</span> {formatEvidenceValue(c.expected)}</p></div></div>)}</div></div></details>)}</div></details>; })}</div>
+                          <div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Sets</p>{setIds.map((setId, setIndex) => { const setReps = sessionReps.filter(rep => rep.setId === setId); return <details key={setId} className="rounded-md border bg-muted/10 p-3"><summary className="cursor-pointer list-none font-medium">Set {setIndex + 1} · {setReps.length} reps</summary><div className="mt-3 space-y-2">{setReps.map(rep => <details key={rep.id} className="rounded-md border bg-background p-3"><summary className="cursor-pointer list-none"><div className="flex items-center justify-between gap-2"><span>Rep {rep.repNumber}</span><Badge variant={rep.truthPresent && rep.observationExact && rep.evidenceExact && rep.conditionKept === true ? "default" : "destructive"}>{rep.truthPresent && rep.observationExact && rep.evidenceExact && rep.conditionKept === true ? "Evidence aligned" : "Review required"}</Badge></div></summary><div className="mt-3 space-y-3 border-t pt-3"><p><span className="font-semibold text-foreground">Student behaviour:</span> <span className="text-muted-foreground">{rep.studentBehavior}</span></p><p className="text-muted-foreground">Condition preserved: {rep.conditionKept == null ? "Not recorded" : rep.conditionKept ? "Yes" : "No"} · Canonical evidence: {rep.truthPresent ? "Available" : "Unavailable"}</p><div className="space-y-2">{rep.comparisons.map(c => <div key={c.fieldKey} className="rounded-md border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><p className="font-semibold text-foreground">{humanize(c.fieldKey)}</p><Badge variant={c.matched ? "default" : "destructive"}>{c.matched ? "Aligned" : "Diverged"}</Badge></div><div className="mt-2 grid gap-2 md:grid-cols-2"><p className="text-muted-foreground"><span className="font-medium text-foreground">Recorded:</span> {formatEvidenceValue(c.recorded)}</p><p className="text-muted-foreground"><span className="font-medium text-foreground">Expected:</span> {formatEvidenceValue(c.expected)}</p></div></div>)}</div></div></details>)}</div></details>; })}</div>
                         </div>
                       </details>
                     );
@@ -491,5 +491,6 @@ export function SandboxReadinessAssessmentCard({
 }
 
 export default SandboxReadinessAssessmentCard;
+
 
 
