@@ -147,6 +147,18 @@ function formatDossierTimestamp(value?: string | null) {
   return Number.isNaN(date.getTime()) ? "Time not recorded" : date.toLocaleString();
 }
 
+function authorityParts(value: unknown) {
+  return formatEvidenceValue(value)
+    .split(" · ")
+    .map((part) => {
+      const separator = part.indexOf(":");
+      return separator > 0
+        ? { label: part.slice(0, separator).trim(), value: part.slice(separator + 1).trim() }
+        : { label: "Decision", value: part.trim() };
+    })
+    .filter((part) => part.value);
+}
+
 export function SandboxReadinessAssessmentCard({
   tutorId,
   tutorName,
@@ -372,7 +384,21 @@ export function SandboxReadinessAssessmentCard({
                         </summary>
                         <div className="mt-3 space-y-3 border-t pt-3 text-xs">
                           <p className="text-muted-foreground">Completed {formatDossierTimestamp(session.completedAt)} · Decision: {session.authorityAligned ? "Aligned" : "Needs review"} · State: {session.stateTrackAligned ? "Aligned" : "Diverged"} · State change observed: {session.stateChangeObserved == null ? "Not recorded" : session.stateChangeObserved ? "Yes" : "No"}</p>
-                          <div className="grid gap-3 md:grid-cols-2"><div className="rounded-md border bg-muted/20 p-3"><p className="font-semibold text-foreground">Specialist decision</p><p className="mt-2 leading-5 text-muted-foreground">{formatEvidenceValue(session.specialistAuthority)}</p></div><div className="rounded-md border bg-muted/20 p-3"><p className="font-semibold text-foreground">Canonical authority</p><p className="mt-2 leading-5 text-muted-foreground">{formatEvidenceValue(session.canonicalAuthority)}</p></div></div>
+                          <div className="grid gap-3 md:grid-cols-2">
+                            {[{ title: "Recorded decision", value: session.specialistAuthority }, { title: "Expected decision", value: session.canonicalAuthority }].map((decision) => (
+                              <div key={decision.title} className="rounded-md border bg-muted/20 p-3">
+                                <p className="font-semibold text-foreground">{decision.title}</p>
+                                <dl className="mt-2 space-y-1.5">
+                                  {authorityParts(decision.value).map((part) => (
+                                    <div key={`${decision.title}-${part.label}`} className="grid grid-cols-[auto_1fr] gap-2 text-xs">
+                                      <dt className="font-medium text-muted-foreground">{part.label}</dt>
+                                      <dd className="text-foreground">{part.value}</dd>
+                                    </div>
+                                  ))}
+                                </dl>
+                              </div>
+                            ))}
+                          </div>
                           <div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Sets</p>{setIds.map((setId, setIndex) => { const setReps = sessionReps.filter(rep => rep.setId === setId); return <details key={setId} className="rounded-md border bg-muted/10 p-3"><summary className="cursor-pointer list-none font-medium">Set {setIndex + 1} · {setReps.length} reps</summary><div className="mt-3 space-y-2">{setReps.map(rep => <details key={rep.id} className="rounded-md border bg-background p-3"><summary className="cursor-pointer list-none"><div className="flex items-center justify-between gap-2"><span>Rep {rep.repNumber}</span><Badge variant={rep.truthPresent && rep.observationExact && rep.evidenceExact && rep.conditionKept === true ? "default" : "destructive"}>{rep.truthPresent && rep.observationExact && rep.evidenceExact && rep.conditionKept === true ? "Evidence aligned" : "Review required"}</Badge></div></summary><div className="mt-3 space-y-3 border-t pt-3"><p><span className="font-semibold text-foreground">Student behaviour:</span> <span className="text-muted-foreground">{rep.studentBehavior}</span></p><p className="text-muted-foreground">Condition preserved: {rep.conditionKept == null ? "Not recorded" : rep.conditionKept ? "Yes" : "No"} · Canonical evidence: {rep.truthPresent ? "Available" : "Unavailable"}</p><div className="space-y-2">{rep.comparisons.map(c => <div key={c.fieldKey} className="rounded-md border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><p className="font-semibold text-foreground">{humanize(c.fieldKey)}</p><Badge variant={c.matched ? "default" : "destructive"}>{c.matched ? "Aligned" : "Diverged"}</Badge></div><div className="mt-2 grid gap-2 md:grid-cols-2"><p className="text-muted-foreground"><span className="font-medium text-foreground">Recorded:</span> {formatEvidenceValue(c.recorded)}</p><p className="text-muted-foreground"><span className="font-medium text-foreground">Expected:</span> {formatEvidenceValue(c.expected)}</p></div></div>)}</div></div></details>)}</div></details>; })}</div>
                         </div>
                       </details>
@@ -498,7 +524,6 @@ export function SandboxReadinessAssessmentCard({
 }
 
 export default SandboxReadinessAssessmentCard;
-
 
 
 
