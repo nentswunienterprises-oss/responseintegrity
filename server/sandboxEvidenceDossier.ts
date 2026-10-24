@@ -10,12 +10,26 @@ type DossierDatabase = {
 
 function observationLabel(phase: unknown, setId: unknown, repNumber: unknown, fieldKey: string, value: any) {
   if (!value?.optionId) return null;
-  const optionMatch = String(value.optionId).match(/\.option_(\d+)$/i);
+  // Older persisted Sandbox submissions used the human-readable option suffix
+  // (`... Option 2`) while current submissions use the canonical
+  // `.option_2` suffix. Both identify the same contract option and should
+  // render the contract label instead of leaking an internal ID to TDs.
+  const optionMatch = String(value.optionId).match(/(?:\.option_|\soption\s)(\d+)$/i);
   if (!optionMatch) return null;
   const schema = getDrillSchemaDefinition("training", String(phase) as TopicPhase);
   const set = schema?.sets.find((candidate) => candidate.setId === String(setId));
-  const field = set ? getFieldDefinitionsForRep(set, Math.max(0, Number(repNumber) - 1)).find((candidate) => candidate.fieldKey === fieldKey) : null;
-  return field?.optionLabels?.[Number(optionMatch[1]) - 1] || null;
+  // Historical rows can contain a dimension that is no longer eligible for
+  // that rep under the current authority projection. Resolve its label from
+  // the set's canonical field as a compatibility fallback so old evidence is
+  // still readable.
+  const field = set
+    ? getFieldDefinitionsForRep(set, Math.max(0, Number(repNumber) - 1)).find((candidate) => candidate.fieldKey === fieldKey)
+      || set.fields.find((candidate) => candidate.fieldKey === fieldKey)
+    : null;
+  const fallbackField = field || schema?.sets
+    .flatMap((candidate) => candidate.fields)
+    .find((candidate) => candidate.fieldKey === fieldKey);
+  return fallbackField?.optionLabels?.[Number(optionMatch[1]) - 1] || null;
 }
 
 export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
