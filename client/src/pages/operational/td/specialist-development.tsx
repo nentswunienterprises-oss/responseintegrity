@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -221,26 +222,45 @@ function AssessmentSection({
   title,
   detail,
   assessments,
+  collapsible = false,
+  defaultOpen = true,
 }: {
   title: string;
   detail: string;
   assessments: CapabilityAssessment[];
+  collapsible?: boolean;
+  defaultOpen?: boolean;
 }) {
+  const [open, setOpen] = useState(defaultOpen);
   const complete = assessments.filter((entry) => entry.status === "complete").length;
   return (
     <Card className="rounded-none">
       <CardHeader>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <CardTitle className="text-lg">{title}</CardTitle>
+            {collapsible ? (
+              <button
+                type="button"
+                className="text-left"
+                aria-expanded={open}
+                onClick={() => setOpen((value) => !value)}
+              >
+                <CardTitle className="text-lg">{title}</CardTitle>
+              </button>
+            ) : <CardTitle className="text-lg">{title}</CardTitle>}
             <p className="mt-1 text-sm text-muted-foreground">{detail}</p>
           </div>
-          <Badge variant="outline">
-            {complete}/{assessments.length} complete
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{complete}/{assessments.length} complete</Badge>
+            {collapsible ? (
+              <Button type="button" variant="ghost" size="sm" onClick={() => setOpen((value) => !value)}>
+                {open ? "Hide" : "Show"}
+              </Button>
+            ) : null}
+          </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-2">
+      {(!collapsible || open) && <CardContent className="space-y-2">
         {assessments.length === 0 ? (
           <p className="text-sm text-muted-foreground">No active assessments.</p>
         ) : (
@@ -277,7 +297,7 @@ function AssessmentSection({
             </div>
           ))
         )}
-      </CardContent>
+      </CardContent>}
     </Card>
   );
 }
@@ -572,6 +592,8 @@ export default function SpecialistDevelopmentRecordPage() {
             title="Session Infrastructure"
             detail="The session system, logging, drill authority, Handover and tools."
             assessments={sessionInfrastructure}
+            collapsible
+            defaultOpen={false}
           />
           <AssessmentSection
             title="Operating System Retention + Application"
