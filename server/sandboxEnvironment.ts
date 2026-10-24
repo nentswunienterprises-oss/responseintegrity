@@ -1001,10 +1001,29 @@ async function selectSandboxTopicTrajectory(input: {
       );
     }
     if (!activeKey && Number(row.session_number) > 1) {
-      throw httpError(
-        409,
-        "The earlier Sandbox sessions cannot be safely attributed to a topic. Preserve the history and resolve its origin before selecting a different topic.",
+      // Older Preview trajectories may contain completed, pre-topic sessions.
+      // Those rows must remain untouched, but they must not dead-end every
+      // future lesson. Only block when the preserved history contains a
+      // conflicting explicit topic; otherwise the selected topic becomes the
+      // lane for this new session without retroactively attributing anything.
+      const priorTopics = await client.query(
+        `SELECT DISTINCT lower(trim(topic_key)) AS topic_key
+           FROM public.specialist_sandbox_rep_events
+          WHERE trajectory_id = $1
+            AND topic_key IS NOT NULL
+            AND trim(topic_key) <> ''`,
+        [row.id],
       );
+      const explicitPriorTopics = priorTopics.rows
+        .map((entry) => sandboxTopicKey(entry.topic_key))
+        .filter((entry): entry is string => Boolean(entry));
+      const hasConflictingTopic = explicitPriorTopics.some((entry) => entry !== topicKey);
+      if (hasConflictingTopic) {
+        throw httpError(
+          409,
+          "The earlier Sandbox sessions contain a different topic. Preserve that history and finish its topic lane before selecting another topic.",
+        );
+      }
     }
     const specialistStates: Record<string, unknown> =
       row.specialist_topic_states && typeof row.specialist_topic_states === "object" &&
