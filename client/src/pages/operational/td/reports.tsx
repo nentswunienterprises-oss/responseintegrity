@@ -82,9 +82,9 @@ export default function TDReports() {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="space-y-2">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Reports & Check-Ins</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Specialist Updates</h1>
           <p className="text-muted-foreground">
-            View all tutor weekly check-ins and student updates from your pod
+            Read the latest specialist-submitted updates. Development Pathway standing remains the authoritative operational record.
           </p>
         </div>
 
@@ -99,15 +99,15 @@ export default function TDReports() {
         ) : (
           <div className="grid gap-6">
             {checkIns.map((checkIn) => (
-              <Card key={checkIn.id} className="border overflow-hidden">
+              <Card key={checkIn.id} className="overflow-hidden border-border/60">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 border-b">
+                <div className="border-b border-border/60 bg-muted/20 p-6">
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h3 className="font-bold text-lg mb-1">
+                      <h3 className="mb-1 text-lg font-bold text-foreground">
                         {checkIn.tutor?.name || "Unknown Tutor"}
                       </h3>
-                      <p className="text-sm text-muted-foreground">{checkIn.tutor?.email}</p>
+                      <p className="text-sm text-muted-foreground">{checkIn.tutor?.email || "Email not recorded"}</p>
                     </div>
                     <Badge variant="outline" className="whitespace-nowrap">
                       <Calendar className="w-3 h-3 mr-1" />
@@ -120,39 +120,39 @@ export default function TDReports() {
                 <div className="p-6 grid md:grid-cols-2 gap-6">
                   {/* Sessions Summary */}
                   <div className="space-y-2">
-                    <h4 className="font-semibold text-sm text-gray-700">📅 Sessions Summary</h4>
-                    <p className="text-sm text-gray-600 leading-relaxed">{checkIn.sessionsSummary}</p>
+                    <h4 className="text-sm font-semibold text-foreground">Sessions summary</h4>
+                    <p className="text-sm leading-relaxed text-muted-foreground">{checkIn.sessionsSummary || "Not recorded"}</p>
                   </div>
 
                   {/* Wins */}
                   <div className="space-y-2">
-                    <h4 className="font-semibold text-sm text-green-700">  Wins</h4>
-                    <p className="text-sm text-gray-600 leading-relaxed">{checkIn.wins}</p>
+                    <h4 className="text-sm font-semibold text-emerald-400">Wins</h4>
+                    <p className="text-sm leading-relaxed text-muted-foreground">{checkIn.wins || "Not recorded"}</p>
                   </div>
 
                   {/* Challenges */}
                   <div className="space-y-2">
-                    <h4 className="font-semibold text-sm text-orange-700">⚠️ Challenges</h4>
-                    <p className="text-sm text-gray-600 leading-relaxed">{checkIn.challenges}</p>
+                    <h4 className="text-sm font-semibold text-amber-400">Challenges</h4>
+                    <p className="text-sm leading-relaxed text-muted-foreground">{checkIn.challenges || "Not recorded"}</p>
                   </div>
 
                   {/* Next Week Goals */}
                   <div className="space-y-2">
-                    <h4 className="font-semibold text-sm text-blue-700">🚀 Next Week Goals</h4>
-                    <p className="text-sm text-gray-600 leading-relaxed">{checkIn.nextWeekGoals}</p>
+                    <h4 className="text-sm font-semibold text-sky-400">Next steps</h4>
+                    <p className="text-sm leading-relaxed text-muted-foreground">{checkIn.nextWeekGoals || "Not recorded"}</p>
                   </div>
 
                   {/* Help Needed - if present */}
                   {checkIn.helpNeeded && (
-                    <div className="md:col-span-2 space-y-2 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                      <h4 className="font-semibold text-sm text-yellow-900">🤝 Help Needed</h4>
-                      <p className="text-sm text-yellow-800 leading-relaxed">{checkIn.helpNeeded}</p>
+                    <div className="space-y-2 rounded-lg border border-amber-400/30 bg-amber-400/10 p-4 md:col-span-2">
+                      <h4 className="text-sm font-semibold text-amber-300">Support requested</h4>
+                      <p className="text-sm leading-relaxed text-amber-100">{checkIn.helpNeeded}</p>
                     </div>
                   )}
                 </div>
 
                 {/* Footer with timestamp */}
-                <div className="px-6 py-3 bg-gray-50 border-t text-xs text-muted-foreground">
+                <div className="border-t border-border/60 bg-muted/10 px-6 py-3 text-xs text-muted-foreground">
                   Submitted: {format(new Date(checkIn.submittedAt), "MMMM d, yyyy 'at' h:mm a")}
                 </div>
               </Card>
@@ -163,3 +163,4 @@ export default function TDReports() {
     </DashboardLayout>
   );
 }
+

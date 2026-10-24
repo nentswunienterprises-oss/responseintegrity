@@ -106,8 +106,14 @@ const CAPABILITY_LABELS: Record<string, string> = {
 
 function humanize(value: string | null | undefined) {
   return String(value || "unresolved")
-    .replace(/_/g, " ")
+    .replace(/[._]/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatOptionId(value: string) {
+  const optionMatch = value.match(/(?:^|\.)Option\.(\d+)$/i);
+  return optionMatch ? `Option ${optionMatch[1]}` : humanize(value);
 }
 
 function formatEvidenceValue(value: unknown): string {
@@ -115,7 +121,7 @@ function formatEvidenceValue(value: unknown): string {
   if (typeof value === "object" && !Array.isArray(value)) {
     const record = value as Record<string, unknown>;
     if (record.optionId || record.evidenceStatus) {
-      return [record.optionId ? humanize(String(record.optionId)) : null, record.evidenceStatus ? humanize(String(record.evidenceStatus)) : null]
+      return [record.optionId ? formatOptionId(String(record.optionId)) : null, record.evidenceStatus ? humanize(String(record.evidenceStatus)) : null]
         .filter(Boolean)
         .join(" · ");
     }
@@ -586,3 +592,4 @@ export function SandboxReadinessAssessmentCard({
 }
 
 export default SandboxReadinessAssessmentCard;
+
