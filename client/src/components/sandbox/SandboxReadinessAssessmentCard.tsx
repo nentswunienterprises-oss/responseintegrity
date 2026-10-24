@@ -148,12 +148,20 @@ function formatDossierTimestamp(value?: string | null) {
 }
 
 function authorityParts(value: unknown) {
+  const labelMap: Record<string, string> = {
+    Route: "Next step",
+    Reason: "Why",
+    "Next Phase": "Phase",
+    "Next Stability": "Stability",
+    "Transition Reason": "Change",
+  };
   return formatEvidenceValue(value)
     .split(" · ")
     .map((part) => {
       const separator = part.indexOf(":");
+      const rawLabel = separator > 0 ? part.slice(0, separator).trim() : "Decision";
       return separator > 0
-        ? { label: part.slice(0, separator).trim(), value: part.slice(separator + 1).trim() }
+        ? { label: labelMap[rawLabel] || rawLabel, value: part.slice(separator + 1).trim() }
         : { label: "Decision", value: part.trim() };
     })
     .filter((part) => part.value && part.value.toLowerCase() !== "not recorded");
