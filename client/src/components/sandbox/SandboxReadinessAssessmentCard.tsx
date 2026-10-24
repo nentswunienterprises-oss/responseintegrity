@@ -117,6 +117,13 @@ function formatOptionId(value: string) {
   return optionMatch ? `Option ${optionMatch[1]}` : humanize(value);
 }
 
+function formatRecordedValue(value: string) {
+  const [rawValue, ...statusParts] = value.split(" · ");
+  const optionMatch = rawValue.match(/(?:^|\.)Option[. ](\d+)$/i);
+  const readableValue = optionMatch ? `Option ${optionMatch[1]}` : humanize(rawValue);
+  return [readableValue, ...statusParts.map((part) => humanize(part))].join(" · ");
+}
+
 function formatEvidenceValue(value: unknown): string {
   if (value == null || value === "") return "Not recorded";
   if (typeof value === "object" && !Array.isArray(value)) {
@@ -131,7 +138,7 @@ function formatEvidenceValue(value: unknown): string {
       .join(" · ");
   }
   if (Array.isArray(value)) return value.map((entry) => formatEvidenceValue(entry)).join(", ");
-  return humanize(String(value));
+  return formatRecordedValue(String(value));
 }
 
 function formatDossierTimestamp(value?: string | null) {
@@ -491,6 +498,7 @@ export function SandboxReadinessAssessmentCard({
 }
 
 export default SandboxReadinessAssessmentCard;
+
 
 
 
