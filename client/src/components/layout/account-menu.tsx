@@ -7,18 +7,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ClipboardList, LogOut, Palette } from "lucide-react";
+import { ClipboardList, LogOut } from "lucide-react";
 import { getRoleName, isCOO, isTD, isTutor } from "@/lib/roles";
 import { logout } from "@/lib/auth";
-import { useRITheme } from "@/lib/riTheme";
+import { AppearanceMenu } from "@/components/layout/appearance-menu";
 
 interface AccountMenuProps {
   user?: User;
@@ -60,7 +55,6 @@ export function AccountMenu({
   onLogIssue,
   showIssueAction = false,
 }: AccountMenuProps) {
-  const { theme, setTheme } = useRITheme();
   const showAppearance =
     isTutor(user) ||
     isTD(user) ||
@@ -133,37 +127,7 @@ export function AccountMenu({
 
         {showAppearance && (
           <>
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="gap-2 font-medium">
-                <Palette className="w-4 h-4" />
-                Appearance
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent
-                side="bottom"
-                align="start"
-                sideOffset={4}
-                className="min-w-[10rem] max-w-[calc(100vw-1rem)]"
-              >
-                <DropdownMenuRadioGroup
-                  value={theme}
-                  onValueChange={(value) => {
-                    if (
-                      value === "light" ||
-                      value === "warm-dark" ||
-                      value === "dark"
-                    ) {
-                      setTheme(value);
-                    }
-                  }}
-                >
-                  <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="warm-dark">
-                    Warm Dark
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
+            <AppearanceMenu />
             <DropdownMenuSeparator />
           </>
         )}

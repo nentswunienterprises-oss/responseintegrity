@@ -4,20 +4,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { DoorOpen, Menu, Palette } from "lucide-react";
-import { useRITheme } from "@/lib/riTheme";
+import { DoorOpen, Menu } from "lucide-react";
+import { AppearanceMenu } from "@/components/layout/appearance-menu";
 
 export function SpecialistGatewayMenu() {
   const navigate = useNavigate();
-  const { theme, setTheme } = useRITheme();
 
   return (
     <DropdownMenu modal={false}>
@@ -34,37 +28,7 @@ export function SpecialistGatewayMenu() {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger className="gap-2 font-medium">
-            <Palette className="h-4 w-4" />
-            Appearance
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent
-                side="bottom"
-                align="start"
-                sideOffset={4}
-                className="min-w-[10rem] max-w-[calc(100vw-1rem)]"
-              >
-            <DropdownMenuRadioGroup
-              value={theme}
-              onValueChange={(value) => {
-                if (
-                  value === "light" ||
-                  value === "warm-dark" ||
-                  value === "dark"
-                ) {
-                  setTheme(value);
-                }
-              }}
-            >
-              <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="warm-dark">
-                Warm Dark
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
+        <AppearanceMenu />
 
         <DropdownMenuSeparator />
 
