@@ -15,8 +15,7 @@ test("Specialist, TD and COO account menus expose the shared RI Appearance contr
   assert.match(source, /user\?\.role === "parent"/);
   assert.match(source, /user\?\.role === "student"/);
   assert.match(source, /Appearance/);
-  assert.match(source, /Warm Dark/);
-  assert.match(source, /value="dark"/);
+  assert.match(source, /AppearanceMenu/);
 });
 
 test("Specialist account menu does not expose the View Profile link", () => {
