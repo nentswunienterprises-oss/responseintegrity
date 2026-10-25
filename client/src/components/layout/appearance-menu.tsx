@@ -7,7 +7,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, ChevronRight, ChevronUp, Palette } from "lucide-react";
+import { ChevronDown, ChevronUp, Palette } from "lucide-react";
 import { useRITheme } from "@/lib/riTheme";
 import { useIsMobile } from "@/hooks/use-mobile";
 
