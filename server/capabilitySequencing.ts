@@ -8,6 +8,7 @@ import {
   type CapabilityTrainingAvailability,
 } from "@shared/capabilityTrainingSequencing";
 import { assertCapabilityTutorAssignmentOwnership } from "./capabilityEngine";
+import { getSandboxCapabilityReadiness } from "./sandboxEnvironment";
 
 function httpError(status: number, message: string, data?: Record<string, unknown>) {
   const error = new Error(message) as Error & {
@@ -17,6 +18,133 @@ function httpError(status: number, message: string, data?: Record<string, unknow
   error.status = status;
   error.data = data;
   return error;
+}
+
+const SANDBOX_ENTRY_STAGES = new Set([
+  "transformation_mastery",
+  "transformation_retrieval",
+  "transformation_transfer",
+]);
+
+export type SpecialistTrainingStageGate = {
+  mode: string;
+  capabilityTrainingAllowed: boolean;
+  sandboxQualificationRequired: boolean;
+  sandboxQualificationReady: boolean | null;
+  developmentCoverageReady: boolean | null;
+  qualifyingSessions: number | null;
+  requiredSessions: number | null;
+  phaseCounts: Record<string, number> | null;
+  phaseMinimums: Record<string, number> | null;
+  reason: string;
+};
+
+async function loadSpecialistOperationalMode(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+}) {
+  const result = await pool.query(
+    `SELECT COALESCE(
+       (SELECT mode
+          FROM public.tutor_battle_test_statuses
+         WHERE tutor_assignment_id = ta.id
+           AND tutor_id = $2
+         ORDER BY updated_at DESC
+         LIMIT 1),
+       ta.operational_mode,
+       'training'
+     ) AS mode
+       FROM public.tutor_assignments ta
+      WHERE ta.id = $1
+        AND ta.tutor_id = $2
+      LIMIT 1`,
+    [input.tutorAssignmentId, input.tutorId],
+  );
+  return String(result.rows[0]?.mode || "training").trim().toLowerCase();
+}
+
+export async function getSpecialistTrainingStageGate(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+}): Promise<SpecialistTrainingStageGate> {
+  const mode = await loadSpecialistOperationalMode(input);
+  if (mode === "applicant") {
+    return {
+      mode,
+      capabilityTrainingAllowed: false,
+      sandboxQualificationRequired: false,
+      sandboxQualificationReady: null,
+      developmentCoverageReady: null,
+      qualifyingSessions: null,
+      requiredSessions: null,
+      phaseCounts: null,
+      phaseMinimums: null,
+      reason: "Applicant mode is onboarding-only. Complete Specialist onboarding before accessing Training.",
+    };
+  }
+
+  if (mode === "sandbox") {
+    const readiness = await getSandboxCapabilityReadiness(input);
+    const qualification = "qualification" in readiness ? readiness.qualification : null;
+    const qualificationReady = qualification?.qualificationReady === true;
+    return {
+      mode,
+      capabilityTrainingAllowed: false,
+      sandboxQualificationRequired: true,
+      sandboxQualificationReady: qualificationReady,
+      developmentCoverageReady: qualification?.developmentCoverageReady ?? false,
+      qualifyingSessions: qualification?.qualifyingSessions ?? 0,
+      requiredSessions: qualification?.requiredSessions ?? null,
+      phaseCounts: qualification?.phaseCounts ?? {},
+      phaseMinimums: qualification?.phaseMinimums ?? {},
+      reason: qualificationReady
+        ? "Sandbox graduation evidence is complete. The remaining Training gates may now be completed."
+        : "Complete Sandbox development coverage and the phase-balanced zero-divergence run before continuing the remaining Training gates.",
+    };
+  }
+
+  if (mode === "trial" || mode === "certified_live") {
+    return {
+      mode,
+      capabilityTrainingAllowed: false,
+      sandboxQualificationRequired: false,
+      sandboxQualificationReady: null,
+      developmentCoverageReady: null,
+      qualifyingSessions: null,
+      requiredSessions: null,
+      phaseCounts: null,
+      phaseMinimums: null,
+      reason: `Capability Training is closed in ${mode.replaceAll("_", " ")} mode.`,
+    };
+  }
+
+  return {
+    mode,
+    capabilityTrainingAllowed: true,
+    sandboxQualificationRequired: false,
+    sandboxQualificationReady: null,
+    developmentCoverageReady: null,
+    qualifyingSessions: null,
+    requiredSessions: null,
+    phaseCounts: null,
+    phaseMinimums: null,
+    reason: "Training is open for the current Specialist stage.",
+  };
+}
+
+export async function assertSpecialistTrainingStageAccess(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+  assessmentStage?: CapabilityTrainingAvailability["stage"];
+}) {
+  const gate = await getSpecialistTrainingStageGate(input);
+  const sandboxEntryStage = gate.mode === "sandbox" &&
+    input.assessmentStage && SANDBOX_ENTRY_STAGES.has(input.assessmentStage);
+  if (gate.mode === "sandbox" && sandboxEntryStage) return gate;
+  if (gate.mode === "sandbox" && gate.sandboxQualificationReady === true) return gate;
+  if (gate.capabilityTrainingAllowed) return gate;
+
+  throw httpError(409, gate.reason, { stageGate: gate });
 }
 
 function parseDocumentStatuses(value: unknown): Record<string, unknown> {
@@ -77,6 +205,7 @@ export async function getSpecialistCapabilityTrainingState(input: {
 }): Promise<{
   assessments: CapabilityTrainingAvailability[];
   sandboxReady: boolean;
+  stageGate: SpecialistTrainingStageGate;
 }> {
   await assertCapabilityTutorAssignmentOwnership(
     input.tutorAssignmentId,
@@ -158,9 +287,12 @@ export async function getSpecialistCapabilityTrainingState(input: {
     plan: getCapabilityTrainingAssessmentPlan({ curriculumVersion: "v2" }),
   });
 
+  const stageGate = await getSpecialistTrainingStageGate(input);
+
   return {
     assessments,
     sandboxReady: isCapabilityTransformationSandboxReady(assessments),
+    stageGate,
   };
 }
 
@@ -200,6 +332,10 @@ export async function assertCapabilityAssessmentAvailable(input: {
   if (!status) {
     throw httpError(404, "Capability assessment is not part of the active Training plan.");
   }
+  await assertSpecialistTrainingStageAccess({
+    ...input,
+    assessmentStage: status.stage,
+  });
   if (status.status === "available") return status;
 
   if (status.status === "unavailable") {

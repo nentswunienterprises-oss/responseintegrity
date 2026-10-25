@@ -12,6 +12,7 @@ import {
 } from "../capabilityEngine";
 import {
   assertCapabilityAssessmentAvailable,
+  assertSpecialistTrainingStageAccess,
   getSpecialistCapabilityTrainingState,
   reconcileCapabilitySandboxAuthority,
 } from "../capabilitySequencing";
@@ -99,6 +100,11 @@ export function registerCapabilityEngineRoutes(app: Express) {
 
         const payload = capabilityReviewResetSchema.parse(req.body);
         const assessmentKey = String(req.params.assessmentKey || "").trim();
+
+        await assertSpecialistTrainingStageAccess({
+          tutorAssignmentId: payload.tutorAssignmentId,
+          tutorId: String(dbUser.id),
+        });
 
         const state = await resetCapabilityReviewSession({
           tutorAssignmentId: payload.tutorAssignmentId,
