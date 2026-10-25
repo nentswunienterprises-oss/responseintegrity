@@ -80,7 +80,7 @@ type SandboxReadinessPayload = {
 type SandboxDossier = {
   reps: Array<{id:string; sessionNumber:number; phase:string; setId:string; repNumber:number;
     studentBehavior:string; observationExact:boolean|null; evidenceExact:boolean|null;
-    conditionKept:boolean|null; truthPresent:boolean; comparisons:Array<{
+    conditionKept:boolean|null; intervention?:string|null; truthPresent:boolean; comparisons:Array<{
       fieldKey:string; recorded:{optionId:string;label?:string|null;evidenceStatus?:string}|null;
       expected:{optionId:string;label?:string|null;evidenceStatus?:string}|null; matched:boolean;
     }> }>;
@@ -106,6 +106,23 @@ function humanize(value: string | null | undefined) {
 
 function formatReadinessReason(value: string | null | undefined) {
   return String(value || "Readiness is still developing.").replace(/\b[a-z]+(?:_[a-z]+)+\b/g, (token) => humanize(token));
+}
+
+function formatReviewReason(rep: {
+  truthPresent: boolean;
+  observationExact: boolean | null;
+  evidenceExact: boolean | null;
+  conditionKept: boolean | null;
+  intervention?: string | null;
+}) {
+  if (!rep.truthPresent) return "Canonical evidence unavailable";
+  if (rep.observationExact !== true) return "Observation divergence";
+  if (rep.evidenceExact !== true) return "Evidence divergence";
+  if (rep.conditionKept !== true) {
+    const intervention = humanize(rep.intervention || "condition not preserved");
+    return `Condition not preserved: ${intervention}`;
+  }
+  return "Evidence aligned";
 }
 
 function formatOptionId(value: string) {
@@ -432,7 +449,7 @@ export function SandboxReadinessAssessmentCard({
                               </div>
                             ))}
                           </div>
-                          <div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Sets</p>{setIds.map((setId, setIndex) => { const setReps = sessionReps.filter(rep => rep.setId === setId); return <details key={setId} className="rounded-md border bg-muted/10 p-3"><summary className="cursor-pointer list-none font-medium">Set {setIndex + 1} · {setReps.length} reps</summary><div className="mt-3 space-y-2">{setReps.map(rep => <details key={rep.id} className="rounded-md border bg-background p-3"><summary className="cursor-pointer list-none"><div className="flex items-center justify-between gap-2"><span>Rep {rep.repNumber}</span><Badge variant={rep.truthPresent && rep.observationExact && rep.evidenceExact && rep.conditionKept === true ? "default" : "destructive"}>{rep.truthPresent && rep.observationExact && rep.evidenceExact && rep.conditionKept === true ? "Evidence aligned" : "Review required"}</Badge></div></summary><div className="mt-3 space-y-3 border-t pt-3"><p><span className="font-semibold text-foreground">Student behaviour:</span> <span className="text-muted-foreground">{rep.studentBehavior}</span></p><p className="text-muted-foreground">Condition preserved: {rep.conditionKept == null ? "Not recorded" : rep.conditionKept ? "Yes" : "No"} · Canonical evidence: {rep.truthPresent ? "Available" : "Unavailable"}</p><div className="space-y-2">{rep.comparisons.map(c => <div key={c.fieldKey} className="rounded-md border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><p className="font-semibold text-foreground">{humanize(c.fieldKey)}</p><Badge variant={c.matched ? "default" : "destructive"}>{c.matched ? "Aligned" : "Diverged"}</Badge></div><div className="mt-2 grid gap-2 md:grid-cols-2"><p className="text-muted-foreground"><span className="font-medium text-foreground">Recorded:</span> {formatEvidenceValue(c.recorded)}</p><p className="text-muted-foreground"><span className="font-medium text-foreground">Expected:</span> {formatEvidenceValue(c.expected)}</p></div></div>)}</div></div></details>)}</div></details>; })}</div>
+                          <div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Sets</p>{setIds.map((setId, setIndex) => { const setReps = sessionReps.filter(rep => rep.setId === setId); return <details key={setId} className="rounded-md border bg-muted/10 p-3"><summary className="cursor-pointer list-none font-medium">Set {setIndex + 1} · {setReps.length} reps</summary><div className="mt-3 space-y-2">{setReps.map(rep => { const reviewReason = formatReviewReason(rep); const aligned = reviewReason === "Evidence aligned"; return <details key={rep.id} className="rounded-md border bg-background p-3"><summary className="cursor-pointer list-none"><div className="flex items-center justify-between gap-2"><span>Rep {rep.repNumber}</span><Badge variant={aligned ? "default" : "destructive"}>{reviewReason}</Badge></div></summary><div className="mt-3 space-y-3 border-t pt-3"><p><span className="font-semibold text-foreground">Student behaviour:</span> <span className="text-muted-foreground">{rep.studentBehavior}</span></p><p className="text-muted-foreground">Condition preserved: {rep.conditionKept == null ? "Not recorded" : rep.conditionKept ? "Yes" : "No"} · Canonical evidence: {rep.truthPresent ? "Available" : "Unavailable"}</p><div className="space-y-2">{rep.comparisons.map(c => <div key={c.fieldKey} className="rounded-md border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><p className="font-semibold text-foreground">{humanize(c.fieldKey)}</p><Badge variant={c.matched ? "default" : "destructive"}>{c.matched ? "Aligned" : "Diverged"}</Badge></div><div className="mt-2 grid gap-2 md:grid-cols-2"><p className="text-muted-foreground"><span className="font-medium text-foreground">Recorded:</span> {formatEvidenceValue(c.recorded)}</p><p className="text-muted-foreground"><span className="font-medium text-foreground">Expected:</span> {formatEvidenceValue(c.expected)}</p></div></div>)}</div></div></details>)}</div></details>; })}</div>
                         </div>
                       </details>
                     );
