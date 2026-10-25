@@ -96,6 +96,7 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
           setId: r.set_id, repNumber: Number(r.rep_number), studentBehavior: r.student_behavior,
           bankKey: r.bank_key, bankVersion: r.bank_version, outcomeVersion: r.outcome_version,
           intervention: r.specialist_submission?.interventionEvent || null,
+          expectedIntervention: r.actual_intervention_event || null,
           conditionKept: r.condition_kept, truthPresent: !!canonical,
           observationExact: r.observation_exact, evidenceExact: r.evidence_exact,
           matchingObservations: Number(r.matching_observations),
