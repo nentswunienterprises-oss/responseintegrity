@@ -165,6 +165,19 @@ type PodData = {
   assignment?: { id?: string | null; operationalMode?: string } | null;
 };
 
+type CapabilityStageGate = {
+  mode: string;
+  capabilityTrainingAllowed: boolean;
+  sandboxQualificationRequired: boolean;
+  sandboxQualificationReady: boolean | null;
+  developmentCoverageReady: boolean | null;
+  qualifyingSessions: number | null;
+  requiredSessions: number | null;
+  phaseCounts: Record<string, number> | null;
+  phaseMinimums: Record<string, number> | null;
+  reason: string;
+};
+
 export default function ResponseConditioningSystem() {
   const podQuery = useQuery<PodData>({
     queryKey: ["/api/tutor/pod"],
@@ -172,7 +185,10 @@ export default function ResponseConditioningSystem() {
   });
   const tutorAssignmentId = String(podQuery.data?.assignment?.id || "");
 
-  const capabilityPlanQuery = useQuery<{ assessments: MasteryAvailability[] }>({
+  const capabilityPlanQuery = useQuery<{
+    assessments: MasteryAvailability[];
+    stageGate?: CapabilityStageGate;
+  }>({
     queryKey: ["capability-mastery-plan", tutorAssignmentId],
     enabled: Boolean(tutorAssignmentId),
     retry: false,
@@ -226,6 +242,9 @@ export default function ResponseConditioningSystem() {
     : podQuery.isPending || (tutorAssignmentId && capabilityPlanQuery.isPending)
       ? "Loading your next development milestone…"
       : trainingMilestone(capabilityAssessments, mode, practicalsQuery.data);
+  const stageGate = capabilityPlanQuery.data?.stageGate;
+  const sandboxTrainingBlocked = stageGate?.mode === "sandbox" &&
+    stageGate.sandboxQualificationReady !== true;
 
   return (
     <div className="min-h-screen bg-background">
@@ -292,14 +311,25 @@ export default function ResponseConditioningSystem() {
 
                   <div className="space-y-2">
                     {module.items.map((item) => (
-                      <Link
-                        key={item.label}
-                        to={item.href}
-                        className="flex items-center justify-between text-sm text-foreground border-b border-dashed border-border/60 pb-2 hover:text-primary transition-colors"
-                      >
-                        <span>{item.label}</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </Link>
+                      sandboxTrainingBlocked && module.id !== "1" ? (
+                        <div
+                          key={item.label}
+                          className="flex items-center justify-between border-b border-dashed border-border/60 pb-2 text-sm text-muted-foreground"
+                          aria-disabled="true"
+                        >
+                          <span>{item.label}</span>
+                          <Badge variant="outline" className="text-[10px]">Locked</Badge>
+                        </div>
+                      ) : (
+                        <Link
+                          key={item.label}
+                          to={item.href}
+                          className="flex items-center justify-between text-sm text-foreground border-b border-dashed border-border/60 pb-2 hover:text-primary transition-colors"
+                        >
+                          <span>{item.label}</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </Link>
+                      )
                     ))}
                   </div>
                 </div>
@@ -332,7 +362,9 @@ export default function ResponseConditioningSystem() {
                   const title = `${gateScope} ${isRetrieval ? "Retention" : "Application"}`;
 
                   const detail =
-                    assessment.status === "complete"
+                    sandboxTrainingBlocked && assessment.status !== "complete"
+                      ? "Sandbox coverage and zero-divergence graduation are required before this gate can be completed."
+                      : assessment.status === "complete"
                       ? isRetrieval
                         ? "Retention is complete."
                         : "Application is complete."
@@ -366,7 +398,7 @@ export default function ResponseConditioningSystem() {
                         </p>
                       </div>
 
-                      {assessment.status === "available" ? (
+                      {assessment.status === "available" && !sandboxTrainingBlocked ? (
                         <Button asChild>
                           <Link
                             to={`/operational/specialist/capability/${assessment.assessmentKey}`}
@@ -405,8 +437,19 @@ export default function ResponseConditioningSystem() {
               {completedCapabilityChecks} of {totalCapabilityChecks} Deep Dive Capability Checks completed.
             </p>
             <p className="border-t border-border pt-4 text-sm" aria-live="polite">
-              {milestoneMessage}
+              {sandboxTrainingBlocked ? stageGate.reason : milestoneMessage}
             </p>
+            {sandboxTrainingBlocked ? (
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
+                <p className="font-medium">Sandbox development gate active</p>
+                <p className="mt-1 text-muted-foreground">
+                  Remaining Training Capability Checks are locked until Sandbox coverage and the zero-divergence graduation run are complete.
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Coverage: {stageGate.developmentCoverageReady ? "Established" : "Developing"} · Clean sessions: {stageGate.qualifyingSessions ?? 0}/{stageGate.requiredSessions ?? "—"}
+                </p>
+              </div>
+            ) : null}
           </div>
         </Card>
       </div>

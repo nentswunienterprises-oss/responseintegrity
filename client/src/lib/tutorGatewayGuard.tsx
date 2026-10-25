@@ -19,20 +19,16 @@ export function TutorGatewayGuard({ children }: { children: ReactNode }) {
 
   const { data: gatewaySession, isLoading: gatewayLoading } = useQuery<TutorGatewaySession>({
     queryKey: ["/api/tutor/gateway-session"],
-    enabled: isAuthenticated && isGatewayRoute,
+    enabled: isAuthenticated,
     retry: false,
   });
 
-  if (authLoading || (isGatewayRoute && isAuthenticated && gatewayLoading)) {
+  if (authLoading || (isAuthenticated && gatewayLoading)) {
     return <SpecialistAccessLoadingScreen />;
   }
 
   if (!isAuthenticated) {
     return <Navigate to="/operational/signup?role=tutor&mode=login&lock=login&returnTo=/operational/specialist/intake" replace />;
-  }
-
-  if (!isGatewayRoute) {
-    return <>{children}</>;
   }
 
   const status = String(gatewaySession?.applicationStatus?.status || "").toLowerCase();

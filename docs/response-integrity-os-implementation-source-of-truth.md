@@ -179,6 +179,7 @@ The Specialist development pathway is:
 - after Retrieval, a separately authored 25-question Interleaved Transfer gate requires 24/25+ with no critical fail
 - Sandbox opens only after all five Transformation Masteries plus Transformation Retrieval plus Transformation Transfer; Execution Standards, System Intelligence and Session Infrastructure Mastery remain part of Specialist Training but do not silently replace the approved Transformation Sandbox-entry gate
 - Sandbox access is an expansion of Training, not Training completion
+- Once Sandbox opens, the remaining post-entry Capability gates (Execution Standards, System Intelligence, Session Infrastructure and their operating-system gates) are held at the stage boundary. They cannot be completed until the Sandbox qualification authority records both development coverage and the phase-balanced zero-divergence graduation run. The Specialist-facing Development Record must show the hold reason and current coverage/clean-session counts; the server rejects direct assessment preparation, reset and submission attempts while the hold is active.
 - Sandbox capability evaluation: continuous, system-derived evidence across Condition, Observation, Evidence, Authority, and Continuity Integrity
 - Sandbox exit authority: the system must first resolve Practicals readiness; the assigned TD then records either remediation or an explicit readiness sign-off for Practicals entry
 - Practicals is the governed stage after Sandbox; it is not a shortcut into Trial and it is not opened by Battle Testing
