@@ -79,7 +79,7 @@ export default function HowWeOperate() {
 
             <h2>Full-Year Conditioning Intake</h2>
             <p>
-              <strong>Enrollment window:</strong> 1 November - 31 January
+              <strong>Enrollment window:</strong> 1 November - 15 January
             </p>
             <p>
               This is Response Integrity&apos;s primary intake. It is built for
@@ -93,10 +93,10 @@ export default function HowWeOperate() {
 
             <h3>Response Planning Season</h3>
             <p>
-              <strong>1 November - 31 January</strong>
+              <strong>1 November - 15 January</strong>
             </p>
             <p>
-              This is where parent education, onboarding, scope collection,
+              This is the family planning window. Conditioning begins 16 January, once the annual specialist cohort is ready. Parent education, onboarding, scope collection,
               tutor and TD preparation, intro diagnostics, topic mapping, and
               family schedule alignment happen.
             </p>
@@ -104,7 +104,7 @@ export default function HowWeOperate() {
 
             <h3>Conditioning Season</h3>
             <p>
-              <strong>1 February - 31 August</strong>
+              <strong>16 January - 31 August</strong>
             </p>
             <p>
               This is where the monthly cadence is protected, topics are

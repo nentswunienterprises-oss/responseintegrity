@@ -115,8 +115,8 @@ Response Integrity is designed as a timed yearly system, not an ad hoc tutoring 
 
 ### Full-year learner intake
 
-- Application window: `1 November - 31 January`
-- Training begins: `1 February`
+- Enrollment window: `1 November - 15 January`
+- Conditioning begins: `16 January`
 
 ### Mid-year learner intake
 
@@ -129,9 +129,9 @@ The tutor-side rhythm mirrors the learner rhythm.
 
 #### Full-year operator cycle
 
-- Application window: `1 October - 31 October`
-- Conditioning window: `1 November - 15 January`
-- Deployment begins: `1 February`
+- Application window: `1 September - 30 September`
+- Conditioning window: `1 October - 15 December`
+- Deployment begins: `16 January`
 
 #### Mid-year operator cycle
 
