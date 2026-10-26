@@ -50,7 +50,10 @@ const getCoverage=(events:SandboxQualificationEvidence[])=>{
   result.push({key,required,encountered:observed.length,correct:clean.length,
     distinctCorrect:unique,priorErrors,recoveredAfterError,met:unique>=required});
  };
- for(const mode of SANDBOX_QUALIFICATION_V1.modes)add("mode:"+mode,1,e=>e.mode===mode);
+ for(const mode of SANDBOX_QUALIFICATION_V1.modes){
+  const required=mode==="diagnosis"?SANDBOX_QUALIFICATION_V1.diagnosisPhases.length:1;
+  add("mode:"+mode,required,e=>e.mode===mode);
+}
  for(const context of SANDBOX_QUALIFICATION_V1.preparationContexts)
   add("preparation:"+context,1,e=>e.mode==="preparation"&&e.preparationContext===context);
  for(const phase of SANDBOX_QUALIFICATION_V1.diagnosisPhases)

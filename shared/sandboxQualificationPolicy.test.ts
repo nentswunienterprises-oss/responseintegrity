@@ -9,7 +9,10 @@ const event=(n:number,patch:Partial<E>={}):E=>({id:"event-"+n,occurredAt:when(n)
  stateAligned:true,materialError:false,technicallyValid:true,sourceId:"source-"+n,sourceType:"rep",
  bankVersion:1,outcomeVersion:1,...patch});
 function coverage():E[]{let n=0;const a:E[]=[];
- for(const mode of p.modes)a.push(event(++n,{mode,opportunityKey:"mode-"+mode}));
+ for(const mode of p.modes){
+  const count=mode==="diagnosis"?p.diagnosisPhases.length:1;
+  for(let j=0;j<count;j++)a.push(event(++n,{mode,phase:mode==="diagnosis"?p.diagnosisPhases[j]:"Clarity",opportunityKey:"mode-"+mode+"-"+j}));
+}
  for(const context of p.preparationContexts)a.push(event(++n,{mode:"preparation",preparationContext:context,opportunityKey:"prep-"+context}));
  for(const phase of p.diagnosisPhases)a.push(event(++n,{mode:"preparation",preparationContext:"diagnosis:"+phase,phase,opportunityKey:"prep-diagnosis-"+phase}));
  for(const profile of p.profiles)for(let j=0;j<2;j++)a.push(event(++n,{profile,opportunityKey:"profile-"+profile+"-"+j,situationTags:["profile_signature"]}));
@@ -18,6 +21,10 @@ function coverage():E[]{let n=0;const a:E[]=[];
 function final(n:number){const phases=Object.keys(p.phaseMinimums);return Array.from({length:8},(_,i)=>
  event(n+i,{kind:"session",phase:phases[Math.floor(i/2)]}));}
 test("count alone never graduates",()=>assert.equal(evaluateSandboxQualification(final(1),{activated:true}).qualificationReady,false));
+test("Diagnosis operating-mode coverage requires all four phases",()=>{const a=coverage();
+ const diagnosis=evaluateSandboxQualification(a,{activated:true}).requirements.find(r=>r.key==="mode:diagnosis");
+ assert.equal(diagnosis?.required,4); assert.equal(diagnosis?.distinctCorrect,4); assert.equal(diagnosis?.met,true);
+});
 test("coverage then eight clean sessions qualifies only when activated",()=>{const a=coverage(),data=[...a,...final(a.length+1)];
  assert.equal(evaluateSandboxQualification(data).qualificationReady,false);
  const x=evaluateSandboxQualification(data,{activated:true});assert.equal(x.developmentCoverageReady,true);
