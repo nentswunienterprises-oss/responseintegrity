@@ -7,6 +7,8 @@ export const SANDBOX_QUALIFICATION_V1 = {
   modes:["preparation","diagnosis","training","session_closure","continuity","handover","targeted_rediagnosis"],
   profiles:["clarity_fragile","reassurance_seeker","pressure_fragile","fast_recovery","uneven_performer","quietly_strong"],
   situationMinimums:{independent_execution:2,conditional:2,breakdown:2,recovery:2,prerequisite:2,routing:2,state_change:2,timed_pressure:2},
+  preparationContexts:["training","handover","targeted_rediagnosis"],
+  diagnosisPhases:["Clarity","Structured Execution","Controlled Discomfort","Time Pressure Stability"],
   profileOpportunityMinimum:2,
 } as const;
 export type SandboxQualificationMode=typeof SANDBOX_QUALIFICATION_V1.modes[number];
@@ -20,6 +22,8 @@ export type SandboxQualificationEvidence={
   /** Valid captured evidence can await placement; it never establishes completion. */
   placementPending?:boolean;
   bankVersion:number|null;outcomeVersion:number|null;
+  /** The governed session context this preparation receipt belongs to. */
+  preparationContext?: string;
 };
 export type QualificationRequirement={key:string;required:number;encountered:number;correct:number;distinctCorrect:number;priorErrors:number;recoveredAfterError:boolean;met:boolean};
 export type SandboxQualificationStatus={
@@ -47,6 +51,10 @@ const getCoverage=(events:SandboxQualificationEvidence[])=>{
     distinctCorrect:unique,priorErrors,recoveredAfterError,met:unique>=required});
  };
  for(const mode of SANDBOX_QUALIFICATION_V1.modes)add("mode:"+mode,1,e=>e.mode===mode);
+ for(const context of SANDBOX_QUALIFICATION_V1.preparationContexts)
+  add("preparation:"+context,1,e=>e.mode==="preparation"&&e.preparationContext===context);
+ for(const phase of SANDBOX_QUALIFICATION_V1.diagnosisPhases)
+  add("preparation:diagnosis:"+phase,1,e=>e.mode==="preparation"&&e.preparationContext==="diagnosis:"+phase);
  for(const profile of SANDBOX_QUALIFICATION_V1.profiles)add("profile:"+profile,2,e=>e.profile===profile&&e.situationTags.includes("profile_signature"));
  for(const [tag,min] of Object.entries(SANDBOX_QUALIFICATION_V1.situationMinimums))add("situation:"+tag,min,e=>e.situationTags.includes(tag));
  return result;
