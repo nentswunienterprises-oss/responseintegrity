@@ -370,7 +370,11 @@ export function SandboxReadinessAssessmentCard({
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant={qualification.qualificationReady ? "default" : "outline"}>
-                    {qualification.qualificationReady ? "Ready for TD review" : "In progress"}
+                    {qualification.qualificationReady
+                      ? "Ready for TD review"
+                      : qualification.developmentCoverageReady
+                      ? "In progress"
+                      : "Locked"}
                   </Badge>
                 </div>
               </div>
@@ -384,7 +388,9 @@ export function SandboxReadinessAssessmentCard({
                 <div className="rounded-md border bg-background px-3 py-2 text-sm">
                   <p className="text-xs text-muted-foreground">Zero-divergence graduation run</p>
                   <p className="mt-1 font-medium">
-                    {qualification.qualifyingSessions}/{qualification.requiredSessions ?? "—"} clean sessions
+                    {qualification.developmentCoverageReady
+                      ? `${qualification.qualifyingSessions}/${qualification.requiredSessions ?? "—"} clean sessions`
+                      : "Locked until development coverage is established"}
                   </p>
                 </div>
               </div>
@@ -418,7 +424,9 @@ export function SandboxReadinessAssessmentCard({
                   return (
                     <div key={phase} className="rounded-md border bg-background px-3 py-2 text-xs">
                       <p className="font-medium">{phase}</p>
-                      <p className="mt-1 text-muted-foreground">{count}/{minimum} clean sessions</p>
+                      <p className="mt-1 text-muted-foreground">
+                        {qualification.developmentCoverageReady ? `${count}/${minimum} clean sessions` : "Locked until coverage is complete"}
+                      </p>
                     </div>
                   );
                 })}
