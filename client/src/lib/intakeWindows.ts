@@ -154,10 +154,11 @@ const parentIntakeDefinitions: ParentIntakeDefinition[] = [
     cadenceLabel: "2 sessions per week • 8 sessions per month",
     trainingBeginsLabel: "Conditioning begins 16 January",
     window: {
-      startMonth: 10,
+      startMonth: 11,
       startDay: 1,
-      endMonth: 12,
+      endMonth: 1,
       endDay: 15,
+      spansYear: true,
     },
   },
   {
@@ -226,11 +227,10 @@ const tutorPhases: TutorPhase[] = [
     key: "annual_conditioning",
     label: "Annual Operator Conditioning Window",
     window: {
-      startMonth: 11,
+      startMonth: 10,
       startDay: 1,
-      endMonth: 1,
+      endMonth: 12,
       endDay: 15,
-      spansYear: true,
     },
     applicationsOpen: false,
     cycleKey: "annual",
@@ -250,7 +250,7 @@ const tutorPhases: TutorPhase[] = [
     applicationsOpen: false,
     cycleKey: "annual",
     description:
-      "Only certified live operators are being matched now. Schedules and capacity are being locked before February deployment.",
+      "Only certified live operators are being matched now. Schedules and capacity are being locked before January deployment.",
   },
   {
     key: "full_year_live",
