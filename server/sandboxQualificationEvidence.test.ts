@@ -33,6 +33,7 @@ function db(f=fixture()){
   if(sql.includes("FROM public.specialist_sandbox_preparation_events")){
    const error=Object.assign(new Error("relation does not exist"),{code:"42P01"});throw error;
   }
+  if(sql.includes("FROM public.specialist_sandbox_context_preparation_events"))return {rows:[]};
   if(sql.includes("FROM public.specialist_sandbox_live_evidence_turns")){
    const error=Object.assign(new Error("relation does not exist"),{code:"42P01"});throw error;
   }
