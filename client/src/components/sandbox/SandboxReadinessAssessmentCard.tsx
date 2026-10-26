@@ -471,7 +471,7 @@ export function SandboxReadinessAssessmentCard({
                                               <div className="rounded-md border bg-muted/20 p-3">
                                                 <div className="flex items-center justify-between gap-2">
                                                   <p className="font-semibold text-foreground">Condition Integrity</p>
-                                                  <Badge variant={rep.conditionKept === true ? "default" : "destructive"}>{rep.conditionKept === true ? "Aligned" : "Diverged"}</Badge>
+                                                  <Badge variant={!rep.truthPresent ? "outline" : rep.conditionKept === true ? "default" : "destructive"}>{!rep.truthPresent ? "Review required" : rep.conditionKept === true ? "Aligned" : "Diverged"}</Badge>
                                                 </div>
                                                 <div className="mt-2 grid gap-2 md:grid-cols-2">
                                                   <p className="text-muted-foreground"><span className="font-medium text-foreground">Recorded:</span> {formatIntervention(rep.intervention)}</p>
