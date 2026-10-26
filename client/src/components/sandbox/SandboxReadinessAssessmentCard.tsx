@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -269,7 +270,6 @@ export function SandboxReadinessAssessmentCard({
       }),
   });
 
-  const [showTrainingEvidence, setShowTrainingEvidence] = useState(false);
   const [showCoverage, setShowCoverage] = useState(false);
   const [showDossier, setShowDossier] = useState(false);
   const { data: dossier, isFetching: dossierLoading, isError: dossierError } = useQuery<SandboxDossier>({
@@ -347,25 +347,16 @@ export function SandboxReadinessAssessmentCard({
         </p>
       ) : (
         <div className="mt-5 space-y-5">
-          <div className="rounded-lg border bg-background p-3 space-y-3">
+          <div className="rounded-lg border bg-background p-3">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <p className="text-sm font-semibold">Training evidence</p>
-                <p className="text-xs text-muted-foreground">Deep Dive and qualification details are available when needed.</p>
+                <p className="text-sm font-semibold">Development coverage</p>
+                <p className="text-xs text-muted-foreground">Inspect the exact operating modes, behaviour signatures and response situations still required.</p>
               </div>
-              <Button variant="outline" size="sm" onClick={() => setShowTrainingEvidence(value => !value)}>
-                {showTrainingEvidence ? "Hide evidence" : "Inspect evidence"}
+              <Button variant="outline" size="sm" onClick={() => setShowCoverage(true)}>
+                Inspect coverage
               </Button>
             </div>
-            {showTrainingEvidence ? (
-              <div className="space-y-4 border-t border-border/60 pt-3">
-                {readiness ? <p className="text-sm text-muted-foreground">{formatReadinessReason(readiness.reason)}</p> : null}
-                <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                  <span>Coverage: {readiness?.breadthReady ? "Established" : "Developing"}</span>
-                  <span>Consistency: {readiness?.longitudinalReady ? "Established" : "Developing"}</span>
-                </div>
-              </div>
-            ) : null}
           </div>
 
           {qualification ? (
@@ -378,9 +369,6 @@ export function SandboxReadinessAssessmentCard({
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setShowCoverage((value) => !value)}>
-                    {showCoverage ? "Hide coverage" : "Inspect coverage"}
-                  </Button>
                   <Badge variant={qualification.qualificationReady ? "default" : "outline"}>
                     {qualification.qualificationReady ? "Ready for TD review" : "In progress"}
                   </Badge>
@@ -423,48 +411,6 @@ export function SandboxReadinessAssessmentCard({
                   </p>
                 </div>
               ) : null}
-              {showCoverage ? (
-                <div className="rounded-md border bg-background p-3 space-y-3">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Coverage ledger</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      These development opportunities must be established before any session can count toward the protected eight-session graduation run.
-                    </p>
-                  </div>
-                  <div className="space-y-3">
-                    {["Operating modes", "Behaviour signatures", "Response situations"].map((category) => (
-                      <div key={category} className="rounded-md border bg-muted/20 p-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">{category}</p>
-                        <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                          {(qualification.coverageRequirements || [])
-                            .filter((requirement) => requirement.category === category)
-                            .map((requirement) => (
-                              <div key={requirement.key} className="rounded-md border bg-background px-3 py-2 text-xs">
-                                <div className="flex items-center justify-between gap-2">
-                                  <p className="font-medium">{requirement.label}</p>
-                                  <Badge variant={requirement.met ? "default" : "outline"}>
-                                    {requirement.met ? "Complete" : "Needed"}
-                                  </Badge>
-                                </div>
-                                <p className="mt-1 text-muted-foreground">
-                                  {requirement.distinctCorrect}/{requirement.required} valid opportunities
-                                </p>
-                                {requirement.encountered > requirement.distinctCorrect ? (
-                                  <p className="mt-1 text-muted-foreground">
-                                    {requirement.encountered} encountered · {requirement.distinctCorrect} valid
-                                  </p>
-                                ) : null}
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="rounded-md border border-sky-500/25 bg-sky-500/10 p-3 text-xs text-muted-foreground">
-                    A single opportunity may contribute to more than one category. Earlier development evidence is retained, but it does not become graduation-run evidence retroactively.
-                  </div>
-                </div>
-              ) : null}
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                 {graduationPhases.map((phase) => {
                   const count = qualification.phaseCounts?.[phase] || 0;
@@ -482,6 +428,49 @@ export function SandboxReadinessAssessmentCard({
               </p>
             </div>
           ) : null}
+
+          <Dialog open={showCoverage} onOpenChange={setShowCoverage}>
+            <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
+              <DialogHeader>
+                <DialogTitle>Development coverage</DialogTitle>
+                <DialogDescription>
+                  These named opportunities must be established before sessions can count toward the protected eight-session graduation run.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                {["Operating modes", "Behaviour signatures", "Response situations"].map((category) => (
+                  <section key={category} className="rounded-md border p-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">{category}</h3>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {(qualification?.coverageRequirements || [])
+                        .filter((requirement) => requirement.category === category)
+                        .map((requirement) => (
+                          <div key={requirement.key} className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="font-medium">{requirement.label}</p>
+                              <Badge variant={requirement.met ? "default" : "outline"}>
+                                {requirement.met ? "Complete" : "Needed"}
+                              </Badge>
+                            </div>
+                            <p className="mt-1 text-muted-foreground">
+                              {requirement.distinctCorrect}/{requirement.required} valid opportunities
+                            </p>
+                            {requirement.encountered > requirement.distinctCorrect ? (
+                              <p className="mt-1 text-muted-foreground">
+                                {requirement.encountered} encountered · {requirement.distinctCorrect} valid
+                              </p>
+                            ) : null}
+                          </div>
+                        ))}
+                    </div>
+                  </section>
+                ))}
+                <p className="rounded-md border border-sky-500/25 bg-sky-500/10 p-3 text-xs text-muted-foreground">
+                  A single opportunity may contribute to more than one requirement. Earlier development evidence is retained, but it does not become graduation-run evidence retroactively.
+                </p>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           <div className="rounded-lg border bg-background p-3 space-y-3">
             <div className="flex items-center justify-between gap-2">
