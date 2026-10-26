@@ -70,6 +70,14 @@ interface TutorAlignmentSummaryData {
       phaseCounts: Record<string, number>;
       phaseMinimums: Record<string, number>;
       reason: string;
+      coverageCategories?: Array<{
+        key: string;
+        label: string;
+        met: number;
+        required: number;
+        completedOpportunities: number;
+        requiredOpportunities: number;
+      }>;
     };
     practicalsReady: boolean;
     reason: string;
@@ -190,6 +198,7 @@ export default function TutorPod() {
   const [communicationDialogOpen, setCommunicationDialogOpen] = useState(false);
   const [reportsDialogOpen, setReportsDialogOpen] = useState(false);
   const [teamDialogOpen, setTeamDialogOpen] = useState(false);
+  const [coverageDialogOpen, setCoverageDialogOpen] = useState(false);
   const [studentIdentitySheets, setStudentIdentitySheets] = useState<Record<string, any>>({});
   // Force refresh - identity sheet integration
 
@@ -695,13 +704,18 @@ export default function TutorPod() {
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">Two clean sessions are required in each RI-OS phase.</p>
                   </div>
-                  <Badge variant={tutorAlignmentSummary.sandboxProgress.qualification.qualificationReady ? "default" : "outline"}>
-                    {tutorAlignmentSummary.sandboxProgress.qualification.qualificationReady
-                      ? "Ready for TD review"
-                      : tutorAlignmentSummary.sandboxProgress.qualification.developmentCoverageReady
-                        ? "Final run in progress"
-                        : "Locked"}
-                  </Badge>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={tutorAlignmentSummary.sandboxProgress.qualification.qualificationReady ? "default" : "outline"}>
+                      {tutorAlignmentSummary.sandboxProgress.qualification.qualificationReady
+                        ? "Ready for TD review"
+                        : tutorAlignmentSummary.sandboxProgress.qualification.developmentCoverageReady
+                          ? "Final run in progress"
+                          : "Locked"}
+                    </Badge>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setCoverageDialogOpen(true)}>
+                      Inspect coverage
+                    </Button>
+                  </div>
                 </div>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                   {SANDBOX_PHASES.map((phase) => {
@@ -1018,6 +1032,35 @@ export default function TutorPod() {
           studentId={selectedStudentId}
           studentName={selectedStudentName}
         />
+
+        <Dialog open={coverageDialogOpen} onOpenChange={setCoverageDialogOpen}>
+          <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Development coverage</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                This shows the governed coverage areas required before the final Sandbox qualification run opens.
+              </p>
+              <div className="grid gap-3 md:grid-cols-3">
+                {(tutorAlignmentSummary.sandboxProgress?.qualification?.coverageCategories || []).map((category) => (
+                  <div key={category.key} className="rounded-xl border border-primary/15 bg-muted/20 p-4">
+                    <p className="text-xs font-medium text-foreground">{category.label}</p>
+                    <p className="mt-2 text-lg font-semibold text-foreground">
+                      {category.completedOpportunities}/{category.requiredOpportunities}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {category.met}/{category.required} requirements complete
+                    </p>
+                  </div>
+                ))}
+              </div>
+              {!(tutorAlignmentSummary.sandboxProgress?.qualification?.coverageCategories?.length) ? (
+                <p className="text-sm text-muted-foreground">Coverage detail is not available yet.</p>
+              ) : null}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={teamDialogOpen} onOpenChange={setTeamDialogOpen}>
           <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto">
