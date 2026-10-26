@@ -78,6 +78,7 @@ type SandboxReadinessPayload = {
 };
 
 type SandboxDossier = {
+  students: Array<{id:string;name?:string|null}>;
   reps: Array<{id:string; trajectoryId:string; studentId:string; studentName?:string|null; sessionNumber:number; phase:string; setId:string; repNumber:number;
     studentBehavior:string; observationExact:boolean|null; evidenceExact:boolean|null;
     conditionKept:boolean|null; intervention?:string|null; expectedIntervention?:string|null; truthPresent:boolean; comparisons:Array<{
@@ -416,7 +417,10 @@ export function SandboxReadinessAssessmentCard({
                     <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Assigned students</p>
                     <Badge variant="outline">{new Set(dossier.sessions.map((session) => session.studentId)).size} students · {dossier.sessions.length} sessions · {dossier.reps.length} reps</Badge>
                   </div>
-                  {Array.from(new Map(dossier.sessions.map((session) => [session.studentId, session])).values())
+                  {Array.from(new Map([
+                    ...dossier.students.map((student) => [student.id, { studentId: student.id, studentName: student.name }] as const),
+                    ...dossier.sessions.map((session) => [session.studentId, session] as const),
+                  ]).values())
                     .sort((a, b) => String(a.studentName || a.studentId).localeCompare(String(b.studentName || b.studentId)))
                     .map((student) => {
                       const studentSessions = dossier.sessions
