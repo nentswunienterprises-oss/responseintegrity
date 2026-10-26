@@ -349,7 +349,7 @@ That is the sweet spot.
 
 ### Time and completion windows
 The specialist pathway is built around cycles, not endless open enrollment.
-(Between 76-91 days...)
+(75 active days is the standard pathway window; any extension remains subject to the documented approval rule.)
 
 Annual rhythm:
 - Annual application window: 1 October to 31 October
@@ -357,8 +357,8 @@ Annual rhythm:
 - Annual deployment begins: 1 February
 
 Mid-year rhythm:
-- Mid-year application window: 1 April to 30 April
-- Mid-year conditioning window: 1 May to 20 May
+- Mid-year application window: 1 February to 28 February
+- Mid-year conditioning window: 1 March to 15 May
 - Mid-year deployment begins: 1 June
 
 This gives the program a real calendar identity.
