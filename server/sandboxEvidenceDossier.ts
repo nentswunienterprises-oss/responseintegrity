@@ -67,6 +67,12 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
       const assignmentId = assignment.rows[0]?.id;
       if (!assignmentId) return res.status(403).json({ message: "Specialist is outside your assigned Pod." });
       res.setHeader("Cache-Control", "private, no-store, max-age=0");
+      const roster = await db.query(
+        `SELECT id, name FROM public.students
+          WHERE tutor_id = $1
+          ORDER BY name ASC NULLS LAST, id ASC`,
+        [tutorId],
+      );
       const [reps, sessions] = await Promise.all([
         db.query(
           `SELECT e.id, e.trajectory_id, e.student_id, u.name AS student_name, e.event_sequence, e.session_number, e.phase, e.topic_key,
@@ -134,6 +140,7 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
       });
       return res.json({
         tutorId, assignmentId,
+        students: roster.rows.map((row: any) => ({ id: String(row.id), name: row.name || null })),
         note: "Completed Sandbox evidence only. Canonical responses are TD-restricted and non-authoritative for real student state.",
         reps: repRows,
         sessions: sessions.rows.map((r: any) => ({
