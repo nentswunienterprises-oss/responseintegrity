@@ -149,16 +149,15 @@ const parentIntakeDefinitions: ParentIntakeDefinition[] = [
     key: "full_year",
     label: "Full-Year Conditioning Intake",
     shortLabel: "Full-Year Intake",
-    windowLabel: "1 November - 31 January",
+    windowLabel: "1 November - 15 January",
     bestFor: "Families preparing before the academic year becomes urgent.",
     cadenceLabel: "2 sessions per week • 8 sessions per month",
-    trainingBeginsLabel: "Training begins 1 February",
+    trainingBeginsLabel: "Conditioning begins 16 January",
     window: {
-      startMonth: 11,
+      startMonth: 10,
       startDay: 1,
-      endMonth: 1,
-      endDay: 31,
-      spansYear: true,
+      endMonth: 12,
+      endDay: 15,
     },
   },
   {
@@ -183,16 +182,16 @@ const tutorCycleDefinitions: TutorCycleDefinition[] = [
     key: "annual",
     label: "Annual Operator Certification Cycle",
     supportsLabel: "Supports the Full-Year Conditioning Intake",
-    applicationWindowLabel: "1 October - 31 October",
-    conditioningWindowLabel: "1 November - 15 January",
-    certificationDeadlineLabel: "15 January",
-    deploymentLockInLabel: "16 January - 31 January",
-    deploymentBeginsLabel: "1 February",
+    applicationWindowLabel: "1 September - 30 September",
+    conditioningWindowLabel: "1 October - 15 December",
+    certificationDeadlineLabel: "15 December",
+    deploymentLockInLabel: "16 December - 15 January",
+    deploymentBeginsLabel: "16 January",
     applicationWindow: {
-      startMonth: 10,
+      startMonth: 9,
       startDay: 1,
-      endMonth: 10,
-      endDay: 31,
+      endMonth: 9,
+      endDay: 30,
     },
   },
   {
@@ -217,11 +216,11 @@ const tutorPhases: TutorPhase[] = [
   {
     key: "annual_application",
     label: "Annual Operator Application Window",
-    window: { startMonth: 10, startDay: 1, endMonth: 10, endDay: 31 },
+    window: { startMonth: 9, startDay: 1, endMonth: 9, endDay: 30 },
     applicationsOpen: true,
     cycleKey: "annual",
     description:
-      "New specialists can apply, submit documents, and enter applicant mode for the February deployment pool.",
+      "New specialists can apply, submit documents, and enter applicant mode for the January deployment pool.",
   },
   {
     key: "annual_conditioning",
@@ -236,12 +235,18 @@ const tutorPhases: TutorPhase[] = [
     applicationsOpen: false,
     cycleKey: "annual",
     description:
-      "Selected candidates are already inside training, battle testing, and sandbox preparation for the February deployment pool.",
+      "Selected candidates are already inside training, battle testing, and sandbox preparation for the January deployment pool.",
   },
   {
     key: "annual_lock_in",
     label: "Annual Deployment Lock-In",
-    window: { startMonth: 1, startDay: 16, endMonth: 1, endDay: 31 },
+    window: {
+      startMonth: 12,
+      startDay: 16,
+      endMonth: 1,
+      endDay: 15,
+      spansYear: true,
+    },
     applicationsOpen: false,
     cycleKey: "annual",
     description:
@@ -250,7 +255,7 @@ const tutorPhases: TutorPhase[] = [
   {
     key: "full_year_live",
     label: "Full-Year Deployment Season",
-    window: { startMonth: 2, startDay: 1, endMonth: 3, endDay: 31 },
+    window: { startMonth: 1, startDay: 16, endMonth: 3, endDay: 31 },
     applicationsOpen: false,
     cycleKey: "annual",
     description:
