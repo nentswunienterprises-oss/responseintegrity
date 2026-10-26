@@ -128,6 +128,8 @@ type Readiness = {
       requiredOpportunities: number;
     }>;
     reason: string;
+    sourceStatus?: "available" | "unavailable";
+    sourceGaps?: string[];
   };
   reason: string;
 };
@@ -1668,6 +1670,9 @@ export default function SpecialistSandboxSimulation({
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-3 sm:grid-cols-3">
+              {readiness.qualification?.sourceStatus === "unavailable" ? (
+                <Alert className="sm:col-span-3"><AlertDescription>Coverage source unavailable. These counters are not evidence of failure and will not be credited until the persisted source is readable.</AlertDescription></Alert>
+              ) : null}
               {(readiness.qualification?.coverageCategories || []).map((category) => (
                 <div key={category.key} className="rounded-lg border bg-muted/20 p-3 text-xs">
                   <p className="font-medium">{category.label}</p>

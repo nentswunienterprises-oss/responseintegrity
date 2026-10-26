@@ -1502,6 +1502,8 @@ async function readinessFor(input: {
       phaseMinimums: SANDBOX_QUALIFICATION_V1.phaseMinimums,
       coverageCategories,
       coverageRequirements,
+      sourceStatus: qualificationSourceGaps.length ? "unavailable" : "available",
+      sourceGaps: qualificationSourceGaps,
       reason: qualification.reason,
       evidenceFingerprint,
     },
