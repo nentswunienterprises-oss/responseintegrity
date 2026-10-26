@@ -54,8 +54,8 @@ The client journey does not begin with a single lesson. It begins with the compa
 Response Integrity is designed as a disciplined annual system, not an ad hoc tutoring marketplace. Families enter through two annual intake windows:
 
 - Full-Year Conditioning Intake
-  - Enrollment window: 1 October - 15 December
-  - Planning season: 1 October - 15 December
+  - Enrollment window: 1 November - 15 January
+  - Planning season: 1 November - 15 January
   - Conditioning season: 16 January - 31 August
   - Execution season: 1 September - 30 November
 
