@@ -617,11 +617,11 @@ export default function TutorPod() {
                     : "Work through each Deep Dive and complete its Mastery Check. Transformation Mastery, Retention and Application unlock Sandbox."}
                 </p>
               </div>
-              <Button asChild className="shrink-0">
-                <Link to={sandboxTrainingActive ? "/operational/specialist/sandbox" : "/responseconditioningsystem"}>
-                  {sandboxTrainingActive ? "Open Sandbox" : "Open Deep Dives"}
-                </Link>
-              </Button>
+              {!sandboxTrainingActive ? (
+                <Button asChild className="shrink-0">
+                  <Link to="/responseconditioningsystem">Open Deep Dives</Link>
+                </Button>
+              ) : null}
             </div>
           </Card>
         ) : null}
