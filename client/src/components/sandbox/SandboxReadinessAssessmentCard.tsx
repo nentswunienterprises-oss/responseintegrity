@@ -59,6 +59,15 @@ type CapabilityReadiness = {
       completedOpportunities: number;
       requiredOpportunities: number;
     }>;
+    coverageRequirements?: Array<{
+      key: string;
+      category: string;
+      label: string;
+      required: number;
+      distinctCorrect: number;
+      encountered: number;
+      met: boolean;
+    }>;
     reason: string;
   };
 };
@@ -422,19 +431,32 @@ export function SandboxReadinessAssessmentCard({
                       These development opportunities must be established before any session can count toward the protected eight-session graduation run.
                     </p>
                   </div>
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    {qualification.coverageCategories?.map((category) => (
-                      <div key={category.key} className="rounded-md border bg-muted/20 p-3 text-xs">
-                        <p className="font-medium">{category.label}</p>
-                        <p className="mt-1 text-muted-foreground">
-                          {category.completedOpportunities}/{category.requiredOpportunities} valid opportunities
-                        </p>
-                        <p className="text-muted-foreground">
-                          {category.met}/{category.required} requirements established
-                        </p>
-                        <p className="mt-2 text-muted-foreground">
-                          {category.met === category.required ? "Complete" : "Still required before final run"}
-                        </p>
+                  <div className="space-y-3">
+                    {["Operating modes", "Behaviour signatures", "Response situations"].map((category) => (
+                      <div key={category} className="rounded-md border bg-muted/20 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">{category}</p>
+                        <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                          {(qualification.coverageRequirements || [])
+                            .filter((requirement) => requirement.category === category)
+                            .map((requirement) => (
+                              <div key={requirement.key} className="rounded-md border bg-background px-3 py-2 text-xs">
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="font-medium">{requirement.label}</p>
+                                  <Badge variant={requirement.met ? "default" : "outline"}>
+                                    {requirement.met ? "Complete" : "Needed"}
+                                  </Badge>
+                                </div>
+                                <p className="mt-1 text-muted-foreground">
+                                  {requirement.distinctCorrect}/{requirement.required} valid opportunities
+                                </p>
+                                {requirement.encountered > requirement.distinctCorrect ? (
+                                  <p className="mt-1 text-muted-foreground">
+                                    {requirement.encountered} encountered · {requirement.distinctCorrect} valid
+                                  </p>
+                                ) : null}
+                              </div>
+                            ))}
+                        </div>
                       </div>
                     ))}
                   </div>
