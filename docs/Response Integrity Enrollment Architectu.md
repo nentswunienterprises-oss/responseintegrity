@@ -488,20 +488,20 @@ Full-Year Conditioning students begin training with certified RI operators.
 Mid-Year Tutor Certification Cycle
 Supports the Mid-Year Conditioning Intake.
 Tutor Application Window
-1 April - 30 April
+1 February - 28 February
 Tutors apply or return for mid-year capacity preparation.
 Mode:
 Applicant Mode
 Tutor Conditioning Window
-1 May - 20 May
+1 March - 15 May
 Selected candidates undergo accelerated tutor conditioning, battle testing, sandbox readiness, and certification pressure.
 Mode:
 Training Mode → Sandbox Mode
 Certification Deadline
-20 May
+15 May
 Tutors must meet the standard by this date to qualify for the June deployment pool.
 Deployment Lock-In
-21 May - 31 May
+16 May - 31 May
 Only certified live tutors are matched with mid-year students.
 Schedules and capacity are locked before training begins.
 Student Deployment
