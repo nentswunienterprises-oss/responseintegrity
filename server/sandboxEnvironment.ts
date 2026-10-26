@@ -1458,6 +1458,21 @@ async function readinessFor(input: {
       requiredOpportunities: category.required,
     };
   });
+  const coverageRequirements = qualification.requirements.map((item) => {
+    const [category, rawName] = item.key.split(":");
+    const label = String(rawName || item.key)
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+    return {
+      key: item.key,
+      category: category === "mode" ? "Operating modes" : category === "profile" ? "Behaviour signatures" : "Response situations",
+      label,
+      required: item.required,
+      distinctCorrect: item.distinctCorrect,
+      encountered: item.encountered,
+      met: item.met,
+    };
+  });
   const cleanWindow = {
     qualified: qualification.qualificationReady,
     completeCleanSessions: qualification.qualifyingSessions,
@@ -1486,6 +1501,7 @@ async function readinessFor(input: {
       phaseCounts: qualification.phaseCounts,
       phaseMinimums: SANDBOX_QUALIFICATION_V1.phaseMinimums,
       coverageCategories,
+      coverageRequirements,
       reason: qualification.reason,
       evidenceFingerprint,
     },
