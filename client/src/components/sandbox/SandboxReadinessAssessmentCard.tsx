@@ -261,6 +261,7 @@ export function SandboxReadinessAssessmentCard({
   });
 
   const [showTrainingEvidence, setShowTrainingEvidence] = useState(false);
+  const [showCoverage, setShowCoverage] = useState(false);
   const [showDossier, setShowDossier] = useState(false);
   const { data: dossier, isFetching: dossierLoading, isError: dossierError } = useQuery<SandboxDossier>({
     queryKey: ["/api/td/tutors", tutorId, "sandbox-evidence-dossier"],
@@ -367,9 +368,14 @@ export function SandboxReadinessAssessmentCard({
                     Coverage must be established before the protected zero-divergence run can qualify.
                   </p>
                 </div>
-                <Badge variant={qualification.qualificationReady ? "default" : "outline"}>
-                  {qualification.qualificationReady ? "Ready for TD review" : "In progress"}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setShowCoverage((value) => !value)}>
+                    {showCoverage ? "Hide coverage" : "Inspect coverage"}
+                  </Button>
+                  <Badge variant={qualification.qualificationReady ? "default" : "outline"}>
+                    {qualification.qualificationReady ? "Ready for TD review" : "In progress"}
+                  </Badge>
+                </div>
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 <div className="rounded-md border bg-background px-3 py-2 text-sm">
@@ -406,6 +412,35 @@ export function SandboxReadinessAssessmentCard({
                   <p className="text-xs text-muted-foreground">
                     The protected graduation counters open only after every coverage category is established.
                   </p>
+                </div>
+              ) : null}
+              {showCoverage ? (
+                <div className="rounded-md border bg-background p-3 space-y-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Coverage ledger</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      These development opportunities must be established before any session can count toward the protected eight-session graduation run.
+                    </p>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {qualification.coverageCategories?.map((category) => (
+                      <div key={category.key} className="rounded-md border bg-muted/20 p-3 text-xs">
+                        <p className="font-medium">{category.label}</p>
+                        <p className="mt-1 text-muted-foreground">
+                          {category.completedOpportunities}/{category.requiredOpportunities} valid opportunities
+                        </p>
+                        <p className="text-muted-foreground">
+                          {category.met}/{category.required} requirements established
+                        </p>
+                        <p className="mt-2 text-muted-foreground">
+                          {category.met === category.required ? "Complete" : "Still required before final run"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="rounded-md border border-sky-500/25 bg-sky-500/10 p-3 text-xs text-muted-foreground">
+                    A single opportunity may contribute to more than one category. Earlier development evidence is retained, but it does not become graduation-run evidence retroactively.
+                  </div>
                 </div>
               ) : null}
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
