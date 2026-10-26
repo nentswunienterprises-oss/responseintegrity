@@ -278,6 +278,17 @@ export default function TutorPod() {
     refetchOnReconnect: !emergencyDbMode,
     retry: emergencyDbMode ? false : undefined,
   });
+  const effectiveSandboxProgress = effectiveSandboxProgress ?? (() => {
+    const readiness = (developmentPathway as any)?.sandbox?.readiness;
+    return readiness
+      ? {
+          qualification: readiness.qualification || null,
+          practicalsReady: readiness.practicalsReady,
+          reason: readiness.reason || null,
+        }
+      : null;
+  })();
+
   const { data: trialCaseData } = useQuery<{ mode: TutorTrainingMode; case: TrialCaseOverview | null }>({
     queryKey: ["/api/tutor/trial-case"],
     queryFn: async () => authorizedGetJson("/api/tutor/trial-case"),
@@ -677,10 +688,10 @@ export default function TutorPod() {
               <div className="ri-alignment-info-card rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
                 <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Status</p>
                 <p className="mt-2 text-sm font-medium text-foreground">
-                  {tutorAlignmentSummary?.sandboxProgress?.qualification
-                    ? tutorAlignmentSummary.sandboxProgress.qualification.qualificationReady
+                  {effectiveSandboxProgress?.qualification
+                    ? effectiveSandboxProgress.qualification.qualificationReady
                       ? "Qualified pending TD review. Practicals do not open automatically."
-                      : tutorAlignmentSummary.sandboxProgress.qualification.developmentCoverageReady
+                      : effectiveSandboxProgress.qualification.developmentCoverageReady
                         ? "Final qualification run in progress."
                          : "Sandbox development coverage is incomplete; the final qualification run is locked."
                     : "Pathway standing is available above. Follow the next governed requirement."}
@@ -695,22 +706,22 @@ export default function TutorPod() {
               </p>
             </div>
 
-            {tutorAlignmentSummary?.sandboxProgress?.qualification ? (
+            {effectiveSandboxProgress?.qualification ? (
               <div className="ri-alignment-section rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Sandbox Qualification</p>
                     <p className="mt-2 text-sm font-semibold text-foreground">
-                      {tutorAlignmentSummary.sandboxProgress.qualification.qualifyingSessions}/
-                      {tutorAlignmentSummary.sandboxProgress.qualification.requiredSessions} clean sessions credited
+                      {effectiveSandboxProgress.qualification.qualifyingSessions}/
+                      {effectiveSandboxProgress.qualification.requiredSessions} clean sessions credited
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">Two clean sessions are required in each RI-OS phase.</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant={tutorAlignmentSummary.sandboxProgress.qualification.qualificationReady ? "default" : "outline"}>
-                      {tutorAlignmentSummary.sandboxProgress.qualification.qualificationReady
+                    <Badge variant={effectiveSandboxProgress.qualification.qualificationReady ? "default" : "outline"}>
+                      {effectiveSandboxProgress.qualification.qualificationReady
                         ? "Ready for TD review"
-                        : tutorAlignmentSummary.sandboxProgress.qualification.developmentCoverageReady
+                        : effectiveSandboxProgress.qualification.developmentCoverageReady
                           ? "Final run in progress"
                           : "Locked"}
                     </Badge>
@@ -721,28 +732,28 @@ export default function TutorPod() {
                 </div>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                   {SANDBOX_PHASES.map((phase) => {
-                    const count = tutorAlignmentSummary.sandboxProgress?.qualification?.phaseCounts?.[phase] || 0;
-                    const required = tutorAlignmentSummary.sandboxProgress?.qualification?.phaseMinimums?.[phase] || 2;
+                    const count = effectiveSandboxProgress?.qualification?.phaseCounts?.[phase] || 0;
+                    const required = effectiveSandboxProgress?.qualification?.phaseMinimums?.[phase] || 2;
                     return (
                       <div key={phase} className="ri-alignment-info-card rounded-xl border border-primary/15 bg-background px-3 py-2 text-sm text-foreground">
                         <span className="font-medium">{phase}</span>
                         <span className="ml-2 text-muted-foreground">
-                          {tutorAlignmentSummary.sandboxProgress.qualification.developmentCoverageReady ? `${count}/${required}` : "Locked"}
+                          {effectiveSandboxProgress.qualification.developmentCoverageReady ? `${count}/${required}` : "Locked"}
                         </span>
                       </div>
                     );
                   })}
                 </div>
                 <p className="mt-3 text-xs text-muted-foreground">
-                  {tutorAlignmentSummary.sandboxProgress.qualification.qualificationReady
+                  {effectiveSandboxProgress.qualification.qualificationReady
                     ? "All numeric requirements are complete. TD approval is still required before Practicals."
                     : (() => {
                         const next = SANDBOX_PHASES.find((phase) =>
-                          (tutorAlignmentSummary.sandboxProgress?.qualification?.phaseCounts?.[phase] || 0) <
-                          (tutorAlignmentSummary.sandboxProgress?.qualification?.phaseMinimums?.[phase] || 2),
+                          (effectiveSandboxProgress?.qualification?.phaseCounts?.[phase] || 0) <
+                          (effectiveSandboxProgress?.qualification?.phaseMinimums?.[phase] || 2),
                         );
-                        return tutorAlignmentSummary.sandboxProgress?.qualification?.developmentCoverageReady
-                          ? (next ? "Next requirement: one clean " + next + " session." : tutorAlignmentSummary.sandboxProgress?.qualification?.reason)
+                        return effectiveSandboxProgress?.qualification?.developmentCoverageReady
+                          ? (next ? "Next requirement: one clean " + next + " session." : effectiveSandboxProgress?.qualification?.reason)
                           : "Next requirement: complete development coverage before the final qualification run opens.";
                       })()}
                 </p>
@@ -1044,7 +1055,7 @@ export default function TutorPod() {
               <p className="text-sm text-muted-foreground">
                 This shows the governed coverage areas required before the final Sandbox qualification run opens.
               </p>
-              {tutorAlignmentSummary?.sandboxProgress?.qualification?.sourceStatus === "unavailable" ? (
+              {effectiveSandboxProgress?.qualification?.sourceStatus === "unavailable" ? (
                 <Alert>
                   <AlertDescription>
                     Coverage source unavailable. These counters are not evidence of failure and will not be credited until the persisted source is readable.
@@ -1052,7 +1063,7 @@ export default function TutorPod() {
                 </Alert>
               ) : null}
               <div className="grid gap-3 md:grid-cols-3">
-                {(tutorAlignmentSummary?.sandboxProgress?.qualification?.coverageCategories || []).map((category) => (
+                {(effectiveSandboxProgress?.qualification?.coverageCategories || []).map((category) => (
                   <div key={category.key} className="rounded-xl border border-primary/15 bg-muted/20 p-4">
                     <p className="text-xs font-medium text-foreground">{category.label}</p>
                     <p className="mt-2 text-lg font-semibold text-foreground">
@@ -1064,7 +1075,7 @@ export default function TutorPod() {
                   </div>
                 ))}
               </div>
-              {!(tutorAlignmentSummary?.sandboxProgress?.qualification?.coverageCategories?.length) ? (
+              {!(effectiveSandboxProgress?.qualification?.coverageCategories?.length) ? (
                 <p className="text-sm text-muted-foreground">Coverage detail is not available yet.</p>
               ) : null}
             </div>
