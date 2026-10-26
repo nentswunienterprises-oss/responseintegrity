@@ -446,7 +446,7 @@ export function SandboxReadinessAssessmentCard({
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                {["Operating modes", "Behaviour signatures", "Response situations"].map((category) => (
+                {["Operating modes", "Preparation contexts", "Behaviour signatures", "Response situations"].map((category) => (
                   <section key={category} className="rounded-md border p-3">
                     <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">{category}</h3>
                     <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
