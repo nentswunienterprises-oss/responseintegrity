@@ -30022,8 +30022,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         if (String(transaction.payment_status || "").toLowerCase() === "paid") {
           if (isRenewalPaymentTransaction(transaction)) {
-            return res.status(503).json({
-              message: "Sandbox renewal confirmation is not available in Emergency DB mode yet.",
+            const renewedMonth = await applyRenewalTransactionToMembershipMonth(transaction);
+            if (!renewedMonth) {
+              return res.status(500).json({ message: "Failed to activate sandbox renewal package" });
+            }
+            return res.json({
+              message: "Sandbox renewal package activated.",
+              paymentStatus: "PAID",
+              membershipMonth: renewedMonth,
+              sandbox: true,
             });
           }
           const finalized = await finalizeAcceptedProposalFromPayment(transaction);
@@ -30043,8 +30050,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         if (isRenewalPaymentTransaction(transaction)) {
-          return res.status(503).json({
-            message: "Sandbox renewal confirmation is not available in Emergency DB mode yet.",
+          const renewedMonth = await applyRenewalTransactionToMembershipMonth(transaction);
+          if (!renewedMonth) {
+            return res.status(500).json({ message: "Failed to activate sandbox renewal package" });
+          }
+          return res.json({
+            message: "Sandbox renewal package activated.",
+            paymentStatus: "PAID",
+            membershipMonth: renewedMonth,
+            sandbox: true,
           });
         }
 
