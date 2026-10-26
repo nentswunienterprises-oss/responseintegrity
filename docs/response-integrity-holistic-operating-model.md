@@ -135,8 +135,8 @@ The tutor-side rhythm mirrors the learner rhythm.
 
 #### Mid-year operator cycle
 
-- Application window: `1 April - 30 April`
-- Conditioning window: `1 May - 20 May`
+- Application window: `1 February - 28 February`
+- Conditioning window: `1 March - 15 May`
 - Deployment begins: `1 June`
 
 ### Seasonal operating logic

@@ -49,9 +49,9 @@ One system producing healthy pods.
 - Annual deployment lock-in: 16 Jan to 31 Jan
 - Annual deployment begins: 1 Feb
 
-- Mid-year application window: 1 Apr to 30 Apr
-- Mid-year conditioning window: 1 May to 20 May
-- Mid-year deployment lock-in: 21 May to 31 May
+- Mid-year application window: 1 Feb to 28 Feb
+- Mid-year conditioning window: 1 March to 15 May
+- Mid-year deployment lock-in: 16 May to 31 May
 - Mid-year deployment begins: 1 Jun
 
 This rhythm is calendar-gated by system windows, not handled as ad hoc intake.

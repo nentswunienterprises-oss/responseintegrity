@@ -1230,9 +1230,9 @@ Conditioning begins:
 
 Specialist certification cycle:
 
-Application: **1 April – 30 April**
+Application: **1 February – 28 February**
 
-Conditioning: **1 May – 20 May**
+Conditioning: **1 March – 15 May**
 
 Deployment: **1 June**
 
