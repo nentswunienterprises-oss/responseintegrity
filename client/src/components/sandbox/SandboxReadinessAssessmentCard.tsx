@@ -51,6 +51,14 @@ type CapabilityReadiness = {
     requiredSessions: number | null;
     phaseCounts: Record<string, number>;
     phaseMinimums: Record<string, number>;
+    coverageCategories?: Array<{
+      key: string;
+      label: string;
+      met: number;
+      required: number;
+      completedOpportunities: number;
+      requiredOpportunities: number;
+    }>;
     reason: string;
   };
 };
@@ -377,6 +385,29 @@ export function SandboxReadinessAssessmentCard({
                   </p>
                 </div>
               </div>
+              {qualification.coverageCategories?.length ? (
+                <div className="rounded-md border bg-background p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Development coverage</p>
+                    <Badge variant={qualification.developmentCoverageReady ? "default" : "outline"}>
+                      {qualification.developmentCoverageReady ? "Established" : "Required before final run"}
+                    </Badge>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {qualification.coverageCategories.map((category) => (
+                      <div key={category.key} className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
+                        <p className="font-medium">{category.label}</p>
+                        <p className="mt-1 text-muted-foreground">
+                          {category.completedOpportunities}/{category.requiredOpportunities} opportunities · {category.met}/{category.required} requirements
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    The protected graduation counters open only after every coverage category is established.
+                  </p>
+                </div>
+              ) : null}
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                 {graduationPhases.map((phase) => {
                   const count = qualification.phaseCounts?.[phase] || 0;
