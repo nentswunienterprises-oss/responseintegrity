@@ -78,13 +78,13 @@ type SandboxReadinessPayload = {
 };
 
 type SandboxDossier = {
-  reps: Array<{id:string; sessionNumber:number; phase:string; setId:string; repNumber:number;
+  reps: Array<{id:string; trajectoryId:string; studentId:string; studentName?:string|null; sessionNumber:number; phase:string; setId:string; repNumber:number;
     studentBehavior:string; observationExact:boolean|null; evidenceExact:boolean|null;
     conditionKept:boolean|null; intervention?:string|null; expectedIntervention?:string|null; truthPresent:boolean; comparisons:Array<{
       fieldKey:string; recorded:{optionId:string;label?:string|null;evidenceStatus?:string}|null;
       expected:{optionId:string;label?:string|null;evidenceStatus?:string}|null; matched:boolean;
     }> }>;
-  sessions:Array<{id:string;sessionNumber:number;phase:string;topicKey?:string|null;completedAt?:string|null;
+  sessions:Array<{id:string;trajectoryId:string;studentId:string;studentName?:string|null;sessionNumber:number;phase:string;topicKey?:string|null;completedAt?:string|null;
     stateChangeObserved?:boolean|null;authorityAligned:boolean;stateTrackAligned:boolean;truthPresent:boolean;
     specialistAuthority:any;canonicalAuthority:any}>;
 };
@@ -413,97 +413,115 @@ export function SandboxReadinessAssessmentCard({
                 </div>
                 <section className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Sessions and evidence</p>
-                    <Badge variant="outline">{dossier.sessions.length} sessions · {dossier.reps.length} reps</Badge>
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Assigned students</p>
+                    <Badge variant="outline">{new Set(dossier.sessions.map((session) => session.studentId)).size} students · {dossier.sessions.length} sessions · {dossier.reps.length} reps</Badge>
                   </div>
-                  {[...dossier.sessions].sort((a, b) => a.sessionNumber - b.sessionNumber).map(session => {
-                    const sessionReps = dossier.reps
-                      .filter(rep => rep.sessionNumber === session.sessionNumber)
-                      .sort((a, b) => a.repNumber - b.repNumber);
-                    const setIds = Array.from(new Set(sessionReps.map(rep => rep.setId)));
-                    return (
-                      <details key={session.id} className="rounded-lg border bg-background p-3">
-                        <summary className="cursor-pointer list-none text-sm font-medium">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span>Session {session.sessionNumber} · {humanize(session.phase)}{session.topicKey ? " · " + humanize(session.topicKey) : ""}</span>
-                            <Badge variant={session.authorityAligned && session.stateTrackAligned ? "default" : "destructive"}>{session.authorityAligned && session.stateTrackAligned ? "Evidence aligned" : "Review required"}</Badge>
-                          </div>
-                        </summary>
-                        <div className="mt-3 space-y-3 border-t pt-3 text-xs">
-                          <p className="text-muted-foreground">Completed {formatDossierTimestamp(session.completedAt)} · Decision: {session.authorityAligned ? "Aligned" : "Needs review"} · State: {session.stateTrackAligned ? "Aligned" : "Diverged"} · State change observed: {session.stateChangeObserved == null ? "Not recorded" : session.stateChangeObserved ? "Yes" : "No"}</p>
-                          <div className="grid gap-3 md:grid-cols-2">
-                            {[{ title: "Recorded decision", value: session.specialistAuthority }, { title: "Expected decision", value: session.canonicalAuthority }].map((decision) => (
-                              <div key={decision.title} className="rounded-md border bg-muted/20 p-3">
-                                <p className="font-semibold text-foreground">{decision.title}</p>
-                                <dl className="mt-2 space-y-1.5">
-                                  {authorityParts(decision.value).map((part) => (
-                                    <div key={`${decision.title}-${part.label}`} className="grid grid-cols-[auto_1fr] gap-2 text-xs">
-                                      <dt className="font-medium text-muted-foreground">{part.label}</dt>
-                                      <dd className="text-foreground">{part.value}</dd>
-                                    </div>
-                                  ))}
-                                </dl>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="space-y-2">
-                            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Sets</p>
-                            {setIds.map((setId, setIndex) => {
-                              const setReps = sessionReps.filter((rep) => rep.setId === setId);
+                  {Array.from(new Map(dossier.sessions.map((session) => [session.studentId, session])).values())
+                    .sort((a, b) => String(a.studentName || a.studentId).localeCompare(String(b.studentName || b.studentId)))
+                    .map((student) => {
+                      const studentSessions = dossier.sessions
+                        .filter((session) => session.studentId === student.studentId)
+                        .sort((a, b) => (b.completedAt || "").localeCompare(a.completedAt || ""));
+                      const studentReps = dossier.reps.filter((rep) => rep.studentId === student.studentId);
+                      return (
+                        <details key={student.studentId} className="rounded-lg border bg-background p-3">
+                          <summary className="cursor-pointer list-none">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="text-sm font-semibold">{student.studentName || humanize(student.studentId)}</span>
+                              <span className="text-xs text-muted-foreground">{studentSessions.length} sessions · {studentReps.length} reps</span>
+                            </div>
+                          </summary>
+                          <div className="mt-3 space-y-3 border-t pt-3">
+                            {studentSessions.map((session) => {
+                              const sessionReps = dossier.reps
+                                .filter((rep) => rep.studentId === session.studentId && rep.trajectoryId === session.trajectoryId && rep.sessionNumber === session.sessionNumber)
+                                .sort((a, b) => a.repNumber - b.repNumber);
+                              const setIds = Array.from(new Set(sessionReps.map((rep) => rep.setId)));
                               return (
-                                <details key={setId} className="rounded-md border bg-muted/10 p-3">
-                                  <summary className="cursor-pointer list-none font-medium">Set {setIndex + 1} · {setReps.length} reps</summary>
-                                  <div className="mt-3 space-y-2">
-                                    {setReps.map((rep) => {
-                                      const aligned = repEvidenceAligned(rep);
-                                      return (
-                                        <details key={rep.id} className="rounded-md border bg-background p-3">
-                                          <summary className="cursor-pointer list-none">
-                                            <div className="flex items-center justify-between gap-2">
-                                              <span>Rep {rep.repNumber}</span>
-                                              <Badge variant={aligned ? "default" : "destructive"}>{aligned ? "Evidence aligned" : "Review required"}</Badge>
-                                            </div>
-                                          </summary>
-                                          <div className="mt-3 space-y-3 border-t pt-3">
-                                            <p><span className="font-semibold text-foreground">Student behaviour:</span> <span className="text-muted-foreground">{rep.studentBehavior}</span></p>
-                                            <p className="text-muted-foreground">Condition preserved: {rep.conditionKept == null ? "Not recorded" : rep.conditionKept ? "Yes" : "No"} · Canonical evidence: {rep.truthPresent ? "Available" : "Unavailable"}</p>
-                                            <div className="space-y-2">
-                                              <div className="rounded-md border bg-muted/20 p-3">
-                                                <div className="flex items-center justify-between gap-2">
-                                                  <p className="font-semibold text-foreground">Condition Integrity</p>
-                                                  <Badge variant={rep.conditionKept === true ? "default" : "destructive"}>{rep.conditionKept === true ? "Aligned" : "Diverged"}</Badge>
-                                                </div>
-                                                <div className="mt-2 grid gap-2 md:grid-cols-2">
-                                                  <p className="text-muted-foreground"><span className="font-medium text-foreground">Recorded:</span> {formatIntervention(rep.intervention)}</p>
-                                                  <p className="text-muted-foreground"><span className="font-medium text-foreground">Expected:</span> {formatIntervention(rep.expectedIntervention)}</p>
-                                                </div>
+                                <details key={session.id} className="rounded-lg border bg-muted/10 p-3">
+                                  <summary className="cursor-pointer list-none text-sm font-medium">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <span>Session {session.sessionNumber} · {humanize(session.phase)}{session.topicKey ? " · " + humanize(session.topicKey) : ""}</span>
+                                      <Badge variant={session.authorityAligned && session.stateTrackAligned ? "default" : "destructive"}>{session.authorityAligned && session.stateTrackAligned ? "Evidence aligned" : "Review required"}</Badge>
+                                    </div>
+                                  </summary>
+                                  <div className="mt-3 space-y-3 border-t pt-3 text-xs">
+                                    <p className="text-muted-foreground">Completed {formatDossierTimestamp(session.completedAt)} · Decision: {session.authorityAligned ? "Aligned" : "Needs review"} · State: {session.stateTrackAligned ? "Aligned" : "Diverged"} · State change observed: {session.stateChangeObserved == null ? "Not recorded" : session.stateChangeObserved ? "Yes" : "No"}</p>
+                                    <div className="grid gap-3 md:grid-cols-2">
+                                      {[{ title: "Recorded decision", value: session.specialistAuthority }, { title: "Expected decision", value: session.canonicalAuthority }].map((decision) => (
+                                        <div key={decision.title} className="rounded-md border bg-muted/20 p-3">
+                                          <p className="font-semibold text-foreground">{decision.title}</p>
+                                          <dl className="mt-2 space-y-1.5">
+                                            {authorityParts(decision.value).map((part) => (
+                                              <div key={`${decision.title}-${part.label}`} className="grid grid-cols-[auto_1fr] gap-2 text-xs">
+                                                <dt className="font-medium text-muted-foreground">{part.label}</dt>
+                                                <dd className="text-foreground">{part.value}</dd>
                                               </div>
-                                              {rep.comparisons.map((c) => (
-                                                <div key={c.fieldKey} className="rounded-md border bg-muted/20 p-3">
-                                                  <div className="flex items-center justify-between gap-2">
-                                                    <p className="font-semibold text-foreground">{humanize(c.fieldKey)}</p>
-                                                    <Badge variant={c.matched ? "default" : "destructive"}>{c.matched ? "Aligned" : "Diverged"}</Badge>
-                                                  </div>
-                                                  <div className="mt-2 grid gap-2 md:grid-cols-2">
-                                                    <p className="text-muted-foreground"><span className="font-medium text-foreground">Recorded:</span> {formatEvidenceValue(c.recorded)}</p>
-                                                    <p className="text-muted-foreground"><span className="font-medium text-foreground">Expected:</span> {formatEvidenceValue(c.expected)}</p>
-                                                  </div>
-                                                </div>
-                                              ))}
+                                            ))}
+                                          </dl>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <div className="space-y-2">
+                                      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Sets</p>
+                                      {setIds.map((setId, setIndex) => {
+                                        const setReps = sessionReps.filter((rep) => rep.setId === setId);
+                                        return (
+                                          <details key={setId} className="rounded-md border bg-background p-3">
+                                            <summary className="cursor-pointer list-none font-medium">Set {setIndex + 1} · {setReps.length} reps</summary>
+                                            <div className="mt-3 space-y-2">
+                                              {setReps.map((rep) => {
+                                                const aligned = repEvidenceAligned(rep);
+                                                return (
+                                                  <details key={rep.id} className="rounded-md border bg-muted/10 p-3">
+                                                    <summary className="cursor-pointer list-none">
+                                                      <div className="flex items-center justify-between gap-2">
+                                                        <span>Rep {rep.repNumber}</span>
+                                                        <Badge variant={aligned ? "default" : "destructive"}>{aligned ? "Evidence aligned" : "Review required"}</Badge>
+                                                      </div>
+                                                    </summary>
+                                                    <div className="mt-3 space-y-3 border-t pt-3">
+                                                      <p><span className="font-semibold text-foreground">Student behaviour:</span> <span className="text-muted-foreground">{rep.studentBehavior}</span></p>
+                                                      <p className="text-muted-foreground">Condition preserved: {rep.conditionKept == null ? "Not recorded" : rep.conditionKept ? "Yes" : "No"} · Canonical evidence: {rep.truthPresent ? "Available" : "Unavailable"}</p>
+                                                      <div className="rounded-md border bg-muted/20 p-3">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                          <p className="font-semibold text-foreground">Condition Integrity</p>
+                                                          <Badge variant={!rep.truthPresent ? "outline" : rep.conditionKept === true ? "default" : "destructive"}>{!rep.truthPresent ? "Review required" : rep.conditionKept === true ? "Aligned" : "Diverged"}</Badge>
+                                                        </div>
+                                                        <div className="mt-2 grid gap-2 md:grid-cols-2">
+                                                          <p className="text-muted-foreground"><span className="font-medium text-foreground">Recorded:</span> {formatIntervention(rep.intervention)}</p>
+                                                          <p className="text-muted-foreground"><span className="font-medium text-foreground">Expected:</span> {formatIntervention(rep.expectedIntervention)}</p>
+                                                        </div>
+                                                      </div>
+                                                      {rep.comparisons.map((comparison) => (
+                                                        <div key={comparison.fieldKey} className="rounded-md border bg-muted/20 p-3">
+                                                          <div className="flex items-center justify-between gap-2">
+                                                            <p className="font-semibold text-foreground">{humanize(comparison.fieldKey)}</p>
+                                                            <Badge variant={comparison.matched ? "default" : "destructive"}>{comparison.matched ? "Aligned" : "Diverged"}</Badge>
+                                                          </div>
+                                                          <div className="mt-2 grid gap-2 md:grid-cols-2">
+                                                            <p className="text-muted-foreground"><span className="font-medium text-foreground">Recorded:</span> {formatEvidenceValue(comparison.recorded)}</p>
+                                                            <p className="text-muted-foreground"><span className="font-medium text-foreground">Expected:</span> {formatEvidenceValue(comparison.expected)}</p>
+                                                          </div>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  </details>
+                                                );
+                                              })}
                                             </div>
-                                          </div>
-                                        </details>
-                                      );
-                                    })}
+                                          </details>
+                                        );
+                                      })}
+                                    </div>
                                   </div>
                                 </details>
                               );
                             })}
                           </div>
-                        </div>
-                      </details>
-                    );
-                  })}
+                        </details>
+                      );
+                    })}
                   {dossier.sessions.length === 0 ? <p className="text-sm text-muted-foreground">No completed Sandbox sessions recorded.</p> : null}
                 </section>
               </div>
