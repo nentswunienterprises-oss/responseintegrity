@@ -417,10 +417,23 @@ export function SandboxReadinessAssessmentCard({
                     <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Assigned students</p>
                     <Badge variant="outline">{new Set(dossier.sessions.map((session) => session.studentId)).size} students · {dossier.sessions.length} sessions · {dossier.reps.length} reps</Badge>
                   </div>
-                  {Array.from(new Map([
-                    ...dossier.students.map((student) => [student.id, { studentId: student.id, studentName: student.name }] as const),
-                    ...dossier.sessions.map((session) => [session.studentId, session] as const),
-                  ]).values())
+                  {(() => {
+                    const byId = new Map<string, any>(
+                      dossier.students.map((student) => [
+                        student.id,
+                        { studentId: student.id, studentName: student.name },
+                      ]),
+                    );
+                    dossier.sessions.forEach((session) => {
+                      const existing = byId.get(session.studentId);
+                      byId.set(session.studentId, {
+                        ...existing,
+                        ...session,
+                        studentName: session.studentName || existing?.studentName || null,
+                      });
+                    });
+                    return Array.from(byId.values());
+                  })()
                     .sort((a, b) => String(a.studentName || a.studentId).localeCompare(String(b.studentName || b.studentId)))
                     .map((student) => {
                       const studentSessions = dossier.sessions
