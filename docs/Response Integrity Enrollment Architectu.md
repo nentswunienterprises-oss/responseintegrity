@@ -10,13 +10,13 @@ Each intake has its own cycle, but both follow the same RI standard:
  No panic culture.
 1. Full-Year Conditioning Intake
 Enrollment Window
-1 November - 31 January
+1 October - 15 December
 This is RI’s primary intake.
 It is for families who want the full academic year treated as a response-conditioning journey, not a last-minute exam rescue.
 Cycle Name
 Full-Year Conditioning Cycle
 Season 1: Response Planning Season
-1 November - 31 January
+1 October - 15 December
 Purpose:
 parent education,
 early commitment,
@@ -29,7 +29,7 @@ family schedule alignment.
 Core belief:
 The academic year begins before the pressure does.
 Season 2: Conditioning Season
-1 February - 31 August
+16 January - 31 August
 Purpose:
 begin training,
 maintain the 8-session monthly cadence,
@@ -399,8 +399,8 @@ Response Integrity accepts students through two annual intakes only.
 This protects the system from random entry, last-minute panic, and unstable delivery.
 Intake 1: Full-Year Conditioning Intake
 Enrollment opens: 1 November
- Enrollment closes: 31 January
- Training begins: 1 February
+ Enrollment closes: 15 January
+ Training begins: 16 January
  Cycle length: 9-10 months
  Best for: families preparing for the full academic year before pressure arrives.
 This is RI’s primary intake.
@@ -418,12 +418,12 @@ It is not emergency tutoring. It is the last disciplined entry point with enough
 Each intake has its own cycle.
 Full-Year Conditioning Cycle
 Response Planning Season
-1 November - 31 January
+1 October - 15 December
 Families enter the system, schedules are aligned, student needs are understood, scopes are collected where possible, and onboarding begins.
 Core belief:
 The strongest academic year is built before it becomes urgent.
 Conditioning Season
-1 February - 31 August
+16 January - 31 August
 Students train consistently.
 Cadence:
 2 sessions per week.
@@ -463,27 +463,27 @@ Tutors must enter through certification windows that match the student intake rh
 Annual Tutor Certification Cycle
 Supports the Full-Year Conditioning Intake.
 Tutor Application Window
-1 October - 31 October
+1 September - 30 September
 Tutors apply, submit documents, complete agreements, and are screened.
 Mode:
 Applicant Mode
 Tutor Conditioning Window
-1 November - 15 January
+1 October - 15 December
 Tutors enter training, complete modules, undergo battle testing, and move through sandbox preparation where eligible.
 Mode:
 Training Mode → Sandbox Mode
 Certification must be earned before the deadline.
 Certification Deadline
-15 January
-Tutors must meet the certification standard by this date to qualify for the February deployment pool.
+15 December
+Tutors must meet the certification standard by this date to qualify for the January deployment pool.
 Principle:
 Time does not certify you. Evidence certifies you. But the window determines deployment.
 Deployment Lock-In
-16 January - 31 January
+16 December - 15 January
 Only certified live tutors are matched with students.
 Schedules, student loads, TD oversight, and capacity are locked before training begins.
 Student Deployment
-1 February
+16 January
 Full-Year Conditioning students begin training with certified RI operators.
 Mid-Year Tutor Certification Cycle
 Supports the Mid-Year Conditioning Intake.
@@ -549,7 +549,7 @@ RI is not monthly tutoring.
 RI is cycle-based response conditioning.
 Parents may pay monthly, but they are entering a full conditioning cycle.
 Full-Year Conditioning Membership
-Cycle: 1 February - 30 November
+Cycle: 16 January - 30 November
  Length: 9-10 months
  Cadence: 8 sessions per month
  Estimated total: 72-80 sessions
