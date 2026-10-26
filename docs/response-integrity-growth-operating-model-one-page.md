@@ -55,7 +55,7 @@ Validation and Operations own the next gates:
 
 ### Tutor certification windows
 - Annual cycle: apply 1 Oct to 31 Oct, condition 1 Nov to 15 Jan, deploy 1 Feb
-- Mid-year cycle: apply 1 Apr to 30 Apr, condition 1 May to 20 May, deploy 1 Jun
+- Mid-year cycle: apply 1 Feb to 28 Feb, condition 1 March to 15 May, deploy 1 Jun
 
 This rhythm is system-gated and calendar-driven, not ad hoc.
 
