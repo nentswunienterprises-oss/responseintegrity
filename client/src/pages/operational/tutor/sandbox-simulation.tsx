@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   instructionPromptDisplayText,
   instructionPromptLabelFor,
@@ -118,6 +119,14 @@ type Readiness = {
     requiredSessions: number;
     phaseCounts: Record<string, number>;
     phaseMinimums: Record<string, number>;
+    coverageCategories?: Array<{
+      key: string;
+      label: string;
+      met: number;
+      required: number;
+      completedOpportunities: number;
+      requiredOpportunities: number;
+    }>;
     reason: string;
   };
   reason: string;
@@ -401,6 +410,7 @@ export default function SpecialistSandboxSimulation({
   const [repStarted, setRepStarted] = useState(false);
   const [supportPickerOpen, setSupportPickerOpen] = useState(false);
   const [showEvidenceExceptions, setShowEvidenceExceptions] = useState(false);
+  const [showCoverage, setShowCoverage] = useState(false);
 
   const requiresPodData = !(
     embedded &&
@@ -1578,22 +1588,33 @@ export default function SpecialistSandboxSimulation({
                     Your progress shows what remains without revealing hidden student profiles or canonical answers.
                   </p>
                 </div>
-                <Badge variant={readiness.qualification.qualificationReady ? "default" : "outline"}>
-                  {readiness.qualification.qualificationReady
-                    ? "Qualified pending TD review"
-                    : readiness.qualification.developmentCoverageReady
-                      ? "Final run in progress"
-                      : "Coverage developing"}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setShowCoverage(true)}>
+                    Inspect coverage
+                  </Button>
+                  <Badge variant={readiness.qualification.qualificationReady ? "default" : "outline"}>
+                    {readiness.qualification.qualificationReady
+                      ? "Qualified pending TD review"
+                      : readiness.qualification.developmentCoverageReady
+                        ? "Final run in progress"
+                        : "Locked"}
+                  </Badge>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/20 p-3">
                 <div>
                   <p className="text-sm font-semibold">
-                    {readiness.qualification.qualifyingSessions}/{readiness.qualification.requiredSessions} clean sessions credited
+                    {readiness.qualification.developmentCoverageReady
+                      ? `${readiness.qualification.qualifyingSessions}/${readiness.qualification.requiredSessions} clean sessions credited`
+                      : "Graduation run locked"}
                   </p>
-                  <p className="text-xs text-muted-foreground">Two clean sessions are required in each phase.</p>
+                  <p className="text-xs text-muted-foreground">
+                    {readiness.qualification.developmentCoverageReady
+                      ? "Two clean sessions are required in each phase."
+                      : "Complete development coverage before final-run sessions can be credited."}
+                  </p>
                 </div>
                 <Badge variant="secondary">Policy v{readiness.qualification.policyVersion || 1}</Badge>
               </div>
@@ -1605,9 +1626,13 @@ export default function SpecialistSandboxSimulation({
                   return (
                     <div key={phase} className="rounded-lg border p-3">
                       <p className="text-xs font-medium">{phase}</p>
-                      <p className="mt-1 text-lg font-semibold">{count}/{required}</p>
+                      <p className="mt-1 text-lg font-semibold">
+                        {readiness.qualification?.developmentCoverageReady ? `${count}/${required}` : "Locked"}
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        {remaining === 0 ? "Coverage complete" : `${remaining} clean session${remaining === 1 ? "" : "s"} remaining`}
+                        {readiness.qualification?.developmentCoverageReady
+                          ? remaining === 0 ? "Coverage complete" : `${remaining} clean session${remaining === 1 ? "" : "s"} remaining`
+                          : "Coverage required first"}
                       </p>
                     </div>
                   );
@@ -1616,21 +1641,50 @@ export default function SpecialistSandboxSimulation({
               <div className="rounded-lg border p-3 text-sm">
                 <p className="font-medium">Next requirement</p>
                 <p className="mt-1 text-muted-foreground">
-                  {readiness.qualification.qualificationReady
-                    ? "All qualification requirements are complete. Await TD review; Sandbox does not transition automatically."
-                    : (() => {
-                        const next = SANDBOX_PHASES.find((phase) =>
-                          (readiness.qualification?.phaseCounts?.[phase] || 0) < (readiness.qualification?.phaseMinimums?.[phase] || 2),
-                        );
-                        return next
-                          ? `Complete a clean ${next} session through the next confirmed Sandbox lesson.`
-                          : readiness.qualification.reason;
-                      })()}
+                  {!readiness.qualification.developmentCoverageReady
+                    ? "Development coverage is incomplete. The final graduation run is locked until the required capability coverage is established."
+                    : readiness.qualification.qualificationReady
+                      ? "All qualification requirements are complete. Await TD review; Sandbox does not transition automatically."
+                      : (() => {
+                          const next = SANDBOX_PHASES.find((phase) =>
+                            (readiness.qualification?.phaseCounts?.[phase] || 0) < (readiness.qualification?.phaseMinimums?.[phase] || 2),
+                          );
+                          return next
+                            ? `Complete a clean ${next} session through the next confirmed Sandbox lesson.`
+                            : readiness.qualification.reason;
+                        })()}
                 </p>
               </div>
             </CardContent>
           </Card>
         ) : null}
+
+        <Dialog open={showCoverage} onOpenChange={setShowCoverage}>
+          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Development coverage</DialogTitle>
+              <DialogDescription>
+                Coverage must be established before Sandbox graduation sessions can be credited. Specialist-facing details remain limited to governed progress; canonical answers and hidden profile identities are not exposed.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {(readiness.qualification?.coverageCategories || []).map((category) => (
+                <div key={category.key} className="rounded-lg border bg-muted/20 p-3 text-xs">
+                  <p className="font-medium">{category.label}</p>
+                  <p className="mt-1 text-muted-foreground">
+                    {category.completedOpportunities}/{category.requiredOpportunities} valid opportunities
+                  </p>
+                  <p className="text-muted-foreground">
+                    {category.met}/{category.required} requirements established
+                  </p>
+                  <p className="mt-2 text-muted-foreground">
+                    {category.met === category.required ? "Complete" : "Still required"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {lastResult && (
           <Alert>
