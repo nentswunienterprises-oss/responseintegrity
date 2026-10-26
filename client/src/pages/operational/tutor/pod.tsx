@@ -1044,7 +1044,7 @@ export default function TutorPod() {
               <p className="text-sm text-muted-foreground">
                 This shows the governed coverage areas required before the final Sandbox qualification run opens.
               </p>
-              {tutorAlignmentSummary.sandboxProgress?.qualification?.sourceStatus === "unavailable" ? (
+              {tutorAlignmentSummary?.sandboxProgress?.qualification?.sourceStatus === "unavailable" ? (
                 <Alert>
                   <AlertDescription>
                     Coverage source unavailable. These counters are not evidence of failure and will not be credited until the persisted source is readable.
@@ -1052,7 +1052,7 @@ export default function TutorPod() {
                 </Alert>
               ) : null}
               <div className="grid gap-3 md:grid-cols-3">
-                {(tutorAlignmentSummary.sandboxProgress?.qualification?.coverageCategories || []).map((category) => (
+                {(tutorAlignmentSummary?.sandboxProgress?.qualification?.coverageCategories || []).map((category) => (
                   <div key={category.key} className="rounded-xl border border-primary/15 bg-muted/20 p-4">
                     <p className="text-xs font-medium text-foreground">{category.label}</p>
                     <p className="mt-2 text-lg font-semibold text-foreground">
@@ -1064,7 +1064,7 @@ export default function TutorPod() {
                   </div>
                 ))}
               </div>
-              {!(tutorAlignmentSummary.sandboxProgress?.qualification?.coverageCategories?.length) ? (
+              {!(tutorAlignmentSummary?.sandboxProgress?.qualification?.coverageCategories?.length) ? (
                 <p className="text-sm text-muted-foreground">Coverage detail is not available yet.</p>
               ) : null}
             </div>
