@@ -533,6 +533,8 @@ async function loadCapabilityInspectionAttempts(tutorId: string, assessmentKey: 
   return attempts;
 }
 
+
+export function registerSpecialistDevelopmentRoutes(app: Express) {
   app.get(
     "/api/td/tutors/:tutorId/capability-assessments/:assessmentKey/attempts",
     isAuthenticated,
@@ -570,7 +572,6 @@ async function loadCapabilityInspectionAttempts(tutorId: string, assessmentKey: 
     },
   );
 
-export function registerSpecialistDevelopmentRoutes(app: Express) {
   app.get(
     "/api/td/tutors/:tutorId/sandbox-qualification-review",
     isAuthenticated,
