@@ -69,7 +69,7 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
       res.setHeader("Cache-Control", "private, no-store, max-age=0");
       const [reps, sessions] = await Promise.all([
         db.query(
-          `SELECT e.id, e.trajectory_id, e.event_sequence, e.session_number, e.phase, e.topic_key,
+          `SELECT e.id, e.trajectory_id, e.student_id, u.name AS student_name, e.event_sequence, e.session_number, e.phase, e.topic_key,
                   e.set_id, e.rep_number, e.student_behavior, e.specialist_submission,
                   e.condition_kept, e.total_observations, e.matching_observations,
                   e.observation_exact, e.evidence_exact, e.completed_at,
@@ -77,16 +77,18 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
                   t.canonical_observations, t.canonical_prerequisite_sentinel,
                   t.canonical_inherited_rescue_signal, t.actual_intervention_event
              FROM public.specialist_sandbox_rep_events e
+             LEFT JOIN public.users u ON u.id = e.student_id
              LEFT JOIN private.specialist_sandbox_rep_event_truth t ON t.event_id = e.id
             WHERE e.tutor_assignment_id = $1 AND e.tutor_id = $2
             ORDER BY e.completed_at DESC, e.event_sequence DESC LIMIT 180`,
           [assignmentId, tutorId],
         ),
         db.query(
-          `SELECT e.id, e.trajectory_id, e.session_number, e.phase, e.topic_key, e.authority_aligned,
+          `SELECT e.id, e.trajectory_id, e.student_id, u.name AS student_name, e.session_number, e.phase, e.topic_key, e.authority_aligned,
                   e.state_track_aligned, e.state_change_observed, e.completed_at,
                   e.specialist_authority, t.canonical_authority
              FROM public.specialist_sandbox_session_evaluations e
+             LEFT JOIN public.users u ON u.id = e.student_id
              LEFT JOIN private.specialist_sandbox_session_truth t ON t.session_evaluation_id = e.id
             WHERE e.tutor_assignment_id = $1 AND e.tutor_id = $2
             ORDER BY e.completed_at DESC, e.session_number DESC LIMIT 90`,
@@ -105,7 +107,7 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
           ? [...orderedKeys, ...Object.keys(canonical).filter((key) => !orderedKeys.includes(key))].filter((key) => canonical[key] != null)
           : [];
         return {
-          id: String(r.id), trajectoryId: String(r.trajectory_id), eventSequence: Number(r.event_sequence),
+          id: String(r.id), trajectoryId: String(r.trajectory_id), studentId: String(r.student_id), studentName: r.student_name || null, eventSequence: Number(r.event_sequence),
           sessionNumber: Number(r.session_number), phase: r.phase, topicKey: r.topic_key,
           setId: r.set_id, repNumber: Number(r.rep_number), studentBehavior: r.student_behavior,
           bankKey: r.bank_key, bankVersion: r.bank_version, outcomeVersion: r.outcome_version,
@@ -135,7 +137,7 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
         note: "Completed Sandbox evidence only. Canonical responses are TD-restricted and non-authoritative for real student state.",
         reps: repRows,
         sessions: sessions.rows.map((r: any) => ({
-          id: String(r.id), trajectoryId: String(r.trajectory_id), sessionNumber: Number(r.session_number), phase: r.phase,
+          id: String(r.id), trajectoryId: String(r.trajectory_id), studentId: String(r.student_id), studentName: r.student_name || null, sessionNumber: Number(r.session_number), phase: r.phase,
           topicKey: r.topic_key, authorityAligned: r.authority_aligned,
           stateTrackAligned: r.state_track_aligned, stateChangeObserved: r.state_change_observed,
           truthPresent: r.canonical_authority != null, specialistAuthority: r.specialist_authority,
