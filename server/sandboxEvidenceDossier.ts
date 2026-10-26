@@ -32,6 +32,20 @@ function observationLabel(phase: unknown, setId: unknown, repNumber: unknown, fi
   return fallbackField?.optionLabels?.[Number(optionMatch[1]) - 1] || null;
 }
 
+function expectedConditionLabel(phase: unknown, setId: unknown) {
+  const schema = getDrillSchemaDefinition("training", String(phase) as TopicPhase);
+  const set = schema?.sets.find((candidate) => candidate.setId === String(setId));
+  switch (set?.constraints?.supportLevel) {
+    case "first_step_only":
+      return "First-step confirmation";
+    case "minimal":
+      return "First-step confirmation or method/step prompt";
+    case "none":
+    default:
+      return "No intervention";
+  }
+}
+
 export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
   return async (req: Request, res: Response) => {
     try {
@@ -96,7 +110,7 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
           setId: r.set_id, repNumber: Number(r.rep_number), studentBehavior: r.student_behavior,
           bankKey: r.bank_key, bankVersion: r.bank_version, outcomeVersion: r.outcome_version,
           intervention: r.specialist_submission?.interventionEvent || null,
-          expectedIntervention: r.actual_intervention_event || null,
+          expectedIntervention: expectedConditionLabel(r.phase, r.set_id),
           conditionKept: r.condition_kept, truthPresent: !!canonical,
           observationExact: r.observation_exact, evidenceExact: r.evidence_exact,
           matchingObservations: Number(r.matching_observations),
