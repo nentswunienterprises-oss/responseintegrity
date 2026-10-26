@@ -93,8 +93,8 @@ Tutor entry happens through two certification cycles tied to the student intake 
   - Deployment begins: 1 February
 
 - Mid-Year Tutor Certification Cycle
-  - Application window: 1 April - 30 April
-  - Conditioning window: 1 May - 20 May
+  - Application window: 1 February - 28 February
+  - Conditioning window: 1 March - 15 May
   - Deployment begins: 1 June
 
 This matters because the tutor experience is also time-bound and structured. The family experience is therefore not only about intake and sessions; it is also about whether the service has a trained and certified tutor layer behind it.
