@@ -434,6 +434,142 @@ async function loadSpecialistDevelopmentRecordPayload(tutorId: string) {
   };
 }
 
+
+
+function parseStoredJson(value: unknown): any {
+  if (value && typeof value === "object") return value;
+  if (typeof value === "string") {
+    try { return JSON.parse(value); } catch { return null; }
+  }
+  return null;
+}
+
+async function loadCapabilityInspectionAttempts(tutorId: string, assessmentKey: string) {
+  const assignmentResult = await pool.query(
+    `SELECT id FROM public.tutor_assignments WHERE tutor_id = $1 ORDER BY created_at DESC LIMIT 1`,
+    [tutorId],
+  );
+  const assignmentId = assignmentResult.rows[0]?.id;
+  if (!assignmentId) return [];
+  const attemptsResult = await pool.query(
+    `SELECT id, assessment_key, bank_version, attempt_number, form_id,
+            total_questions, correct_questions, percent, has_critical_fail,
+            passed, completed_at, form_item_keys, responses, question_results,
+            experience_rating, experience_feedback, experience_feedback_submitted_at
+       FROM public.specialist_capability_assessment_attempts
+      WHERE tutor_assignment_id = $1 AND tutor_id = $2 AND assessment_key = $3
+      ORDER BY attempt_number DESC, completed_at DESC`,
+    [String(assignmentId), tutorId, assessmentKey],
+  );
+  const attempts: any[] = [];
+  for (const row of attemptsResult.rows) {
+    const formItemKeys = Array.isArray(parseStoredJson(row.form_item_keys))
+      ? parseStoredJson(row.form_item_keys).map((key: unknown) => String(key))
+      : [];
+    const itemResult = await pool.query(
+      `SELECT item_key, prompt, question_kind, options, correct_option_keys,
+              explanation, option_feedback
+         FROM private.specialist_capability_assessment_items
+        WHERE assessment_key = $1 AND bank_version = $2
+          AND item_key = ANY($3::text[])`,
+      [assessmentKey, Number(row.bank_version), formItemKeys],
+    );
+    const items = new Map(itemResult.rows.map((item) => [String(item.item_key), item]));
+    const responses = Array.isArray(parseStoredJson(row.responses)) ? parseStoredJson(row.responses) : [];
+    const responseByKey = new Map(responses.map((response: any) => [
+      String(response.questionKey || response.question_key || ""),
+      Array.isArray(response.selectedOptionKeys || response.selected_option_keys)
+        ? (response.selectedOptionKeys || response.selected_option_keys).map((key: unknown) => String(key))
+        : [],
+    ]));
+    const results = Array.isArray(parseStoredJson(row.question_results)) ? parseStoredJson(row.question_results) : [];
+    const resultByKey = new Map(results.map((result: any) => [String(result.questionKey || result.question_key || ""), result]));
+    const questions = formItemKeys.map((questionKey) => {
+      const item = items.get(questionKey);
+      const result: any = resultByKey.get(questionKey) || {};
+      const selectedOptionKeys = Array.isArray(result.selectedOptionKeys)
+        ? result.selectedOptionKeys.map((key: unknown) => String(key))
+        : (responseByKey.get(questionKey) || []);
+      const options = Array.isArray(parseStoredJson(item?.options))
+        ? parseStoredJson(item?.options).map((option: any) => ({ key: String(option.key), label: String(option.label) }))
+        : [];
+      const correctOptionKeys = Array.isArray(result.correctOptionKeys)
+        ? result.correctOptionKeys.map((key: unknown) => String(key))
+        : (Array.isArray(parseStoredJson(item?.correct_option_keys))
+          ? parseStoredJson(item?.correct_option_keys).map((key: unknown) => String(key))
+          : []);
+      const labels = (keys: string[]) => keys.map((key) => options.find((option) => option.key === key)?.label || key);
+      return {
+        questionKey,
+        prompt: String(item?.prompt || ""),
+        questionKind: String(item?.question_kind || ""),
+        selectedOptionKeys,
+        selectedOptions: labels(selectedOptionKeys),
+        correctOptionKeys,
+        correctOptions: labels(correctOptionKeys),
+        correct: Boolean(result.correct),
+        criticalFail: Boolean(result.criticalFail),
+        explanation: String(result.explanation || item?.explanation || ""),
+        feedback: String(item?.option_feedback?.[selectedOptionKeys[0]] || ""),
+      };
+    });
+    attempts.push({
+      attemptId: String(row.id),
+      attemptNumber: Number(row.attempt_number),
+      bankVersion: Number(row.bank_version),
+      formId: String(row.form_id),
+      totalQuestions: Number(row.total_questions),
+      correctQuestions: Number(row.correct_questions),
+      percent: Number(row.percent),
+      hasCriticalFail: Boolean(row.has_critical_fail),
+      passed: Boolean(row.passed),
+      completedAt: row.completed_at ? String(row.completed_at) : null,
+      experienceRating: row.experience_rating == null ? null : Number(row.experience_rating),
+      experienceFeedback: row.experience_feedback ? String(row.experience_feedback) : null,
+      experienceFeedbackSubmittedAt: row.experience_feedback_submitted_at ? String(row.experience_feedback_submitted_at) : null,
+      questions,
+    });
+  }
+  return attempts;
+}
+
+  app.get(
+    "/api/td/tutors/:tutorId/capability-assessments/:assessmentKey/attempts",
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const td = requireTd(req, res);
+        if (!td) return;
+        const tutorId = String(req.params.tutorId || "").trim();
+        const record = await loadSpecialistDevelopmentRecordPayload(tutorId);
+        if (!record) return res.status(404).json({ message: "Specialist assignment not found." });
+        if (record.tdId !== String(td.id)) return res.status(403).json({ message: "This Specialist is not assigned to your Pod." });
+        return res.json({ attempts: await loadCapabilityInspectionAttempts(tutorId, String(req.params.assessmentKey || "").trim()) });
+      } catch (error) {
+        console.error("Failed to load Capability assessment inspection:", error);
+        return res.status(500).json({ message: "Capability assessment inspection unavailable." });
+      }
+    },
+  );
+
+  app.get(
+    "/api/coo/tutors/:tutorId/capability-assessments/:assessmentKey/attempts",
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const coo = requireCoo(req, res);
+        if (!coo) return;
+        const tutorId = String(req.params.tutorId || "").trim();
+        const record = await loadSpecialistDevelopmentRecordPayload(tutorId);
+        if (!record) return res.status(404).json({ message: "Specialist assignment not found." });
+        return res.json({ attempts: await loadCapabilityInspectionAttempts(tutorId, String(req.params.assessmentKey || "").trim()) });
+      } catch (error) {
+        console.error("Failed to load COO Capability assessment inspection:", error);
+        return res.status(500).json({ message: "Capability assessment inspection unavailable." });
+      }
+    },
+  );
+
 export function registerSpecialistDevelopmentRoutes(app: Express) {
   app.get(
     "/api/td/tutors/:tutorId/sandbox-qualification-review",

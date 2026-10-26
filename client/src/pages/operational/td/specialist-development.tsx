@@ -11,6 +11,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { SandboxReadinessAssessmentCard } from "@/components/sandbox/SandboxReadinessAssessmentCard";
 import { TdPracticalsCompletion } from "@/components/sandbox/TdPracticalsCompletion";
@@ -41,7 +42,34 @@ type CapabilityAssessment = {
     hasCriticalFail: boolean;
     passed: boolean;
     completedAt: string | null;
+    attemptId?: string;
   } | null;
+};
+
+type CapabilityInspectionAttempt = {
+  attemptId: string;
+  attemptNumber: number;
+  bankVersion: number;
+  totalQuestions: number;
+  correctQuestions: number;
+  percent: number;
+  hasCriticalFail: boolean;
+  passed: boolean;
+  completedAt: string | null;
+  experienceRating: number | null;
+  experienceFeedback: string | null;
+  experienceFeedbackSubmittedAt: string | null;
+  questions: Array<{
+    questionKey: string;
+    prompt: string;
+    questionKind: string;
+    selectedOptions: string[];
+    correctOptions: string[];
+    correct: boolean;
+    criticalFail: boolean;
+    explanation: string;
+    feedback: string;
+  }>;
 };
 
 type DevelopmentRecord = {
@@ -215,12 +243,14 @@ function AssessmentSection({
   assessments,
   collapsible = false,
   defaultOpen = true,
+  onInspect,
 }: {
   title: string;
   detail: string;
   assessments: CapabilityAssessment[];
   collapsible?: boolean;
   defaultOpen?: boolean;
+  onInspect: (assessmentKey: string) => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const complete = assessments.filter((entry) => entry.status === "complete").length;
@@ -268,23 +298,30 @@ function AssessmentSection({
                     : "No completed attempt recorded on the current pathway."}
                 </p>
               </div>
-              <Badge
-                variant={
-                  assessment.status === "complete"
-                    ? "default"
+              <div className="flex flex-col items-end gap-2">
+                <Badge
+                  variant={
+                    assessment.status === "complete"
+                      ? "default"
+                      : assessment.status === "available"
+                        ? "secondary"
+                        : "outline"
+                  }
+                >
+                  {assessment.status === "complete"
+                    ? "Evidenced"
                     : assessment.status === "available"
-                      ? "secondary"
-                      : "outline"
-                }
-              >
-                {assessment.status === "complete"
-                  ? "Evidenced"
-                  : assessment.status === "available"
-                    ? "Ready"
-                    : assessment.status === "unavailable"
-                      ? "Unavailable"
-                      : "Locked"}
-              </Badge>
+                      ? "Ready"
+                      : assessment.status === "unavailable"
+                        ? "Unavailable"
+                        : "Locked"}
+                </Badge>
+                {assessment.status === "complete" ? (
+                  <Button type="button" variant="outline" size="sm" onClick={() => onInspect(assessment.assessmentKey)}>
+                    Inspect
+                  </Button>
+                ) : null}
+              </div>
             </div>
           ))
         )}
@@ -362,6 +399,18 @@ export default function SpecialistDevelopmentRecordPage() {
   const record = recordQuery.data;
   const currentIndex = stageIndex(record.currentStage);
   const assessments = record.training.assessments;
+  const [inspectionKey, setInspectionKey] = useState<string | null>(null);
+  const inspectionQuery = useQuery<{ attempts: CapabilityInspectionAttempt[] }>({
+    queryKey: [recordApiBase, "tutors", tutorId, "capability-assessment", inspectionKey, "attempts"],
+    enabled: Boolean(tutorId && inspectionKey),
+    queryFn: async () => {
+      const response = await apiRequest(
+        "GET",
+        recordApiBase + "/tutors/" + encodeURIComponent(String(tutorId || "")) + "/capability-assessments/" + encodeURIComponent(String(inspectionKey || "")) + "/attempts",
+      );
+      return response.json();
+    },
+  });
   const transformation = assessments.filter(
     (entry) => entry.stage === "transformation_mastery",
   );
@@ -565,6 +614,7 @@ export default function SpecialistDevelopmentRecordPage() {
             assessments={transformation}
             collapsible
             defaultOpen={false}
+            onInspect={setInspectionKey}
           />
           <AssessmentSection
             title="Retention + Application"
@@ -572,6 +622,7 @@ export default function SpecialistDevelopmentRecordPage() {
             assessments={cumulative}
             collapsible
             defaultOpen={false}
+            onInspect={setInspectionKey}
           />
           <AssessmentSection
             title="Execution Standards"
@@ -579,6 +630,7 @@ export default function SpecialistDevelopmentRecordPage() {
             assessments={executionStandards}
             collapsible
             defaultOpen={false}
+            onInspect={setInspectionKey}
           />
           <AssessmentSection
             title="System Intelligence"
@@ -586,6 +638,7 @@ export default function SpecialistDevelopmentRecordPage() {
             assessments={systemIntelligence}
             collapsible
             defaultOpen={false}
+            onInspect={setInspectionKey}
           />
           <AssessmentSection
             title="Session Infrastructure"
@@ -593,6 +646,7 @@ export default function SpecialistDevelopmentRecordPage() {
             assessments={sessionInfrastructure}
             collapsible
             defaultOpen={false}
+            onInspect={setInspectionKey}
           />
           <AssessmentSection
             title="Operating System Retention + Application"
@@ -600,9 +654,42 @@ export default function SpecialistDevelopmentRecordPage() {
             assessments={operatingSystem}
             collapsible
             defaultOpen={false}
+            onInspect={setInspectionKey}
           />
         </section>
 
+        <Dialog open={Boolean(inspectionKey)} onOpenChange={(open) => { if (!open) setInspectionKey(null); }}>
+          <DialogContent className="max-h-[88vh] max-w-5xl overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Capability evidence inspection</DialogTitle>
+              <DialogDescription>Read-only view of persisted questions, responses, outcomes, and Specialist feedback.</DialogDescription>
+            </DialogHeader>
+            {inspectionQuery.isLoading ? <p className="text-sm text-muted-foreground">Loading persisted attempt evidence...</p> : inspectionQuery.error ? <p className="text-sm text-destructive">This evidence could not be loaded.</p> : (
+              <div className="space-y-5">
+                {(inspectionQuery.data?.attempts || []).map((attempt) => (
+                  <section key={attempt.attemptId} className="space-y-3 rounded-lg border p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div><p className="font-semibold">Attempt {attempt.attemptNumber}</p><p className="text-xs text-muted-foreground">{attempt.correctQuestions}/{attempt.totalQuestions} correct · {attempt.percent}% · {attempt.passed ? "Passed" : "Did not pass"} · {formatDate(attempt.completedAt)}</p></div>
+                      <Badge variant={attempt.passed ? "default" : "outline"}>{attempt.hasCriticalFail ? "Critical boundary reached" : "Recorded"}</Badge>
+                    </div>
+                    {attempt.experienceFeedback || attempt.experienceRating != null ? <div className="rounded-md border border-sky-500/25 bg-sky-500/10 p-3 text-sm"><p className="font-medium">Specialist feedback</p><p className="mt-1">{attempt.experienceFeedback || "No written feedback submitted."}</p>{attempt.experienceRating != null ? <p className="mt-1 text-xs text-muted-foreground">Rating: {attempt.experienceRating}/5</p> : null}</div> : null}
+                    <div className="space-y-3">
+                      {attempt.questions.map((question, index) => (
+                        <div key={question.questionKey} className="rounded-md border bg-muted/10 p-3">
+                          <div className="flex items-start justify-between gap-3"><p className="text-sm font-medium">Question {index + 1}</p><Badge variant={question.correct ? "default" : "destructive"}>{question.correct ? "Correct" : question.criticalFail ? "Critical fail" : "Incorrect"}</Badge></div>
+                          <p className="mt-2 text-sm">{question.prompt || question.questionKey}</p>
+                          <div className="mt-3 grid gap-3 md:grid-cols-2"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Specialist response</p><p className="mt-1 text-sm">{question.selectedOptions.join(", ") || "No recorded selection"}</p></div><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Expected response</p><p className="mt-1 text-sm">{question.correctOptions.join(", ") || "Not available"}</p></div></div>
+                          {question.feedback || question.explanation ? <p className="mt-3 text-xs text-muted-foreground">{question.feedback || question.explanation}</p> : null}
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+                {!inspectionQuery.data?.attempts?.length ? <p className="text-sm text-muted-foreground">No persisted attempts were found.</p> : null}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
         {!isCooView && record.assignment.operationalMode === "sandbox" ? (
           <section className="space-y-4">
             <SandboxReadinessAssessmentCard

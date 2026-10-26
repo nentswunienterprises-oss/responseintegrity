@@ -87,19 +87,22 @@ export async function getSpecialistTrainingStageGate(input: {
     const readiness = await getSandboxCapabilityReadiness(input);
     const qualification = "qualification" in readiness ? readiness.qualification : null;
     const qualificationReady = qualification?.qualificationReady === true;
+    const developmentCoverageReady = qualification?.developmentCoverageReady === true;
     return {
       mode,
-      capabilityTrainingAllowed: false,
+      capabilityTrainingAllowed: developmentCoverageReady || qualificationReady,
       sandboxQualificationRequired: true,
       sandboxQualificationReady: qualificationReady,
-      developmentCoverageReady: qualification?.developmentCoverageReady ?? false,
+      developmentCoverageReady,
       qualifyingSessions: qualification?.qualifyingSessions ?? 0,
       requiredSessions: qualification?.requiredSessions ?? null,
       phaseCounts: qualification?.phaseCounts ?? {},
       phaseMinimums: qualification?.phaseMinimums ?? {},
       reason: qualificationReady
-        ? "Sandbox graduation evidence is complete. The remaining Training gates may now be completed."
-        : "Complete Sandbox development coverage and the phase-balanced zero-divergence run before continuing the remaining Training gates.",
+        ? "Sandbox graduation evidence is complete. Continue to the next governed pathway stage."
+        : developmentCoverageReady
+          ? "Development coverage is complete. The remaining Deep Dives are now unlocked; complete them before the final Sandbox graduation run."
+          : "Complete Sandbox development coverage before the remaining Deep Dives unlock.",
     };
   }
 
