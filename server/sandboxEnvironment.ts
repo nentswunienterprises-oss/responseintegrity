@@ -1461,7 +1461,7 @@ async function readinessFor(input: {
   });
   const formatCoverageLabel = (key: string) => {
     const [, ...parts] = key.split(":");
-    return parts.join(" — ")
+    return parts.join(": ")
       .replace(/_/g, " ")
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
   };
