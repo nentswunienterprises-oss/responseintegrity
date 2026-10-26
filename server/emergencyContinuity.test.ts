@@ -859,7 +859,21 @@ test("emergency mode drift self-heals assignment only in Vercel Preview", () => 
   assert.match(modeSource, /AND tutor_id = \$3/);
   assert.match(modeSource, /operational_mode <> \$1/);
   assert.match(modeSource, /preview assignment repaired/);
-  assert.match(modeSource, /return resolveEmergencyTutorMode\(\{ assignmentMode, certificationMode \}\)/);
+  assert.match(modeSource, /const resolvedMode = resolveEmergencyTutorMode\(\{ assignmentMode, certificationMode \}\)/);
+  assert.match(modeSource, /reconcileSandboxTrainingPrerequisite/);
+});
+
+test("Sandbox lifecycle authority is revalidated against current Training completion", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const reconciliationStart = routesSource.indexOf("async function reconcileSandboxTrainingPrerequisite");
+  const reconciliationEnd = routesSource.indexOf("export function resolveEmergencyTutorMode", reconciliationStart);
+  const reconciliationSource = routesSource.slice(reconciliationStart, reconciliationEnd);
+
+  assert.match(reconciliationSource, /skipStageGate: true/);
+  assert.match(reconciliationSource, /if \(capabilityState\.sandboxReady\) return input\.mode/);
+  assert.match(reconciliationSource, /SET operational_mode = 'training'/);
+  assert.match(reconciliationSource, /SET mode = 'training'/);
+  assert.match(reconciliationSource, /failing closed to Training/);
 });
 
 

@@ -202,6 +202,7 @@ export async function getSpecialistCapabilityTrainingState(input: {
   tutorAssignmentId: string;
   tutorId: string;
   now?: Date;
+  skipStageGate?: boolean;
 }): Promise<{
   assessments: CapabilityTrainingAvailability[];
   sandboxReady: boolean;
@@ -287,7 +288,20 @@ export async function getSpecialistCapabilityTrainingState(input: {
     plan: getCapabilityTrainingAssessmentPlan({ curriculumVersion: "v2" }),
   });
 
-  const stageGate = await getSpecialistTrainingStageGate(input);
+  const stageGate = input.skipStageGate
+    ? {
+        mode: "training",
+        capabilityTrainingAllowed: true,
+        sandboxQualificationRequired: false,
+        sandboxQualificationReady: null,
+        developmentCoverageReady: null,
+        qualifyingSessions: null,
+        requiredSessions: null,
+        phaseCounts: null,
+        phaseMinimums: null,
+        reason: "Training prerequisite state read without resolving the lifecycle stage.",
+      } satisfies SpecialistTrainingStageGate
+    : await getSpecialistTrainingStageGate(input);
 
   return {
     assessments,

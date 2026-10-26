@@ -612,6 +612,56 @@ async function getTutorOperationalMode(tutorId: string): Promise<TutorTrainingMo
   return getTutorCertificationMode(tutorId);
 }
 
+async function reconcileSandboxTrainingPrerequisite(input: {
+  tutorId: string;
+  assignmentId: string;
+  mode: TutorTrainingMode;
+}): Promise<TutorTrainingMode> {
+  if (input.mode !== "sandbox") return input.mode;
+
+  try {
+    const capabilityState = await getSpecialistCapabilityTrainingState({
+      tutorAssignmentId: input.assignmentId,
+      tutorId: input.tutorId,
+      skipStageGate: true,
+    });
+
+    if (capabilityState.sandboxReady) return input.mode;
+
+    await pool.query(
+      `UPDATE public.tutor_assignments
+          SET operational_mode = 'training'
+        WHERE id = $1
+          AND tutor_id = $2
+          AND operational_mode = 'sandbox'`,
+      [input.assignmentId, input.tutorId],
+    );
+    await pool.query(
+      `UPDATE public.tutor_battle_test_statuses
+          SET mode = 'training',
+              updated_at = now(),
+              last_synced_at = now()
+        WHERE tutor_assignment_id = $1
+          AND tutor_id = $2
+          AND mode = 'sandbox'`,
+      [input.assignmentId, input.tutorId],
+    );
+
+    console.warn("[SPECIALIST STAGE RECONCILIATION] Sandbox prerequisite incomplete; reverted to Training", {
+      tutorId: input.tutorId,
+      assignmentId: input.assignmentId,
+    });
+    return "training";
+  } catch (error) {
+    console.error("[SPECIALIST STAGE RECONCILIATION] Could not verify Sandbox prerequisite; failing closed to Training", {
+      tutorId: input.tutorId,
+      assignmentId: input.assignmentId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return "training";
+  }
+}
+
 export function resolveEmergencyTutorMode({
   assignmentMode,
   certificationMode,
@@ -707,7 +757,12 @@ async function getTutorCertificationMode(tutorId: string): Promise<TutorTraining
         }
       }
     }
-    return resolveEmergencyTutorMode({ assignmentMode, certificationMode });
+    const resolvedMode = resolveEmergencyTutorMode({ assignmentMode, certificationMode });
+    return reconcileSandboxTrainingPrerequisite({
+      tutorId,
+      assignmentId: assignment.id,
+      mode: resolvedMode,
+    });
   }
   if (!assignment?.id) {
     const { data: portableSnapshot } = await supabase
@@ -730,7 +785,11 @@ async function getTutorCertificationMode(tutorId: string): Promise<TutorTraining
   if (certificationStatus?.mode) {
     const persistedMode = certificationStatus.mode as TutorTrainingMode;
     if (persistedMode !== "watchlist" && persistedMode !== "training" && persistedMode !== "applicant") {
-      return persistedMode;
+      return reconcileSandboxTrainingPrerequisite({
+        tutorId,
+        assignmentId: assignment.id,
+        mode: persistedMode,
+      });
     }
 
     try {
