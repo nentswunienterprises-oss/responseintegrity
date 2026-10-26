@@ -263,7 +263,7 @@ const tutorPhases: TutorPhase[] = [
     applicationsOpen: true,
     cycleKey: "mid_year",
     description:
-      "The Full-Year cohort remains deployed while new specialists apply for the June deployment pool and begin the mid-year certification cycle.",
+      "Applications and screening run through February. Approved candidates enter the standard 75-day pathway on 1 March for the June deployment pool, while the Full-Year cohort remains deployed.",
   },
   {
     key: "mid_year_conditioning",
@@ -272,7 +272,7 @@ const tutorPhases: TutorPhase[] = [
     applicationsOpen: false,
     cycleKey: "mid_year",
     description:
-      "Selected candidates move through the standard 75-day development pathway while the Full-Year cohort continues live delivery.",
+      "Selected candidates move through the standard 75-day pathway from 1 March and complete certification by 15 May, while the Full-Year cohort continues live delivery.",
   },
   {
     key: "mid_year_lock_in",
@@ -414,7 +414,7 @@ export function getTutorIntakeStatus(date = new Date()) {
       summary: `New specialist applications are open through ${closingLabel}.`,
       detail:
         cycle.key === "mid_year"
-          ? "The Full-Year cohort remains deployed while new candidates enter the February application window for June deployment. Only candidates who meet every evidence gate by the certification deadline become deployable."
+          ? "Applications and screening run through February. Approved candidates enter the standard 75-day pathway on 1 March for the June deployment pool. The Full-Year cohort remains deployed during this window; every evidence gate still applies."
           : "Entry starts in applicant mode. Only candidates who move through training, sandbox readiness, and certification by deadline become deployable operators.",
       closingLabel,
       nextOpeningLabel: formatAbsoluteDate(
