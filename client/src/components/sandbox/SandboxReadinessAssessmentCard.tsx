@@ -78,13 +78,13 @@ type SandboxReadinessPayload = {
 };
 
 type SandboxDossier = {
-  reps: Array<{id:string; sessionNumber:number; phase:string; setId:string; repNumber:number;
+  reps: Array<{id:string; trajectoryId:string; sessionNumber:number; phase:string; setId:string; repNumber:number;
     studentBehavior:string; observationExact:boolean|null; evidenceExact:boolean|null;
     conditionKept:boolean|null; intervention?:string|null; expectedIntervention?:string|null; truthPresent:boolean; comparisons:Array<{
       fieldKey:string; recorded:{optionId:string;label?:string|null;evidenceStatus?:string}|null;
       expected:{optionId:string;label?:string|null;evidenceStatus?:string}|null; matched:boolean;
     }> }>;
-  sessions:Array<{id:string;sessionNumber:number;phase:string;topicKey?:string|null;completedAt?:string|null;
+  sessions:Array<{id:string;trajectoryId:string;sessionNumber:number;phase:string;topicKey?:string|null;completedAt?:string|null;
     stateChangeObserved?:boolean|null;authorityAligned:boolean;stateTrackAligned:boolean;truthPresent:boolean;
     specialistAuthority:any;canonicalAuthority:any}>;
 };
@@ -418,7 +418,7 @@ export function SandboxReadinessAssessmentCard({
                   </div>
                   {[...dossier.sessions].sort((a, b) => a.sessionNumber - b.sessionNumber).map(session => {
                     const sessionReps = dossier.reps
-                      .filter(rep => rep.sessionNumber === session.sessionNumber)
+                      .filter(rep => rep.trajectoryId === session.trajectoryId && rep.sessionNumber === session.sessionNumber)
                       .sort((a, b) => a.repNumber - b.repNumber);
                     const setIds = Array.from(new Set(sessionReps.map(rep => rep.setId)));
                     return (
