@@ -461,7 +461,7 @@ async function loadCapabilityInspectionAttempts(tutorId: string, assessmentKey: 
       ORDER BY attempt_number DESC, completed_at DESC`,
     [String(assignmentId), tutorId, assessmentKey],
   );
-  const attempts = [];
+  const attempts: any[] = [];
   for (const row of attemptsResult.rows) {
     const formItemKeys = Array.isArray(parseStoredJson(row.form_item_keys))
       ? parseStoredJson(row.form_item_keys).map((key: unknown) => String(key))
