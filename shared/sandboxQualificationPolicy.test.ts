@@ -10,6 +10,8 @@ const event=(n:number,patch:Partial<E>={}):E=>({id:"event-"+n,occurredAt:when(n)
  bankVersion:1,outcomeVersion:1,...patch});
 function coverage():E[]{let n=0;const a:E[]=[];
  for(const mode of p.modes)a.push(event(++n,{mode,opportunityKey:"mode-"+mode}));
+ for(const context of p.preparationContexts)a.push(event(++n,{mode:"preparation",preparationContext:context,opportunityKey:"prep-"+context}));
+ for(const phase of p.diagnosisPhases)a.push(event(++n,{mode:"preparation",preparationContext:"diagnosis:"+phase,phase,opportunityKey:"prep-diagnosis-"+phase}));
  for(const profile of p.profiles)for(let j=0;j<2;j++)a.push(event(++n,{profile,opportunityKey:"profile-"+profile+"-"+j,situationTags:["profile_signature"]}));
  for(const [tag,min] of Object.entries(p.situationMinimums))for(let j=0;j<min;j++)a.push(event(++n,{situationTags:[tag],opportunityKey:"tag-"+tag+"-"+j}));
  return a;}

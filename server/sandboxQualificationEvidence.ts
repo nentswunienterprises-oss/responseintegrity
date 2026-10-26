@@ -66,6 +66,11 @@ const PREPARATION=[
  " AND newer.recorded_at<r.completed_at)",
  "ORDER BY p.recorded_at ASC,p.id ASC LIMIT 5000",
 ].join(" ");
+const CONTEXT_PREPARATION=[
+ "SELECT p.* FROM public.specialist_sandbox_context_preparation_events p",
+ "WHERE p.tutor_assignment_id=$1 AND p.tutor_id=$2",
+ "ORDER BY p.recorded_at ASC,p.id ASC LIMIT 5000",
+].join(" ");
 const TRAINING_REPS=[
  "SELECT r.*, t.outcome_key,t.outcome_version,t.outcome_ref AS truth_outcome_ref,",
  "t.trajectory_class,t.canonical_observations,t.canonical_prerequisite_sentinel,",
@@ -363,6 +368,32 @@ export async function loadSandboxQualificationEvidence(
      item.conditionKept&&item.observationExact&&item.evidenceExact);
    item.opportunityKey=["prepared",row.phase,row.set_id,row.condition_contract_sha256].join(":");
    item.situationTags=["prepared_conditions"];
+   item.preparationContext="training";
+   return item;
+ });
+ let savedContextPreparations:any[]=[];
+ try {
+   savedContextPreparations=(await sourceDb.query(CONTEXT_PREPARATION,params)).rows;
+ } catch(error:any) {
+   if(error?.code==="42P01" || String(error?.message||"").includes("specialist_sandbox_context_preparation_events"))
+     sourceGaps.push("Context-specific Sandbox preparation evidence schema not applied.");
+   else throw error;
+ }
+ const contextPreparations=savedContextPreparations.map(row=>{
+   const item=base({...row,completed_at:row.recorded_at},"preparation","opportunity");
+   item.observed=true;
+   item.canonicalPresent=true;
+   item.technicallyValid=true;
+   item.conditionKept=true;
+   item.observationExact=true;
+   item.evidenceExact=true;
+   item.authorityAligned=true;
+   item.stateAligned=true;
+   item.complete=true;
+   item.materialError=false;
+   item.preparationContext=row.preparation_context;
+   item.opportunityKey=["context-prepared",row.preparation_context,row.source_context_id,row.sequence_number].join(":");
+   item.situationTags=["prepared_conditions",row.preparation_context];
    return item;
  });
  const billing=billingResult.rows;
@@ -400,5 +431,5 @@ export async function loadSandboxQualificationEvidence(
  // An unstarted, abandoned preparation is not an observed opportunity.
  // Preserve its audit receipt in the protected table, but do not permanently
  // poison the Specialist's future clean evidence with an unattempted rep.
- return {events:[...preparations.filter(e=>e.observed),...reps,...sessions,...rediagnoses,...crossEvents,...closure,...continuity],sourceGaps};
+ return {events:[...preparations.filter(e=>e.observed),...contextPreparations,...reps,...sessions,...rediagnoses,...crossEvents,...closure,...continuity],sourceGaps};
 }

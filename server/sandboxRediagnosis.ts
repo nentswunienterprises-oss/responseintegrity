@@ -45,6 +45,29 @@ import { projectSandboxNativeDiagnosisOutcome, SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL
 
 const BANK_KEY = "sandbox_stateful_environment";
 
+async function recordContextPreparationReceipt(input: {
+  tutorAssignmentId: string; tutorId: string; trajectoryId: string; studentId: string;
+  preparationContext: string; sourceContextId: string; phase: string; topicKey: string;
+  sequenceNumber: number; probeId?: string | null; planFingerprint?: string | null;
+}) {
+  try {
+    await pool.query(
+      `INSERT INTO public.specialist_sandbox_context_preparation_events
+        (tutor_assignment_id,tutor_id,trajectory_id,student_id,preparation_context,
+         source_context_id,phase,topic_key,sequence_number,probe_id,plan_fingerprint)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       ON CONFLICT (tutor_assignment_id,preparation_context,source_context_id,sequence_number) DO NOTHING`,
+      [input.tutorAssignmentId,input.tutorId,input.trajectoryId,input.studentId,
+       input.preparationContext,input.sourceContextId,input.phase,input.topicKey,
+       input.sequenceNumber,input.probeId || null,input.planFingerprint || null],
+    );
+  } catch (error: any) {
+    if (error?.code === "42P01" || String(error?.message || "").includes("specialist_sandbox_context_preparation_events")) return false;
+    throw error;
+  }
+  return true;
+}
+
 type TrajectoryRow = {
   id: string;
   tutor_assignment_id: string;
@@ -746,6 +769,20 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
     ].join(":"),
   ).slice(0, 32);
 
+  await recordContextPreparationReceipt({
+    tutorAssignmentId: input.tutorAssignmentId,
+    tutorId: input.tutorId,
+    trajectoryId: trajectory.id,
+    studentId: input.studentId,
+    preparationContext: input.scope === "diagnosis" ? `diagnosis:${input.startingPhase}` : "handover",
+    sourceContextId: input.sourceContextId,
+    phase: input.startingPhase,
+    topicKey: input.topic,
+    sequenceNumber: input.sequenceNumber,
+    probeId,
+    planFingerprint: formId,
+  });
+
   return {
     scope: input.scope,
     trajectoryId: trajectory.id,
@@ -1041,6 +1078,20 @@ export async function prepareSandboxRediagnosis(input: {
       evidenceScope: "sandbox" as const,
     };
   }
+
+  await recordContextPreparationReceipt({
+    tutorAssignmentId: input.tutorAssignmentId,
+    tutorId: input.tutorId,
+    trajectoryId: planned.trajectory.id,
+    studentId: input.studentId,
+    preparationContext: "targeted_rediagnosis",
+    sourceContextId: planned.run.id,
+    phase: planned.run.target_phase,
+    topicKey: planned.trajectory.active_topic_key || "",
+    sequenceNumber: planned.sequenceNumber,
+    probeId: planned.canonicalDecision.nextProbeId,
+    planFingerprint: planned.turnFormId,
+  });
 
   return {
     status: "rediagnosis_probe_ready" as const,
