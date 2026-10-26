@@ -1444,9 +1444,10 @@ async function readinessFor(input: {
     }
   }
   const coverageCategories = [
-    { key: "operating_modes", label: "Operating modes", prefix: "mode:", required: SANDBOX_QUALIFICATION_V1.modes.length },
-    { key: "behaviour_signatures", label: "Behaviour signatures", prefix: "profile:", required: SANDBOX_QUALIFICATION_V1.profiles.length * SANDBOX_QUALIFICATION_V1.profileOpportunityMinimum },
-    { key: "response_situations", label: "Response situations", prefix: "situation:", required: Object.keys(SANDBOX_QUALIFICATION_V1.situationMinimums).length * 2 },
+    { key: "operating_modes", label: "Operating modes", prefix: "mode:" },
+    { key: "preparation_contexts", label: "Preparation contexts", prefix: "preparation:" },
+    { key: "behaviour_signatures", label: "Behaviour signatures", prefix: "profile:" },
+    { key: "response_situations", label: "Response situations", prefix: "situation:" },
   ].map((category) => {
     const requirements = qualification.requirements.filter((item) => item.key.startsWith(category.prefix));
     return {
@@ -1455,18 +1456,27 @@ async function readinessFor(input: {
       met: requirements.filter((item) => item.met).length,
       required: requirements.length,
       completedOpportunities: requirements.reduce((sum, item) => sum + Math.min(item.distinctCorrect, item.required), 0),
-      requiredOpportunities: category.required,
+      requiredOpportunities: requirements.reduce((sum, item) => sum + item.required, 0),
     };
   });
-  const coverageRequirements = qualification.requirements.map((item) => {
-    const [category, rawName] = item.key.split(":");
-    const label = String(rawName || item.key)
+  const formatCoverageLabel = (key: string) => {
+    const [, ...parts] = key.split(":");
+    return parts.join(" — ")
       .replace(/_/g, " ")
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  };
+  const coverageRequirements = qualification.requirements.map((item) => {
+    const [category] = item.key.split(":");
     return {
       key: item.key,
-      category: category === "mode" ? "Operating modes" : category === "profile" ? "Behaviour signatures" : "Response situations",
-      label,
+      category: category === "mode"
+        ? "Operating modes"
+        : category === "preparation"
+          ? "Preparation contexts"
+          : category === "profile"
+            ? "Behaviour signatures"
+            : "Response situations",
+      label: formatCoverageLabel(item.key),
       required: item.required,
       distinctCorrect: item.distinctCorrect,
       encountered: item.encountered,
