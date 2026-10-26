@@ -606,24 +606,20 @@ export default function TutorPod() {
             <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
               <div className="max-w-2xl">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                  {sandboxTrainingActive
-                    ? "Sandbox · Training Continues"
-                    : "Specialist Training"}
+                  {sandboxTrainingActive ? "Sandbox · Development Gate" : "Specialist Training"}
                 </p>
                 <h2 className="mt-1 text-xl font-semibold tracking-[-0.01em]">
-                  {sandboxTrainingActive
-                    ? "Continue Capability Training"
-                    : "Deep Dives & Mastery Checks"}
+                  {sandboxTrainingActive ? "Complete development coverage first" : "Deep Dives & Mastery Checks"}
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
                   {sandboxTrainingActive
-                    ? "Sandbox practice now runs alongside your remaining Deep Dives. Continue through Execution Standards, System Intelligence and Session Infrastructure, then complete the final Retention and Application checks."
+                    ? "The final Sandbox qualification run is locked until the required development coverage is established. Complete the prescribed Sandbox opportunities before returning to remaining Deep Dives."
                     : "Work through each Deep Dive and complete its Mastery Check. Transformation Mastery, Retention and Application unlock Sandbox."}
                 </p>
               </div>
               <Button asChild className="shrink-0">
-                <Link to="/responseconditioningsystem">
-                  {sandboxTrainingActive ? "Continue Deep Dives" : "Open Deep Dives"}
+                <Link to={sandboxTrainingActive ? "/operational/specialist/sandbox" : "/responseconditioningsystem"}>
+                  {sandboxTrainingActive ? "Open Sandbox" : "Open Deep Dives"}
                 </Link>
               </Button>
             </div>
@@ -675,7 +671,7 @@ export default function TutorPod() {
                       ? "Qualified pending TD review. Practicals do not open automatically."
                       : tutorAlignmentSummary.sandboxProgress.qualification.developmentCoverageReady
                         ? "Final qualification run in progress."
-                        : "Sandbox coverage developing."
+                         : "Sandbox development coverage is incomplete; the final qualification run is locked."
                     : "Pathway standing is available above. Follow the next governed requirement."}
                 </p>
               </div>
@@ -700,7 +696,11 @@ export default function TutorPod() {
                     <p className="mt-1 text-xs text-muted-foreground">Two clean sessions are required in each RI-OS phase.</p>
                   </div>
                   <Badge variant={tutorAlignmentSummary.sandboxProgress.qualification.qualificationReady ? "default" : "outline"}>
-                    {tutorAlignmentSummary.sandboxProgress.qualification.qualificationReady ? "Ready for TD review" : "In progress"}
+                    {tutorAlignmentSummary.sandboxProgress.qualification.qualificationReady
+                      ? "Ready for TD review"
+                      : tutorAlignmentSummary.sandboxProgress.qualification.developmentCoverageReady
+                        ? "Final run in progress"
+                        : "Locked"}
                   </Badge>
                 </div>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -710,7 +710,9 @@ export default function TutorPod() {
                     return (
                       <div key={phase} className="ri-alignment-info-card rounded-xl border border-primary/15 bg-background px-3 py-2 text-sm text-foreground">
                         <span className="font-medium">{phase}</span>
-                        <span className="ml-2 text-muted-foreground">{count}/{required}</span>
+                        <span className="ml-2 text-muted-foreground">
+                          {tutorAlignmentSummary.sandboxProgress.qualification.developmentCoverageReady ? `${count}/${required}` : "Locked"}
+                        </span>
                       </div>
                     );
                   })}
@@ -723,7 +725,9 @@ export default function TutorPod() {
                           (tutorAlignmentSummary.sandboxProgress?.qualification?.phaseCounts?.[phase] || 0) <
                           (tutorAlignmentSummary.sandboxProgress?.qualification?.phaseMinimums?.[phase] || 2),
                         );
-                        return next ? "Next requirement: one clean " + next + " session." : tutorAlignmentSummary.sandboxProgress?.qualification?.reason;
+                        return tutorAlignmentSummary.sandboxProgress?.qualification?.developmentCoverageReady
+                          ? (next ? "Next requirement: one clean " + next + " session." : tutorAlignmentSummary.sandboxProgress?.qualification?.reason)
+                          : "Next requirement: complete development coverage before the final qualification run opens.";
                       })()}
                 </p>
               </div>
