@@ -56,9 +56,9 @@ The client journey does not begin with a single lesson. It begins with the compa
 Response Integrity is designed as a disciplined annual system, not an ad hoc tutoring marketplace. Families enter through two annual intake windows:
 
 - Full-Year Conditioning Intake
-  - Enrollment window: 1 November - 31 January
-  - Planning season: 1 November - 31 January
-  - Conditioning season: 1 February - 31 August
+  - Enrollment window: 1 October - 15 December
+  - Planning season: 1 October - 15 December
+  - Conditioning season: 16 January - 31 August
   - Execution season: 1 September - 30 November
 
 - Mid-Year Conditioning Intake
@@ -90,9 +90,9 @@ Before a family receives a tutor-led plan, the tutor has already gone through a 
 Tutor entry happens through two certification cycles tied to the student intake rhythm:
 
 - Annual Tutor Certification Cycle
-  - Application window: 1 October - 31 October
-  - Conditioning window: 1 November - 15 January
-  - Deployment begins: 1 February
+  - Application window: 1 September - 30 September
+  - Conditioning window: 1 October - 15 December
+  - Deployment begins: 16 January
 
 - Mid-Year Tutor Certification Cycle
   - Application window: 1 February - 28 February
