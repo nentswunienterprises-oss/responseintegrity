@@ -10,13 +10,13 @@ Each intake has its own cycle, but both follow the same RI standard:
  No panic culture.
 1. Full-Year Conditioning Intake
 Enrollment Window
-1 October - 15 December
+1 November - 15 January
 This is RI’s primary intake.
 It is for families who want the full academic year treated as a response-conditioning journey, not a last-minute exam rescue.
 Cycle Name
 Full-Year Conditioning Cycle
 Season 1: Response Planning Season
-1 October - 15 December
+1 November - 15 January
 Purpose:
 parent education,
 early commitment,
@@ -418,7 +418,7 @@ It is not emergency tutoring. It is the last disciplined entry point with enough
 Each intake has its own cycle.
 Full-Year Conditioning Cycle
 Response Planning Season
-1 October - 15 December
+1 November - 15 January
 Families enter the system, schedules are aligned, student needs are understood, scopes are collected where possible, and onboarding begins.
 Core belief:
 The strongest academic year is built before it becomes urgent.
