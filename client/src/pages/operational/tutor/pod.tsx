@@ -78,6 +78,8 @@ interface TutorAlignmentSummaryData {
         completedOpportunities: number;
         requiredOpportunities: number;
       }>;
+      sourceStatus?: "available" | "unavailable";
+      sourceGaps?: string[];
     };
     practicalsReady: boolean;
     reason: string;
@@ -1042,6 +1044,13 @@ export default function TutorPod() {
               <p className="text-sm text-muted-foreground">
                 This shows the governed coverage areas required before the final Sandbox qualification run opens.
               </p>
+              {tutorAlignmentSummary.sandboxProgress?.qualification?.sourceStatus === "unavailable" ? (
+                <Alert>
+                  <AlertDescription>
+                    Coverage source unavailable. These counters are not evidence of failure and will not be credited until the persisted source is readable.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
               <div className="grid gap-3 md:grid-cols-3">
                 {(tutorAlignmentSummary.sandboxProgress?.qualification?.coverageCategories || []).map((category) => (
                   <div key={category.key} className="rounded-xl border border-primary/15 bg-muted/20 p-4">
