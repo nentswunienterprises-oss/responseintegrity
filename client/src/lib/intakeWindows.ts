@@ -199,16 +199,16 @@ const tutorCycleDefinitions: TutorCycleDefinition[] = [
     key: "mid_year",
     label: "Mid-Year Operator Certification Cycle",
     supportsLabel: "Supports the Mid-Year Conditioning Intake",
-    applicationWindowLabel: "1 April - 30 April",
-    conditioningWindowLabel: "1 May - 20 May",
-    certificationDeadlineLabel: "20 May",
-    deploymentLockInLabel: "21 May - 31 May",
+    applicationWindowLabel: "1 February - 28 February",
+    conditioningWindowLabel: "1 March - 15 May",
+    certificationDeadlineLabel: "15 May",
+    deploymentLockInLabel: "16 May - 31 May",
     deploymentBeginsLabel: "1 June",
     applicationWindow: {
-      startMonth: 4,
+      startMonth: 2,
       startDay: 1,
-      endMonth: 4,
-      endDay: 30,
+      endMonth: 2,
+      endDay: 28,
     },
   },
 ];
@@ -259,25 +259,25 @@ const tutorPhases: TutorPhase[] = [
   {
     key: "mid_year_application",
     label: "Mid-Year Operator Application Window",
-    window: { startMonth: 4, startDay: 1, endMonth: 4, endDay: 30 },
+    window: { startMonth: 2, startDay: 1, endMonth: 2, endDay: 28 },
     applicationsOpen: true,
     cycleKey: "mid_year",
     description:
-      "New specialists can apply for the June deployment pool and begin the mid-year certification cycle.",
+      "The Full-Year cohort remains deployed while new specialists apply for the June deployment pool and begin the mid-year certification cycle.",
   },
   {
     key: "mid_year_conditioning",
     label: "Mid-Year Operator Conditioning Window",
-    window: { startMonth: 5, startDay: 1, endMonth: 5, endDay: 20 },
+    window: { startMonth: 3, startDay: 1, endMonth: 5, endDay: 15 },
     applicationsOpen: false,
     cycleKey: "mid_year",
     description:
-      "Selected candidates are already moving through accelerated conditioning, battle testing, and sandbox readiness.",
+      "Selected candidates move through the standard 75-day development pathway while the Full-Year cohort continues live delivery.",
   },
   {
     key: "mid_year_lock_in",
     label: "Mid-Year Deployment Lock-In",
-    window: { startMonth: 5, startDay: 21, endMonth: 5, endDay: 31 },
+    window: { startMonth: 5, startDay: 16, endMonth: 5, endDay: 31 },
     applicationsOpen: false,
     cycleKey: "mid_year",
     description:
@@ -387,7 +387,12 @@ export function getParentIntakeStatus(date = new Date()) {
 
 export function getTutorIntakeStatus(date = new Date()) {
   const parts = getDatePartsInSouthAfrica(date);
-  const phase = tutorPhases.find((candidate) => isWithinRecurringWindow(parts, candidate.window)) ?? tutorPhases[0];
+  const matchingPhases = tutorPhases.filter((candidate) => isWithinRecurringWindow(parts, candidate.window));
+  const phase =
+    matchingPhases.find((candidate) => candidate.applicationsOpen) ??
+    matchingPhases.find((candidate) => candidate.key === "mid_year_conditioning" || candidate.key === "mid_year_lock_in") ??
+    matchingPhases[0] ??
+    tutorPhases[0];
   const nextCycle = tutorCycleDefinitions
     .map((definition) => ({
       definition,
@@ -408,7 +413,9 @@ export function getTutorIntakeStatus(date = new Date()) {
       heading: `${phase.label} is open now.`,
       summary: `New specialist applications are open through ${closingLabel}.`,
       detail:
-        "Entry starts in applicant mode. Only candidates who move through training, sandbox readiness, and certification by deadline become deployable operators.",
+        cycle.key === "mid_year"
+          ? "The Full-Year cohort remains deployed while new candidates enter the February application window for June deployment. Only candidates who meet every evidence gate by the certification deadline become deployable."
+          : "Entry starts in applicant mode. Only candidates who move through training, sandbox readiness, and certification by deadline become deployable operators.",
       closingLabel,
       nextOpeningLabel: formatAbsoluteDate(
         nextCycle.nextStart.getUTCFullYear(),
