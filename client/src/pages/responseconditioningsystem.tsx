@@ -363,7 +363,7 @@ export default function ResponseConditioningSystem() {
 
                   const detail =
                     sandboxTrainingBlocked && assessment.status !== "complete"
-                      ? "Sandbox coverage and zero-divergence graduation are required before this gate can be completed."
+                      ? "Sandbox development coverage is required before this gate unlocks. The zero-divergence graduation run comes afterward."
                       : assessment.status === "complete"
                       ? isRetrieval
                         ? "Retention is complete."
@@ -443,7 +443,7 @@ export default function ResponseConditioningSystem() {
               <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
                 <p className="font-medium">Sandbox development gate active</p>
                 <p className="mt-1 text-muted-foreground">
-                  Remaining Training Capability Checks are locked until Sandbox coverage and the zero-divergence graduation run are complete.
+                  Remaining Training Capability Checks are locked until Sandbox development coverage is complete. Once coverage is complete, these checks unlock before the final zero-divergence graduation run.
                 </p>
                 <p className="mt-2 text-xs text-muted-foreground">
                   Coverage: {stageGate.developmentCoverageReady ? "Established" : "Developing"} · Clean sessions: {stageGate.qualifyingSessions ?? 0}/{stageGate.requiredSessions ?? "—"}
