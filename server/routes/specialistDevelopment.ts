@@ -580,9 +580,6 @@ export function registerSpecialistDevelopmentRoutes(app: Express) {
   app.get("/api/td/tutors/:tutorId/sandbox-evidence-dossier", isAuthenticated,
     createSandboxEvidenceDossierHandler(pool),
   );
-  app.get("/api/coo/tutors/:tutorId/sandbox-evidence-dossier", isAuthenticated,
-    createSandboxEvidenceDossierHandler(pool, { allowCoo: true }),
-  );
   app.get(
     "/api/td/pods/:podId/specialist-development-summaries",
     isAuthenticated,
