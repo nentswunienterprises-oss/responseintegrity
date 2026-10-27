@@ -28635,41 +28635,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // The student record can carry a stale enrollment link after reassignment.
       // Re-resolve it against the current tutor assignment before inserting so a
       // stale FK never turns into an opaque 500 from Supabase.
-      const enrollmentValidation = actualEnrollmentId
-        ? await supabase
-            .from("parent_enrollments")
-            .select("id, assigned_tutor_id, student_full_name, user_id")
-            .eq("id", actualEnrollmentId)
-            .eq("assigned_tutor_id", tutorId)
-            .maybeSingle()
-        : { data: null, error: null };
-      if (enrollmentValidation.error) {
-        console.error("Error validating canonical enrollment before proposal:", enrollmentValidation.error);
-        return res.status(500).json({ message: "Failed to validate canonical enrollment before proposal" });
-      }
-      if (!enrollmentValidation.data) {
-        const enrollmentLookup = normalizedStudent?.parentId
-          ? await supabase
-              .from("parent_enrollments")
-              .select("id, assigned_tutor_id, student_full_name, user_id")
-              .eq("assigned_tutor_id", tutorId)
-              .eq("user_id", normalizedStudent.parentId)
-              .order("updated_at", { ascending: false })
-              .limit(1)
-              .maybeSingle()
-          : await supabase
-              .from("parent_enrollments")
-              .select("id, assigned_tutor_id, student_full_name, user_id")
-              .eq("assigned_tutor_id", tutorId)
-              .eq("student_full_name", String(normalizedStudent.name || student.name || "").trim())
-              .order("updated_at", { ascending: false })
-              .limit(1)
-              .maybeSingle();
-        if (enrollmentLookup.error) {
-          console.error("Error re-resolving canonical enrollment before proposal:", enrollmentLookup.error);
-          return res.status(500).json({ message: "Failed to resolve canonical enrollment before proposal" });
-        }
-        actualEnrollmentId = enrollmentLookup.data?.id || null;
+      const enrollmentValidationResult = actualEnrollmentId
+        ? await pool.query(
+            `SELECT id, assigned_tutor_id, student_full_name, user_id
+               FROM public.parent_enrollments
+              WHERE id = $1
+                AND assigned_tutor_id = $2
+              LIMIT 1`,
+            [actualEnrollmentId, tutorId],
+          )
+        : { rows: [] };
+      if (!enrollmentValidationResult.rows[0]) {
+        const enrollmentLookupResult = normalizedStudent?.parentId
+          ? await pool.query(
+              `SELECT id, assigned_tutor_id, student_full_name, user_id
+                 FROM public.parent_enrollments
+                WHERE assigned_tutor_id = $1
+                  AND user_id = $2
+                ORDER BY updated_at DESC NULLS LAST
+                LIMIT 1`,
+              [tutorId, normalizedStudent.parentId],
+            )
+          : await pool.query(
+              `SELECT id, assigned_tutor_id, student_full_name, user_id
+                 FROM public.parent_enrollments
+                WHERE assigned_tutor_id = $1
+                  AND student_full_name = $2
+                ORDER BY updated_at DESC NULLS LAST
+                LIMIT 1`,
+              [tutorId, String(normalizedStudent.name || student.name || "").trim()],
+            );
+        actualEnrollmentId = enrollmentLookupResult.rows[0]?.id || null;
       }
       if (!actualEnrollmentId) {
         return res.status(400).json({
