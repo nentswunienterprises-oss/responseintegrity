@@ -606,12 +606,12 @@ export default function ParentSessions() {
             <Button
               onClick={sandboxPaymentRequired ? handleSandboxPackagePayment : () => navigate("/client/parent/gateway")}
               disabled={sandboxPaymentRequired && isPreparingSandboxPayment}
-              className="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white"
+              className="w-full min-w-0 sm:w-auto whitespace-normal break-words text-center leading-snug bg-rose-600 hover:bg-rose-700 text-white"
             >
               {sandboxPaymentRequired
                 ? isPreparingSandboxPayment
                   ? "Preparing Sandbox Payment..."
-                  : `Complete Sandbox Payment${renewalAmount > 0 ? ` - R${renewalAmount.toLocaleString("en-ZA")}` : ""}`
+                  : "Complete Sandbox Payment"
                 : `Go to Renewal${renewalAmount > 0 ? ` - R${renewalAmount.toLocaleString("en-ZA")}` : ""}`}
             </Button>
           </div>
