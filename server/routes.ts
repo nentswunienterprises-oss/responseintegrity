@@ -32846,6 +32846,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const latestStability = normalizeStability(
               entry?.stability || topicConditioningStore.stability || "Low",
             );
+            const progressionAuthority = [
+              "building",
+              "exit_confirmation_eligible",
+              "transfer_maintenance",
+            ].includes(String(entry?.progressionAuthority || ""))
+              ? String(entry.progressionAuthority)
+              : latestStability === "High Maintenance"
+                ? "exit_confirmation_eligible"
+                : null;
 
             const normalizedHistory = Array.isArray(entry?.history)
               ? entry.history
@@ -32902,6 +32911,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               topic,
               phase: latest.phase,
               stability: latest.stability,
+              progressionAuthority,
+              history: normalizedHistory,
               lastUpdated: latest.date,
               topicReference: parseStoredTopicReference(entry?.topicReference),
               requiresTargetedRediagnosis,
