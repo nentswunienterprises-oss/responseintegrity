@@ -3600,6 +3600,11 @@ function IntroSessionDrillRunnerCore({
             return `${topicName}: final-phase high stability checkpoint recorded; verify transfer separately`;
           }
           if (transitionReason === "stability regress" || row?.phaseDecision === "regress") {
+            const beforeRaw = String(row?.stabilityBefore || "");
+            const afterRaw = String(row?.stability || "");
+            if (beforeRaw === afterRaw) {
+              return `${topicName}: stability held at ${displayTopicStability(row?.stability)} in ${row?.phase}; phase advancement is not authorized`;
+            }
             return `${topicName}: stability regressed to ${displayTopicStability(row?.stability)} in ${row?.phase}`;
           }
           if (transitionReason === "high maintenance entry") {
@@ -3610,6 +3615,11 @@ function IntroSessionDrillRunnerCore({
           }
           if (transitionReason === "final maintenance hold") {
             return `${topicName}: final-phase high stability checkpoint maintained; verify transfer separately`;
+          }
+          const beforeRaw = String(row?.stabilityBefore || "");
+          const afterRaw = String(row?.stability || "");
+          if (beforeRaw !== afterRaw && (beforeRaw || afterRaw)) {
+            return `${topicName}: stability improved to ${displayTopicStability(row?.stability)} in ${row?.phase}`;
           }
           return `${topicName}: stability held at ${displayTopicStability(row?.stability)} in ${row?.phase}${topicStabilityConfirmationLabel(row?.stability, row?.phase) ? "; separate confirmation required" : ""}`;
         };
