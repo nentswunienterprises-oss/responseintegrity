@@ -3608,7 +3608,7 @@ function IntroSessionDrillRunnerCore({
             return `${topicName}: stability regressed to ${displayTopicStability(row?.stability)} in ${row?.phase}`;
           }
           if (transitionReason === "high maintenance entry") {
-            return `${topicName}: High stability held in ${row?.phase}; exit confirmation required`;
+            return `${topicName}: High stability checkpoint reached in ${row?.phase}; exit confirmation required`;
           }
           if (transitionReason === "stability advance") {
             return `${topicName}: stability improved to ${displayTopicStability(row?.stability)} in ${row?.phase}`;
