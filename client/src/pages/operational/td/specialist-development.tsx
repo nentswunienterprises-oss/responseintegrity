@@ -316,7 +316,7 @@ function AssessmentSection({
                         ? "Unavailable"
                         : "Locked"}
                 </Badge>
-                {assessment.status === "complete" ? (
+                {assessment.latestAttempt ? (
                   <Button type="button" variant="outline" size="sm" onClick={() => onInspect(assessment.assessmentKey)}>
                     Inspect
                   </Button>
