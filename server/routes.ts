@@ -4273,7 +4273,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
       }
 
       const nowIso = new Date().toISOString();
-      const servicePackage = getMonthlyServicePackage(proposal.package_key || transaction?.package_key);
+      const servicePackage = getMonthlyServicePackage(transaction?.package_key || proposal.package_key);
 
       await client.query(
         `UPDATE public.parent_enrollments
@@ -28836,6 +28836,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/parent/proposal", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
     try {
       const parentId = (req as any).dbUser.id;
+      const requestedPackageKey = String(req.body?.packageKey || "").trim().toLowerCase();
+      if (requestedPackageKey && !isMonthlyPackageKey(requestedPackageKey)) {
+        return res.status(400).json({ message: "Choose a valid 8, 12, or 16-session monthly package." });
+      }
 
       if (isEmergencyDbMode()) {
         const enrollmentResult = await pool.query(
@@ -29297,7 +29301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Proposal is missing student or tutor linkage." });
         }
 
-        const servicePackage = getMonthlyServicePackage(paymentProposal.package_key);
+        const servicePackage = getMonthlyServicePackage(requestedPackageKey || paymentProposal.package_key);
 
         if (onboardingType === "pilot") {
           const finalizationSeed = existingPayment || {
@@ -29694,7 +29698,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get proposal details to get student and topic conditioning info
       const { data: proposal } = await supabase
         .from("onboarding_proposals")
-        .select("student_id, tutor_id, topic_conditioning_topic, topic_conditioning_entry_phase, topic_conditioning_stability")
+        .select("student_id, tutor_id, package_key, topic_conditioning_topic, topic_conditioning_entry_phase, topic_conditioning_stability")
         .eq("id", enrollment.proposal_id)
         .maybeSingle();
 
@@ -29733,6 +29737,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from("parent_enrollments")
         .update({
           status: "session_booked",
+          package_key: getMonthlyServicePackage(requestedPackageKey || proposal?.package_key).key,
+          package_sessions: getMonthlyServicePackage(requestedPackageKey || proposal?.package_key).sessionsPerMonth,
+          planned_sessions_per_week: getMonthlyServicePackage(requestedPackageKey || proposal?.package_key).plannedSessionsPerWeek,
           updated_at: new Date().toISOString(),
         })
         .eq("id", enrollment.id);

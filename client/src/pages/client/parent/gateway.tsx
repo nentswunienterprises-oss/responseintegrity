@@ -35,6 +35,7 @@ import { supabase } from "@/lib/supabaseClient";
 import {
   RESPONSE_SYMPTOM_GROUPS,
 } from "@shared/responseSymptomMapping";
+import type { MonthlyPackageKey } from "@shared/servicePackages";
 
 interface EnrollmentStatus {
   status: "not_enrolled" | "awaiting_assignment" | "awaiting_tutor_acceptance" | "assigned" | "proposal_sent" | "session_booked" | "report_received" | "confirmed";
@@ -528,7 +529,7 @@ export default function ParentGateway() {
     enrollmentStatus?.status === "confirmed";
 
   // Handlers defined below are used by the proposal panel rendered later in the component.
-  const handleAcceptProposal = async () => {
+  const handleAcceptProposal = async (packageKey?: MonthlyPackageKey) => {
     setIsProcessingProposal(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -540,6 +541,7 @@ export default function ParentGateway() {
         method: "POST",
         headers,
         credentials: "include",
+        body: JSON.stringify(packageKey ? { packageKey } : {}),
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) {
