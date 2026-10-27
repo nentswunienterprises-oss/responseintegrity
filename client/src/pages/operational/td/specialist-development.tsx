@@ -362,6 +362,20 @@ export default function SpecialistDevelopmentRecordPage() {
     },
   });
 
+  const [inspectionKey, setInspectionKey] = useState<string | null>(null);
+  const inspectionQuery = useQuery<{ attempts: CapabilityInspectionAttempt[] }>({
+    queryKey: [recordApiBase, "tutors", tutorId, "capability-assessment", inspectionKey, "attempts"],
+    enabled: Boolean(tutorId && inspectionKey),
+    queryFn: async () => {
+      const response = await apiRequest(
+        "GET",
+        recordApiBase + "/tutors/" + encodeURIComponent(String(tutorId || "")) + "/capability-assessments/" + encodeURIComponent(String(inspectionKey || "")) + "/attempts",
+      );
+      return response.json();
+    },
+  });
+
+
   if (recordQuery.isLoading) {
     return (
       <div className="min-h-screen bg-background px-4 py-10">
@@ -399,18 +413,6 @@ export default function SpecialistDevelopmentRecordPage() {
   const record = recordQuery.data;
   const currentIndex = stageIndex(record.currentStage);
   const assessments = record.training.assessments;
-  const [inspectionKey, setInspectionKey] = useState<string | null>(null);
-  const inspectionQuery = useQuery<{ attempts: CapabilityInspectionAttempt[] }>({
-    queryKey: [recordApiBase, "tutors", tutorId, "capability-assessment", inspectionKey, "attempts"],
-    enabled: Boolean(tutorId && inspectionKey),
-    queryFn: async () => {
-      const response = await apiRequest(
-        "GET",
-        recordApiBase + "/tutors/" + encodeURIComponent(String(tutorId || "")) + "/capability-assessments/" + encodeURIComponent(String(inspectionKey || "")) + "/attempts",
-      );
-      return response.json();
-    },
-  });
   const transformation = assessments.filter(
     (entry) => entry.stage === "transformation_mastery",
   );
