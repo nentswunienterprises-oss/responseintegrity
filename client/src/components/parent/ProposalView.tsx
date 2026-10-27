@@ -102,11 +102,9 @@ export default function ProposalView({
   const recommendedPackageKey = proposal.packageKey || (proposal as any).package_key || "monthly_8";
   const [selectedPackageKey, setSelectedPackageKey] = useState<MonthlyPackageKey>(recommendedPackageKey);
   const servicePackage = getMonthlyServicePackage(selectedPackageKey);
-  const packageSessions = Number(proposal.packageSessions || servicePackage.sessionsPerMonth);
-  const plannedSessionsPerWeek = Number(
-    proposal.plannedSessionsPerWeek || servicePackage.plannedSessionsPerWeek,
-  );
-  const packageAmount = Number(proposal.packageAmount || servicePackage.amountZar);
+  const packageSessions = servicePackage.sessionsPerMonth;
+  const plannedSessionsPerWeek = servicePackage.plannedSessionsPerWeek;
+  const packageAmount = servicePackage.amountZar;
   const diagnosisProposalSnapshot = extractDiagnosisProposalSnapshot(proposal.justification);
   const showApprovedDiagnosisSnapshot = forceDiagnosisView && !!diagnosisProposalSnapshot;
 
