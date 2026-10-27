@@ -3785,6 +3785,22 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
     isSandboxTransaction = await isSandboxPaymentTransaction(transaction);
   }
 
+  if (enrollmentId) {
+    const { error: packageUpdateError } = await supabase
+      .from("parent_enrollments")
+      .update({
+        package_key: servicePackage.key,
+        package_sessions: servicePackage.sessionsPerMonth,
+        planned_sessions_per_week: servicePackage.plannedSessionsPerWeek,
+        next_package_key: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", enrollmentId);
+    if (packageUpdateError) {
+      console.error("Failed to activate staged package after renewal:", packageUpdateError);
+    }
+  }
+
   const { data: existingMonth } = await supabase
     .from("membership_months")
     .select("*")
@@ -30601,13 +30617,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Parent subscription management. Changes apply to the next package cycle;
+  // the current paid membership remains authoritative until it is exhausted.
+  app.get("/api/parent/subscription", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+    try {
+      const parentId = String((req as any).dbUser.id || "").trim();
+      const { data: enrollment, error } = await selectLatestParentEnrollment({
+        parentId,
+        primarySelect: "id, status, student_full_name, assigned_student_id, package_key, package_sessions, planned_sessions_per_week, next_package_key, is_sandbox_account, parent_email, assigned_tutor_id",
+        fallbackSelect: "id, status, student_full_name, assigned_student_id, package_key, package_sessions, planned_sessions_per_week, is_sandbox_account, parent_email, assigned_tutor_id",
+      });
+      if (error || !enrollment) return res.status(404).json({ message: "No active subscription found." });
+      const student = await resolveCanonicalStudentForEnrollment(enrollment);
+      const quota = student?.id ? await getMonthlySessionQuotaSnapshot({
+        parentId,
+        studentId: String(student.id),
+        isSandboxContext: isSandboxPaymentEnrollment(enrollment),
+      }) : null;
+      const current = getMonthlyServicePackage(quota?.package_key || enrollment.package_key);
+      const scheduled = enrollment.next_package_key ? getMonthlyServicePackage(enrollment.next_package_key) : null;
+      const hidePricing = isSandboxPaymentEnrollment(enrollment);
+      return res.json({
+        current: { key: current.key, sessions: current.sessionsPerMonth, plannedSessionsPerWeek: current.plannedSessionsPerWeek },
+        scheduled: scheduled ? { key: scheduled.key, sessions: scheduled.sessionsPerMonth, plannedSessionsPerWeek: scheduled.plannedSessionsPerWeek } : null,
+        sessionsRemaining: Number(quota?.sessions_remaining ?? 0),
+        packageExhausted: Number(quota?.sessions_remaining ?? 0) <= 0,
+        sandbox: hidePricing,
+        packages: Object.values(MONTHLY_SERVICE_PACKAGES).map((pkg) => ({
+          key: pkg.key,
+          sessions: pkg.sessionsPerMonth,
+          plannedSessionsPerWeek: pkg.plannedSessionsPerWeek,
+          ...(hidePricing ? {} : { amount: pkg.amountZar }),
+        })),
+      });
+    } catch (error) {
+      console.error("Failed to load parent subscription:", error);
+      return res.status(500).json({ message: "Failed to load subscription." });
+    }
+  });
+
+  app.post("/api/parent/subscription", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+    try {
+      const parentId = String((req as any).dbUser.id || "").trim();
+      const requestedPackageKey = String(req.body?.packageKey || "").trim().toLowerCase();
+      if (!isMonthlyPackageKey(requestedPackageKey)) {
+        return res.status(400).json({ message: "Choose a valid 8, 12, or 16-session monthly package." });
+      }
+      const { data: enrollment, error } = await selectLatestParentEnrollment({
+        parentId,
+        primarySelect: "id, status, assigned_student_id, package_key, next_package_key, is_sandbox_account, parent_email, assigned_tutor_id",
+        fallbackSelect: "id, status, assigned_student_id, package_key, is_sandbox_account, parent_email, assigned_tutor_id",
+      });
+      const activeStatuses = ["confirmed", "session_booked", "report_received"];
+      if (error || !enrollment || !activeStatuses.includes(String(enrollment.status || ""))) {
+        return res.status(404).json({ message: "No active subscription found." });
+      }
+      const student = await resolveCanonicalStudentForEnrollment(enrollment);
+      const quota = student?.id ? await getMonthlySessionQuotaSnapshot({
+        parentId,
+        studentId: String(student.id),
+        isSandboxContext: isSandboxPaymentEnrollment(enrollment),
+      }) : null;
+      const current = getMonthlyServicePackage(quota?.package_key || enrollment.package_key);
+      const next = getMonthlyServicePackage(requestedPackageKey);
+      const { error: updateError } = await supabase
+        .from("parent_enrollments")
+        .update({ next_package_key: requestedPackageKey === current.key ? null : requestedPackageKey, updated_at: new Date().toISOString() })
+        .eq("id", enrollment.id);
+      if (updateError) throw updateError;
+      return res.json({
+        message: requestedPackageKey === current.key ? "Your current package will continue." : "Package change saved for the next package cycle.",
+        current: { key: current.key, sessions: current.sessionsPerMonth },
+        scheduled: requestedPackageKey === current.key ? null : { key: next.key, sessions: next.sessionsPerMonth, plannedSessionsPerWeek: next.plannedSessionsPerWeek },
+        packageExhausted: Number(quota?.sessions_remaining ?? 0) <= 0,
+      });
+    } catch (error) {
+      console.error("Failed to update parent subscription:", error);
+      return res.status(500).json({ message: "Failed to update subscription." });
+    }
+  });
+
   app.post("/api/parent/payments/renew", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
     try {
       const parentId = (req as any).dbUser.id;
+      const requestedPackageKey = String(req.body?.packageKey || "").trim().toLowerCase();
+      if (requestedPackageKey && !isMonthlyPackageKey(requestedPackageKey)) {
+        return res.status(400).json({ message: "Choose a valid 8, 12, or 16-session monthly package." });
+      }
+
 
       const { data: enrollment, error: enrollmentError } = await selectLatestParentEnrollment({
         parentId,
-        primarySelect: "id, status, student_full_name, assigned_tutor_id, parent_email, is_sandbox_account, assigned_student_id, current_step, package_key, package_sessions, planned_sessions_per_week",
+        primarySelect: "id, status, student_full_name, assigned_tutor_id, parent_email, is_sandbox_account, assigned_student_id, current_step, package_key, package_sessions, planned_sessions_per_week, next_package_key",
         fallbackSelect: "id, status, student_full_name, assigned_tutor_id, parent_email, is_sandbox_account, current_step, package_key, package_sessions, planned_sessions_per_week",
       });
 
@@ -30620,7 +30721,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!isMonthlyPackagePaymentReady(useSandbox)) {
         return res.status(500).json({ message: "PayFast is not configured on this deployment." });
       }
-      const servicePackage = getMonthlyServicePackage(enrollment.package_key);
+      const servicePackage = getMonthlyServicePackage(requestedPackageKey || enrollment.next_package_key || enrollment.package_key);
 
       let monthKey = toMonthKey(getMonthStartIso(new Date().toISOString())!);
       const canonicalStudent = await resolveCanonicalStudentForEnrollment(enrollment);
