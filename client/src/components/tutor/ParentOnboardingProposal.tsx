@@ -373,7 +373,7 @@ export default function ParentOnboardingProposal({
                           {servicePackage.sessionsPerMonth} sessions
                         </span>
                         <span className="block text-xs text-muted-foreground">
-                          {servicePackage.plannedSessionsPerWeek}x weekly - R{servicePackage.amountZar.toLocaleString("en-ZA")}/month
+                          {servicePackage.plannedSessionsPerWeek}x weekly
                         </span>
                       </span>
                     </Label>
