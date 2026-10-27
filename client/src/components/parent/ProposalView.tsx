@@ -1037,7 +1037,7 @@ export default function ProposalView({
               <Button
                 onClick={() => onAccept?.(selectedPackageKey)}
                 disabled={isProcessing}
-                className="w-full sm:flex-1 gap-2"
+                className="w-full min-w-0 sm:flex-1 gap-2 whitespace-normal break-words text-center leading-snug"
                 size="lg"
               >
                 <Check className="w-4 h-4" />

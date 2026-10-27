@@ -28854,10 +28854,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/parent/proposal", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
     try {
       const parentId = (req as any).dbUser.id;
-      const requestedPackageKey = String(req.body?.packageKey || "").trim().toLowerCase();
-      if (requestedPackageKey && !isMonthlyPackageKey(requestedPackageKey)) {
-        return res.status(400).json({ message: "Choose a valid 8, 12, or 16-session monthly package." });
-      }
 
       if (isEmergencyDbMode()) {
         const enrollmentResult = await pool.query(
@@ -29220,6 +29216,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/parent/proposal/accept", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
     try {
       const parentId = (req as any).dbUser.id;
+      const requestedPackageKey = String(req.body?.packageKey || "").trim().toLowerCase();
+      if (requestedPackageKey && !isMonthlyPackageKey(requestedPackageKey)) {
+        return res.status(400).json({ message: "Choose a valid 8, 12, or 16-session monthly package." });
+      }
 
       if (isEmergencyDbMode()) {
         let paymentEnrollmentResult = await pool.query(
@@ -29939,7 +29939,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error accepting proposal:", error);
-      res.status(500).json({ message: "Failed to accept proposal" });
+      res.status(500).json({
+        message: "Failed to accept proposal",
+        detail: error instanceof Error ? error.message : "Unexpected server error",
+        code: typeof error === "object" && error !== null && "code" in error ? String((error as any).code || "") : undefined,
+      });
     }
   });
 

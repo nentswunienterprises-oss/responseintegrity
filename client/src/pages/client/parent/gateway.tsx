@@ -2186,7 +2186,7 @@ export default function ParentGateway() {
                         <Button
                           onClick={sandboxInitialPaymentRequired ? handleAcceptProposal : handleRenewSubscription}
                           disabled={sandboxInitialPaymentRequired ? isProcessingProposal : isRenewing}
-                          className="w-full bg-rose-600 hover:bg-rose-700 text-white"
+                          className="w-full min-w-0 whitespace-normal break-words text-center leading-snug bg-rose-600 hover:bg-rose-700 text-white"
                           size="lg"
                         >
                           {sandboxInitialPaymentRequired
