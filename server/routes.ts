@@ -28924,6 +28924,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           payment: null,
           onboardingType: null,
           freeSessionsRemaining: 0,
+          isSandboxAccount: Boolean(enrollment?.is_sandbox_account),
         });
       }
 
@@ -28931,7 +28932,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { data: enrollment, error: enrollmentError } = await selectLatestParentEnrollment({
         parentId,
-        primarySelect: "id, proposal_id, status, student_full_name, student_grade",
+        primarySelect: "id, proposal_id, status, student_full_name, student_grade, is_sandbox_account",
         preferPaidEnrollment: true,
       });
 

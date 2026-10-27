@@ -252,7 +252,7 @@ export default function ParentSessions() {
 
       toast({
         title: "Opening PayFast Sandbox",
-        description: `Complete the R${Number(payload?.amount || 0).toLocaleString("en-ZA")} Sandbox package checkout. No real money is charged.`,
+        description: "Complete the Sandbox package checkout. No real money is charged.",
       });
 
       submitExternalPaymentForm(payload.checkoutUrl, payload.formFields);

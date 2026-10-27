@@ -83,6 +83,7 @@ interface ProposalViewProps {
   onAccept?: (packageKey?: MonthlyPackageKey) => void;
   onDecline?: () => void;
   isProcessing?: boolean;
+  hidePricing?: boolean;
 }
 
 export default function ProposalView({ 
@@ -968,7 +969,7 @@ export default function ProposalView({
                   >
                     <p className="text-sm font-semibold text-foreground">{candidate.sessionsPerMonth} sessions</p>
                     <p className="mt-1 text-xs text-muted-foreground">{candidate.plannedSessionsPerWeek} per week</p>
-                    <p className="mt-2 text-sm font-semibold text-foreground">R{candidate.amountZar.toLocaleString("en-ZA")}/month</p>
+                    {!hidePricing && <p className="mt-2 text-sm font-semibold text-foreground">R{candidate.amountZar.toLocaleString("en-ZA")}/month</p>}
                     {recommended && <p className="mt-1 text-[11px] text-primary">Specialist recommendation</p>}
                   </button>
                 );
@@ -985,8 +986,8 @@ export default function ProposalView({
               <p className="mt-1 font-semibold text-foreground">{plannedSessionsPerWeek} per week</p>
             </div>
             <div className="rounded-lg border bg-muted/20 p-3">
-              <p className="text-xs text-muted-foreground">Monthly amount</p>
-              <p className="mt-1 font-semibold text-foreground">R{packageAmount.toLocaleString("en-ZA")}</p>
+              <p className="text-xs text-muted-foreground">{hidePricing ? "Payment" : "Monthly amount"}</p>
+              <p className="mt-1 font-semibold text-foreground">{hidePricing ? "Sandbox checkout" : `R${packageAmount.toLocaleString("en-ZA")}`}</p>
             </div>
           </div>
         </CardContent>
@@ -1017,7 +1018,9 @@ export default function ProposalView({
             <p className="text-sm text-muted-foreground text-center mb-6">
               {isPilotOnboarding
                 ? `Accept this pilot plan to unlock ${studentName}'s free-session access`
-                : `Pay R${packageAmount.toLocaleString("en-ZA")} for the ${packageSessions}-session monthly package to unlock ${studentName}'s training sessions`}
+                : hidePricing
+                  ? `Complete the Sandbox checkout for the ${packageSessions}-session package to unlock ${studentName}'s training sessions`
+                  : `Pay R${packageAmount.toLocaleString("en-ZA")} for the ${packageSessions}-session monthly package to unlock ${studentName}'s training sessions`}
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Button
@@ -1041,7 +1044,7 @@ export default function ProposalView({
                   ? "Processing..."
                   : isPilotOnboarding
                     ? "Accept Pilot Access"
-                    : `Pay R${packageAmount.toLocaleString("en-ZA")} & Accept`}
+                    : hidePricing ? "Complete Package Payment & Accept" : `Pay R${packageAmount.toLocaleString("en-ZA")} & Accept`}
               </Button>
             </div>
           </CardContent>

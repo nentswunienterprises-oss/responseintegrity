@@ -574,7 +574,10 @@ export default function ParentGateway() {
 
       toast({
         title: "Redirecting to PayFast",
-        description: `Complete the R${Number(data?.amount || 0).toLocaleString("en-ZA")} ${data?.sessionsPerMonth || "monthly"}-session package payment to unlock sessions.`,
+        description:
+          trainingSessionsData?.operationalMode === "sandbox"
+            ? `Complete the Sandbox ${data?.sessionsPerMonth || "monthly"}-session package payment to unlock sessions. No real money is charged.`
+            : `Complete the R${Number(data?.amount || 0).toLocaleString("en-ZA")} ${data?.sessionsPerMonth || "monthly"}-session package payment to unlock sessions.`,
       });
 
       assertPayfastCheckoutFields(data.formFields, data?.sandbox === true);
@@ -644,7 +647,10 @@ export default function ParentGateway() {
       }
       toast({
         title: "Redirecting to PayFast",
-        description: `Complete the R${Number(data?.amount || renewalAmount).toLocaleString("en-ZA")} monthly package renewal to unlock this month's sessions.`,
+        description:
+        trainingSessionsData?.operationalMode === "sandbox"
+          ? "Complete the Sandbox monthly package renewal to unlock this month's sessions. No real money is charged."
+          : `Complete the R${Number(data?.amount || renewalAmount).toLocaleString("en-ZA")} monthly package renewal to unlock this month's sessions.`,
       });
       submitExternalPaymentForm(data.checkoutUrl, data.formFields);
     } catch (error) {
@@ -730,6 +736,7 @@ export default function ParentGateway() {
           )}
           <ProposalView
             proposal={proposal}
+            hidePricing={Boolean((proposal as any)?.isSandboxAccount || trainingSessionsData?.operationalMode === "sandbox")}
             forceDiagnosisView={true}
             showActions={showProposalActions}
             onAccept={showProposalActions ? handleAcceptProposal : undefined}
@@ -2185,10 +2192,10 @@ export default function ParentGateway() {
                           {sandboxInitialPaymentRequired
                             ? isProcessingProposal
                               ? "Preparing sandbox payment..."
-                              : `Complete Sandbox Payment - R${renewalAmount.toLocaleString("en-ZA")}`
+                              : "Complete Sandbox Payment"
                             : isRenewing
                               ? "Preparing payment..."
-                              : `Renew This Month - R${renewalAmount.toLocaleString("en-ZA")}`}
+                              : "Renew This Month"}
                         </Button>
                       </CardContent>
                     </Card>
