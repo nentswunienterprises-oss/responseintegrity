@@ -25921,6 +25921,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   );
 
+  app.get(
+    "/api/coo/tutors/:tutorId/sandbox-readiness",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        const tutorId = String(req.params.tutorId || "").trim();
+        if (!tutorId) return res.status(400).json({ message: "tutorId is required." });
+        res.json(await getTutorSandboxReadiness(tutorId));
+      } catch (error) {
+        console.error("Error loading COO Sandbox readiness:", error);
+        res.status(500).json({
+          message: error instanceof Error ? error.message : "Failed to load Sandbox readiness",
+        });
+      }
+    },
+  );
+
   app.post(
     "/api/td/tutors/:tutorId/sandbox-readiness-assessment",
     isAuthenticated,

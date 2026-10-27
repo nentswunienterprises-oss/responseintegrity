@@ -248,4 +248,26 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
     } catch(error){return respondError(res,error,"Failed to load Practicals status.");}
   });
 
+  app.get("/api/coo/tutors/:tutorId/practicals", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).dbUser;
+      if (!user?.id) return res.status(401).json({ message: "Authentication required." });
+      if (String(user.role || "").toLowerCase() !== "coo") {
+        return res.status(403).json({ message: "COO access required." });
+      }
+      const tutorId = String(req.params.tutorId || "");
+      const match = await pool.query(
+        `SELECT id FROM public.tutor_assignments
+          WHERE tutor_id = $1 ORDER BY created_at DESC LIMIT 1`,
+        [tutorId],
+      );
+      if (!match.rows.length) return res.status(404).json({ message: "Specialist assignment not found." });
+      const tutorAssignmentId = String(match.rows[0].id);
+      const status = await getPracticalCompletionStatus(tutorAssignmentId, tutorId);
+      return res.json({ tutorAssignmentId, ...status });
+    } catch (error) {
+      return respondError(res, error, "Failed to load Practicals status.");
+    }
+  });
+
 }
