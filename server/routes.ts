@@ -29179,6 +29179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         billingModel.data.onboardingType === "pilot"
           ? Math.max(0, 9 - (sessionProgress.count || 0))
           : 0;
+      (enrichedProposal as any).isSandboxAccount = Boolean((enrollment as any)?.is_sandbox_account);
 
       // Track view
       await supabase
