@@ -28638,7 +28638,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const enrollmentValidation = actualEnrollmentId
         ? await supabase
             .from("parent_enrollments")
-            .select("id, assigned_tutor_id, assigned_student_id, student_full_name")
+            .select("id, assigned_tutor_id, student_full_name, user_id")
             .eq("id", actualEnrollmentId)
             .eq("assigned_tutor_id", tutorId)
             .maybeSingle()
@@ -28648,31 +28648,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to validate canonical enrollment before proposal" });
       }
       if (!enrollmentValidation.data) {
-        const { data: reassignedEnrollment, error: reassignedEnrollmentError } = await supabase
-          .from("parent_enrollments")
-          .select("id, assigned_tutor_id, assigned_student_id, student_full_name")
-          .eq("assigned_tutor_id", tutorId)
-          .or(
-            [
-              `assigned_student_id.eq.${studentId}`,
-              `student_full_name.eq.${String(normalizedStudent.name || student.name || "").replace(/,/g, "")}`,
-            ].join(","),
-          )
-          .order("updated_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (reassignedEnrollmentError) {
-          console.error("Error re-resolving canonical enrollment before proposal:", reassignedEnrollmentError);
+        const enrollmentLookup = normalizedStudent?.parentId
+          ? await supabase
+              .from("parent_enrollments")
+              .select("id, assigned_tutor_id, student_full_name, user_id")
+              .eq("assigned_tutor_id", tutorId)
+              .eq("user_id", normalizedStudent.parentId)
+              .order("updated_at", { ascending: false })
+              .limit(1)
+              .maybeSingle()
+          : await supabase
+              .from("parent_enrollments")
+              .select("id, assigned_tutor_id, student_full_name, user_id")
+              .eq("assigned_tutor_id", tutorId)
+              .eq("student_full_name", String(normalizedStudent.name || student.name || "").trim())
+              .order("updated_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+        if (enrollmentLookup.error) {
+          console.error("Error re-resolving canonical enrollment before proposal:", enrollmentLookup.error);
           return res.status(500).json({ message: "Failed to resolve canonical enrollment before proposal" });
         }
-        actualEnrollmentId = reassignedEnrollment?.id || null;
+        actualEnrollmentId = enrollmentLookup.data?.id || null;
       }
       if (!actualEnrollmentId) {
         return res.status(400).json({
           message: "No current parent enrollment is linked to this assigned student+tutor. Refresh the assignment and try again.",
         });
       }
-
       const currentTopicsText = resolvedCurrentTopics.join(", ");
       const { data: proposalData, error } = await supabase
         .from("onboarding_proposals")
