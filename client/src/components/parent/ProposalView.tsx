@@ -93,7 +93,8 @@ export default function ProposalView({
   showActions = false,
   onAccept,
   onDecline,
-  isProcessing = false 
+  isProcessing = false,
+  hidePricing = false
 }: ProposalViewProps) {
   console.log("📋 ProposalView rendering with data:", proposal);
 
