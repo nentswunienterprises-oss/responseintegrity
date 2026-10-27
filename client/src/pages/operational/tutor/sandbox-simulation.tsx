@@ -888,7 +888,7 @@ export default function SpecialistSandboxSimulation({
             : transitionReason === "phase progress"
               ? `${routeTopic}: phase advanced to ${phaseAfter} at ${displayTopicStability(stabilityAfter)} stability`
               : stabilityBefore === "High" && stabilityAfter === "High Maintenance"
-                ? `${routeTopic}: High stability held in ${phaseAfter}; exit confirmation required`
+                ? `${routeTopic}: High stability checkpoint reached in ${phaseAfter}; exit confirmation required`
                 : `${routeTopic}: stability held at ${displayTopicStability(stabilityAfter)} in ${phaseAfter}${topicStabilityConfirmationLabel(stabilityAfter, phaseAfter) ? "; exit confirmation required" : ""}`
         : `${routeTopic}: session evidence recorded`);
     return (
