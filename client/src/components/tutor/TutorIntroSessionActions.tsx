@@ -46,7 +46,7 @@ export function TutorIntroSessionActions({ studentId, parentId, tutorId, session
           <span className="mx-1 text-muted-foreground">or</span>
           <button
             type="button"
-            className="border rounded px-1 py-0.5 text-xs w-[110px] bg-white"
+            className="min-h-8 w-[110px] rounded-md border border-border/80 bg-background px-2 py-1 text-left text-xs font-medium text-foreground shadow-sm transition-colors hover:border-primary/60 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             onClick={() => setShowDatePicker(true)}
           >
             {newDate || "Pick date"}
@@ -66,7 +66,7 @@ export function TutorIntroSessionActions({ studentId, parentId, tutorId, session
           )}
           <button
             type="button"
-            className="border rounded px-1 py-0.5 text-xs w-[90px] bg-white"
+            className="min-h-8 w-[90px] rounded-md border border-border/80 bg-background px-2 py-1 text-left text-xs font-medium text-foreground shadow-sm transition-colors hover:border-primary/60 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             onClick={() => setShowTimePicker(true)}
           >
             {newTime || "Pick time"}
