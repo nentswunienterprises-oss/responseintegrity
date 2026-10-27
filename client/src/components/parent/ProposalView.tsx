@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -9,7 +10,7 @@ import {
   type TopicPhase,
   type TopicStability,
 } from "@shared/topicConditioningEngine";
-import { getMonthlyServicePackage, type MonthlyPackageKey } from "@shared/servicePackages";
+import { getMonthlyServicePackage, MONTHLY_SERVICE_PACKAGES, type MonthlyPackageKey } from "@shared/servicePackages";
 import { extractDiagnosisProposalSnapshot } from "@shared/diagnosisProposalCopy";
 import { displayTopicStability, topicStabilityConfirmationLabel } from "@shared/topicStabilityPresentation";
 
@@ -79,7 +80,7 @@ interface ProposalViewProps {
   topicStates?: ProposalTopicState[];
   forceDiagnosisView?: boolean;
   showActions?: boolean;
-  onAccept?: () => void;
+  onAccept?: (packageKey?: MonthlyPackageKey) => void;
   onDecline?: () => void;
   isProcessing?: boolean;
 }
@@ -98,9 +99,9 @@ export default function ProposalView({
   const studentName = proposal.student?.name || "Your Child";
   const studentFirstName = studentName.trim().split(/\s+/)[0] || "Your child";
   const isPilotOnboarding = proposal.onboardingType === "pilot";
-  const servicePackage = getMonthlyServicePackage(
-    proposal.packageKey || (proposal as any).package_key,
-  );
+  const recommendedPackageKey = proposal.packageKey || (proposal as any).package_key || "monthly_8";
+  const [selectedPackageKey, setSelectedPackageKey] = useState<MonthlyPackageKey>(recommendedPackageKey);
+  const servicePackage = getMonthlyServicePackage(selectedPackageKey);
   const packageSessions = Number(proposal.packageSessions || servicePackage.sessionsPerMonth);
   const plannedSessionsPerWeek = Number(
     proposal.plannedSessionsPerWeek || servicePackage.plannedSessionsPerWeek,
@@ -952,9 +953,30 @@ export default function ProposalView({
 
       <Card>
         <CardHeader>
-          <CardTitle>Monthly Package</CardTitle>
+          <CardTitle>{showActions && !isPilotOnboarding ? "Choose a Monthly Package" : "Monthly Package"}</CardTitle>
         </CardHeader>
         <CardContent>
+          {showActions && !isPilotOnboarding && (
+            <div className="mb-4 grid gap-2 sm:grid-cols-3">
+              {Object.values(MONTHLY_SERVICE_PACKAGES).map((candidate) => {
+                const selected = selectedPackageKey === candidate.key;
+                const recommended = recommendedPackageKey === candidate.key;
+                return (
+                  <button
+                    key={candidate.key}
+                    type="button"
+                    onClick={() => setSelectedPackageKey(candidate.key)}
+                    className={`rounded-lg border p-3 text-left transition-colors ${selected ? "border-primary bg-primary/10 ring-2 ring-primary/30" : "border-border bg-background hover:border-primary/50"}`}
+                  >
+                    <p className="text-sm font-semibold text-foreground">{candidate.sessionsPerMonth} sessions</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{candidate.plannedSessionsPerWeek} per week</p>
+                    <p className="mt-2 text-sm font-semibold text-foreground">R{candidate.amountZar.toLocaleString("en-ZA")}/month</p>
+                    {recommended && <p className="mt-1 text-[11px] text-primary">Specialist recommendation</p>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-lg border bg-muted/20 p-3">
               <p className="text-xs text-muted-foreground">Sessions</p>
@@ -1011,7 +1033,7 @@ export default function ProposalView({
                 Decline
               </Button>
               <Button
-                onClick={onAccept}
+                onClick={() => onAccept?.(selectedPackageKey)}
                 disabled={isProcessing}
                 className="w-full sm:flex-1 gap-2"
                 size="lg"
