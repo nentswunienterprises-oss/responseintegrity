@@ -9,7 +9,8 @@ import { getQueryFn } from "@/lib/queryClient";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getAuthMode } from "@/lib/authMode";
-import { Calendar, MessageSquare, Send, FileText, CreditCard } from "lucide-react";
+import { Calendar, MessageSquare, Send, FileText, CreditCard, Settings2 } from "lucide-react";
+import type { MonthlyPackageKey } from "@shared/servicePackages";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -88,6 +89,14 @@ interface ParentPaymentHistoryResponse {
   payments: ParentPayment[];
 }
 
+interface ParentSubscriptionResponse {
+  current?: { key: MonthlyPackageKey; sessions: number; plannedSessionsPerWeek: number };
+  scheduled?: { key: MonthlyPackageKey; sessions: number; plannedSessionsPerWeek: number } | null;
+  sessionsRemaining?: number;
+  packageExhausted?: boolean;
+  sandbox?: boolean;
+  packages?: Array<{ key: MonthlyPackageKey; sessions: number; plannedSessionsPerWeek: number; amount?: number }>;
+}
 function formatPaymentDate(value?: string | null) {
   if (!value) return "Date unavailable";
   const date = new Date(value);
@@ -135,6 +144,8 @@ export default function ParentProgress() {
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [emergencyDbMode, setEmergencyDbMode] = useState(false);
+  const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
+  const [selectedPackageKey, setSelectedPackageKey] = useState<MonthlyPackageKey | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -163,11 +174,39 @@ export default function ParentProgress() {
     retry: emergencyDbMode ? false : undefined,
   });
 
+  const { data: subscriptionData, isLoading: subscriptionLoading } = useQuery<ParentSubscriptionResponse>({
+    queryKey: ["/api/parent/subscription"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    refetchOnWindowFocus: !emergencyDbMode,
+  });
+
+  const manageSubscriptionMutation = useMutation({
+    mutationFn: async (packageKey: MonthlyPackageKey) => {
+      const response = await fetch("/api/parent/subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ packageKey }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message || "Failed to update subscription");
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({ title: "Subscription updated", description: data?.message || "Your next package has been saved." });
+      queryClient.invalidateQueries({ queryKey: ["/api/parent/subscription"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/parent/training-sessions"] });
+      setSubscriptionDialogOpen(false);
+    },
+    onError: (error) => toast({ title: "Subscription update failed", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" }),
+  });
+
   const monthlyQuota = trainingData?.monthlyQuota;
   const quotaTotal = Number(monthlyQuota?.session_quota ?? 0);
   const renewalAmount = Number(monthlyQuota?.package_amount_zar ?? quotaTotal * Number(monthlyQuota?.session_price ?? 200));
   const renewalLabel = monthlyQuota?.package_label || (quotaTotal > 0 ? `${quotaTotal}-session package` : "monthly package");
   const paymentHistory = paymentHistoryData?.payments || [];
+  const subscriptionPackages = subscriptionData?.packages || [];
   const isSandboxParent = trainingData?.operationalMode === "sandbox";
 
   const location = useLocation();
@@ -473,7 +512,31 @@ export default function ParentProgress() {
               </Card>
             ) : (
               <div className="space-y-3">
-                <div className="grid gap-3 sm:grid-cols-3">
+                <Card>
+                  <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold">Manage Subscription</p>
+                      <p className="text-xs text-muted-foreground">
+                        Current package: {subscriptionData?.current?.sessions || quotaTotal} sessions. Changes apply to the next package cycle.
+                        {subscriptionData?.scheduled ? ` Next: ${subscriptionData.scheduled.sessions} sessions.` : ""}
+                      </p>
+                    </div>
+                    <Dialog open={subscriptionDialogOpen} onOpenChange={(open) => {
+                      setSubscriptionDialogOpen(open);
+                      if (open) setSelectedPackageKey(subscriptionData?.scheduled?.key || subscriptionData?.current?.key || null);
+                    }}>
+                      <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setSubscriptionDialogOpen(true)} disabled={subscriptionLoading}>
+                        <Settings2 className="mr-2 h-4 w-4" />
+                        Manage Subscription
+                      </Button>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Manage Subscription</DialogTitle>
+                          <DialogDescription>
+                            Choose the package for your next package cycle. Your current paid package remains unchanged until it is complete.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-3 sm:grid-cols-3">
                 <Card>
                   <CardContent className="p-3">
                     <p className="text-[10px] sm:text-xs text-muted-foreground">Monthly Quota</p>
