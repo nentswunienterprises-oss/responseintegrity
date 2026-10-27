@@ -168,6 +168,7 @@ export default function ParentProgress() {
   const renewalAmount = Number(monthlyQuota?.package_amount_zar ?? quotaTotal * Number(monthlyQuota?.session_price ?? 200));
   const renewalLabel = monthlyQuota?.package_label || (quotaTotal > 0 ? `${quotaTotal}-session package` : "monthly package");
   const paymentHistory = paymentHistoryData?.payments || [];
+  const isSandboxParent = trainingData?.operationalMode === "sandbox";
 
   const location = useLocation();
   const topDefault = new URLSearchParams(location.search).get("tab") === "analytics" || location.hash === "#analytics"
@@ -508,7 +509,7 @@ export default function ParentProgress() {
                       className="bg-rose-600 hover:bg-rose-700 text-white shrink-0"
                       onClick={() => navigate("/client/parent/gateway")}
                     >
-                      Renew - R{renewalAmount.toLocaleString("en-ZA")}
+                      {isSandboxParent ? "Renew Package" : `Renew - R${renewalAmount.toLocaleString("en-ZA")}`}
                     </Button>
                   </CardContent>
                 </Card>
@@ -553,7 +554,7 @@ export default function ParentProgress() {
                             </p>
                           </div>
                           <div className="flex items-center justify-between gap-3 sm:justify-end">
-                            <p className="text-sm font-semibold">{formatPaymentAmount(payment)}</p>
+                            {!isSandboxParent && <p className="text-sm font-semibold">{formatPaymentAmount(payment)}</p>}
                             <Badge variant="outline" className={statusClass}>
                               {normalizedStatus}
                             </Badge>
