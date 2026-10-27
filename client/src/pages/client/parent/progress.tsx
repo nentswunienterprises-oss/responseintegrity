@@ -536,50 +536,87 @@ export default function ParentProgress() {
                             Choose the package for your next package cycle. Your current paid package remains unchanged until it is complete.
                           </DialogDescription>
                         </DialogHeader>
-                        <div className="grid gap-3 sm:grid-cols-3">
-                <Card>
-                  <CardContent className="p-3">
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">Monthly Quota</p>
-                    <p className="text-lg sm:text-2xl font-bold">{monthlyQuota.session_quota ?? " - "}</p>
+                        <div className="space-y-3">
+                          {subscriptionPackages.map((pkg) => {
+                            const selected = selectedPackageKey === pkg.key;
+                            return (
+                              <button
+                                key={pkg.key}
+                                type="button"
+                                className={`w-full rounded-lg border p-3 text-left transition-colors ${selected ? "border-primary bg-primary/5" : "hover:border-primary/50"}`}
+                                onClick={() => setSelectedPackageKey(pkg.key)}
+                              >
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="font-medium">{pkg.sessions}-session monthly package</span>
+                                  {selected && <Badge variant="secondary">Selected</Badge>}
+                                </div>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  Planned frequency: {pkg.plannedSessionsPerWeek} per week
+                                </p>
+                                {!isSandboxParent && typeof pkg.amount === "number" && (
+                                  <p className="mt-1 text-sm font-semibold">R{pkg.amount.toLocaleString("en-ZA")}</p>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div className="mt-4 flex justify-end">
+                          <Button
+                            type="button"
+                            disabled={!selectedPackageKey || manageSubscriptionMutation.isPending}
+                            onClick={() => selectedPackageKey && manageSubscriptionMutation.mutate(selectedPackageKey)}
+                          >
+                            {manageSubscriptionMutation.isPending ? "Saving..." : "Save Package"}
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </CardContent>
                 </Card>
-                <Card>
-                  <CardContent className="p-3">
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">Sessions Used</p>
-                    <p className="text-lg sm:text-2xl font-bold">{monthlyQuota.sessions_used ?? 0}</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-3">
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">Sessions Remaining</p>
-                    <p className={`text-lg sm:text-2xl font-bold ${Number(monthlyQuota.sessions_remaining || 0) <= 0 ? 'text-rose-600' : ''}`}>
-                      {monthlyQuota.sessions_remaining ?? 0}
-                    </p>
-                    {Number(monthlyQuota.sessions_remaining || 0) <= 0 && (
-                      <p className="text-xs text-rose-600 mt-1">No sessions remaining this month</p>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-              {Number(monthlyQuota.sessions_remaining || 0) <= 0 && (
-                <Card className="border border-rose-200 bg-rose-50">
-                  <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <p className="text-sm text-rose-700">
-                      All {quotaTotal || "package"} sessions for this month are used up. Renew to unlock the next {quotaTotal || "monthly"} package.
-                    </p>
-                    <Button
-                      size="sm"
-                      className="bg-rose-600 hover:bg-rose-700 text-white shrink-0"
-                      onClick={() => navigate("/client/parent/gateway")}
-                    >
-                      {isSandboxParent ? "Renew Package" : `Renew - R${renewalAmount.toLocaleString("en-ZA")}`}
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Card>
+                    <CardContent className="p-3">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Monthly Quota</p>
+                      <p className="text-lg sm:text-2xl font-bold">{monthlyQuota.session_quota ?? " - "}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-3">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Sessions Used</p>
+                      <p className="text-lg sm:text-2xl font-bold">{monthlyQuota.sessions_used ?? 0}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-3">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Sessions Remaining</p>
+                      <p className={`text-lg sm:text-2xl font-bold ${Number(monthlyQuota.sessions_remaining || 0) <= 0 ? 'text-rose-600' : ''}`}>
+                        {monthlyQuota.sessions_remaining ?? 0}
+                      </p>
+                      {Number(monthlyQuota.sessions_remaining || 0) <= 0 && (
+                        <p className="text-xs text-rose-600 mt-1">No sessions remaining this month</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+                {Number(monthlyQuota.sessions_remaining || 0) <= 0 && (
+                  <Card className="border border-rose-200 bg-rose-50">
+                    <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <p className="text-sm text-rose-700">
+                        All {quotaTotal || "package"} sessions for this month are used up. Renew to unlock the next {quotaTotal || "monthly"} package.
+                      </p>
+                      <Button
+                        size="sm"
+                        className="bg-rose-600 hover:bg-rose-700 text-white shrink-0"
+                        onClick={() => navigate("/client/parent/gateway")}
+                      >
+                        {isSandboxParent ? "Renew Package" : `Renew - R${renewalAmount.toLocaleString("en-ZA")}`}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             )}
-
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
