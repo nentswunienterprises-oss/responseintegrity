@@ -28717,8 +28717,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .single();
 
       if (error) {
-        console.error("Error creating proposal:", error);
-        return res.status(500).json({ message: "Failed to create proposal" });
+        console.error("Error creating proposal:", {
+          code: (error as any)?.code || null,
+          message: error.message,
+          details: (error as any)?.details || null,
+          hint: (error as any)?.hint || null,
+        });
+        return res.status(500).json({
+          message: "Failed to create proposal",
+          detail: error.message,
+          code: (error as any)?.code || undefined,
+        });
       }
 
       // Link the proposal to the canonical enrollment through the server-side
@@ -28770,7 +28779,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error in create proposal:", error);
-      res.status(500).json({ message: "Failed to create proposal" });
+      res.status(500).json({
+        message: "Failed to create proposal",
+        detail: error instanceof Error ? error.message : "Unexpected server error",
+      });
     }
   });
 
