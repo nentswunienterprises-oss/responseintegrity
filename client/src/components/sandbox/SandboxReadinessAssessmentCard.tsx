@@ -200,10 +200,14 @@ export function SandboxReadinessAssessmentCard({
   tutorId,
   tutorName,
   operationalMode,
+  apiBasePath = "/api/td",
+  readOnly = false,
 }: {
   tutorId: string;
   tutorName: string;
   operationalMode?: string | null;
+  apiBasePath?: "/api/td" | "/api/coo";
+  readOnly?: boolean;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -212,14 +216,14 @@ export function SandboxReadinessAssessmentCard({
   );
   const [evidenceNote, setEvidenceNote] = useState("");
   const isSandbox = String(operationalMode || "").toLowerCase() === "sandbox";
-  const queryKey = ["/api/td/tutors", tutorId, "sandbox-readiness"];
+  const queryKey = [apiBasePath, "tutors", tutorId, "sandbox-readiness"];
 
   const { data, isLoading } = useQuery<SandboxReadinessPayload>({
     queryKey,
     queryFn: async () => {
       const response = await apiRequest(
         "GET",
-        `/api/td/tutors/${tutorId}/sandbox-readiness`,
+        `${apiBasePath}/tutors/${tutorId}/sandbox-readiness`,
       );
       return response.json();
     },
@@ -237,7 +241,7 @@ export function SandboxReadinessAssessmentCard({
     mutationFn: async () => {
       const response = await apiRequest(
         "POST",
-        `/api/td/tutors/${tutorId}/sandbox-readiness-assessment`,
+        `${apiBasePath}/tutors/${tutorId}/sandbox-readiness-assessment`,
         {
           decision,
           evidenceNote,
@@ -248,7 +252,7 @@ export function SandboxReadinessAssessmentCard({
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey }),
-        queryClient.invalidateQueries({ queryKey: ["/api/td/pod-overview"] }),
+        queryClient.invalidateQueries({ queryKey: [`${apiBasePath}/pod-overview`] }),
       ]);
       toast({
         title:
@@ -273,13 +277,13 @@ export function SandboxReadinessAssessmentCard({
   const [showCoverage, setShowCoverage] = useState(false);
   const [showDossier, setShowDossier] = useState(false);
   const { data: dossier, isFetching: dossierLoading, isError: dossierError } = useQuery<SandboxDossier>({
-    queryKey: ["/api/td/tutors", tutorId, "sandbox-evidence-dossier"],
+    queryKey: [apiBasePath, "tutors", tutorId, "sandbox-evidence-dossier"],
     enabled: !!tutorId && showDossier && isSandbox,
     gcTime: 0,
     staleTime: 0,
     networkMode: "always",
     queryFn: async () => {
-      const response = await apiRequest("GET", `/api/td/tutors/${encodeURIComponent(tutorId)}/sandbox-evidence-dossier`);
+      const response = await apiRequest("GET", `${apiBasePath}/tutors/${encodeURIComponent(tutorId)}/sandbox-evidence-dossier`);
       return response.json();
     },
   });
@@ -308,12 +312,13 @@ export function SandboxReadinessAssessmentCard({
             Sandbox Specialist Evaluation
           </p>
           <h3 className="mt-1 text-lg font-semibold text-foreground">
-            TD Readiness Review
+            {readOnly ? "Sandbox Development Record" : "TD Readiness Review"}
           </h3>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
             The Sandbox engine builds Specialist capability truth continuously.
-            The TD reviews that evidence, records remediation where needed, and
-            approves Practicals readiness only when the system is ready.
+            {readOnly
+              ? " This is a read-only view of the same committed evidence and readiness state available to the TD."
+              : " The TD reviews that evidence, records remediation where needed, and approves Practicals readiness only when the system is ready."}
           </p>
           {readiness?.bankKey && readiness?.bankVersion && readiness?.policyVersion ? (
             <p className="mt-2 text-xs text-muted-foreground">
@@ -668,7 +673,7 @@ export function SandboxReadinessAssessmentCard({
             </div>
           ) : null}
 
-          <div>
+          {!readOnly ? <div>
             <Label htmlFor={`sandbox-readiness-note-${tutorId}`}>
               TD evidence note
             </Label>
@@ -679,9 +684,9 @@ export function SandboxReadinessAssessmentCard({
               className="mt-2"
               placeholder="Name the capability evidence, the remaining gap, and the remediation or readiness basis."
             />
-          </div>
+          </div> : null}
 
-          <div className="flex flex-wrap gap-2">
+          {!readOnly ? <div className="flex flex-wrap gap-2">
             <Button
               type="button"
               variant={
@@ -715,12 +720,12 @@ export function SandboxReadinessAssessmentCard({
                   ? "Approve for Practicals"
                   : "Record remediation"}
             </Button>
-          </div>
+          </div> : null}
 
           <p className="text-xs text-muted-foreground">
-            This review does not auto-promote the Specialist to Trial. Practicals
-            remains the next governed stage, while COO authority is reserved for
-            policy, exceptions, and later lifecycle decisions.
+            {readOnly
+              ? "Read-only record. Any readiness decision remains governed by the Territory Director workflow."
+              : "This review does not auto-promote the Specialist to Trial. Practicals remains the next governed stage, while COO authority is reserved for policy, exceptions, and later lifecycle decisions."}
           </p>
         </div>
       )}
