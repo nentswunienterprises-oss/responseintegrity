@@ -3608,7 +3608,7 @@ function IntroSessionDrillRunnerCore({
             return `${topicName}: stability regressed to ${displayTopicStability(row?.stability)} in ${row?.phase}`;
           }
           if (transitionReason === "high maintenance entry") {
-            return `${topicName}: high stability confirmation checkpoint recorded in ${row?.phase}; a later qualifying exit check is required`;
+            return `${topicName}: High stability held in ${row?.phase}; exit confirmation required`;
           }
           if (transitionReason === "stability advance") {
             return `${topicName}: stability improved to ${displayTopicStability(row?.stability)} in ${row?.phase}`;
@@ -3621,7 +3621,10 @@ function IntroSessionDrillRunnerCore({
           if (beforeRaw !== afterRaw && (beforeRaw || afterRaw)) {
             return `${topicName}: stability improved to ${displayTopicStability(row?.stability)} in ${row?.phase}`;
           }
-          return `${topicName}: stability held at ${displayTopicStability(row?.stability)} in ${row?.phase}${topicStabilityConfirmationLabel(row?.stability, row?.phase) ? "; separate confirmation required" : ""}`;
+          if (String(row?.stabilityBefore || "") === "High" && String(row?.stability || "") === "High Maintenance") {
+            return `${topicName}: High stability held in ${row?.phase}; exit confirmation required`;
+          }
+          return `${topicName}: stability held at ${displayTopicStability(row?.stability)} in ${row?.phase}${topicStabilityConfirmationLabel(row?.stability, row?.phase) ? "; exit confirmation required" : ""}`;
         };
         const formatState = (phaseValue?: string | null, stabilityValue?: string | null) => {
           if (!phaseValue && !stabilityValue) return "Not recorded";
