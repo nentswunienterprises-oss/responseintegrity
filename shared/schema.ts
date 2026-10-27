@@ -1347,6 +1347,7 @@ export const parentEnrollments = pgTable("parent_enrollments", {
   packageKey: varchar("package_key", { length: 24 }).notNull().default("monthly_8"),
   packageSessions: integer("package_sessions").notNull().default(8),
   plannedSessionsPerWeek: integer("planned_sessions_per_week").notNull().default(2),
+  nextPackageKey: varchar("next_package_key", { length: 24 }),
   proposalSentAt: timestamp("proposal_sent_at"),
   confirmedAt: timestamp("confirmed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
