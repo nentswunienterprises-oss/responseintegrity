@@ -46,24 +46,35 @@ function expectedConditionLabel(phase: unknown, setId: unknown) {
   }
 }
 
-export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
+export function createSandboxEvidenceDossierHandler(
+  db: DossierDatabase,
+  options: { allowCoo?: boolean } = {},
+) {
   return async (req: Request, res: Response) => {
     try {
       const td = (req as any).dbUser;
       if (!td?.id) return res.status(401).json({ message: "Authentication required." });
-      if (String(td.role || "").toLowerCase() !== "td") {
+      const role = String(td.role || "").toLowerCase();
+      if (role !== "td" && !(options.allowCoo && role === "coo")) {
         return res.status(403).json({ message: "TD access required." });
       }
       const tutorId = String(req.params.tutorId || "").trim();
       if (!tutorId) return res.status(400).json({ message: "tutorId is required." });
-      const assignment = await db.query(
-        `SELECT ta.id FROM (
-            SELECT id, pod_id FROM public.tutor_assignments
-            WHERE tutor_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1
-          ) ta JOIN public.pods p ON p.id = ta.pod_id
-          WHERE p.td_id = $2`,
-        [tutorId, String(td.id)],
-      );
+      const assignment = role === "coo"
+        ? await db.query(
+            `SELECT id FROM public.tutor_assignments
+              WHERE tutor_id = $1
+              ORDER BY created_at DESC, id DESC LIMIT 1`,
+            [tutorId],
+          )
+        : await db.query(
+            `SELECT ta.id FROM (
+                SELECT id, pod_id FROM public.tutor_assignments
+                WHERE tutor_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1
+              ) ta JOIN public.pods p ON p.id = ta.pod_id
+              WHERE p.td_id = $2`,
+            [tutorId, String(td.id)],
+          );
       const assignmentId = assignment.rows[0]?.id;
       if (!assignmentId) return res.status(403).json({ message: "Specialist is outside your assigned Pod." });
       res.setHeader("Cache-Control", "private, no-store, max-age=0");

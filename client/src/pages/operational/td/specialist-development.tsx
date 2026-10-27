@@ -692,12 +692,14 @@ export default function SpecialistDevelopmentRecordPage() {
             )}
           </DialogContent>
         </Dialog>
-        {!isCooView && record.assignment.operationalMode === "sandbox" ? (
+        {record.assignment.operationalMode === "sandbox" ? (
           <section className="space-y-4">
             <SandboxReadinessAssessmentCard
               tutorId={record.specialist.id}
               tutorName={record.specialist.name}
               operationalMode={record.assignment.operationalMode}
+              apiBasePath={isCooView ? "/api/coo" : "/api/td"}
+              readOnly={isCooView}
             />
           </section>
         ) : null}
@@ -712,7 +714,11 @@ export default function SpecialistDevelopmentRecordPage() {
             </h2>
           </div>
 
-          {!isCooView ? <TdPracticalsCompletion tutorId={record.specialist.id} /> : null}
+          <TdPracticalsCompletion
+            tutorId={record.specialist.id}
+            apiBasePath={isCooView ? "/api/coo" : "/api/td"}
+            readOnly={isCooView}
+          />
 
           <Card className="rounded-none">
             <CardContent className="p-5">
