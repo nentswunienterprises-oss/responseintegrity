@@ -882,7 +882,9 @@ export default function SpecialistSandboxSimulation({
         ? transitionReason === "stability advance"
           ? `${routeTopic}: stability improved to ${displayTopicStability(stabilityAfter)} in ${phaseAfter}`
           : transitionReason === "stability regress"
-            ? `${routeTopic}: stability regressed to ${displayTopicStability(stabilityAfter)} in ${phaseAfter}`
+            ? displayTopicStability(stabilityBefore) === displayTopicStability(stabilityAfter)
+              ? `${routeTopic}: stability held at ${displayTopicStability(stabilityAfter)} in ${phaseAfter}; phase advancement is not authorized`
+              : `${routeTopic}: stability regressed to ${displayTopicStability(stabilityAfter)} in ${phaseAfter}`
             : transitionReason === "phase progress"
               ? `${routeTopic}: phase advanced to ${phaseAfter} at ${displayTopicStability(stabilityAfter)} stability`
               : `${routeTopic}: stability held at ${displayTopicStability(stabilityAfter)} in ${phaseAfter}${topicStabilityConfirmationLabel(stabilityAfter, phaseAfter) ? "; separate confirmation required" : ""}`
