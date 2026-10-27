@@ -784,6 +784,30 @@ export default function PodDetail() {
     },
   });
 
+  const assignTdMutation = useMutation({
+    mutationFn: async (tdId: string) => {
+      if (tdId === "none") return;
+      await apiRequest("POST", "/api/coo/assign-td", {
+        tdId,
+        podId,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/coo/pods"] });
+      toast({
+        title: "Territory Director updated",
+        description: "The Pod ownership has been updated without changing its Specialists or evidence.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Territory Director update failed",
+        description: error?.message || "The Pod ownership could not be updated.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const getTDName = (tdId: string | null) => {
     if (!tdId) return "Unassigned";
     return tds?.find((td) => td.id === tdId)?.name || "Unknown";
@@ -1080,7 +1104,26 @@ export default function PodDetail() {
                 <Users className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
                 <p className="text-xs sm:text-sm font-medium text-muted-foreground uppercase">Territory Director</p>
               </div>
-              <p className="font-medium text-sm sm:text-base mb-4">{tdName}</p>
+              <div className="space-y-3">
+                <p className="font-medium text-sm sm:text-base">{tdName}</p>
+                <Select
+                  value={(currentPod as Pod).tdId || "none"}
+                  onValueChange={(value) => assignTdMutation.mutate(value)}
+                  disabled={tdsLoading || assignTdMutation.isPending}
+                >
+                  <SelectTrigger aria-label="Assign Territory Director">
+                    <SelectValue placeholder="Assign Territory Director" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none" disabled>Not assigned</SelectItem>
+                    {(tds || []).map((td) => (
+                      <SelectItem key={td.id} value={td.id}>
+                        {td.name || td.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </Card>
 
 
