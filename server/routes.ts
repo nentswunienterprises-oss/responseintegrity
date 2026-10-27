@@ -28632,6 +28632,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create proposal
+      // The student record can carry a stale enrollment link after reassignment.
+      // Re-resolve it against the current tutor assignment before inserting so a
+      // stale FK never turns into an opaque 500 from Supabase.
+      const enrollmentValidation = actualEnrollmentId
+        ? await supabase
+            .from("parent_enrollments")
+            .select("id, assigned_tutor_id, assigned_student_id, student_full_name")
+            .eq("id", actualEnrollmentId)
+            .eq("assigned_tutor_id", tutorId)
+            .maybeSingle()
+        : { data: null, error: null };
+      if (enrollmentValidation.error) {
+        console.error("Error validating canonical enrollment before proposal:", enrollmentValidation.error);
+        return res.status(500).json({ message: "Failed to validate canonical enrollment before proposal" });
+      }
+      if (!enrollmentValidation.data) {
+        const { data: reassignedEnrollment, error: reassignedEnrollmentError } = await supabase
+          .from("parent_enrollments")
+          .select("id, assigned_tutor_id, assigned_student_id, student_full_name")
+          .eq("assigned_tutor_id", tutorId)
+          .or(
+            [
+              `assigned_student_id.eq.${studentId}`,
+              `student_full_name.eq.${String(normalizedStudent.name || student.name || "").replace(/,/g, "")}`,
+            ].join(","),
+          )
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (reassignedEnrollmentError) {
+          console.error("Error re-resolving canonical enrollment before proposal:", reassignedEnrollmentError);
+          return res.status(500).json({ message: "Failed to resolve canonical enrollment before proposal" });
+        }
+        actualEnrollmentId = reassignedEnrollment?.id || null;
+      }
+      if (!actualEnrollmentId) {
+        return res.status(400).json({
+          message: "No current parent enrollment is linked to this assigned student+tutor. Refresh the assignment and try again.",
+        });
+      }
+
+      const currentTopicsText = resolvedCurrentTopics.join(", ");
       const { data: proposalData, error } = await supabase
         .from("onboarding_proposals")
         .insert({
@@ -28644,7 +28686,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           confidence_killers: confidenceKillers,
           pressure_response: pressureResponse,
           growth_drivers: growthDrivers,
-          current_topics: resolvedCurrentTopics,
+          current_topics: currentTopicsText,
           topic_conditioning_topic: introTopicFromDrill,
           topic_conditioning_entry_phase: trainingEntryPhase,
           topic_conditioning_stability: drillStability,
