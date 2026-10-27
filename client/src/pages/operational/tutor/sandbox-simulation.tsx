@@ -887,7 +887,9 @@ export default function SpecialistSandboxSimulation({
               : `${routeTopic}: stability regressed to ${displayTopicStability(stabilityAfter)} in ${phaseAfter}`
             : transitionReason === "phase progress"
               ? `${routeTopic}: phase advanced to ${phaseAfter} at ${displayTopicStability(stabilityAfter)} stability`
-              : `${routeTopic}: stability held at ${displayTopicStability(stabilityAfter)} in ${phaseAfter}${topicStabilityConfirmationLabel(stabilityAfter, phaseAfter) ? "; separate confirmation required" : ""}`
+              : stabilityBefore === "High" && stabilityAfter === "High Maintenance"
+                ? `${routeTopic}: High stability held in ${phaseAfter}; exit confirmation required`
+                : `${routeTopic}: stability held at ${displayTopicStability(stabilityAfter)} in ${phaseAfter}${topicStabilityConfirmationLabel(stabilityAfter, phaseAfter) ? "; exit confirmation required" : ""}`
         : `${routeTopic}: session evidence recorded`);
     return (
       <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
