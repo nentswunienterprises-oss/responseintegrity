@@ -278,7 +278,7 @@ export default function TutorPod() {
     refetchOnReconnect: !emergencyDbMode,
     retry: emergencyDbMode ? false : undefined,
   });
-  const effectiveSandboxProgress = effectiveSandboxProgress ?? (() => {
+  const effectiveSandboxProgress = tutorAlignmentSummary?.sandboxProgress ?? (() => {
     const readiness = (developmentPathway as any)?.sandbox?.readiness;
     return readiness
       ? {
