@@ -786,8 +786,9 @@ export default function PodDetail() {
 
   const assignTdMutation = useMutation({
     mutationFn: async (tdId: string) => {
+      if (tdId === "none") return;
       await apiRequest("POST", "/api/coo/assign-td", {
-        tdId: tdId === "none" ? null : tdId,
+        tdId,
         podId,
       });
     },
@@ -1114,7 +1115,7 @@ export default function PodDetail() {
                     <SelectValue placeholder="Assign Territory Director" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Unassigned</SelectItem>
+                    <SelectItem value="none" disabled>Not assigned</SelectItem>
                     {(tds || []).map((td) => (
                       <SelectItem key={td.id} value={td.id}>
                         {td.name || td.email}
