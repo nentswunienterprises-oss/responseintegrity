@@ -10,6 +10,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarDays } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TrainingSessionCancellationDialog } from "@/components/scheduling/TrainingSessionCancellationDialog";
 import {
   PARENT_TRAINING_SESSION_CANCELLATION_REASONS,
@@ -82,6 +83,11 @@ export default function ParentSessions() {
   const [slotTwoTime, setSlotTwoTime] = useState("17:00");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPreparingSandboxPayment, setIsPreparingSandboxPayment] = useState(false);
+  const [sandboxCheckout, setSandboxCheckout] = useState<{
+    packageKey?: string;
+    sessionsPerMonth?: number;
+    plannedSessionsPerWeek?: number;
+  } | null>(null);
   const [confirmingSessionId, setConfirmingSessionId] = useState<string | null>(null);
   const [adjustingSessionId, setAdjustingSessionId] = useState<string | null>(null);
   const [cancellingSessionId, setCancellingSessionId] = useState<string | null>(null);
@@ -235,6 +241,15 @@ export default function ParentSessions() {
         return;
       }
 
+      if (payload?.sandboxCheckout === true) {
+        setSandboxCheckout({
+          packageKey: payload.packageKey,
+          sessionsPerMonth: payload.sessionsPerMonth,
+          plannedSessionsPerWeek: payload.plannedSessionsPerWeek,
+        });
+        return;
+      }
+
       if (!payload?.checkoutUrl || !payload?.formFields) {
         throw new Error("PayFast Sandbox checkout details were not returned.");
       }
@@ -262,6 +277,31 @@ export default function ParentSessions() {
         description: error instanceof Error ? error.message : "Failed to prepare Sandbox payment.",
         variant: "destructive",
       });
+    } finally {
+      setIsPreparingSandboxPayment(false);
+    }
+  };
+
+  const handleCompleteSandboxPayment = async () => {
+    if (!sandboxCheckout) return;
+    setIsPreparingSandboxPayment(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (session?.access_token) headers["Authorization"] = `Bearer ${session.access_token}`;
+      const response = await fetch(`${API_URL}/api/parent/proposal/accept`, {
+        method: "POST",
+        credentials: "include",
+        headers,
+        body: JSON.stringify({ completeSandboxPayment: true, ...(sandboxCheckout.packageKey ? { packageKey: sandboxCheckout.packageKey } : {}) }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload?.paymentStatus !== "PAID") throw new Error(payload?.message || "Failed to complete Sandbox checkout.");
+      setSandboxCheckout(null);
+      toast({ title: "Sandbox payment confirmed", description: "The Sandbox package is active. No real money was charged." });
+      await queryClient.invalidateQueries({ queryKey: ["/api/parent/training-sessions"] });
+    } catch (error) {
+      toast({ title: "Sandbox Payment Error", description: error instanceof Error ? error.message : "Failed to complete Sandbox checkout.", variant: "destructive" });
     } finally {
       setIsPreparingSandboxPayment(false);
     }
@@ -574,6 +614,25 @@ export default function ParentSessions() {
     !renewalBlocked;
 
   return (
+    <>
+      <Dialog open={Boolean(sandboxCheckout)} onOpenChange={(open) => !open && setSandboxCheckout(null)}>
+        <DialogContent className="mx-2 max-w-md sm:mx-auto">
+          <DialogHeader>
+            <DialogTitle>Sandbox package checkout</DialogTitle>
+            <DialogDescription>This is a simulated Sandbox checkout. No real money is charged.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg border bg-muted/20 p-4">
+              <p className="font-semibold">{sandboxCheckout?.sessionsPerMonth || "Monthly"}-session monthly package</p>
+              <p className="mt-1 text-sm text-muted-foreground">Planned frequency: {sandboxCheckout?.plannedSessionsPerWeek || "monthly"} per week</p>
+            </div>
+            <Button type="button" className="w-full" onClick={handleCompleteSandboxPayment}>
+              Complete simulated Sandbox checkout
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl sm:text-3xl font-bold">Sessions</h1>
@@ -1033,5 +1092,6 @@ export default function ParentSessions() {
         }}
       />
     </div>
+    </>
   );
 }

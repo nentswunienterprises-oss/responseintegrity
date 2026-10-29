@@ -29295,6 +29295,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         const existingPayment = existingPaymentResult.rows[0] || null;
 
+        if (payfastSandboxForEnrollment && req.body?.completeSandboxPayment === true) {
+          if (!existingPayment) {
+            return res.status(409).json({ message: "Sandbox checkout has not been prepared yet." });
+          }
+          const completedAt = new Date().toISOString();
+          const completedPaymentResult = await pool.query(
+            `UPDATE public.payment_transactions
+                SET payment_status = 'paid',
+                    payment_date = $1,
+                    paid_at = $1,
+                    updated_at = $1,
+                    raw_payload = COALESCE(raw_payload, '{}'::jsonb) || '{"sandbox_simulated":true}'::jsonb
+              WHERE id = $2
+              RETURNING *`,
+            [completedAt, existingPayment.id],
+          );
+          const completedPayment = completedPaymentResult.rows[0] || null;
+          if (!completedPayment) {
+            return res.status(500).json({ message: "Failed to complete Sandbox checkout." });
+          }
+          const finalized = await finalizeAcceptedProposalFromPayment(completedPayment);
+          return res.json({
+            message: "Sandbox package payment simulated and confirmed.",
+            paymentStatus: "PAID",
+            sandbox: true,
+            status: finalized.status,
+            parentCode: finalized.parentCode,
+          });
+        }
         if (String(existingPayment?.payment_status || "").toLowerCase() === "paid") {
           const finalized = await finalizeAcceptedProposalFromPayment(existingPayment);
           return res.json({
@@ -29417,6 +29446,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(500).json({ message: "Failed to prepare payment transaction" });
         }
 
+        if (payfastSandboxForEnrollment) {
+          return res.json({
+            message: "Sandbox checkout ready.",
+            onboardingType: "commercial",
+            paymentStatus: "UNPAID",
+            sandbox: true,
+            sandboxCheckout: true,
+            packageKey: servicePackage.key,
+            plan: servicePackage.label,
+            sessionsPerMonth: servicePackage.sessionsPerMonth,
+            plannedSessionsPerWeek: servicePackage.plannedSessionsPerWeek,
+            merchantReference,
+          });
+        }
+
         const payfastFields = payfastSandboxForEnrollment
           ? withPayfastSignature(
               {
@@ -29523,6 +29567,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to prepare payment" });
       }
 
+      if (payfastSandboxForEnrollment && req.body?.completeSandboxPayment === true) {
+        if (!existingPayment) {
+          return res.status(409).json({ message: "Sandbox checkout has not been prepared yet." });
+        }
+        const completedAt = new Date().toISOString();
+        const { data: completedPayment, error: completionError } = await supabase
+          .from("payment_transactions")
+          .update({
+            payment_status: "paid",
+            payment_date: completedAt,
+            paid_at: completedAt,
+            updated_at: completedAt,
+            raw_payload: {
+              ...(existingPayment.raw_payload && typeof existingPayment.raw_payload === "object" ? existingPayment.raw_payload : {}),
+              sandbox_simulated: true,
+            },
+          })
+          .eq("id", existingPayment.id)
+          .select("*")
+          .single();
+        if (completionError || !completedPayment) {
+          return res.status(500).json({ message: "Failed to complete Sandbox checkout." });
+        }
+        const finalized = await finalizeAcceptedProposalFromPayment(completedPayment);
+        return res.json({
+          message: "Sandbox package payment simulated and confirmed.",
+          paymentStatus: "PAID",
+          sandbox: true,
+          status: finalized.status,
+          parentCode: finalized.parentCode,
+        });
+      }
       if (existingPayment?.payment_status === "paid") {
         const finalized = await finalizeAcceptedProposalFromPayment(existingPayment);
         return res.json({
@@ -29631,6 +29707,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (paymentSaveError || !savedPayment) {
         console.error("Error saving payment transaction:", paymentSaveError);
         return res.status(500).json({ message: "Failed to prepare payment transaction" });
+      }
+
+      if (payfastSandboxForEnrollment) {
+        return res.json({
+          message: "Sandbox checkout ready.",
+          onboardingType: "commercial",
+          paymentStatus: "UNPAID",
+          sandbox: true,
+          sandboxCheckout: true,
+          packageKey: servicePackage.key,
+          plan: servicePackage.label,
+          sessionsPerMonth: servicePackage.sessionsPerMonth,
+          plannedSessionsPerWeek: servicePackage.plannedSessionsPerWeek,
+          merchantReference,
+        });
       }
 
       const payfastFields = payfastSandboxForEnrollment
@@ -30782,6 +30873,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      if (useSandbox && req.body?.completeSandboxPayment === true) {
+        const { data: pendingRenewal, error: pendingRenewalError } = await supabase
+          .from("payment_transactions")
+          .select("*")
+          .eq("parent_id", parentId)
+          .eq("enrollment_id", enrollment.id)
+          .eq("provider", PAYMENT_PROVIDER_PAYFAST)
+          .eq("payment_status", "pending")
+          .contains("raw_payload", { renewal: true, month_key: monthKey })
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (pendingRenewalError || !pendingRenewal) {
+          return res.status(409).json({ message: "Sandbox renewal checkout has not been prepared yet." });
+        }
+        const completedAt = new Date().toISOString();
+        const { data: completedRenewal, error: completionError } = await supabase
+          .from("payment_transactions")
+          .update({
+            payment_status: "paid",
+            payment_date: completedAt,
+            paid_at: completedAt,
+            updated_at: completedAt,
+            raw_payload: {
+              ...(pendingRenewal.raw_payload && typeof pendingRenewal.raw_payload === "object" ? pendingRenewal.raw_payload : {}),
+              sandbox_simulated: true,
+            },
+          })
+          .eq("id", pendingRenewal.id)
+          .select("*")
+          .single();
+        if (completionError || !completedRenewal) {
+          return res.status(500).json({ message: "Failed to complete Sandbox renewal." });
+        }
+        await applyRenewalTransactionToMembershipMonth(completedRenewal);
+        return res.json({
+          message: "Sandbox package renewal simulated and confirmed.",
+          paymentStatus: "PAID",
+          sandbox: true,
+          alreadyPaid: true,
+        });
+      }
+
       const merchantReference = `response-integrity-renewal-${monthKey}-${uuidv4()}`;
       const payfastConfig = getPayfastConfig(useSandbox);
       const nowIso = new Date().toISOString();
@@ -30821,6 +30955,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (paymentSaveError || !savedPayment) {
         console.error("Error saving renewal payment transaction:", paymentSaveError);
         return res.status(500).json({ message: "Failed to prepare renewal payment." });
+      }
+
+      if (useSandbox) {
+        return res.json({
+          message: "Sandbox renewal checkout ready.",
+          paymentStatus: "UNPAID",
+          sandbox: true,
+          sandboxCheckout: true,
+          packageKey: servicePackage.key,
+          sessionsPerMonth: servicePackage.sessionsPerMonth,
+          plannedSessionsPerWeek: servicePackage.plannedSessionsPerWeek,
+          merchantReference,
+        });
       }
 
       const payfastFields = withPayfastSignature(
