@@ -30873,6 +30873,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      if (useSandbox && req.body?.completeSandboxPayment === true) {
+        const { data: pendingRenewal, error: pendingRenewalError } = await supabase
+          .from("payment_transactions")
+          .select("*")
+          .eq("parent_id", parentId)
+          .eq("enrollment_id", enrollment.id)
+          .eq("provider", PAYMENT_PROVIDER_PAYFAST)
+          .eq("payment_status", "pending")
+          .contains("raw_payload", { renewal: true, month_key: monthKey })
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (pendingRenewalError || !pendingRenewal) {
+          return res.status(409).json({ message: "Sandbox renewal checkout has not been prepared yet." });
+        }
+        const completedAt = new Date().toISOString();
+        const { data: completedRenewal, error: completionError } = await supabase
+          .from("payment_transactions")
+          .update({
+            payment_status: "paid",
+            payment_date: completedAt,
+            paid_at: completedAt,
+            updated_at: completedAt,
+            raw_payload: {
+              ...(pendingRenewal.raw_payload && typeof pendingRenewal.raw_payload === "object" ? pendingRenewal.raw_payload : {}),
+              sandbox_simulated: true,
+            },
+          })
+          .eq("id", pendingRenewal.id)
+          .select("*")
+          .single();
+        if (completionError || !completedRenewal) {
+          return res.status(500).json({ message: "Failed to complete Sandbox renewal." });
+        }
+        await applyRenewalTransactionToMembershipMonth(completedRenewal);
+        return res.json({
+          message: "Sandbox package renewal simulated and confirmed.",
+          paymentStatus: "PAID",
+          sandbox: true,
+          alreadyPaid: true,
+        });
+      }
+
       const merchantReference = `response-integrity-renewal-${monthKey}-${uuidv4()}`;
       const payfastConfig = getPayfastConfig(useSandbox);
       const nowIso = new Date().toISOString();
@@ -30912,6 +30955,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (paymentSaveError || !savedPayment) {
         console.error("Error saving renewal payment transaction:", paymentSaveError);
         return res.status(500).json({ message: "Failed to prepare renewal payment." });
+      }
+
+      if (useSandbox) {
+        return res.json({
+          message: "Sandbox renewal checkout ready.",
+          paymentStatus: "UNPAID",
+          sandbox: true,
+          sandboxCheckout: true,
+          packageKey: servicePackage.key,
+          sessionsPerMonth: servicePackage.sessionsPerMonth,
+          plannedSessionsPerWeek: servicePackage.plannedSessionsPerWeek,
+          merchantReference,
+        });
       }
 
       const payfastFields = withPayfastSignature(
