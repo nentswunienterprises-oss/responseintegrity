@@ -30846,6 +30846,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }) : null;
       const current = getMonthlyServicePackage(quota?.package_key || enrollment.package_key);
       const next = getMonthlyServicePackage(requestedPackageKey);
+      const scheduledKey = String(enrollment.next_package_key || "").trim().toLowerCase();
+      if (scheduledKey && requestedPackageKey === scheduledKey) {
+        return res.status(409).json({ message: "That package is already scheduled for the next cycle." });
+      }
+      if (!scheduledKey && requestedPackageKey === current.key) {
+        return res.status(409).json({ message: "That package is already active." });
+      }
       const { error: updateError } = await supabase
         .from("parent_enrollments")
         .update({ next_package_key: requestedPackageKey === current.key ? null : requestedPackageKey, updated_at: new Date().toISOString() })
