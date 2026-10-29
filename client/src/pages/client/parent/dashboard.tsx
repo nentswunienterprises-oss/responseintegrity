@@ -1054,8 +1054,7 @@ export default function ParentDashboard() {
             <DialogHeader>
               <DialogTitle>{studentName} Training Plan</DialogTitle>
             </DialogHeader>
-            <ProposalView\n              proposal={proposal}\n              topicStates={topicCards}\n              forceDiagnosisView={isDiagnosisOnlyView}\n              hidePricing={trainingSessionsData?.operationalMode === "sandbox"}\n            />
-          </DialogContent>
+            <ProposalView\n              proposal={proposal}\n              topicStates={topicCards}\n              forceDiagnosisView={isDiagnosisOnlyView}\n              hidePricing={trainingSessionsData?.operationalMode === "sandbox"}\n            />\n          </DialogContent>
         </Dialog>
       )}
 
