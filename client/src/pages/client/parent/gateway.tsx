@@ -803,7 +803,7 @@ export default function ParentGateway() {
           )}
           <ProposalView
             proposal={proposal}
-            hidePricing={Boolean((proposal as any)?.isSandboxAccount || trainingSessionsData?.operationalMode === "sandbox")}
+            hidePricing={Boolean((proposal as any)?.isSandboxAccount || trainingSessionsData?.operationalMode === "sandbox")}\n            packageSessionsOverride={Number(trainingSessionsData?.monthlyQuota?.session_quota || 0) || undefined}\n            plannedSessionsPerWeekOverride={trainingSessionsData?.monthlyQuota?.session_quota ? Math.ceil(Number(trainingSessionsData.monthlyQuota.session_quota) / 4) : undefined}
             forceDiagnosisView={true}
             showActions={showProposalActions}
             onAccept={showProposalActions ? handleAcceptProposal : undefined}
