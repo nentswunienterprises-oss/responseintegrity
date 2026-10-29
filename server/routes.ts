@@ -29295,6 +29295,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         const existingPayment = existingPaymentResult.rows[0] || null;
 
+        if (payfastSandboxForEnrollment && req.body?.completeSandboxPayment === true) {
+          if (!existingPayment) {
+            return res.status(409).json({ message: "Sandbox checkout has not been prepared yet." });
+          }
+          const completedAt = new Date().toISOString();
+          const completedPaymentResult = await pool.query(
+            `UPDATE public.payment_transactions
+                SET payment_status = 'paid',
+                    payment_date = $1,
+                    paid_at = $1,
+                    updated_at = $1,
+                    raw_payload = COALESCE(raw_payload, '{}'::jsonb) || '{"sandbox_simulated":true}'::jsonb
+              WHERE id = $2
+              RETURNING *`,
+            [completedAt, existingPayment.id],
+          );
+          const completedPayment = completedPaymentResult.rows[0] || null;
+          if (!completedPayment) {
+            return res.status(500).json({ message: "Failed to complete Sandbox checkout." });
+          }
+          const finalized = await finalizeAcceptedProposalFromPayment(completedPayment);
+          return res.json({
+            message: "Sandbox package payment simulated and confirmed.",
+            paymentStatus: "PAID",
+            sandbox: true,
+            status: finalized.status,
+            parentCode: finalized.parentCode,
+          });
+        }
         if (String(existingPayment?.payment_status || "").toLowerCase() === "paid") {
           const finalized = await finalizeAcceptedProposalFromPayment(existingPayment);
           return res.json({
@@ -29415,6 +29444,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         if (!savedPayment) {
           return res.status(500).json({ message: "Failed to prepare payment transaction" });
+        }
+
+        if (payfastSandboxForEnrollment) {
+          return res.json({
+            message: "Sandbox checkout ready.",
+            onboardingType: "commercial",
+            paymentStatus: "UNPAID",
+            sandbox: true,
+            sandboxCheckout: true,
+            packageKey: servicePackage.key,
+            plan: servicePackage.label,
+            sessionsPerMonth: servicePackage.sessionsPerMonth,
+            plannedSessionsPerWeek: servicePackage.plannedSessionsPerWeek,
+            merchantReference,
+          });
         }
 
         const payfastFields = payfastSandboxForEnrollment
