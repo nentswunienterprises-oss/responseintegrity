@@ -539,16 +539,27 @@ export default function ParentProgress() {
                         <div className="space-y-3">
                           {subscriptionPackages.map((pkg) => {
                             const selected = selectedPackageKey === pkg.key;
+                            const isScheduled = subscriptionData?.scheduled?.key === pkg.key;
+                            const isCurrent = !subscriptionData?.scheduled && subscriptionData?.current?.key === pkg.key;
+                            const unavailable = isScheduled || isCurrent;
                             return (
                               <button
                                 key={pkg.key}
                                 type="button"
-                                className={`w-full rounded-lg border p-3 text-left transition-colors ${selected ? "border-primary bg-primary/5" : "hover:border-primary/50"}`}
+                                disabled={unavailable}
+                                aria-pressed={selected}
+                                className={`w-full rounded-lg border p-3 text-left transition-colors ${selected ? "border-primary bg-primary/5" : unavailable ? "cursor-not-allowed opacity-60" : "hover:border-primary/50"}`}
                                 onClick={() => setSelectedPackageKey(pkg.key)}
                               >
                                 <div className="flex items-center justify-between gap-3">
                                   <span className="font-medium">{pkg.sessions}-session monthly package</span>
-                                  {selected && <Badge variant="secondary">Selected</Badge>}
+                                  {isScheduled ? (
+                                    <Badge variant="secondary">Already scheduled</Badge>
+                                  ) : isCurrent ? (
+                                    <Badge variant="outline">Current package</Badge>
+                                  ) : selected ? (
+                                    <Badge variant="secondary">Selected</Badge>
+                                  ) : null}
                                 </div>
                                 <p className="mt-1 text-xs text-muted-foreground">
                                   Planned frequency: {pkg.plannedSessionsPerWeek} per week
@@ -563,7 +574,7 @@ export default function ParentProgress() {
                         <div className="mt-4 flex justify-end">
                           <Button
                             type="button"
-                            disabled={!selectedPackageKey || manageSubscriptionMutation.isPending}
+                            disabled={!selectedPackageKey || selectedPackageKey === subscriptionData?.scheduled?.key || (!subscriptionData?.scheduled && selectedPackageKey === subscriptionData?.current?.key) || manageSubscriptionMutation.isPending}
                             onClick={() => selectedPackageKey && manageSubscriptionMutation.mutate(selectedPackageKey)}
                           >
                             {manageSubscriptionMutation.isPending ? "Saving..." : "Save Package"}
