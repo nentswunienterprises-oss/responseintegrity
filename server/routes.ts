@@ -29567,6 +29567,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to prepare payment" });
       }
 
+      if (payfastSandboxForEnrollment && req.body?.completeSandboxPayment === true) {
+        if (!existingPayment) {
+          return res.status(409).json({ message: "Sandbox checkout has not been prepared yet." });
+        }
+        const completedAt = new Date().toISOString();
+        const { data: completedPayment, error: completionError } = await supabase
+          .from("payment_transactions")
+          .update({
+            payment_status: "paid",
+            payment_date: completedAt,
+            paid_at: completedAt,
+            updated_at: completedAt,
+            raw_payload: {
+              ...(existingPayment.raw_payload && typeof existingPayment.raw_payload === "object" ? existingPayment.raw_payload : {}),
+              sandbox_simulated: true,
+            },
+          })
+          .eq("id", existingPayment.id)
+          .select("*")
+          .single();
+        if (completionError || !completedPayment) {
+          return res.status(500).json({ message: "Failed to complete Sandbox checkout." });
+        }
+        const finalized = await finalizeAcceptedProposalFromPayment(completedPayment);
+        return res.json({
+          message: "Sandbox package payment simulated and confirmed.",
+          paymentStatus: "PAID",
+          sandbox: true,
+          status: finalized.status,
+          parentCode: finalized.parentCode,
+        });
+      }
       if (existingPayment?.payment_status === "paid") {
         const finalized = await finalizeAcceptedProposalFromPayment(existingPayment);
         return res.json({
@@ -29675,6 +29707,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (paymentSaveError || !savedPayment) {
         console.error("Error saving payment transaction:", paymentSaveError);
         return res.status(500).json({ message: "Failed to prepare payment transaction" });
+      }
+
+      if (payfastSandboxForEnrollment) {
+        return res.json({
+          message: "Sandbox checkout ready.",
+          onboardingType: "commercial",
+          paymentStatus: "UNPAID",
+          sandbox: true,
+          sandboxCheckout: true,
+          packageKey: servicePackage.key,
+          plan: servicePackage.label,
+          sessionsPerMonth: servicePackage.sessionsPerMonth,
+          plannedSessionsPerWeek: servicePackage.plannedSessionsPerWeek,
+          merchantReference,
+        });
       }
 
       const payfastFields = payfastSandboxForEnrollment
