@@ -83,7 +83,7 @@ interface ProposalViewProps {
   onAccept?: (packageKey?: MonthlyPackageKey) => void;
   onDecline?: () => void;
   isProcessing?: boolean;
-  hidePricing?: boolean;
+  hidePricing?: boolean;\n  packageSessionsOverride?: number;\n  plannedSessionsPerWeekOverride?: number;
 }
 
 export default function ProposalView({ 
