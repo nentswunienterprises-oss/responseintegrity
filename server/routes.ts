@@ -4309,6 +4309,49 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
         ],
       );
 
+      const transactionRawPayload =
+        transaction?.raw_payload && typeof transaction.raw_payload === "object"
+          ? transaction.raw_payload
+          : {};
+      const isSandboxPayment =
+        String(transactionRawPayload.payfast_mode || "").trim().toLowerCase() === "sandbox" ||
+        transactionRawPayload.sandbox_checkout === true ||
+        transactionRawPayload.sandbox_simulated === true;
+      const initialMonthKey = nowIso.slice(0, 7) + "-01";
+      await client.query(
+        `INSERT INTO public.membership_months (
+           parent_id, student_id, enrollment_id, month_start, month_key,
+           package_key, planned_sessions_per_week, session_price,
+           specialist_per_session_amount, platform_per_session_amount,
+           specialist_earned_amount, specialist_payable_amount, payout_status,
+           session_quota, sessions_used, sessions_remaining, status, is_sandbox,
+           created_at, updated_at
+         )
+         VALUES ($1,$2,$3,$4,$4,$5,$6,$7,$8,$9,0,0,'accruing',$10,0,$10,'active',$11,$12,$12)
+         ON CONFLICT (parent_id, student_id, month_key, is_sandbox)
+         DO UPDATE SET
+           enrollment_id = EXCLUDED.enrollment_id,
+           package_key = EXCLUDED.package_key,
+           planned_sessions_per_week = EXCLUDED.planned_sessions_per_week,
+           session_quota = EXCLUDED.session_quota,
+           sessions_remaining = GREATEST(EXCLUDED.session_quota - public.membership_months.sessions_used, 0),
+           updated_at = EXCLUDED.updated_at`,
+        [
+          String(transaction?.parent_id || ""),
+          String(proposal.student_id),
+          enrollment.id,
+          initialMonthKey,
+          servicePackage.key,
+          servicePackage.plannedSessionsPerWeek,
+          SESSION_PRICE_ZAR,
+          SPECIALIST_SESSION_SHARE_ZAR,
+          RESPONSE_INTEGRITY_SESSION_SHARE_ZAR,
+          servicePackage.sessionsPerMonth,
+          isSandboxPayment,
+          nowIso,
+        ],
+      );
+
       await client.query(
         `UPDATE public.onboarding_proposals
             SET enrollment_id = $1,
@@ -4514,7 +4557,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
   }
 
   const nowIso = new Date().toISOString();
-  const servicePackage = getMonthlyServicePackage(proposal.package_key || transaction?.package_key);
+  const servicePackage = getMonthlyServicePackage(transaction?.package_key || proposal.package_key);
 
   const { error: updateError } = await supabase
     .from("parent_enrollments")
@@ -4531,6 +4574,38 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
   if (updateError) {
     throw new Error("Failed to unlock session flow after payment.");
   }
+
+  const transactionRawPayload =
+    transaction?.raw_payload && typeof transaction.raw_payload === "object"
+      ? transaction.raw_payload
+      : {};
+  const isSandboxPayment =
+    String(transactionRawPayload.payfast_mode || "").trim().toLowerCase() === "sandbox" ||
+    transactionRawPayload.sandbox_checkout === true ||
+    transactionRawPayload.sandbox_simulated === true;
+  await upsertMembershipMonth({
+    parentId: String(transaction?.parent_id || ""),
+    studentId: String(proposal.student_id),
+    enrollmentId: enrollment.id,
+    monthStartIso: nowIso,
+    isSandbox: isSandboxPayment,
+    packageKey: servicePackage.key,
+  });
+  const monthKey = toMonthKey(getMonthStartIso(nowIso) || nowIso);
+  await supabase
+    .from("membership_months")
+    .update({
+      enrollment_id: enrollment.id,
+      package_key: servicePackage.key,
+      planned_sessions_per_week: servicePackage.plannedSessionsPerWeek,
+      session_quota: servicePackage.sessionsPerMonth,
+      sessions_remaining: servicePackage.sessionsPerMonth,
+      updated_at: nowIso,
+    })
+    .eq("parent_id", String(transaction?.parent_id || ""))
+    .eq("student_id", String(proposal.student_id))
+    .eq("month_key", monthKey)
+    .eq("is_sandbox", isSandboxPayment);
 
   await supabase
     .from("onboarding_proposals")
