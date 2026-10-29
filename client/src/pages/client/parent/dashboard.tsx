@@ -496,7 +496,7 @@ export default function ParentDashboard() {
     refetchOnReconnect: !emergencyDbMode,
   });
 
-  const { data: trainingSessionsData } = useQuery<{ monthlyQuota?: { sessions_remaining?: number; session_quota?: number } | null }>({
+  const { data: trainingSessionsData } = useQuery<{ operationalMode?: string; monthlyQuota?: { sessions_remaining?: number; session_quota?: number } | null }>({
     queryKey: ["/api/parent/training-sessions"],
     queryFn: getQueryFn({ on401: "returnNull" }),
     refetchInterval: emergencyDbMode ? false : 15000,
@@ -1054,7 +1054,7 @@ export default function ParentDashboard() {
             <DialogHeader>
               <DialogTitle>{studentName} Training Plan</DialogTitle>
             </DialogHeader>
-            <ProposalView proposal={proposal} topicStates={topicCards} forceDiagnosisView={isDiagnosisOnlyView} />
+            <ProposalView\n              proposal={proposal}\n              topicStates={topicCards}\n              forceDiagnosisView={isDiagnosisOnlyView}\n              hidePricing={trainingSessionsData?.operationalMode === "sandbox"}\n            />
           </DialogContent>
         </Dialog>
       )}
