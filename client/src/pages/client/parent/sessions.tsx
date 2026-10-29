@@ -10,6 +10,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarDays } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TrainingSessionCancellationDialog } from "@/components/scheduling/TrainingSessionCancellationDialog";
 import {
   PARENT_TRAINING_SESSION_CANCELLATION_REASONS,
