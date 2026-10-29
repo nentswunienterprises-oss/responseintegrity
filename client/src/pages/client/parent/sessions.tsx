@@ -1091,7 +1091,6 @@ export default function ParentSessions() {
         }}
       />
     </div>
-  );
     </>
   );
 }
