@@ -149,6 +149,12 @@ export default function ParentGateway() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessingProposal, setIsProcessingProposal] = useState(false);
   const [isRenewing, setIsRenewing] = useState(false);
+  const [sandboxCheckout, setSandboxCheckout] = useState<{
+    kind: "proposal" | "renewal";
+    packageKey?: MonthlyPackageKey;
+    sessionsPerMonth?: number;
+    plannedSessionsPerWeek?: number;
+  } | null>(null);
   const [parentCode, setParentCode] = useState<string | null>(null);
   const [emergencyDbMode, setEmergencyDbMode] = useState(false);
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
@@ -528,6 +534,48 @@ export default function ParentGateway() {
     enrollmentStatus?.status === "report_received" ||
     enrollmentStatus?.status === "confirmed";
 
+  const handleCompleteSandboxPayment = async () => {
+    if (!sandboxCheckout) return;
+    const endpoint = sandboxCheckout.kind === "renewal"
+      ? "/api/parent/payments/renew"
+      : "/api/parent/proposal/accept";
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (session?.access_token) headers["Authorization"] = `Bearer ${session.access_token}`;
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          completeSandboxPayment: true,
+          ...(sandboxCheckout.packageKey ? { packageKey: sandboxCheckout.packageKey } : {}),
+        }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || data?.paymentStatus !== "PAID") {
+        throw new Error(data?.message || "Failed to complete Sandbox checkout.");
+      }
+      if (data.parentCode) setParentCode(data.parentCode);
+      setSandboxCheckout(null);
+      toast({
+        title: "Sandbox payment confirmed",
+        description: "The Sandbox package is active and sessions are unlocked. No real money was charged.",
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/parent/enrollment-status"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/parent/proposal"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/parent/training-sessions"] }),
+      ]);
+    } catch (error) {
+      toast({
+        title: "Sandbox checkout error",
+        description: error instanceof Error ? error.message : "Failed to complete Sandbox checkout.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Handlers defined below are used by the proposal panel rendered later in the component.
   const handleAcceptProposal = async (packageKey?: MonthlyPackageKey) => {
     setIsProcessingProposal(true);
@@ -546,6 +594,16 @@ export default function ParentGateway() {
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(data?.message || "Failed to start monthly package payment");
+      }
+
+      if (data?.sandboxCheckout === true) {
+        setSandboxCheckout({
+          kind: "proposal",
+          packageKey: data.packageKey,
+          sessionsPerMonth: data.sessionsPerMonth,
+          plannedSessionsPerWeek: data.plannedSessionsPerWeek,
+        });
+        return;
       }
 
       if (data?.paymentStatus === "PAID" || data?.paymentStatus === "FREE_ACCESS") {
@@ -610,6 +668,15 @@ export default function ParentGateway() {
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(data?.message || "Failed to start renewal payment");
+      }
+      if (data?.sandboxCheckout === true) {
+        setSandboxCheckout({
+          kind: "renewal",
+          packageKey: data.packageKey,
+          sessionsPerMonth: data.sessionsPerMonth,
+          plannedSessionsPerWeek: data.plannedSessionsPerWeek,
+        });
+        return;
       }
       if (data?.alreadyPaid || data?.paymentStatus === "PAID") {
         toast({
@@ -2205,6 +2272,30 @@ export default function ParentGateway() {
             </CardContent>
           </Card>
         )}
+
+        <Dialog open={Boolean(sandboxCheckout)} onOpenChange={(open) => !open && setSandboxCheckout(null)}>
+          <DialogContent className="mx-2 max-w-md sm:mx-auto">
+            <DialogHeader>
+              <DialogTitle>Sandbox package checkout</DialogTitle>
+              <DialogDescription>
+                This is a simulated checkout for the Sandbox environment. No real money is charged.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="rounded-lg border bg-muted/20 p-4">
+                <p className="font-semibold">
+                  {sandboxCheckout?.sessionsPerMonth || "Monthly"}-session monthly package
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Planned frequency: {sandboxCheckout?.plannedSessionsPerWeek || "monthly"} per week
+                </p>
+              </div>
+              <Button type="button" className="w-full" onClick={handleCompleteSandboxPayment}>
+                Complete simulated Sandbox checkout
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Loading State */}
         {step === "loading" && (
