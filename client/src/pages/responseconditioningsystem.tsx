@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import { trainingMilestone } from "@/lib/training-milestone";
-import { isCapabilityTransformationSandboxReady } from "@shared/capabilityTrainingSequencing";
 
 const modules = [
   {
@@ -244,12 +243,9 @@ export default function ResponseConditioningSystem() {
       ? "Loading your next development milestone…"
       : trainingMilestone(capabilityAssessments, mode, practicalsQuery.data);
   const stageGate = capabilityPlanQuery.data?.stageGate;
-  // The catalogue mirrors the current pathway stage instead of tying locks to Sandbox mode alone.
-  // Training specialists unlock later deep dives after Transformation mastery, retention and application.
-  // Sandbox specialists unlock them after the required development coverage is complete.
-  const developmentPathwayBlocked = mode === "sandbox"
-    ? stageGate?.developmentCoverageReady !== true
-    : !isCapabilityTransformationSandboxReady(capabilityAssessments);
+  // Remaining deep dives stay locked in every operational mode until Sandbox development coverage is complete.
+  // Transformation mastery, retention and application qualify a specialist for Sandbox; they do not unlock these modules.
+  const developmentPathwayBlocked = stageGate?.developmentCoverageReady !== true;
 
   return (
     <div className="min-h-screen bg-background">
