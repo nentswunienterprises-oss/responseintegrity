@@ -438,7 +438,7 @@ export default function ResponseConditioningSystem() {
               {completedCapabilityChecks} of {totalCapabilityChecks} Deep Dive Capability Checks completed.
             </p>
             <p className="border-t border-border pt-4 text-sm" aria-live="polite">
-              {developmentPathwayBlocked ? stageGate.reason : milestoneMessage}
+              {developmentPathwayBlocked ? (stageGate?.reason || milestoneMessage) : milestoneMessage}
             </p>
             {developmentPathwayBlocked ? (
               <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
@@ -447,7 +447,7 @@ export default function ResponseConditioningSystem() {
                   Remaining Training Capability Checks are locked until Sandbox development coverage is complete. Once coverage is complete, these checks unlock before the final zero-divergence graduation run.
                 </p>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Coverage: {stageGate.developmentCoverageReady ? "Established" : "Developing"} · Clean sessions: {stageGate.qualifyingSessions ?? 0}/{stageGate.requiredSessions ?? "—"}
+                  Coverage: {stageGate?.developmentCoverageReady ? "Established" : "Developing"} · Clean sessions: {stageGate?.qualifyingSessions ?? 0}/{stageGate?.requiredSessions ?? "—"}
                 </p>
               </div>
             ) : null}
