@@ -1054,7 +1054,15 @@ export default function ParentDashboard() {
             <DialogHeader>
               <DialogTitle>{studentName} Training Plan</DialogTitle>
             </DialogHeader>
-            <ProposalView\n              proposal={proposal}\n              topicStates={topicCards}\n              forceDiagnosisView={isDiagnosisOnlyView}\n              hidePricing={trainingSessionsData?.operationalMode === "sandbox"}\n              packageSessionsOverride={Number(trainingSessionsData?.monthlyQuota?.session_quota || 0) || undefined}\n              plannedSessionsPerWeekOverride={trainingSessionsData?.monthlyQuota?.session_quota ? Math.ceil(Number(trainingSessionsData.monthlyQuota.session_quota) / 4) : undefined}\n            />\n          </DialogContent>
+            <ProposalView
+              proposal={proposal}
+              topicStates={topicCards}
+              forceDiagnosisView={isDiagnosisOnlyView}
+              hidePricing={trainingSessionsData?.operationalMode === "sandbox"}
+              packageSessionsOverride={Number(trainingSessionsData?.monthlyQuota?.session_quota || 0) || undefined}
+              plannedSessionsPerWeekOverride={trainingSessionsData?.monthlyQuota?.session_quota ? Math.ceil(Number(trainingSessionsData.monthlyQuota.session_quota) / 4) : undefined}
+            />
+          </DialogContent>
         </Dialog>
       )}
 
