@@ -363,7 +363,7 @@ export default function ResponseConditioningSystem() {
                   const title = `${gateScope} ${isRetrieval ? "Retention" : "Application"}`;
 
                   const detail =
-                    sandboxTrainingBlocked && assessment.status !== "complete"
+                    developmentPathwayBlocked && assessment.status !== "complete"
                       ? "Sandbox development coverage is required before this gate unlocks. The zero-divergence graduation run comes afterward."
                       : assessment.status === "complete"
                       ? isRetrieval
@@ -399,7 +399,7 @@ export default function ResponseConditioningSystem() {
                         </p>
                       </div>
 
-                      {assessment.status === "available" && !sandboxTrainingBlocked ? (
+                      {assessment.status === "available" && !developmentPathwayBlocked ? (
                         <Button asChild>
                           <Link
                             to={`/operational/specialist/capability/${assessment.assessmentKey}`}
@@ -438,9 +438,9 @@ export default function ResponseConditioningSystem() {
               {completedCapabilityChecks} of {totalCapabilityChecks} Deep Dive Capability Checks completed.
             </p>
             <p className="border-t border-border pt-4 text-sm" aria-live="polite">
-              {sandboxTrainingBlocked ? stageGate.reason : milestoneMessage}
+              {developmentPathwayBlocked ? stageGate.reason : milestoneMessage}
             </p>
-            {sandboxTrainingBlocked ? (
+            {developmentPathwayBlocked ? (
               <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
                 <p className="font-medium">Sandbox development gate active</p>
                 <p className="mt-1 text-muted-foreground">
