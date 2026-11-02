@@ -243,8 +243,10 @@ export default function ResponseConditioningSystem() {
       ? "Loading your next development milestone…"
       : trainingMilestone(capabilityAssessments, mode, practicalsQuery.data);
   const stageGate = capabilityPlanQuery.data?.stageGate;
-  const sandboxTrainingBlocked = stageGate?.mode === "sandbox" &&
-    stageGate.sandboxQualificationReady !== true;
+  // Keep the catalogue aligned with the authoritative progression gate in every mode.
+  // Training specialists must see later-stage modules as locked until Sandbox qualification is ready.
+  const developmentPathwayBlocked = Boolean(stageGate) &&
+    stageGate?.sandboxQualificationReady !== true;
 
   return (
     <div className="min-h-screen bg-background">
@@ -311,7 +313,7 @@ export default function ResponseConditioningSystem() {
 
                   <div className="space-y-2">
                     {module.items.map((item) => (
-                      sandboxTrainingBlocked && module.id !== "1" ? (
+                      developmentPathwayBlocked && module.id !== "1" ? (
                         <div
                           key={item.label}
                           className="flex items-center justify-between border-b border-dashed border-border/60 pb-2 text-sm text-muted-foreground"
