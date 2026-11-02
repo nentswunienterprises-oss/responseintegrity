@@ -4327,7 +4327,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
            session_quota, sessions_used, sessions_remaining, status, is_sandbox,
            created_at, updated_at
          )
-         VALUES ($1,$2,$3,$4,$4,$5,$6,$7,$8,$9,0,0,'accruing',$10,0,$10,'active',$11,$12,$12)
+         VALUES ($1,$2,$3,$4::date,$4::text,$5,$6,$7,$8,$9,0,0,'accruing',$10,0,$10,'active',$11,$12,$12)
          ON CONFLICT (parent_id, student_id, month_key, is_sandbox)
          DO UPDATE SET
            enrollment_id = EXCLUDED.enrollment_id,
