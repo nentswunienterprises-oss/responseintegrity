@@ -243,8 +243,9 @@ export default function ResponseConditioningSystem() {
       ? "Loading your next development milestone…"
       : trainingMilestone(capabilityAssessments, mode, practicalsQuery.data);
   const stageGate = capabilityPlanQuery.data?.stageGate;
-  const sandboxTrainingBlocked = stageGate?.mode === "sandbox" &&
-    stageGate.sandboxQualificationReady !== true;
+  // Remaining deep dives stay locked in every operational mode until Sandbox development coverage is complete.
+  // Transformation mastery, retention and application qualify a specialist for Sandbox; they do not unlock these modules.
+  const developmentPathwayBlocked = stageGate?.developmentCoverageReady !== true;
 
   return (
     <div className="min-h-screen bg-background">
@@ -311,7 +312,7 @@ export default function ResponseConditioningSystem() {
 
                   <div className="space-y-2">
                     {module.items.map((item) => (
-                      sandboxTrainingBlocked && module.id !== "1" ? (
+                      developmentPathwayBlocked && module.id !== "1" ? (
                         <div
                           key={item.label}
                           className="flex items-center justify-between border-b border-dashed border-border/60 pb-2 text-sm text-muted-foreground"
