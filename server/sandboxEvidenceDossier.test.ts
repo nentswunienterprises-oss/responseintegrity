@@ -9,6 +9,24 @@ before(async () => {
   database = new PGlite();
   await database.exec(`
     CREATE SCHEMA private;
+    CREATE TABLE public.users (id text, name text);
+    CREATE TABLE public.students (id text, tutor_id text);
+    CREATE TABLE public.response_integrity_diagnosis_runs (
+      id text, student_id text, tutor_id text, topic text, starting_phase text,
+      session_context text, session_container text, activity_kind text, status text,
+      probe_history jsonb, decision jsonb, source_drill_id text,
+      created_at timestamptz, completed_at timestamptz);
+    CREATE TABLE public.intro_session_drills (
+      id text, drill jsonb, submitted_at timestamptz);
+    INSERT INTO users VALUES ('student-a','Sandbox learner');
+    INSERT INTO students VALUES ('student-a','specialist');
+    INSERT INTO response_integrity_diagnosis_runs
+      (id,student_id,tutor_id,topic,starting_phase,session_context,session_container,activity_kind,status,probe_history,decision,source_drill_id,created_at,completed_at)
+    VALUES ('diagnosis-a','student-a','specialist','Percentages','Controlled Discomfort','intro','intro_session','intro_diagnosis','completed',
+      '[{"probeId":"clarity.recognition","observations":[{"dimensionId":"clarity.vocabulary","behaviorId":"no_recognition"}],"supportEvent":"teaching"}]',
+      '{"placementPhase":"Clarity","stability":"Medium"}','drill-a','2026-10-31','2026-11-02');
+    INSERT INTO intro_session_drills VALUES
+      ('drill-a','{"responseSnapshot":{"opportunities":[{"order":1,"probeId":"clarity.recognition","purpose":"Cold recognition without teaching","observations":[{"dimensionId":"clarity.vocabulary","behaviorId":"no_recognition"}],"supportEvent":"teaching"}]}}','2026-11-02');
     CREATE TABLE public.pods (id text, td_id text);
     CREATE TABLE public.tutor_assignments (id text, pod_id text, tutor_id text, created_at timestamptz);
     CREATE TABLE public.specialist_sandbox_rep_events (
@@ -95,6 +113,21 @@ test('assigned TD sees committed mismatches and state consequences without forei
   assert.equal(result.body.sessions[0].stateTrackAligned,false);
   assert.deepEqual(result.body.sessions[0].canonicalAuthority,{phase:'Clarity'});
   assert.doesNotMatch(JSON.stringify(result.body),/FOREIGN SECRET|FUTURE ANSWER/);
+});
+test('assigned TD can inspect diagnosis runs and probe submissions without fabricated canonical truth', async () => {
+  const result = await invoke({id:'td-a',role:'td'});
+  assert.equal(result.status,200);
+  assert.equal(result.body.diagnoses.length,1);
+  const run = result.body.diagnoses[0];
+  assert.equal(run.topic,'Percentages');
+  assert.equal(run.placementPhase,'Clarity');
+  assert.equal(run.probes.length,1);
+  assert.equal(run.probes[0].probeId,'clarity.recognition');
+  assert.equal(run.probes[0].supportEvent,'teaching');
+  assert.equal(run.probes[0].canonicalEvidenceAvailable,false);
+  assert.equal(run.probes[0].observations[0].behaviorId,'no_recognition');
+  assert.match(run.evidenceNotice,/not captured/);
+  assert.doesNotMatch(JSON.stringify(run),/expectedBehavior|canonicalObservations/);
 });
 test('legacy human-readable option IDs still resolve to canonical labels', async () => {
   await database.exec(`
