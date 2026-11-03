@@ -577,7 +577,7 @@ export function SandboxReadinessAssessmentCard({
                 <section className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Assigned students</p>
-                    <Badge variant="outline">{new Set(dossier.sessions.map((session) => session.studentId)).size} students · {dossier.sessions.length} sessions · {dossier.reps.length} reps</Badge>
+                    <Badge variant="outline">{new Set([...dossier.sessions.map((session) => session.studentId), ...dossier.diagnoses.map((run) => run.studentId)]).size} students · {dossier.sessions.length + dossier.diagnoses.length} sessions · {dossier.reps.length} reps</Badge>
                   </div>
                   {(() => {
                     const byId = new Map<string, any>(
