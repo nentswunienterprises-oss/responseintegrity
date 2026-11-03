@@ -1982,7 +1982,7 @@ export default function ParentGateway() {
                           <p className="font-medium text-red-900">Waiting for tutor confirmation</p>
                           {effectiveIntroSessionConfirmation.scheduled_time && (
                             <p className="text-xs text-red-700 mt-1">
-                              Proposed {sessionLabel}: {new Date(effectiveIntroSessionConfirmation.scheduled_time).toLocaleString()}
+                              Proposed {sessionLabel}: {new Date(effectiveIntroSessionConfirmation.scheduled_time).toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg", hourCycle: "h23" })}
                             </p>
                           )}
                         </div>
@@ -1999,7 +1999,7 @@ export default function ParentGateway() {
                           </p>
                           {effectiveIntroSessionConfirmation.scheduled_time && (
                             <p className="text-xs text-yellow-700 mt-1">
-                              Proposed schedule: {new Date(effectiveIntroSessionConfirmation.scheduled_time).toLocaleString()}
+                              Proposed schedule: {new Date(effectiveIntroSessionConfirmation.scheduled_time).toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg", hourCycle: "h23" })}
                             </p>
                           )}
                         </div>
@@ -2061,7 +2061,7 @@ export default function ParentGateway() {
                           <p className="font-medium text-green-900">Your {sessionLabel} has been confirmed</p>
                           {effectiveIntroSessionConfirmation.scheduled_time && (
                             <p className="text-sm text-green-700 mt-2">
-                              Scheduled for: {new Date(effectiveIntroSessionConfirmation.scheduled_time).toLocaleString()}
+                              Scheduled for: {new Date(effectiveIntroSessionConfirmation.scheduled_time).toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg", hourCycle: "h23" })}
                             </p>
                           )}
                           <p className="text-sm text-green-700 mt-2">
