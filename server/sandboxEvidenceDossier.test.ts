@@ -17,7 +17,7 @@ before(async () => {
       probe_history jsonb, decision jsonb, source_drill_id text,
       created_at timestamptz, completed_at timestamptz);
     CREATE TABLE public.intro_session_drills (
-      id text, drill jsonb, submitted_at timestamptz);
+      id text, drill jsonb, submitted_at timestamptz DEFAULT NULL);
     INSERT INTO users VALUES ('student-a','Sandbox learner');
     INSERT INTO students VALUES ('student-a','Sandbox learner','specialist');
     INSERT INTO response_integrity_diagnosis_runs
