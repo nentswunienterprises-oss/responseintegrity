@@ -110,7 +110,7 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
                        CASE WHEN jsonb_typeof(d.drill) = 'string'
                          THEN (d.drill #>> '{}')::jsonb
                          ELSE d.drill
-                       END -> 'responseSnapshot' AS response_snapshot
+                       END AS drill_payload
                   FROM public.response_integrity_diagnosis_runs r
                   INNER JOIN public.intro_session_drills d
                     ON d.id = r.source_drill_id
@@ -157,8 +157,10 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
       );
       const diagnosisRows = diagnosisResult.rows.map((row: any) => {
         const history = Array.isArray(row.probe_history) ? row.probe_history : [];
-        const snapshot = row.response_snapshot && typeof row.response_snapshot === "object" ? row.response_snapshot : {};
+        const drillPayload = row.drill_payload && typeof row.drill_payload === "object" ? row.drill_payload : {};
+        const snapshot = drillPayload.responseSnapshot && typeof drillPayload.responseSnapshot === "object" ? drillPayload.responseSnapshot : {};
         const opportunities = Array.isArray(snapshot.opportunities) ? snapshot.opportunities : [];
+        const savedExpectedEvidence = Array.isArray(drillPayload.evidence) ? drillPayload.evidence : [];
         const probes = history.map((probe: any, index: number) => {
           const submitted = opportunities.find((opportunity: any) =>
             Number(opportunity?.order) === index + 1 ||
@@ -173,15 +175,24 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
             behaviorId: String(observation?.behaviorId || ""),
           })).filter((observation: any) => observation.dimensionId && observation.behaviorId);
           const capture = liveEvidenceByProbe.get(`${row.id}:${index + 1}:${probeId}`) as any;
-          const canonical = capture && Array.isArray(capture.canonical_observations)
-            ? capture.canonical_observations.map((observation: any) => ({
-                dimensionId: String(observation?.dimensionId || ""),
-                behaviorId: String(observation?.behaviorId || ""),
-                behaviorLabel: getDiagnosisObservationOption(
-                  observation?.dimensionId as any, String(observation?.behaviorId || "")
-                )?.label || String(observation?.behaviorId || ""),
-              })).filter((observation: any) => observation.dimensionId && observation.behaviorId)
-            : [];
+          const retrospectiveEvidence = savedExpectedEvidence.filter((item: any) => String(item?.probeId || "") === probeId);
+          const capturedCanonical = capture && Array.isArray(capture.canonical_observations)
+            ? capture.canonical_observations
+            : null;
+          const canonicalSource = capturedCanonical || retrospectiveEvidence;
+          const canonical = canonicalSource.map((observation: any) => {
+            const dimensionId = String(observation?.dimensionId || "");
+            const behaviorId = String(observation?.behaviorId || "");
+            const currentRule = getDiagnosisObservationOption(dimensionId as any, behaviorId);
+            return {
+              dimensionId,
+              behaviorId,
+              behaviorLabel: currentRule?.label || String(observation?.behaviorLabel || behaviorId),
+              behaviorClass: currentRule?.behaviorClass || String(observation?.behaviorClass || "unresolved"),
+            };
+          }).filter((observation: any) => observation.dimensionId && observation.behaviorId);
+          const expectedSupportEvents = [...new Set(retrospectiveEvidence.map((item: any) => String(item?.supportEvent || "")).filter(Boolean))];
+          const expectedSupportEvent = expectedSupportEvents.length === 1 ? expectedSupportEvents[0] : null;
           const expectedByDimension = new Map(canonical.map((item: any) => [item.dimensionId, item.behaviorId]));
           const comparisons = recorded.map((item: any) => ({
             dimensionId: item.dimensionId,
@@ -198,12 +209,21 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
             canonicalObservations: canonical,
             comparisons,
             supportEvent: String(probe?.supportEvent || submitted?.supportEvent || "not_recorded"),
-            supportRecognitionStatus: "not_authored",
+            expectedSupportEvent: capturedCanonical ? null : expectedSupportEvent,
+            supportRecognitionStatus: capturedCanonical
+              ? "not_independently_compared"
+              : expectedSupportEvent
+                ? (expectedSupportEvent === String(probe?.supportEvent || submitted?.supportEvent || "not_recorded")
+                    ? "aligned"
+                    : "diverged")
+                : "unresolved",
             passiveTiming: probe?.passiveTiming || null,
             canonicalEvidenceAvailable: canonical.length > 0,
-            evidenceStatus: canonical.length ? "versioned_outcome_captured" : "canonical_truth_not_captured",
-            canonicalOutcomeKey: canonical.length ? String(capture.outcome_key || "") : null,
-            canonicalOutcomeVersion: canonical.length ? Number(capture.outcome_version) : null,
+            evidenceStatus: capturedCanonical ? "versioned_outcome_captured" : canonical.length ? "retrospective_current_rules" : "canonical_truth_not_captured",
+            evidenceProvenance: capturedCanonical ? "immutable_capture" : canonical.length ? "retrospective_current_rules" : "unavailable",
+            canonicalOutcomeKey: capturedCanonical ? String(capture.outcome_key || "") : null,
+            canonicalOutcomeVersion: capturedCanonical ? Number(capture.outcome_version) : null,
+            evaluationRulesVersion: "diagnosis-observation-matrix-current",
             simulatedBehavior: [],
             contaminationStatus: "not_established",
             contaminationReason: null,
@@ -228,8 +248,10 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
           probes,
           canonicalEvidenceAvailable: hasCanonical,
           evidenceNotice: hasCanonical
-            ? "RI's exact versioned diagnosis outcome was captured for the marked probes. Expected observations are compared with the Specialist's recorded observations. Expected support intervention is not yet independently authored."
-            : "This historical diagnosis run has no linked immutable canonical outcome capture. The saved response profile is not treated as canonical truth, and no expected response or support intervention has been reconstructed.",
+            ? probes.some((probe: any) => probe.evidenceProvenance === "retrospective_current_rules")
+              ? "Historical probes are retrospectively evaluated against the saved simulated response and current RI diagnosis observation rules. This is a current-rules assessment, not an immutable capture from the original run."
+              : "RI's exact versioned diagnosis outcome was captured for the marked probes. Expected observations are compared with the Specialist's recorded observations."
+            : "No usable expected diagnosis observations were preserved for this run. The dossier does not infer canonical truth from the placement decision.",
         };
       });
       const repRows = reps.rows.map((r: any) => {
