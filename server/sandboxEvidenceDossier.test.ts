@@ -29,7 +29,7 @@ before(async () => {
       '[{"probeId":"clarity.recognition","observations":[{"dimensionId":"clarity.vocabulary","behaviorId":"no_recognition"}],"supportEvent":"teaching"}]',
       '{"placementPhase":"Clarity","stability":"Medium"}','drill-a','scheduled-a','2026-10-31','2026-11-02');
     INSERT INTO intro_session_drills VALUES
-      ('drill-a','specialist','student-a','scheduled-a','{"responseSnapshot":{"opportunities":[{"order":1,"probeId":"clarity.recognition","purpose":"Cold recognition without teaching","observations":[{"dimensionId":"clarity.vocabulary","behaviorId":"no_recognition"}],"supportEvent":"teaching"}]}}','2026-11-02');
+      ('drill-a','specialist','student-a','scheduled-a','{"responseSnapshot":{"opportunities":[{"order":1,"probeId":"clarity.recognition","purpose":"Cold recognition without teaching","observations":[{"dimensionId":"clarity.vocabulary","behaviorId":"no_recognition"}],"supportEvent":"teaching"}]},"evidence":[{"probeId":"clarity.recognition","dimensionId":"clarity.vocabulary","behaviorId":"no_recognition","behaviorClass":"breakdown","behaviorLabel":"Could not identify the important terms or symbols","contaminated":false,"supportEvent":"none"}]}','2026-11-02');
     INSERT INTO scheduled_sessions VALUES ('scheduled-a','specialist','student-a');
     CREATE TABLE public.pods (id text, td_id text);
     CREATE TABLE public.tutor_assignments (id text, pod_id text, tutor_id text, created_at timestamptz);
@@ -128,11 +128,12 @@ test('assigned TD can inspect diagnosis runs and probe submissions without fabri
   assert.equal(run.probes.length,1);
   assert.equal(run.probes[0].probeId,'clarity.recognition');
   assert.equal(run.probes[0].supportEvent,'teaching');
-  assert.equal(run.probes[0].contaminationStatus,'contaminated');
-  assert.match(run.probes[0].contaminationReason,/support event/);
+  assert.equal(run.probes[0].contaminationStatus,'clean');
+  assert.equal(run.probes[0].contaminationReason,null);
   assert.equal(run.probes[0].canonicalEvidenceAvailable,false);
   assert.equal(run.probes[0].observations[0].behaviorId,'no_recognition');
-  assert.match(run.evidenceNotice,/not captured/);
+  assert.equal(run.probes[0].simulatedBehavior[0].behaviorLabel,'Could not identify the important terms or symbols');
+  assert.match(run.evidenceNotice,/simulated behaviour profile is available/);
   assert.doesNotMatch(JSON.stringify(run),/expectedBehavior|canonicalObservations/);
 });
 test('legacy human-readable option IDs still resolve to canonical labels', async () => {
