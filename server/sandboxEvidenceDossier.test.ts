@@ -124,6 +124,8 @@ test('assigned TD can inspect diagnosis runs and probe submissions without fabri
   assert.equal(run.probes.length,1);
   assert.equal(run.probes[0].probeId,'clarity.recognition');
   assert.equal(run.probes[0].supportEvent,'teaching');
+  assert.equal(run.probes[0].contaminationStatus,'contaminated');
+  assert.match(run.probes[0].contaminationReason,/support event/);
   assert.equal(run.probes[0].canonicalEvidenceAvailable,false);
   assert.equal(run.probes[0].observations[0].behaviorId,'no_recognition');
   assert.match(run.evidenceNotice,/not captured/);
