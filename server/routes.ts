@@ -13548,7 +13548,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { studentId } = req.params;
       const dbUser = (req as any).dbUser;
-      const { action, newDate, newTime } = req.body;
+      const { action, newDate, newTime, scheduledStart, timezone } = req.body;
       const student = await storage.getStudent(studentId);
       const studentWorkflow = ((student?.personalProfile as any) || {}).workflow || {};
       const sessionType = studentWorkflow.handoverRequiredAt && !studentWorkflow.handoverCompletedAt ? "handover" : "intro";
