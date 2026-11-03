@@ -110,7 +110,11 @@ type SandboxDossier = {
     sessionContext:string;sessionContainer:string;activityKind:string;status:string;createdAt?:string|null;completedAt?:string|null;
     placementPhase?:string|null;stability?:string|null;canonicalEvidenceAvailable:boolean;evidenceNotice:string;
     probes:Array<{sequence:number;probeId:string;purpose:string;supportEvent:string;contaminationStatus:"clean"|"contaminated"|"not_established";contaminationReason?:string|null;canonicalEvidenceAvailable:boolean;evidenceStatus:string;
-      passiveTiming:any;simulatedBehavior:Array<{dimensionId:string;behaviorId:string;behaviorLabel:string;behaviorClass:string;contaminated:boolean}>;observations:Array<{dimensionId:string;behaviorId:string}>}>}>;
+      passiveTiming:any;simulatedBehavior:Array<{dimensionId:string;behaviorId:string;behaviorLabel:string;behaviorClass:string;contaminated:boolean}>;
+      canonicalOutcomeKey?:string|null;canonicalOutcomeVersion?:number|null;
+      canonicalObservations:Array<{dimensionId:string;behaviorId:string;behaviorLabel:string}>;
+      comparisons:Array<{dimensionId:string;recordedBehaviorId:string;expectedBehaviorId:string|null;expectedBehaviorLabel:string|null;matched:boolean|null}>;
+      supportRecognitionStatus:string;observations:Array<{dimensionId:string;behaviorId:string}>}>}>;
 };
 
 const CAPABILITY_LABELS: Record<string, string> = {
@@ -572,7 +576,7 @@ export function SandboxReadinessAssessmentCard({
                                     <p className="text-muted-foreground">Status: <span className="font-medium text-foreground">{humanize(run.status)}</span></p>
                                   </div>
                                   <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-muted-foreground">
-                                    <p className="font-semibold text-foreground">Canonical evidence limitation</p>
+                                    <p className="font-semibold text-foreground">Diagnosis evidence</p>
                                     <p className="mt-1">{run.evidenceNotice}</p>
                                   </div>
                                   <div className="space-y-2">
@@ -594,18 +598,38 @@ export function SandboxReadinessAssessmentCard({
                                           <p className="text-muted-foreground">Evidence status: <span className="font-semibold text-foreground">{humanize(probe.contaminationStatus)}</span></p>
                                           {probe.contaminationReason ? <p className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-amber-700 dark:text-amber-300">{probe.contaminationReason}</p> : null}
                                           <p className="text-muted-foreground">Recorded support condition/event: <span className="font-medium text-foreground">{humanize(probe.supportEvent)}</span></p>
-                                          {probe.simulatedBehavior?.length ? (
-                                            <div className="space-y-2 rounded-md border border-sky-500/25 bg-sky-500/5 p-3">
-                                              <p className="font-semibold text-foreground">Simulated student behaviour</p>
-                                              {probe.simulatedBehavior.map((item, itemIndex) => (
-                                                <div key={`${item.dimensionId}-${itemIndex}`} className="rounded-md border bg-background/70 p-2">
-                                                  <p className="font-medium text-foreground">{humanize(item.dimensionId)}</p>
-                                                  <p className="mt-1 text-muted-foreground">{item.behaviorLabel || humanize(item.behaviorId)}</p>
-                                                  <p className="mt-1 text-[11px] text-muted-foreground">Evidence classification: {humanize(item.behaviorClass)}{item.contaminated ? " · support-affected" : ""}</p>
-                                                </div>
-                                              ))}
+                                          <div className="space-y-2 rounded-md border bg-muted/10 p-3">
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                              <p className="font-semibold text-foreground">Probe evidence comparison</p>
+                                              <Badge variant={probe.canonicalEvidenceAvailable ? "default" : "outline"}>
+                                                {probe.canonicalEvidenceAvailable
+                                                  ? `RI outcome v${probe.canonicalOutcomeVersion}`
+                                                  : "Canonical truth not captured"}
+                                              </Badge>
                                             </div>
-                                          ) : null}
+                                            {probe.canonicalEvidenceAvailable ? (
+                                              <div className="space-y-2">
+                                                {probe.comparisons.map((comparison, comparisonIndex) => (
+                                                  <div key={`${comparison.dimensionId}-${comparisonIndex}`} className="rounded-md border bg-background p-2">
+                                                    <p className="font-semibold text-foreground">{humanize(comparison.dimensionId)}</p>
+                                                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                                      <p className="text-muted-foreground"><span className="font-medium text-foreground">Specialist recorded:</span> {humanize(comparison.recordedBehaviorId)}</p>
+                                                      <p className="text-muted-foreground"><span className="font-medium text-foreground">RI expected:</span> {comparison.expectedBehaviorLabel || humanize(comparison.expectedBehaviorId || "Not available")}</p>
+                                                    </div>
+                                                    <div className="mt-2">
+                                                      <Badge variant={comparison.matched === true ? "default" : comparison.matched === false ? "destructive" : "outline"}>
+                                                        {comparison.matched === true ? "Aligned" : comparison.matched === false ? "Diverged" : "Unresolved"}
+                                                      </Badge>
+                                                    </div>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            ) : (
+                                              <p className="text-muted-foreground">This run has no immutable outcome capture for this probe. No expected response has been reconstructed.</p>
+                                            )}
+                                          </div>
+                                          <p className="text-muted-foreground">Support event recorded: <span className="font-medium text-foreground">{humanize(probe.supportEvent)}</span></p>
+                                          <p className="text-muted-foreground">Expected support intervention: <span className="font-medium text-foreground">Not independently authored — recognition alignment unresolved</span></p>
                                           {probe.passiveTiming?.elapsedMs != null ? (
                                             <p className="text-muted-foreground">Recorded active timing: <span className="font-medium text-foreground">{Math.round(probe.passiveTiming.elapsedMs / 1000)} seconds</span> · {humanize(probe.passiveTiming.timingValidity)}</p>
                                           ) : null}
