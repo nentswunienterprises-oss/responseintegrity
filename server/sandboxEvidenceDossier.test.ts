@@ -14,19 +14,23 @@ before(async () => {
     CREATE TABLE public.response_integrity_diagnosis_runs (
       id text, student_id text, tutor_id text, topic text, starting_phase text,
       session_context text, session_container text, activity_kind text, status text,
-      probe_history jsonb, decision jsonb, source_drill_id text,
+      probe_history jsonb, decision jsonb, source_drill_id text, scheduled_session_id text,
       created_at timestamptz, completed_at timestamptz);
     CREATE TABLE public.intro_session_drills (
-      id text, tutor_id text, drill jsonb, submitted_at timestamptz DEFAULT NULL);
+      id text, tutor_id text, student_id text, scheduled_session_id text,
+      drill jsonb, submitted_at timestamptz DEFAULT NULL);
+    CREATE TABLE public.scheduled_sessions (
+      id text, tutor_id text, student_id text);
     INSERT INTO users VALUES ('student-a','Sandbox learner');
     INSERT INTO students VALUES ('student-a','Sandbox learner','specialist');
     INSERT INTO response_integrity_diagnosis_runs
-      (id,student_id,tutor_id,topic,starting_phase,session_context,session_container,activity_kind,status,probe_history,decision,source_drill_id,created_at,completed_at)
+      (id,student_id,tutor_id,topic,starting_phase,session_context,session_container,activity_kind,status,probe_history,decision,source_drill_id,scheduled_session_id,created_at,completed_at)
     VALUES ('diagnosis-a','student-a','specialist','Percentages','Controlled Discomfort','intro','intro_session','intro_diagnosis','completed',
       '[{"probeId":"clarity.recognition","observations":[{"dimensionId":"clarity.vocabulary","behaviorId":"no_recognition"}],"supportEvent":"teaching"}]',
-      '{"placementPhase":"Clarity","stability":"Medium"}','drill-a','2026-10-31','2026-11-02');
+      '{"placementPhase":"Clarity","stability":"Medium"}','drill-a','scheduled-a','2026-10-31','2026-11-02');
     INSERT INTO intro_session_drills VALUES
-      ('drill-a','specialist','{"responseSnapshot":{"opportunities":[{"order":1,"probeId":"clarity.recognition","purpose":"Cold recognition without teaching","observations":[{"dimensionId":"clarity.vocabulary","behaviorId":"no_recognition"}],"supportEvent":"teaching"}]}}','2026-11-02');
+      ('drill-a','specialist','student-a','scheduled-a','{"responseSnapshot":{"opportunities":[{"order":1,"probeId":"clarity.recognition","purpose":"Cold recognition without teaching","observations":[{"dimensionId":"clarity.vocabulary","behaviorId":"no_recognition"}],"supportEvent":"teaching"}]}}','2026-11-02');
+    INSERT INTO scheduled_sessions VALUES ('scheduled-a','specialist','student-a');
     CREATE TABLE public.pods (id text, td_id text);
     CREATE TABLE public.tutor_assignments (id text, pod_id text, tutor_id text, created_at timestamptz);
     CREATE TABLE public.specialist_sandbox_rep_events (
