@@ -143,7 +143,7 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
             AND e.tutor_id = $2
             AND e.student_id IN (SELECT id FROM public.students WHERE tutor_id = $2)
             AND e.source_context_id IN (
-              SELECT r.id FROM public.response_integrity_diagnosis_runs r
+              SELECT r.id::text FROM public.response_integrity_diagnosis_runs r
                WHERE r.tutor_id = $2 AND r.session_container = 'intro_session'
                  AND r.activity_kind = 'intro_diagnosis' AND r.status = 'completed'
             )
