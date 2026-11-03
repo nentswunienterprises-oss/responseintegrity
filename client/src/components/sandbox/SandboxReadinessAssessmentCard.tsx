@@ -109,7 +109,7 @@ type SandboxDossier = {
   diagnoses:Array<{id:string;sourceDrillId?:string|null;studentId:string;studentName?:string|null;topic:string;startingPhase:string;
     sessionContext:string;sessionContainer:string;activityKind:string;status:string;createdAt?:string|null;completedAt?:string|null;
     placementPhase?:string|null;stability?:string|null;canonicalEvidenceAvailable:boolean;evidenceNotice:string;
-    probes:Array<{sequence:number;probeId:string;purpose:string;supportEvent:string;canonicalEvidenceAvailable:boolean;evidenceStatus:string;
+    probes:Array<{sequence:number;probeId:string;purpose:string;supportEvent:string;contaminationStatus:"clean"|"contaminated";contaminationReason?:string|null;canonicalEvidenceAvailable:boolean;evidenceStatus:string;
       passiveTiming:any;observations:Array<{dimensionId:string;behaviorId:string}>}>}>;
 };
 
@@ -542,11 +542,15 @@ export function SandboxReadinessAssessmentCard({
                                 <summary className="cursor-pointer list-none">
                                   <div className="flex flex-wrap items-center justify-between gap-2">
                                     <span className="text-sm font-medium">Probe {probe.sequence} · {humanize(probe.probeId)}</span>
-                                    <Badge variant="outline">Submission preserved · Canonical unavailable</Badge>
+                                    <Badge variant={probe.contaminationStatus === "contaminated" ? "destructive" : "secondary"}>
+                                      {probe.contaminationStatus === "contaminated" ? "Contaminated evidence" : "Clean submission"} · Canonical unavailable
+                                    </Badge>
                                   </div>
                                   {probe.purpose ? <p className="mt-1 text-xs text-muted-foreground">{probe.purpose}</p> : null}
                                 </summary>
                                 <div className="mt-3 space-y-2 border-t pt-3 text-xs">
+                                  <p className="text-muted-foreground">Evidence status: <span className="font-semibold text-foreground">{humanize(probe.contaminationStatus)}</span></p>
+                                  {probe.contaminationReason ? <p className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-amber-700 dark:text-amber-300">{probe.contaminationReason}</p> : null}
                                   <p className="text-muted-foreground">Support event: <span className="font-medium text-foreground">{humanize(probe.supportEvent)}</span></p>
                                   {probe.passiveTiming?.elapsedMs != null ? (
                                     <p className="text-muted-foreground">Recorded active timing: <span className="font-medium text-foreground">{Math.round(probe.passiveTiming.elapsedMs / 1000)} seconds</span> · {humanize(probe.passiveTiming.timingValidity)}</p>
