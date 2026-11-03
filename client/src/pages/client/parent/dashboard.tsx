@@ -552,7 +552,7 @@ export default function ParentDashboard() {
   const currentStep = getCurrentStepCopy(introSession || null, !!proposal, hasAccessCode);
   const isDiagnosisOnlyView = (stats?.trainingSessionsCompleted || 0) === 0;
   const nextSessionTime = introSession?.scheduled_time
-    ? new Date(introSession.scheduled_time).toLocaleString()
+    ? new Date(introSession.scheduled_time).toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg", hourCycle: "h23" })
     : null;
   const introStatusesWithSchedule = new Set([
     "pending_tutor_confirmation",
