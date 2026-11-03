@@ -292,7 +292,7 @@ export default function TutorSessions() {
                                   {session.student?.name || "Unlinked student"} • {sessionLabel(session.type)}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  {format(new Date(session.scheduled_time), "h:mm a")}
+                                  {new Intl.DateTimeFormat("en-ZA", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Africa/Johannesburg" }).format(new Date(session.scheduled_time))}
                                   {session.student?.grade ? ` • ${formatTutorGradeLabel(session.student.grade)}` : ""}
                                 </p>
                               </div>
@@ -380,7 +380,7 @@ export default function TutorSessions() {
                   <div>
                     <p className="font-medium">{sessionLabel(sessionLog.session.type)}</p>
                     <p className="text-sm text-muted-foreground">
-                      {format(new Date(sessionLog.session.scheduled_time), "EEEE, MMM d, yyyy • h:mm a")}
+                      {new Intl.DateTimeFormat("en-ZA", { weekday: "long", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Africa/Johannesburg" }).format(new Date(sessionLog.session.scheduled_time))}
                     </p>
                   </div>
                   <Badge variant="outline">{statusLabel(sessionLog.session.status)}</Badge>
