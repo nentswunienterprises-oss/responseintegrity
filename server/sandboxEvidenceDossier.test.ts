@@ -9,6 +9,11 @@ before(async () => {
   database = new PGlite();
   await database.exec(`
     CREATE SCHEMA private;
+    CREATE TABLE public.specialist_sandbox_live_evidence_turns (
+      id text, tutor_assignment_id text, tutor_id text, student_id text, scope text,
+      source_context_id text, sequence_number int, probe_id text, completed_at timestamptz DEFAULT now());
+    CREATE TABLE private.specialist_sandbox_live_evidence_truth (
+      event_id text, outcome_key text, outcome_version int, canonical_observations jsonb, trajectory_class text);
     CREATE TABLE public.users (id text, name text);
     CREATE TABLE public.students (id text, name text, tutor_id text);
     CREATE TABLE public.response_integrity_diagnosis_runs (
@@ -130,13 +135,32 @@ test('assigned TD can inspect diagnosis runs and probe submissions without fabri
   assert.equal(run.probes.length,1);
   assert.equal(run.probes[0].probeId,'clarity.recognition');
   assert.equal(run.probes[0].supportEvent,'teaching');
-  assert.equal(run.probes[0].contaminationStatus,'clean');
+  assert.equal(run.probes[0].contaminationStatus,'not_established');
   assert.equal(run.probes[0].contaminationReason,null);
   assert.equal(run.probes[0].canonicalEvidenceAvailable,false);
   assert.equal(run.probes[0].observations[0].behaviorId,'no_recognition');
-  assert.equal(run.probes[0].simulatedBehavior[0].behaviorLabel,'Could not identify the important terms or symbols');
-  assert.match(run.evidenceNotice,/simulated behaviour profile is available/);
+  assert.equal(run.probes[0].simulatedBehavior.length,0);
+  assert.match(run.evidenceNotice,/no linked immutable canonical outcome capture/);
   assert.doesNotMatch(JSON.stringify(run),/expectedBehavior|canonicalObservations/);
+});
+test('assigned TD sees exact captured diagnosis outcome truth beside the Specialist observation', async () => {
+  await database.exec(`
+    INSERT INTO public.specialist_sandbox_live_evidence_turns
+      (id,tutor_assignment_id,tutor_id,student_id,scope,source_context_id,sequence_number,probe_id)
+    VALUES ('capture-a','a','specialist','student-a','diagnosis','diagnosis-a',1,'clarity.recognition');
+    INSERT INTO private.specialist_sandbox_live_evidence_truth
+      (event_id,outcome_key,outcome_version,canonical_observations,trajectory_class)
+    VALUES ('capture-a','percentages.clarity.pattern_1',3,
+      '[{"dimensionId":"clarity.vocabulary","behaviorId":"no_recognition"}]','breakdown');
+  `);
+  const result = await invoke({id:'td-a',role:'td'});
+  const probe = result.body.diagnoses[0].probes[0];
+  assert.equal(probe.canonicalEvidenceAvailable,true);
+  assert.equal(probe.canonicalOutcomeKey,'percentages.clarity.pattern_1');
+  assert.equal(probe.canonicalOutcomeVersion,3);
+  assert.equal(probe.comparisons[0].matched,true);
+  assert.equal(probe.comparisons[0].expectedBehaviorLabel,'Could not identify the important terms or symbols');
+  assert.equal(probe.supportRecognitionStatus,'not_authored');
 });
 test('legacy human-readable option IDs still resolve to canonical labels', async () => {
   await database.exec(`
