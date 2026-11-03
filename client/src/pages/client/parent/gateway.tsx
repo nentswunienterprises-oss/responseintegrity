@@ -1118,6 +1118,7 @@ export default function ParentGateway() {
         body: JSON.stringify({
           proposedDate: format(proposedDate, "yyyy-MM-dd"),
           proposedTime,
+          scheduledStart: new Date(`${format(proposedDate, "yyyy-MM-dd")}T${proposedTime}`).toISOString(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Johannesburg",
         }),
       });
