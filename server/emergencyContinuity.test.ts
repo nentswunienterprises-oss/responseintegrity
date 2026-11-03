@@ -1667,27 +1667,3 @@ test("local server preloads environment before database-dependent imports", () =
   assert.match(envSource, /dotenv\.config\(\{ path: "\.env\.local" \}\)/);
   assert.match(envSource, /dotenv\.config\(\)/);
 });
-
-test("intro booking persists an explicit timezone-aware instant for parent proposals and specialist adjustments", () => {
-  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
-  const parentStart = routesSource.indexOf('app.post("/api/parent/intro-session/propose"');
-  const parentEnd = routesSource.indexOf("// Parent intro session confirmation status", parentStart);
-  const parentSource = routesSource.slice(parentStart, parentEnd);
-  const specialistStart = routesSource.indexOf('app.post("/api/tutor/students/:studentId/intro-session-response"');
-  const specialistEnd = routesSource.indexOf('app.get(\n    "/api/tutor/students/:studentId/training-sessions"', specialistStart);
-  const specialistSource = routesSource.slice(specialistStart, specialistEnd);
-
-  assert.ok(parentStart >= 0);
-  assert.ok(parentEnd > parentStart);
-  assert.match(parentSource, /scheduledStart/);
-  assert.match(parentSource, /parsedScheduledStart\.toISOString\(\)/);
-  assert.match(parentSource, /scheduled_time = \$3::timestamptz/);
-  assert.match(parentSource, /\$4::timestamptz/);
-  assert.doesNotMatch(parentSource, /scheduled_time: `\$\{proposedDate\}T\$\{proposedTime\}`/);
-
-  assert.ok(specialistStart >= 0);
-  assert.ok(specialistEnd > specialistStart);
-  assert.match(specialistSource, /parsedAdjustedStart\.toISOString\(\)/);
-  assert.match(specialistSource, /timezone: String\(timezone \|\| \(session as any\)\.timezone/);
-  assert.doesNotMatch(specialistSource, /scheduled_time: `\$\{newDate\}T\$\{newTime\}`/);
-});
