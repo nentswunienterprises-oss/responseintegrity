@@ -108,10 +108,13 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
                        r.created_at, r.completed_at, d.submitted_at,
                        d.drill->'responseSnapshot' AS response_snapshot
                   FROM public.response_integrity_diagnosis_runs r
+                  INNER JOIN public.intro_session_drills d ON d.id = r.source_drill_id
                   LEFT JOIN public.users u ON u.id = r.student_id
-                  LEFT JOIN public.intro_session_drills d ON d.id = r.source_drill_id
                  WHERE r.tutor_id = $1
+                   AND d.tutor_id = $1
                    AND r.student_id IN (SELECT id FROM public.students WHERE tutor_id = $1)
+                   AND r.session_container = 'intro_session'
+                   AND r.activity_kind = 'intro_diagnosis'
                    AND r.status = 'completed'
                  ORDER BY COALESCE(r.completed_at, r.created_at) DESC
                  LIMIT 90`, [tutorId]);
@@ -127,6 +130,8 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
           const observations = Array.isArray(probe?.observations)
             ? probe.observations
             : Array.isArray(submitted?.observations) ? submitted.observations : [];
+          const supportEvent = String(probe?.supportEvent || submitted?.supportEvent || "not_recorded");
+          const contaminated = supportEvent !== "none" && supportEvent !== "not_recorded";
           return {
             sequence: index + 1,
             probeId: String(probe?.probeId || submitted?.probeId || "unknown"),
@@ -135,7 +140,9 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
               dimensionId: String(observation?.dimensionId || ""),
               behaviorId: String(observation?.behaviorId || ""),
             })).filter((observation: any) => observation.dimensionId && observation.behaviorId),
-            supportEvent: String(probe?.supportEvent || submitted?.supportEvent || "not_recorded"),
+            supportEvent,
+            contaminationStatus: contaminated ? "contaminated" : "clean",
+            contaminationReason: contaminated ? "A support event was recorded during this probe; treat its observations as contaminated." : null,
             passiveTiming: probe?.passiveTiming || null,
             canonicalEvidenceAvailable: false,
             evidenceStatus: "specialist_submission_only",
