@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { getDrillSchemaDefinition, getFieldDefinitionsForRep } from "@shared/responseIntegrityDrillRegistry";
 import type { TopicPhase } from "@shared/topicConditioningEngine";
+import { getDiagnosisObservationOption } from "@shared/diagnosisObservationMatrix";
 
 // The live route retains isAuthenticated middleware; the handler also checks role
 // before reading private truth. Inject only the server-side PostgreSQL query API.
@@ -113,7 +114,12 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
                        CASE WHEN jsonb_typeof(d.drill) = 'string'
                          THEN (d.drill #>> '{}')::jsonb
                          ELSE d.drill
-                       END -> 'evidence' AS simulation_evidence
+                       END -> 'evidence' AS simulation_evidence,
+                       live.event_id AS live_evidence_event_id,
+                       live.outcome_key AS canonical_outcome_key,
+                       live.outcome_version AS canonical_outcome_version,
+                       live.canonical_observations,
+                       live.trajectory_class
                   FROM public.response_integrity_diagnosis_runs r
                   INNER JOIN public.intro_session_drills d
                     ON d.id = r.source_drill_id
@@ -128,6 +134,33 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
                     ON authorised_assignment.id = $3
                    AND authorised_assignment.tutor_id = r.tutor_id
                   LEFT JOIN public.users u ON u.id = r.student_id
+                  LEFT JOIN LATERAL (
+                    SELECT e.id AS event_id, t.outcome_key, t.outcome_version,
+                           t.canonical_observations, t.trajectory_class
+                      FROM public.specialist_sandbox_live_evidence_turns e
+                      INNER JOIN private.specialist_sandbox_live_evidence_truth t
+                        ON t.event_id = e.id
+                     WHERE e.scope = 'diagnosis'
+                       AND e.source_context_id = r.id
+                       AND e.tutor_assignment_id = $3
+                       AND e.tutor_id = r.tutor_id
+                       AND e.student_id = r.student_id
+                       AND e.sequence_number = jsonb_array_length(
+                         CASE WHEN jsonb_typeof(r.probe_history) = 'array'
+                           THEN r.probe_history ELSE '[]'::jsonb END
+                       )
+                       AND e.probe_id = (
+                         SELECT item->>'probeId'
+                           FROM jsonb_array_elements(
+                             CASE WHEN jsonb_typeof(r.probe_history) = 'array'
+                               THEN r.probe_history ELSE '[]'::jsonb END
+                           ) item
+                          ORDER BY (item->>'sequenceNumber')::int DESC NULLS LAST
+                          LIMIT 1
+                       )
+                     ORDER BY e.completed_at DESC, e.id DESC
+                     LIMIT 1
+                  ) live ON true
                  WHERE r.tutor_id = $1
                    AND d.tutor_id = $2
                    AND r.student_id IN (SELECT id FROM public.students WHERE tutor_id = $1)
@@ -140,7 +173,6 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
         const history = Array.isArray(row.probe_history) ? row.probe_history : [];
         const snapshot = row.response_snapshot && typeof row.response_snapshot === "object" ? row.response_snapshot : {};
         const opportunities = Array.isArray(snapshot.opportunities) ? snapshot.opportunities : [];
-        const simulationEvidence = Array.isArray(row.simulation_evidence) ? row.simulation_evidence : [];
         const probes = history.map((probe: any, index: number) => {
           const submitted = opportunities.find((opportunity: any) =>
             Number(opportunity?.order) === index + 1 ||
@@ -150,37 +182,49 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
             ? probe.observations
             : Array.isArray(submitted?.observations) ? submitted.observations : [];
           const probeId = String(probe?.probeId || submitted?.probeId || "unknown");
-          const supportEvent = String(probe?.supportEvent || submitted?.supportEvent || "not_recorded");
-          const behaviorEvidence = simulationEvidence
-            .filter((item: any) => String(item?.probeId || "") === probeId)
-            .map((item: any) => ({
-              dimensionId: String(item?.dimensionId || ""),
-              behaviorId: String(item?.behaviorId || ""),
-              behaviorLabel: String(item?.behaviorLabel || ""),
-              behaviorClass: String(item?.behaviorClass || ""),
-              contaminated: item?.contaminated === true,
-            }))
-            .filter((item: any) => item.dimensionId && (item.behaviorLabel || item.behaviorId));
-          const contaminated = behaviorEvidence.some((item: any) => item.contaminated);
+          const recorded = observations.map((observation: any) => ({
+            dimensionId: String(observation?.dimensionId || ""),
+            behaviorId: String(observation?.behaviorId || ""),
+          })).filter((observation: any) => observation.dimensionId && observation.behaviorId);
+          const isCapturedProbe = Number(row.live_sequence_number) === index + 1 &&
+            String(row.live_probe_id || "") === probeId && !!row.live_evidence_event_id;
+          const canonical = isCapturedProbe && Array.isArray(row.canonical_observations)
+            ? row.canonical_observations.map((observation: any) => ({
+                dimensionId: String(observation?.dimensionId || ""),
+                behaviorId: String(observation?.behaviorId || ""),
+                behaviorLabel: getDiagnosisObservationOption(
+                  observation?.dimensionId, String(observation?.behaviorId || "")
+                )?.label || String(observation?.behaviorId || ""),
+              })).filter((observation: any) => observation.dimensionId && observation.behaviorId)
+            : [];
+          const expectedByDimension = new Map(canonical.map((item: any) => [item.dimensionId, item.behaviorId]));
+          const comparisons = recorded.map((item: any) => ({
+            dimensionId: item.dimensionId,
+            recordedBehaviorId: item.behaviorId,
+            expectedBehaviorId: expectedByDimension.get(item.dimensionId) || null,
+            expectedBehaviorLabel: canonical.find((entry: any) => entry.dimensionId === item.dimensionId)?.behaviorLabel || null,
+            matched: expectedByDimension.has(item.dimensionId) ? expectedByDimension.get(item.dimensionId) === item.behaviorId : null,
+          }));
           return {
             sequence: index + 1,
             probeId,
             purpose: String(submitted?.purpose || ""),
-            observations: observations.map((observation: any) => ({
-              dimensionId: String(observation?.dimensionId || ""),
-              behaviorId: String(observation?.behaviorId || ""),
-            })).filter((observation: any) => observation.dimensionId && observation.behaviorId),
-            simulatedBehavior: behaviorEvidence,
-            supportEvent,
-            contaminationStatus: contaminated ? "contaminated" : supportEvent === "none" ? "clean" : "not_established",
-            contaminationReason: contaminated
-              ? "The saved diagnosis evidence marks this probe's observations as support-affected."
-              : null,
+            observations: recorded,
+            canonicalObservations: canonical,
+            comparisons,
+            supportEvent: String(probe?.supportEvent || submitted?.supportEvent || "not_recorded"),
+            supportRecognitionStatus: "not_authored",
             passiveTiming: probe?.passiveTiming || null,
-            canonicalEvidenceAvailable: false,
-            evidenceStatus: behaviorEvidence.length ? "simulation_behavior_saved" : "specialist_submission_only",
+            canonicalEvidenceAvailable: canonical.length > 0,
+            evidenceStatus: canonical.length ? "versioned_outcome_captured" : "canonical_truth_not_captured",
+            canonicalOutcomeKey: canonical.length ? String(row.canonical_outcome_key || "") : null,
+            canonicalOutcomeVersion: canonical.length ? Number(row.canonical_outcome_version) : null,
+            simulatedBehavior: [],
+            contaminationStatus: "not_established",
+            contaminationReason: null,
           };
         });
+        const hasCanonical = probes.some((probe: any) => probe.canonicalEvidenceAvailable);
         return {
           id: String(row.id),
           sourceDrillId: row.source_drill_id ? String(row.source_drill_id) : null,
@@ -197,10 +241,10 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
           placementPhase: row.decision?.placementPhase || row.decision?.placement_phase || snapshot.placementPhase || null,
           stability: row.decision?.stability || snapshot.placementStability || null,
           probes,
-          canonicalEvidenceAvailable: false,
-          evidenceNotice: probes.some((probe: any) => probe.simulatedBehavior.length)
-            ? "The saved simulated behaviour profile is available for these probes. The separate private canonical answer key was not persisted with this historical run, so no expected answer comparison is claimed."
-            : "The historical run preserves the Specialist's submitted observations, but no simulated behaviour profile or private canonical answer key is available in the saved record. No expected response has been reconstructed.",
+          canonicalEvidenceAvailable: hasCanonical,
+          evidenceNotice: hasCanonical
+            ? "RI's exact versioned diagnosis outcome was captured for the marked probes. Expected observations are compared with the Specialist's recorded observations. Expected support intervention is not yet independently authored."
+            : "This historical diagnosis run has no linked immutable canonical outcome capture. The saved response profile is not treated as canonical truth, and no expected response or support intervention has been reconstructed.",
         };
       });
       const repRows = reps.rows.map((r: any) => {
