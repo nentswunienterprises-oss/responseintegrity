@@ -114,12 +114,7 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
                        CASE WHEN jsonb_typeof(d.drill) = 'string'
                          THEN (d.drill #>> '{}')::jsonb
                          ELSE d.drill
-                       END -> 'evidence' AS simulation_evidence,
-                       live.event_id AS live_evidence_event_id,
-                       live.outcome_key AS canonical_outcome_key,
-                       live.outcome_version AS canonical_outcome_version,
-                       live.canonical_observations,
-                       live.trajectory_class
+                       END -> 'evidence' AS simulation_evidence
                   FROM public.response_integrity_diagnosis_runs r
                   INNER JOIN public.intro_session_drills d
                     ON d.id = r.source_drill_id
@@ -134,33 +129,6 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
                     ON authorised_assignment.id = $3
                    AND authorised_assignment.tutor_id = r.tutor_id
                   LEFT JOIN public.users u ON u.id = r.student_id
-                  LEFT JOIN LATERAL (
-                    SELECT e.id AS event_id, t.outcome_key, t.outcome_version,
-                           t.canonical_observations, t.trajectory_class
-                      FROM public.specialist_sandbox_live_evidence_turns e
-                      INNER JOIN private.specialist_sandbox_live_evidence_truth t
-                        ON t.event_id = e.id
-                     WHERE e.scope = 'diagnosis'
-                       AND e.source_context_id = r.id
-                       AND e.tutor_assignment_id = $3
-                       AND e.tutor_id = r.tutor_id
-                       AND e.student_id = r.student_id
-                       AND e.sequence_number = jsonb_array_length(
-                         CASE WHEN jsonb_typeof(r.probe_history) = 'array'
-                           THEN r.probe_history ELSE '[]'::jsonb END
-                       )
-                       AND e.probe_id = (
-                         SELECT item->>'probeId'
-                           FROM jsonb_array_elements(
-                             CASE WHEN jsonb_typeof(r.probe_history) = 'array'
-                               THEN r.probe_history ELSE '[]'::jsonb END
-                           ) item
-                          ORDER BY (item->>'sequenceNumber')::int DESC NULLS LAST
-                          LIMIT 1
-                       )
-                     ORDER BY e.completed_at DESC, e.id DESC
-                     LIMIT 1
-                  ) live ON true
                  WHERE r.tutor_id = $1
                    AND d.tutor_id = $2
                    AND r.student_id IN (SELECT id FROM public.students WHERE tutor_id = $1)
@@ -168,7 +136,29 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
                    AND r.activity_kind = 'intro_diagnosis'
                    AND r.status = 'completed'
                  ORDER BY COALESCE(r.completed_at, r.created_at) DESC
-                 LIMIT 90`, [tutorId, tutorId, assignmentId]);
+                 LIMIT 90; 
+      const liveEvidenceResult = await db.query(
+        `SELECT e.source_context_id, e.sequence_number, e.probe_id, e.id AS event_id,
+                t.outcome_key, t.outcome_version, t.canonical_observations, t.trajectory_class
+           FROM public.specialist_sandbox_live_evidence_turns e
+           INNER JOIN private.specialist_sandbox_live_evidence_truth t ON t.event_id = e.id
+          WHERE e.scope = 'diagnosis'
+            AND e.tutor_assignment_id = $1
+            AND e.tutor_id = $2
+            AND e.student_id IN (SELECT id FROM public.students WHERE tutor_id = $2)
+            AND e.source_context_id IN (
+              SELECT r.id FROM public.response_integrity_diagnosis_runs r
+               WHERE r.tutor_id = $2 AND r.session_container = 'intro_session'
+                 AND r.activity_kind = 'intro_diagnosis' AND r.status = 'completed'
+            )
+          ORDER BY e.source_context_id, e.sequence_number`,
+        [assignmentId, tutorId],
+      );
+      const liveEvidenceByProbe = new Map(
+        liveEvidenceResult.rows.map((capture: any) => [
+          `${capture.source_context_id}:${capture.sequence_number}:${capture.probe_id}`, capture
+        ])
+      );, [tutorId, tutorId, assignmentId]);
       const diagnosisRows = diagnosisResult.rows.map((row: any) => {
         const history = Array.isArray(row.probe_history) ? row.probe_history : [];
         const snapshot = row.response_snapshot && typeof row.response_snapshot === "object" ? row.response_snapshot : {};
@@ -186,10 +176,9 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
             dimensionId: String(observation?.dimensionId || ""),
             behaviorId: String(observation?.behaviorId || ""),
           })).filter((observation: any) => observation.dimensionId && observation.behaviorId);
-          const isCapturedProbe = Number(row.live_sequence_number) === index + 1 &&
-            String(row.live_probe_id || "") === probeId && !!row.live_evidence_event_id;
-          const canonical = isCapturedProbe && Array.isArray(row.canonical_observations)
-            ? row.canonical_observations.map((observation: any) => ({
+          const capture = liveEvidenceByProbe.get(`${row.id}:${index + 1}:${probeId}`) as any;
+          const canonical = capture && Array.isArray(capture.canonical_observations)
+            ? capture.canonical_observations.map((observation: any) => ({
                 dimensionId: String(observation?.dimensionId || ""),
                 behaviorId: String(observation?.behaviorId || ""),
                 behaviorLabel: getDiagnosisObservationOption(
@@ -217,8 +206,8 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
             passiveTiming: probe?.passiveTiming || null,
             canonicalEvidenceAvailable: canonical.length > 0,
             evidenceStatus: canonical.length ? "versioned_outcome_captured" : "canonical_truth_not_captured",
-            canonicalOutcomeKey: canonical.length ? String(row.canonical_outcome_key || "") : null,
-            canonicalOutcomeVersion: canonical.length ? Number(row.canonical_outcome_version) : null,
+            canonicalOutcomeKey: canonical.length ? String(capture.outcome_key || "") : null,
+            canonicalOutcomeVersion: canonical.length ? Number(capture.outcome_version) : null,
             simulatedBehavior: [],
             contaminationStatus: "not_established",
             contaminationReason: null,
