@@ -589,7 +589,7 @@ export function SandboxReadinessAssessmentCard({
                                               {probe.contaminationStatus === "contaminated"
                                                 ? "Support-affected evidence"
                                                 : probe.contaminationStatus === "clean" ? "No support recorded" : "Support impact not established"}
-                                              {" · "}{probe.canonicalEvidenceAvailable ? "Canonical available" : "Canonical answer key unavailable"}
+                                              {" · "}{probe.canonicalEvidenceAvailable ? "RI outcome captured" : "Canonical truth not captured"}
                                             </Badge>
                                           </div>
                                           {probe.purpose ? <p className="mt-1 text-xs text-muted-foreground">{probe.purpose}</p> : null}
