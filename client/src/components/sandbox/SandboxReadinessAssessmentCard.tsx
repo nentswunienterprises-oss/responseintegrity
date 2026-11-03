@@ -507,8 +507,7 @@ export function SandboxReadinessAssessmentCard({
                 <div className="rounded-lg border bg-muted/20 px-3 py-3 text-xs text-muted-foreground">
                   Completed Sandbox training sessions and reps, plus diagnosis runs and probe submissions, are shown below.
                 </div>
-                {dossier.diagnoses.length > 0 ? (
-                  <section className="space-y-3">
+                <section className="space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Diagnosis</p>
                       <Badge variant="outline">{dossier.diagnoses.length} completed runs · {dossier.diagnoses.reduce((count, run) => count + run.probes.length, 0)} probes</Badge>
@@ -595,6 +594,14 @@ export function SandboxReadinessAssessmentCard({
                         studentName: session.studentName || existing?.studentName || null,
                       });
                     });
+                    dossier.diagnoses.forEach((diagnosis) => {
+                      const existing = byId.get(diagnosis.studentId);
+                      byId.set(diagnosis.studentId, {
+                        ...existing,
+                        studentId: diagnosis.studentId,
+                        studentName: diagnosis.studentName || existing?.studentName || null,
+                      });
+                    });
                     return Array.from(byId.values());
                   })()
                     .sort((a, b) => String(a.studentName || a.studentId).localeCompare(String(b.studentName || b.studentId)))
@@ -603,15 +610,74 @@ export function SandboxReadinessAssessmentCard({
                         .filter((session) => session.studentId === student.studentId)
                         .sort((a, b) => (b.completedAt || "").localeCompare(a.completedAt || ""));
                       const studentReps = dossier.reps.filter((rep) => rep.studentId === student.studentId);
+                      const studentDiagnoses = dossier.diagnoses
+                        .filter((diagnosis) => diagnosis.studentId === student.studentId)
+                        .sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
                       return (
                         <details key={student.studentId} className="rounded-lg border bg-background p-3">
                           <summary className="cursor-pointer list-none">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <span className="text-sm font-semibold">{student.studentName || humanize(student.studentId)}</span>
-                              <span className="text-xs text-muted-foreground">{studentSessions.length} sessions · {studentReps.length} reps</span>
+                              <span className="text-xs text-muted-foreground">{studentSessions.length + studentDiagnoses.length} sessions · {studentReps.length} reps</span>
                             </div>
                           </summary>
                           <div className="mt-3 space-y-3 border-t pt-3">
+                            {studentDiagnoses.map((run, index) => (
+                              <details key={run.id} className="rounded-lg border bg-muted/10 p-3">
+                                <summary className="cursor-pointer list-none">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <span className="text-sm font-medium">Session {index + 1} · Diagnosis · {run.topic || "Untitled topic"}</span>
+                                    <Badge variant="outline">{run.placementPhase || "Placement unavailable"} · {run.stability || "Stability unavailable"}</Badge>
+                                  </div>
+                                  <p className="mt-1 text-xs text-muted-foreground">{run.probes.length} probes · Completed {formatDossierTimestamp(run.completedAt)}</p>
+                                </summary>
+                                <div className="mt-3 space-y-3 border-t pt-3">
+                                  <div className="grid gap-2 text-xs sm:grid-cols-2">
+                                    <p className="text-muted-foreground">Starting phase: <span className="font-medium text-foreground">{run.startingPhase || "Not recorded"}</span></p>
+                                    <p className="text-muted-foreground">Context: <span className="font-medium text-foreground">{humanize(run.sessionContext)} · {humanize(run.sessionContainer)}</span></p>
+                                    <p className="text-muted-foreground">Activity: <span className="font-medium text-foreground">{humanize(run.activityKind)}</span></p>
+                                    <p className="text-muted-foreground">Status: <span className="font-medium text-foreground">{humanize(run.status)}</span></p>
+                                  </div>
+                                  <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-muted-foreground">
+                                    <p className="font-semibold text-foreground">Historical evidence limitation</p>
+                                    <p className="mt-1">{run.evidenceNotice}</p>
+                                  </div>
+                                  <div className="space-y-2">
+                                    {run.probes.map((probe) => (
+                                      <details key={probe.sequence} className="rounded-md border bg-background p-3">
+                                        <summary className="cursor-pointer list-none">
+                                          <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <span className="text-sm font-medium">Probe {probe.sequence} · {humanize(probe.probeId)}</span>
+                                            <Badge variant={probe.contaminationStatus === "contaminated" ? "destructive" : "secondary"}>
+                                              {probe.contaminationStatus === "contaminated" ? "Contaminated evidence" : "Clean submission"} · Canonical unavailable
+                                            </Badge>
+                                          </div>
+                                          {probe.purpose ? <p className="mt-1 text-xs text-muted-foreground">{probe.purpose}</p> : null}
+                                        </summary>
+                                        <div className="mt-3 space-y-2 border-t pt-3 text-xs">
+                                          <p className="text-muted-foreground">Evidence status: <span className="font-semibold text-foreground">{humanize(probe.contaminationStatus)}</span></p>
+                                          {probe.contaminationReason ? <p className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-amber-700 dark:text-amber-300">{probe.contaminationReason}</p> : null}
+                                          <p className="text-muted-foreground">Support event: <span className="font-medium text-foreground">{humanize(probe.supportEvent)}</span></p>
+                                          {probe.passiveTiming?.elapsedMs != null ? (
+                                            <p className="text-muted-foreground">Recorded active timing: <span className="font-medium text-foreground">{Math.round(probe.passiveTiming.elapsedMs / 1000)} seconds</span> · {humanize(probe.passiveTiming.timingValidity)}</p>
+                                          ) : null}
+                                          {probe.observations.length ? (
+                                            <div className="space-y-2">
+                                              {probe.observations.map((observation, observationIndex) => (
+                                                <div key={`${observation.dimensionId}-${observationIndex}`} className="rounded-md border bg-muted/10 p-2">
+                                                  <p className="font-semibold text-foreground">{humanize(observation.dimensionId)}</p>
+                                                  <p className="mt-1 text-muted-foreground">Recorded: {humanize(observation.behaviorId)}</p>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          ) : <p className="text-muted-foreground">No probe observations were preserved.</p>}
+                                        </div>
+                                      </details>
+                                    ))}
+                                  </div>
+                                </div>
+                              </details>
+                            ))}
                             {studentSessions.map((session) => {
                               const sessionReps = dossier.reps
                                 .filter((rep) => rep.studentId === session.studentId && rep.trajectoryId === session.trajectoryId && rep.sessionNumber === session.sessionNumber)
