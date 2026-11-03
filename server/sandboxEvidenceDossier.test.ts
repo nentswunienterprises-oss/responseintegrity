@@ -30,7 +30,7 @@ before(async () => {
     CREATE TABLE public.pods (id text, td_id text);
     CREATE TABLE public.tutor_assignments (id text, pod_id text, tutor_id text, created_at timestamptz);
     CREATE TABLE public.specialist_sandbox_rep_events (
-      id text, tutor_assignment_id text, tutor_id text, student_id text, event_sequence int,
+      id text, trajectory_id text, tutor_assignment_id text, tutor_id text, student_id text, event_sequence int,
       session_number int, phase text, topic_key text, set_id text, rep_number int,
       student_behavior text, specialist_submission jsonb, condition_kept boolean,
       total_observations int, matching_observations int, observation_exact boolean,
@@ -40,7 +40,7 @@ before(async () => {
       canonical_observations jsonb, canonical_prerequisite_sentinel text,
       canonical_inherited_rescue_signal text, actual_intervention_event text);
     CREATE TABLE public.specialist_sandbox_session_evaluations (
-      id text, tutor_assignment_id text, tutor_id text, student_id text, session_number int,
+      id text, trajectory_id text, tutor_assignment_id text, tutor_id text, student_id text, session_number int,
       phase text, topic_key text, authority_aligned boolean, state_track_aligned boolean,
       state_change_observed boolean, specialist_authority jsonb, completed_at timestamptz DEFAULT now());
     CREATE TABLE private.specialist_sandbox_session_truth (session_evaluation_id text, canonical_authority jsonb);
