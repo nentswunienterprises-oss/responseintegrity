@@ -111,7 +111,7 @@ type SandboxDossier = {
     placementPhase?:string|null;stability?:string|null;canonicalEvidenceAvailable:boolean;evidenceNotice:string;
     probes:Array<{sequence:number;probeId:string;purpose:string;supportEvent:string;contaminationStatus:"clean"|"contaminated"|"not_established";contaminationReason?:string|null;canonicalEvidenceAvailable:boolean;evidenceStatus:string;
       passiveTiming:any;simulatedBehavior:Array<{dimensionId:string;behaviorId:string;behaviorLabel:string;behaviorClass:string;contaminated:boolean}>;
-      canonicalOutcomeKey?:string|null;canonicalOutcomeVersion?:number|null;
+      canonicalOutcomeKey?:string|null;canonicalOutcomeVersion?:number|null;evidenceProvenance:"immutable_capture"|"retrospective_current_rules"|"unavailable";evaluationRulesVersion?:string|null;expectedSupportEvent?:string|null;
       canonicalObservations:Array<{dimensionId:string;behaviorId:string;behaviorLabel:string}>;
       comparisons:Array<{dimensionId:string;recordedBehaviorId:string;expectedBehaviorId:string|null;expectedBehaviorLabel:string|null;matched:boolean|null}>;
       supportRecognitionStatus:string;observations:Array<{dimensionId:string;behaviorId:string}>}>}>;
@@ -602,9 +602,11 @@ export function SandboxReadinessAssessmentCard({
                                             <div className="flex flex-wrap items-center justify-between gap-2">
                                               <p className="font-semibold text-foreground">Probe evidence comparison</p>
                                               <Badge variant={probe.canonicalEvidenceAvailable ? "default" : "outline"}>
-                                                {probe.canonicalEvidenceAvailable
+                                                {probe.evidenceProvenance === "immutable_capture"
                                                   ? `RI outcome v${probe.canonicalOutcomeVersion}`
-                                                  : "Canonical truth not captured"}
+                                                  : probe.evidenceProvenance === "retrospective_current_rules"
+                                                    ? "Retrospective · Current RI rules"
+                                                    : "Expected truth unavailable"}
                                               </Badge>
                                             </div>
                                             {probe.canonicalEvidenceAvailable ? (
@@ -625,11 +627,16 @@ export function SandboxReadinessAssessmentCard({
                                                 ))}
                                               </div>
                                             ) : (
-                                              <p className="text-muted-foreground">This run has no immutable outcome capture for this probe. No expected response has been reconstructed.</p>
+                                              <p className="text-muted-foreground">No expected response is available for this probe; the saved run did not preserve enough evidence for a responsible retrospective evaluation.</p>
                                             )}
                                           </div>
                                           <p className="text-muted-foreground">Support event recorded: <span className="font-medium text-foreground">{humanize(probe.supportEvent)}</span></p>
-                                          <p className="text-muted-foreground">Expected support intervention: <span className="font-medium text-foreground">Not independently authored — recognition alignment unresolved</span></p>
+                                          <p className="text-muted-foreground">Expected support intervention: <span className="font-medium text-foreground">{probe.expectedSupportEvent ? humanize(probe.expectedSupportEvent) : "Not preserved independently"}</span></p>
+                                          {probe.expectedSupportEvent ? (
+                                            <Badge variant={probe.supportRecognitionStatus === "aligned" ? "default" : "destructive"}>
+                                              {probe.supportRecognitionStatus === "aligned" ? "Support recognition aligned" : "Support recognition diverged"}
+                                            </Badge>
+                                          ) : null}
                                           {probe.passiveTiming?.elapsedMs != null ? (
                                             <p className="text-muted-foreground">Recorded active timing: <span className="font-medium text-foreground">{Math.round(probe.passiveTiming.elapsedMs / 1000)} seconds</span> · {humanize(probe.passiveTiming.timingValidity)}</p>
                                           ) : null}
