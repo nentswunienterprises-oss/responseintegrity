@@ -87,7 +87,7 @@ export function TutorIntroSessionActions({ studentId, parentId, tutorId, session
           <Button
             size="sm"
             variant="outline"
-            onClick={() => respond.mutate({ action: "propose_adjustment", newDate, newTime })}
+            onClick={() => respond.mutate({ action: "propose_adjustment", newDate, newTime, scheduledStart: new Date(`${newDate}T${newTime}`).toISOString(), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Johannesburg" })}
             disabled={respond.isPending || !newDate || !newTime}
           >
             Adjust
