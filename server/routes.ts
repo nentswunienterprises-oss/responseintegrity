@@ -11095,11 +11095,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req as any).dbUser.id;
       const operationalMode = await getParentAssignedTutorOperationalMode(userId);
-      const { proposedDate, proposedTime, timezone } = req.body;
+      const { proposedDate, proposedTime, scheduledStart, timezone } = req.body;
       if (!proposedDate || !proposedTime) {
         return res.status(400).json({ message: "Missing date or time" });
       }
       const requestedTimezone = String(timezone || "Africa/Johannesburg").trim() || "Africa/Johannesburg";
+      const requestedScheduledStart = String(scheduledStart || "").trim();
+      const parsedScheduledStart = new Date(requestedScheduledStart);
+      if (!requestedScheduledStart || !/(?:Z|[+-]\d{2}:\d{2})$/i.test(requestedScheduledStart) || Number.isNaN(parsedScheduledStart.getTime())) {
+        return res.status(400).json({ message: "A valid timezone-aware session start is required. Please refresh and try again." });
+      }
+      const scheduledTimestamp = parsedScheduledStart.toISOString();
 
       // Get parent's enrollment to find assigned tutor
       const activeEnrollmentStatuses = [
@@ -11205,14 +11211,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ],
         );
         const existingSession = existingSessionResult.rows[0] || null;
-        const scheduledTimestamp = `${proposedDate}T${proposedTime}`;
-
         let persistedSession: any = null;
         if (existingSession) {
           const updatedSession = await pool.query(
             `UPDATE public.scheduled_sessions
                 SET student_id = $2::uuid,
-                    scheduled_time = $3::timestamp,
+                    scheduled_time = $3::timestamptz,
                     timezone = $4,
                     parent_confirmed = TRUE,
                     tutor_confirmed = FALSE,
@@ -11227,7 +11231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const insertedSession = await pool.query(
             `INSERT INTO public.scheduled_sessions
               (parent_id, tutor_id, student_id, scheduled_time, timezone, type, status, parent_confirmed, tutor_confirmed)
-             VALUES ($1, $2, $3::uuid, $4::timestamp, $5, $6, 'pending_tutor_confirmation', TRUE, FALSE)
+             VALUES ($1, $2, $3::uuid, $4::timestamptz, $5, $6, 'pending_tutor_confirmation', TRUE, FALSE)
              RETURNING id, student_id, scheduled_time, timezone, type, status, parent_confirmed, tutor_confirmed`,
             [
               String(userId),
@@ -11331,7 +11335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .from("scheduled_sessions")
           .update({
             student_id: assignedStudent?.id || null,
-            scheduled_time: `${proposedDate}T${proposedTime}`,
+            scheduled_time: scheduledTimestamp,
             timezone: requestedTimezone,
             parent_confirmed: true,
             tutor_confirmed: false,
@@ -13435,7 +13439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { studentId } = req.params;
       const dbUser = (req as any).dbUser;
-      const { action, newDate, newTime } = req.body;
+      const { action, newDate, newTime, scheduledStart, timezone } = req.body;
       const student = await storage.getStudent(studentId);
       const studentWorkflow = ((student?.personalProfile as any) || {}).workflow || {};
       const sessionType = studentWorkflow.handoverRequiredAt && !studentWorkflow.handoverCompletedAt ? "handover" : "intro";
@@ -13489,9 +13493,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!newDate || !newTime) {
           return res.status(400).json({ message: "Missing new date or time" });
         }
-        // Tutor is proposing an adjustment, so tutor has confirmed, parent must confirm next
+        const adjustedStart = String(scheduledStart || "").trim();
+        const parsedAdjustedStart = new Date(adjustedStart);
+        if (!adjustedStart || !/(?:Z|[+-]\d{2}:\d{2})$/i.test(adjustedStart) || Number.isNaN(parsedAdjustedStart.getTime())) {
+          return res.status(400).json({ message: "A valid timezone-aware session start is required. Please refresh and try again." });
+        }
+        // Tutor is proposing an adjustment, so tutor has confirmed, parent must confirm next.
+        // Persist an explicit instant; timezone-less timestamps are interpreted inconsistently by PostgreSQL.
         updateFields = {
-          scheduled_time: `${newDate}T${newTime}`,
+          scheduled_time: parsedAdjustedStart.toISOString(),
+          timezone: String(timezone || (session as any).timezone || "Africa/Johannesburg"),
           tutor_confirmed: true,
           parent_confirmed: false,
           status: "pending_parent_confirmation",
