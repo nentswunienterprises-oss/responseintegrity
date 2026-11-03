@@ -110,7 +110,7 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
                        CASE WHEN jsonb_typeof(d.drill) = 'string'
                          THEN (d.drill #>> '{}')::jsonb
                          ELSE d.drill
-                       END -> 'responseSnapshot' AS response_snapshot,
+                       END -> 'responseSnapshot' AS response_snapshot
                   FROM public.response_integrity_diagnosis_runs r
                   INNER JOIN public.intro_session_drills d
                     ON d.id = r.source_drill_id
