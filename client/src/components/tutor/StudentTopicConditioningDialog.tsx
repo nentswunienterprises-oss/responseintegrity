@@ -1773,12 +1773,14 @@ export default function StudentTopicConditioningDialog({
 
   const formatLessonTime = (value?: string | null) =>
     value
-      ? new Intl.DateTimeFormat(undefined, {
+      ? new Intl.DateTimeFormat("en-ZA", {
           weekday: "long",
           day: "numeric",
           month: "long",
-          hour: "numeric",
+          hour: "2-digit",
           minute: "2-digit",
+          hourCycle: "h23",
+          timeZone: "Africa/Johannesburg",
         }).format(new Date(value))
       : "-";
   const handleCancelConfirmedTrainingSession = async (
