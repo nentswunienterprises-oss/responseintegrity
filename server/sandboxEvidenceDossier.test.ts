@@ -165,7 +165,7 @@ test('assigned TD sees exact captured diagnosis outcome truth beside the Special
   assert.equal(probe.canonicalOutcomeVersion,3);
   assert.equal(probe.comparisons[0].matched,true);
   assert.equal(probe.comparisons[0].expectedBehaviorLabel,'Could not identify the important terms or symbols');
-  assert.equal(probe.supportRecognitionStatus,'not_authored');
+  assert.equal(probe.supportRecognitionStatus,'not_independently_compared');
 });
 test('legacy human-readable option IDs still resolve to canonical labels', async () => {
   await database.exec(`
