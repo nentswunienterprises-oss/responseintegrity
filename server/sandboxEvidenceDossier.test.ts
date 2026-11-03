@@ -137,11 +137,16 @@ test('assigned TD can inspect diagnosis runs and probe submissions without fabri
   assert.equal(run.probes[0].supportEvent,'teaching');
   assert.equal(run.probes[0].contaminationStatus,'not_established');
   assert.equal(run.probes[0].contaminationReason,null);
-  assert.equal(run.probes[0].canonicalEvidenceAvailable,false);
+  assert.equal(run.probes[0].canonicalEvidenceAvailable,true);
+  assert.equal(run.probes[0].evidenceProvenance,'retrospective_current_rules');
+  assert.equal(run.probes[0].evaluationRulesVersion,'diagnosis-observation-matrix-current');
   assert.equal(run.probes[0].observations[0].behaviorId,'no_recognition');
+  assert.equal(run.probes[0].canonicalObservations[0].behaviorId,'no_recognition');
+  assert.equal(run.probes[0].comparisons[0].matched,true);
+  assert.equal(run.probes[0].expectedSupportEvent,'none');
+  assert.equal(run.probes[0].supportRecognitionStatus,'diverged');
   assert.equal(run.probes[0].simulatedBehavior.length,0);
-  assert.match(run.evidenceNotice,/no linked immutable canonical outcome capture/);
-  assert.doesNotMatch(JSON.stringify(run),/expectedBehavior|canonicalObservations/);
+  assert.match(run.evidenceNotice,/retrospectively evaluated against the saved simulated response and current RI diagnosis observation rules/);
 });
 test('assigned TD sees exact captured diagnosis outcome truth beside the Specialist observation', async () => {
   await database.exec(`
