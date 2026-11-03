@@ -136,7 +136,7 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
                    AND r.activity_kind = 'intro_diagnosis'
                    AND r.status = 'completed'
                  ORDER BY COALESCE(r.completed_at, r.created_at) DESC
-                 LIMIT 90; 
+                 LIMIT 90`, [tutorId, tutorId, assignmentId]);
       const liveEvidenceResult = await db.query(
         `SELECT e.source_context_id, e.sequence_number, e.probe_id, e.id AS event_id,
                 t.outcome_key, t.outcome_version, t.canonical_observations, t.trajectory_class
@@ -158,7 +158,7 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
         liveEvidenceResult.rows.map((capture: any) => [
           `${capture.source_context_id}:${capture.sequence_number}:${capture.probe_id}`, capture
         ])
-      );, [tutorId, tutorId, assignmentId]);
+      );
       const diagnosisRows = diagnosisResult.rows.map((row: any) => {
         const history = Array.isArray(row.probe_history) ? row.probe_history : [];
         const snapshot = row.response_snapshot && typeof row.response_snapshot === "object" ? row.response_snapshot : {};
