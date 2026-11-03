@@ -106,6 +106,11 @@ type SandboxDossier = {
   sessions:Array<{id:string;trajectoryId:string;studentId:string;studentName?:string|null;sessionNumber:number;phase:string;topicKey?:string|null;completedAt?:string|null;
     stateChangeObserved?:boolean|null;authorityAligned:boolean;stateTrackAligned:boolean;truthPresent:boolean;
     specialistAuthority:any;canonicalAuthority:any}>;
+  diagnoses:Array<{id:string;sourceDrillId?:string|null;studentId:string;studentName?:string|null;topic:string;startingPhase:string;
+    sessionContext:string;sessionContainer:string;activityKind:string;status:string;createdAt?:string|null;completedAt?:string|null;
+    placementPhase?:string|null;stability?:string|null;canonicalEvidenceAvailable:boolean;evidenceNotice:string;
+    probes:Array<{sequence:number;probeId:string;purpose:string;supportEvent:string;canonicalEvidenceAvailable:boolean;evidenceStatus:string;
+      passiveTiming:any;observations:Array<{dimensionId:string;behaviorId:string}>}>}>;
 };
 
 const CAPABILITY_LABELS: Record<string, string> = {
@@ -500,8 +505,72 @@ export function SandboxReadinessAssessmentCard({
             {showDossier && !dossierLoading && !dossierError && dossier ? (
               <div className="space-y-4 max-h-[700px] overflow-y-auto">
                 <div className="rounded-lg border bg-muted/20 px-3 py-3 text-xs text-muted-foreground">
-                  Completed Sandbox sessions and rep evidence are shown below. Open a session to review its sets and reps.
+                  Completed Sandbox training sessions and reps, plus diagnosis runs and probe submissions, are shown below.
                 </div>
+                {dossier.diagnoses.length > 0 ? (
+                  <section className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Diagnosis</p>
+                      <Badge variant="outline">{dossier.diagnoses.length} completed runs · {dossier.diagnoses.reduce((count, run) => count + run.probes.length, 0)} probes</Badge>
+                    </div>
+                    <p className="rounded-md border bg-muted/20 p-3 text-xs text-muted-foreground">
+                      Review each diagnosis run and its submitted probe observations. Historical canonical simulation evidence is shown as unavailable where it was not captured; it is never reconstructed from current simulation rules.
+                    </p>
+                    {dossier.diagnoses.map((run) => (
+                      <details key={run.id} className="rounded-lg border bg-background p-3">
+                        <summary className="cursor-pointer list-none">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-sm font-semibold">{run.studentName || humanize(run.studentId)} · {run.topic || "Untitled topic"}</span>
+                            <Badge variant="outline">{run.placementPhase || "Placement unavailable"} · {run.stability || "Stability unavailable"}</Badge>
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">{run.probes.length} probes · Completed {formatDossierTimestamp(run.completedAt)}</p>
+                        </summary>
+                        <div className="mt-3 space-y-3 border-t pt-3">
+                          <div className="grid gap-2 text-xs sm:grid-cols-2">
+                            <p className="text-muted-foreground">Starting phase: <span className="font-medium text-foreground">{run.startingPhase || "Not recorded"}</span></p>
+                            <p className="text-muted-foreground">Context: <span className="font-medium text-foreground">{humanize(run.sessionContext)} · {humanize(run.sessionContainer)}</span></p>
+                            <p className="text-muted-foreground">Activity: <span className="font-medium text-foreground">{humanize(run.activityKind)}</span></p>
+                            <p className="text-muted-foreground">Status: <span className="font-medium text-foreground">{humanize(run.status)}</span></p>
+                          </div>
+                          <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-muted-foreground">
+                            <p className="font-semibold text-foreground">Historical evidence limitation</p>
+                            <p className="mt-1">{run.evidenceNotice}</p>
+                          </div>
+                          <div className="space-y-2">
+                            {run.probes.map((probe) => (
+                              <details key={probe.sequence} className="rounded-md border bg-muted/10 p-3">
+                                <summary className="cursor-pointer list-none">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <span className="text-sm font-medium">Probe {probe.sequence} · {humanize(probe.probeId)}</span>
+                                    <Badge variant="outline">Submission preserved · Canonical unavailable</Badge>
+                                  </div>
+                                  {probe.purpose ? <p className="mt-1 text-xs text-muted-foreground">{probe.purpose}</p> : null}
+                                </summary>
+                                <div className="mt-3 space-y-2 border-t pt-3 text-xs">
+                                  <p className="text-muted-foreground">Support event: <span className="font-medium text-foreground">{humanize(probe.supportEvent)}</span></p>
+                                  {probe.passiveTiming?.elapsedMs != null ? (
+                                    <p className="text-muted-foreground">Recorded active timing: <span className="font-medium text-foreground">{Math.round(probe.passiveTiming.elapsedMs / 1000)} seconds</span> · {humanize(probe.passiveTiming.timingValidity)}</p>
+                                  ) : null}
+                                  {probe.observations.length ? (
+                                    <div className="space-y-2">
+                                      {probe.observations.map((observation, index) => (
+                                        <div key={`${observation.dimensionId}-${index}`} className="rounded-md border bg-background p-2">
+                                          <p className="font-semibold text-foreground">{humanize(observation.dimensionId)}</p>
+                                          <p className="mt-1 text-muted-foreground">Recorded: {humanize(observation.behaviorId)}</p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : <p className="text-muted-foreground">No probe observations were preserved.</p>}
+                                </div>
+                              </details>
+                            ))}
+                            {run.probes.length === 0 ? <p className="text-xs text-muted-foreground">No probe history was preserved for this run.</p> : null}
+                          </div>
+                        </div>
+                      </details>
+                    ))}
+                  </section>
+                ) : null}
                 <section className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Assigned students</p>
