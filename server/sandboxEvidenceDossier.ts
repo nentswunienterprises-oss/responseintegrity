@@ -102,6 +102,65 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
           [assignmentId, tutorId],
         ),
       ]);
+      const diagnosisResult = await db.query(`SELECT r.id, r.student_id, u.name AS student_name, r.topic, r.starting_phase,
+                       r.session_context, r.session_container, r.activity_kind, r.status,
+                       r.probe_history, r.decision, r.source_drill_id,
+                       r.created_at, r.completed_at, d.submitted_at,
+                       d.drill->'responseSnapshot' AS response_snapshot
+                  FROM public.response_integrity_diagnosis_runs r
+                  LEFT JOIN public.users u ON u.id = r.student_id
+                  LEFT JOIN public.intro_session_drills d ON d.id = r.source_drill_id
+                 WHERE r.tutor_id = $1
+                   AND r.student_id IN (SELECT id FROM public.students WHERE tutor_id = $1)
+                   AND r.status = 'completed'
+                 ORDER BY COALESCE(r.completed_at, r.created_at) DESC
+                 LIMIT 90`, [tutorId]);
+      const diagnosisRows = diagnosisResult.rows.map((row: any) => {
+        const history = Array.isArray(row.probe_history) ? row.probe_history : [];
+        const snapshot = row.response_snapshot && typeof row.response_snapshot === "object" ? row.response_snapshot : {};
+        const opportunities = Array.isArray(snapshot.opportunities) ? snapshot.opportunities : [];
+        const probes = history.map((probe: any, index: number) => {
+          const submitted = opportunities.find((opportunity: any) =>
+            Number(opportunity?.order) === index + 1 ||
+            (opportunity?.probeId && opportunity.probeId === probe?.probeId)
+          );
+          const observations = Array.isArray(probe?.observations)
+            ? probe.observations
+            : Array.isArray(submitted?.observations) ? submitted.observations : [];
+          return {
+            sequence: index + 1,
+            probeId: String(probe?.probeId || submitted?.probeId || "unknown"),
+            purpose: String(submitted?.purpose || ""),
+            observations: observations.map((observation: any) => ({
+              dimensionId: String(observation?.dimensionId || ""),
+              behaviorId: String(observation?.behaviorId || ""),
+            })).filter((observation: any) => observation.dimensionId && observation.behaviorId),
+            supportEvent: String(probe?.supportEvent || submitted?.supportEvent || "not_recorded"),
+            passiveTiming: probe?.passiveTiming || null,
+            canonicalEvidenceAvailable: false,
+            evidenceStatus: "specialist_submission_only",
+          };
+        });
+        return {
+          id: String(row.id),
+          sourceDrillId: row.source_drill_id ? String(row.source_drill_id) : null,
+          studentId: String(row.student_id),
+          studentName: row.student_name || null,
+          topic: String(row.topic || ""),
+          startingPhase: String(row.starting_phase || ""),
+          sessionContext: String(row.session_context || ""),
+          sessionContainer: String(row.session_container || ""),
+          activityKind: String(row.activity_kind || ""),
+          status: String(row.status || ""),
+          createdAt: row.created_at ? String(row.created_at) : null,
+          completedAt: row.completed_at ? String(row.completed_at) : row.submitted_at ? String(row.submitted_at) : null,
+          placementPhase: row.decision?.placementPhase || row.decision?.placement_phase || snapshot.placementPhase || null,
+          stability: row.decision?.stability || snapshot.placementStability || null,
+          probes,
+          canonicalEvidenceAvailable: false,
+          evidenceNotice: "The historical run preserves the Specialist's submitted observations, but the original simulated response and private canonical observations were not captured for this run. No expected response has been reconstructed.",
+        };
+      });
       const repRows = reps.rows.map((r: any) => {
         const observed = r.specialist_submission?.observations || {};
         const canonical = r.canonical_observations;
@@ -144,6 +203,7 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
         students: roster.rows.map((row: any) => ({ id: String(row.id), name: row.name || null })),
         note: "Completed Sandbox evidence only. Canonical responses are TD-restricted and non-authoritative for real student state.",
         reps: repRows,
+        diagnoses: diagnosisRows,
         sessions: sessions.rows.map((r: any) => ({
           id: String(r.id), trajectoryId: String(r.trajectory_id), studentId: String(r.student_id), studentName: r.student_name || null, sessionNumber: Number(r.session_number), phase: r.phase,
           topicKey: r.topic_key, authorityAligned: r.authority_aligned,
