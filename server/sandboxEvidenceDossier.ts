@@ -106,7 +106,14 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
                        r.session_context, r.session_container, r.activity_kind, r.status,
                        r.probe_history, r.decision, r.source_drill_id,
                        r.created_at, r.completed_at, d.submitted_at,
-                       d.drill->'responseSnapshot' AS response_snapshot
+                       CASE WHEN jsonb_typeof(d.drill) = 'string'
+                         THEN (d.drill #>> '{}')::jsonb
+                         ELSE d.drill
+                       END -> 'responseSnapshot' AS response_snapshot,
+                       CASE WHEN jsonb_typeof(d.drill) = 'string'
+                         THEN (d.drill #>> '{}')::jsonb
+                         ELSE d.drill
+                       END -> 'evidence' AS simulation_evidence
                   FROM public.response_integrity_diagnosis_runs r
                   INNER JOIN public.intro_session_drills d
                     ON d.id = r.source_drill_id
@@ -133,6 +140,7 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
         const history = Array.isArray(row.probe_history) ? row.probe_history : [];
         const snapshot = row.response_snapshot && typeof row.response_snapshot === "object" ? row.response_snapshot : {};
         const opportunities = Array.isArray(snapshot.opportunities) ? snapshot.opportunities : [];
+        const simulationEvidence = Array.isArray(row.simulation_evidence) ? row.simulation_evidence : [];
         const probes = history.map((probe: any, index: number) => {
           const submitted = opportunities.find((opportunity: any) =>
             Number(opportunity?.order) === index + 1 ||
@@ -141,22 +149,36 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
           const observations = Array.isArray(probe?.observations)
             ? probe.observations
             : Array.isArray(submitted?.observations) ? submitted.observations : [];
+          const probeId = String(probe?.probeId || submitted?.probeId || "unknown");
           const supportEvent = String(probe?.supportEvent || submitted?.supportEvent || "not_recorded");
-          const contaminated = supportEvent !== "none" && supportEvent !== "not_recorded";
+          const behaviorEvidence = simulationEvidence
+            .filter((item: any) => String(item?.probeId || "") === probeId)
+            .map((item: any) => ({
+              dimensionId: String(item?.dimensionId || ""),
+              behaviorId: String(item?.behaviorId || ""),
+              behaviorLabel: String(item?.behaviorLabel || ""),
+              behaviorClass: String(item?.behaviorClass || ""),
+              contaminated: item?.contaminated === true,
+            }))
+            .filter((item: any) => item.dimensionId && (item.behaviorLabel || item.behaviorId));
+          const contaminated = behaviorEvidence.some((item: any) => item.contaminated);
           return {
             sequence: index + 1,
-            probeId: String(probe?.probeId || submitted?.probeId || "unknown"),
+            probeId,
             purpose: String(submitted?.purpose || ""),
             observations: observations.map((observation: any) => ({
               dimensionId: String(observation?.dimensionId || ""),
               behaviorId: String(observation?.behaviorId || ""),
             })).filter((observation: any) => observation.dimensionId && observation.behaviorId),
+            simulatedBehavior: behaviorEvidence,
             supportEvent,
-            contaminationStatus: contaminated ? "contaminated" : "clean",
-            contaminationReason: contaminated ? "A support event was recorded during this probe; treat its observations as contaminated." : null,
+            contaminationStatus: contaminated ? "contaminated" : supportEvent === "none" ? "clean" : "not_established",
+            contaminationReason: contaminated
+              ? "The saved diagnosis evidence marks this probe's observations as support-affected."
+              : null,
             passiveTiming: probe?.passiveTiming || null,
             canonicalEvidenceAvailable: false,
-            evidenceStatus: "specialist_submission_only",
+            evidenceStatus: behaviorEvidence.length ? "simulation_behavior_saved" : "specialist_submission_only",
           };
         });
         return {
@@ -176,7 +198,9 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
           stability: row.decision?.stability || snapshot.placementStability || null,
           probes,
           canonicalEvidenceAvailable: false,
-          evidenceNotice: "The historical run preserves the Specialist's submitted observations, but the original simulated response and private canonical observations were not captured for this run. No expected response has been reconstructed.",
+          evidenceNotice: probes.some((probe: any) => probe.simulatedBehavior.length)
+            ? "The saved simulated behaviour profile is available for these probes. The separate private canonical answer key was not persisted with this historical run, so no expected answer comparison is claimed."
+            : "The historical run preserves the Specialist's submitted observations, but no simulated behaviour profile or private canonical answer key is available in the saved record. No expected response has been reconstructed.",
         };
       });
       const repRows = reps.rows.map((r: any) => {
