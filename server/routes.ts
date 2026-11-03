@@ -13601,9 +13601,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!newDate || !newTime) {
           return res.status(400).json({ message: "Missing new date or time" });
         }
-        // Tutor is proposing an adjustment, so tutor has confirmed, parent must confirm next
+        const adjustedStart = String(scheduledStart || "").trim();
+        const parsedAdjustedStart = new Date(adjustedStart);
+        if (!adjustedStart || !/(?:Z|[+-]\d{2}:\d{2})$/i.test(adjustedStart) || Number.isNaN(parsedAdjustedStart.getTime())) {
+          return res.status(400).json({ message: "A valid timezone-aware session start is required. Please refresh and try again." });
+        }
+        // Tutor is proposing an adjustment, so tutor has confirmed, parent must confirm next.
+        // Persist an explicit instant; timezone-less timestamps are interpreted inconsistently by PostgreSQL.
         updateFields = {
-          scheduled_time: `${newDate}T${newTime}`,
+          scheduled_time: parsedAdjustedStart.toISOString(),
+          timezone: String(timezone || (session as any).timezone || "Africa/Johannesburg"),
           tutor_confirmed: true,
           parent_confirmed: false,
           status: "pending_parent_confirmation",
