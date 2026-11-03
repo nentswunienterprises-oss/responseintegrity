@@ -31,7 +31,7 @@ export function TutorIntroSessionActions({ studentId, parentId, tutorId, session
   }
 
   const proposed = new Date(data.scheduled_time);
-  const formatted = proposed.toLocaleString();
+  const formatted = proposed.toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg", hourCycle: "h23" });
 
   return (
     <div className="space-y-1">
