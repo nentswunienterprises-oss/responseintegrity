@@ -108,16 +108,27 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
                        r.created_at, r.completed_at, d.submitted_at,
                        d.drill->'responseSnapshot' AS response_snapshot
                   FROM public.response_integrity_diagnosis_runs r
-                  INNER JOIN public.intro_session_drills d ON d.id = r.source_drill_id
+                  INNER JOIN public.intro_session_drills d
+                    ON d.id = r.source_drill_id
+                   AND d.tutor_id = r.tutor_id
+                   AND d.student_id = r.student_id
+                   AND d.scheduled_session_id::text = r.scheduled_session_id
+                  INNER JOIN public.scheduled_sessions ss
+                    ON ss.id::text = r.scheduled_session_id
+                   AND ss.tutor_id = r.tutor_id
+                   AND ss.student_id::text = r.student_id
+                  INNER JOIN public.tutor_assignments authorised_assignment
+                    ON authorised_assignment.id = $3
+                   AND authorised_assignment.tutor_id = r.tutor_id
                   LEFT JOIN public.users u ON u.id = r.student_id
                  WHERE r.tutor_id = $1
-                   AND d.tutor_id = $1
+                   AND d.tutor_id = $2
                    AND r.student_id IN (SELECT id FROM public.students WHERE tutor_id = $1)
                    AND r.session_container = 'intro_session'
                    AND r.activity_kind = 'intro_diagnosis'
                    AND r.status = 'completed'
                  ORDER BY COALESCE(r.completed_at, r.created_at) DESC
-                 LIMIT 90`, [tutorId]);
+                 LIMIT 90`, [tutorId, tutorId, assignmentId]);
       const diagnosisRows = diagnosisResult.rows.map((row: any) => {
         const history = Array.isArray(row.probe_history) ? row.probe_history : [];
         const snapshot = row.response_snapshot && typeof row.response_snapshot === "object" ? row.response_snapshot : {};
