@@ -842,7 +842,11 @@ test("Sandbox history stays separate from the current package balance in the stu
 
 
 test("required re-diagnosis launches the owner of the active operational lane", () => {
-  assert.match(topicMapSource, /sandbox-environment\/timing-rediagnosis/);
+  // Re-diagnosis is launched through the evidence-native intro-session route;
+  // the active Sandbox lane is resolved server-side by the runner, not by a
+  // direct browser call to the legacy timing-rediagnosis endpoint.
+  assert.match(topicMapSource, /context=training&rediagnosis=1/);
+  assert.match(sandboxRouteSource, /sandbox-environment\/timing-rediagnosis/);
   assert.match(sandboxAuthoritySource, /export async function armSandboxTimingRediagnosis/);
   assert.match(sandboxAuthoritySource, /loadLatestTpsTimerContract/);
   assert.match(
