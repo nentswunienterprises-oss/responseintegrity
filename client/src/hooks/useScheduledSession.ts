@@ -5,6 +5,8 @@ type TutorSessionResponseInput = {
   action: string;
   newDate?: string;
   newTime?: string;
+  scheduledStart?: string;
+  timezone?: string;
 };
 
 type CreateTrainingSessionInput = {
@@ -52,11 +54,13 @@ export function useScheduledSession(studentId) {
 export function useTutorRespondToSession(studentId) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ action, newDate, newTime }: TutorSessionResponseInput) => {
+    mutationFn: async ({ action, newDate, newTime, scheduledStart, timezone }: TutorSessionResponseInput) => {
       const res = await apiRequest("POST", `/api/tutor/students/${studentId}/intro-session-response`, {
         action,
         newDate,
         newTime,
+        scheduledStart,
+        timezone,
       });
       return await res.json();
     },

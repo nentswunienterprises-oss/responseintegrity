@@ -31,7 +31,7 @@ export function TutorIntroSessionActions({ studentId, parentId, tutorId, session
   }
 
   const proposed = new Date(data.scheduled_time);
-  const formatted = proposed.toLocaleString();
+  const formatted = proposed.toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg", hourCycle: "h23" });
 
   return (
     <div className="space-y-1">
@@ -87,7 +87,7 @@ export function TutorIntroSessionActions({ studentId, parentId, tutorId, session
           <Button
             size="sm"
             variant="outline"
-            onClick={() => respond.mutate({ action: "propose_adjustment", newDate, newTime })}
+            onClick={() => respond.mutate({ action: "propose_adjustment", newDate, newTime, scheduledStart: new Date(`${newDate}T${newTime}`).toISOString(), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Johannesburg" })}
             disabled={respond.isPending || !newDate || !newTime}
           >
             Adjust
