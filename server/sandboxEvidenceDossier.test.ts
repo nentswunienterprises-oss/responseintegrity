@@ -30,6 +30,8 @@ before(async () => {
       '{"placementPhase":"Clarity","stability":"Medium"}','drill-a','scheduled-a','2026-10-31','2026-11-02');
     INSERT INTO intro_session_drills VALUES
       ('drill-a','specialist','student-a','scheduled-a','{"responseSnapshot":{"opportunities":[{"order":1,"probeId":"clarity.recognition","purpose":"Cold recognition without teaching","observations":[{"dimensionId":"clarity.vocabulary","behaviorId":"no_recognition"}],"supportEvent":"teaching"}]},"evidence":[{"probeId":"clarity.recognition","dimensionId":"clarity.vocabulary","behaviorId":"no_recognition","behaviorClass":"breakdown","behaviorLabel":"Could not identify the important terms or symbols","contaminated":false,"supportEvent":"none"}]}','2026-11-02');
+    -- Production stores this legacy drill payload as a JSON string inside jsonb.
+    UPDATE intro_session_drills SET drill = to_jsonb(drill::text) WHERE id = 'drill-a';
     INSERT INTO scheduled_sessions VALUES ('scheduled-a','specialist','student-a');
     CREATE TABLE public.pods (id text, td_id text);
     CREATE TABLE public.tutor_assignments (id text, pod_id text, tutor_id text, created_at timestamptz);
