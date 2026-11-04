@@ -110,7 +110,7 @@ type SandboxDossier = {
     sessionContext:string;sessionContainer:string;activityKind:string;status:string;createdAt?:string|null;completedAt?:string|null;
     placementPhase?:string|null;stability?:string|null;canonicalEvidenceAvailable:boolean;evidenceNotice:string;
     probes:Array<{sequence:number;probeId:string;purpose:string;supportEvent:string;contaminationStatus:"clean"|"contaminated"|"not_established";contaminationReason?:string|null;canonicalEvidenceAvailable:boolean;evidenceStatus:string;
-      passiveTiming:any;simulatedBehavior:Array<{dimensionId:string;behaviorId:string;behaviorLabel:string;behaviorClass:string;contaminated:boolean}>;
+      passiveTiming:any;simulatedBehavior:string|null;
       canonicalOutcomeKey?:string|null;canonicalOutcomeVersion?:number|null;evidenceProvenance:"immutable_capture"|"retrospective_current_rules"|"unavailable";evaluationRulesVersion?:string|null;expectedSupportEvent?:string|null;
       canonicalObservations:Array<{dimensionId:string;behaviorId:string;behaviorLabel:string}>;
       comparisons:Array<{dimensionId:string;recordedBehaviorId:string;expectedBehaviorId:string|null;expectedBehaviorLabel:string|null;matched:boolean|null}>;
@@ -597,18 +597,10 @@ export function SandboxReadinessAssessmentCard({
                                         <div className="mt-3 space-y-2 border-t pt-3 text-xs">
                                           <div className="rounded-md border bg-muted/10 p-3">
                                             <p className="font-semibold text-foreground">Simulated student behaviour</p>
-                                            {probe.simulatedBehavior.length ? (
-                                              <div className="mt-2 space-y-2">
-                                                {probe.simulatedBehavior.map((behavior, behaviorIndex) => (
-                                                  <div key={`${behavior.dimensionId}-${behaviorIndex}`} className="rounded-md border bg-background p-2">
-                                                    <p className="font-medium text-foreground">{humanize(behavior.dimensionId)}</p>
-                                                    <p className="mt-1 text-muted-foreground">{behavior.behaviorLabel}</p>
-                                                    <p className="mt-1 text-muted-foreground">Behaviour class: <span className="font-medium text-foreground">{humanize(behavior.behaviorClass)}</span>{behavior.contaminated ? " · Support-affected" : ""}</p>
-                                                  </div>
-                                                ))}
-                                              </div>
+                                            {probe.simulatedBehavior ? (
+                                              <p className="mt-2 whitespace-pre-wrap leading-relaxed text-muted-foreground">{probe.simulatedBehavior}</p>
                                             ) : (
-                                              <p className="mt-1 text-muted-foreground">No saved simulated student behaviour is available for this probe.</p>
+                                              <p className="mt-1 text-muted-foreground">The original simulated student narrative was not preserved for this historical probe.</p>
                                             )}
                                           </div>
                                           <p className="text-muted-foreground">Evidence status: <span className="font-semibold text-foreground">{humanize(probe.contaminationStatus)}</span></p>
