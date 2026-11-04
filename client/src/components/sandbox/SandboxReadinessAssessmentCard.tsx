@@ -631,7 +631,7 @@ export function SandboxReadinessAssessmentCard({
                                                   <div key={`${comparison.dimensionId}-${comparisonIndex}`} className="rounded-md border bg-background p-2">
                                                     <p className="font-semibold text-foreground">{humanize(comparison.dimensionId)}</p>
                                                     <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                                                      <p className="text-muted-foreground"><span className="font-medium text-foreground">Specialist recorded:</span> {humanize(comparison.recordedBehaviorId)}</p>
+                                                      <p className="text-muted-foreground"><span className="font-medium text-foreground">Specialist recorded:</span> {comparison.recordedBehaviorLabel || humanize(comparison.recordedBehaviorId)}</p>
                                                       <p className="text-muted-foreground"><span className="font-medium text-foreground">RI expected:</span> {comparison.expectedBehaviorLabel || humanize(comparison.expectedBehaviorId || "Not available")}</p>
                                                     </div>
                                                     <div className="mt-2 flex justify-end">
