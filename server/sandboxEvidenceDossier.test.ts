@@ -145,8 +145,7 @@ test('assigned TD can inspect diagnosis runs and probe submissions without fabri
   assert.equal(run.probes[0].comparisons[0].matched,true);
   assert.equal(run.probes[0].expectedSupportEvent,'none');
   assert.equal(run.probes[0].supportRecognitionStatus,'diverged');
-  assert.equal(run.probes[0].simulatedBehavior.length,1);
-  assert.equal(run.probes[0].simulatedBehavior[0].behaviorLabel,'Could not identify the important terms or symbols');
+  assert.equal(run.probes[0].simulatedBehavior,null);
   assert.match(run.evidenceNotice,/retrospectively evaluated against the saved simulated response and current RI diagnosis observation rules/);
 });
 test('assigned TD sees exact captured diagnosis outcome truth beside the Specialist observation', async () => {
@@ -165,8 +164,7 @@ test('assigned TD sees exact captured diagnosis outcome truth beside the Special
   assert.equal(probe.canonicalEvidenceAvailable,true);
   assert.equal(probe.canonicalOutcomeKey,'percentages.clarity.pattern_1');
   assert.equal(probe.canonicalOutcomeVersion,3);
-  assert.equal(probe.simulatedBehavior.length,1);
-  assert.equal(probe.simulatedBehavior[0].behaviorLabel,'Could not identify the important terms or symbols');
+  assert.equal(probe.simulatedBehavior,'The student identifies the relevant quantities, selects a method independently, and explains the first step.');
   assert.equal(probe.comparisons[0].matched,true);
   assert.equal(probe.comparisons[0].expectedBehaviorLabel,'Could not identify the important terms or symbols');
   assert.equal(probe.supportRecognitionStatus,'not_independently_compared');
