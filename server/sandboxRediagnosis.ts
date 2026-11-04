@@ -942,6 +942,8 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
 
   // Historical, submitted simulation only. Protected Proof schema + explicit flag required.
   // A simulation observation never claims native Diagnosis/Handover authority.
+  // Persist the exact response shown to the Specialist, not a description derived from their observations.
+  // This flag is enabled for the dedicated Preview branch while the capture path is validated.
   if (process.env.RI_SANDBOX_CROSSMODE_CAPTURE_V1 === "true") {
     const selectedRecord = outcomes.find(record =>
       record.definition.key === selected.key && record.definition.version === selected.version);
