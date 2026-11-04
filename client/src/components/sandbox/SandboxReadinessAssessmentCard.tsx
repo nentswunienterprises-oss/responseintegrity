@@ -597,18 +597,10 @@ export function SandboxReadinessAssessmentCard({
                                         <div className="mt-3 space-y-2 border-t pt-3 text-xs">
                                           <div className="rounded-md border bg-muted/10 p-3">
                                             <p className="font-semibold text-foreground">Simulated student behaviour</p>
-                                            {probe.simulatedBehavior.length ? (
-                                              <div className="mt-2 space-y-2">
-                                                {probe.simulatedBehavior.map((behavior, behaviorIndex) => (
-                                                  <div key={`${behavior.dimensionId}-${behaviorIndex}`} className="rounded-md border bg-background p-2">
-                                                    <p className="font-medium text-foreground">{humanize(behavior.dimensionId)}</p>
-                                                    <p className="mt-1 text-muted-foreground">{behavior.behaviorLabel}</p>
-                                                    <p className="mt-1 text-muted-foreground">Behaviour class: <span className="font-medium text-foreground">{humanize(behavior.behaviorClass)}</span>{behavior.contaminated ? " · Support-affected" : ""}</p>
-                                                  </div>
-                                                ))}
-                                              </div>
+                                            {probe.simulatedBehavior ? (
+                                              <p className="mt-2 whitespace-pre-wrap leading-relaxed text-muted-foreground">{probe.simulatedBehavior}</p>
                                             ) : (
-                                              <p className="mt-1 text-muted-foreground">The saved run did not preserve a simulated behaviour description for this probe.</p>
+                                              <p className="mt-1 text-muted-foreground">No saved simulated student behaviour is available for this probe.</p>
                                             )}
                                           </div>
                                           <p className="text-muted-foreground">Evidence status: <span className="font-semibold text-foreground">{humanize(probe.contaminationStatus)}</span></p>
