@@ -11,7 +11,7 @@ before(async () => {
     CREATE SCHEMA private;
     CREATE TABLE public.specialist_sandbox_live_evidence_turns (
       id text, tutor_assignment_id text, tutor_id text, student_id text, scope text,
-      source_context_id text, sequence_number int, probe_id text, completed_at timestamptz DEFAULT now());
+      source_context_id text, sequence_number int, probe_id text, student_behavior text, completed_at timestamptz DEFAULT now());
     CREATE TABLE private.specialist_sandbox_live_evidence_truth (
       event_id text, outcome_key text, outcome_version int, canonical_observations jsonb, trajectory_class text);
     CREATE TABLE public.users (id text, name text);
@@ -145,14 +145,15 @@ test('assigned TD can inspect diagnosis runs and probe submissions without fabri
   assert.equal(run.probes[0].comparisons[0].matched,true);
   assert.equal(run.probes[0].expectedSupportEvent,'none');
   assert.equal(run.probes[0].supportRecognitionStatus,'diverged');
-  assert.equal(run.probes[0].simulatedBehavior.length,0);
+  assert.equal(run.probes[0].simulatedBehavior,null);
   assert.match(run.evidenceNotice,/retrospectively evaluated against the saved simulated response and current RI diagnosis observation rules/);
 });
 test('assigned TD sees exact captured diagnosis outcome truth beside the Specialist observation', async () => {
   await database.exec(`
     INSERT INTO public.specialist_sandbox_live_evidence_turns
-      (id,tutor_assignment_id,tutor_id,student_id,scope,source_context_id,sequence_number,probe_id)
-    VALUES ('capture-a','a','specialist','student-a','diagnosis','diagnosis-a',1,'clarity.recognition');
+      (id,tutor_assignment_id,tutor_id,student_id,scope,source_context_id,sequence_number,probe_id,student_behavior)
+    VALUES ('capture-a','a','specialist','student-a','diagnosis','diagnosis-a',1,'clarity.recognition',
+      'The student identifies the relevant quantities, selects a method independently, and explains the first step.');
     INSERT INTO private.specialist_sandbox_live_evidence_truth
       (event_id,outcome_key,outcome_version,canonical_observations,trajectory_class)
     VALUES ('capture-a','percentages.clarity.pattern_1',3,
@@ -163,6 +164,7 @@ test('assigned TD sees exact captured diagnosis outcome truth beside the Special
   assert.equal(probe.canonicalEvidenceAvailable,true);
   assert.equal(probe.canonicalOutcomeKey,'percentages.clarity.pattern_1');
   assert.equal(probe.canonicalOutcomeVersion,3);
+  assert.equal(probe.simulatedBehavior,'The student identifies the relevant quantities, selects a method independently, and explains the first step.');
   assert.equal(probe.comparisons[0].matched,true);
   assert.equal(probe.comparisons[0].expectedBehaviorLabel,'Could not identify the important terms or symbols');
   assert.equal(probe.supportRecognitionStatus,'not_independently_compared');
