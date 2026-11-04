@@ -630,7 +630,6 @@ export function SandboxReadinessAssessmentCard({
                                               <p className="text-muted-foreground">No expected response is available for this probe; the saved run did not preserve enough evidence for a responsible retrospective evaluation.</p>
                                             )}
                                           </div>
-                                          <p className="text-muted-foreground">Support event recorded: <span className="font-medium text-foreground">{humanize(probe.supportEvent)}</span></p>
                                           <p className="text-muted-foreground">Expected support intervention: <span className="font-medium text-foreground">{probe.expectedSupportEvent ? humanize(probe.expectedSupportEvent) : "Not preserved independently"}</span></p>
                                           {probe.expectedSupportEvent ? (
                                             <Badge variant={probe.supportRecognitionStatus === "aligned" ? "default" : "destructive"}>
@@ -640,16 +639,6 @@ export function SandboxReadinessAssessmentCard({
                                           {probe.passiveTiming?.elapsedMs != null ? (
                                             <p className="text-muted-foreground">Recorded active timing: <span className="font-medium text-foreground">{Math.round(probe.passiveTiming.elapsedMs / 1000)} seconds</span> · {humanize(probe.passiveTiming.timingValidity)}</p>
                                           ) : null}
-                                          {probe.observations.length ? (
-                                            <div className="space-y-2">
-                                              {probe.observations.map((observation, observationIndex) => (
-                                                <div key={`${observation.dimensionId}-${observationIndex}`} className="rounded-md border bg-muted/10 p-2">
-                                                  <p className="font-semibold text-foreground">{humanize(observation.dimensionId)}</p>
-                                                  <p className="mt-1 text-muted-foreground">Recorded: {humanize(observation.behaviorId)}</p>
-                                                </div>
-                                              ))}
-                                            </div>
-                                          ) : <p className="text-muted-foreground">No probe observations were preserved.</p>}
                                         </div>
                                       </details>
                                     ))}
