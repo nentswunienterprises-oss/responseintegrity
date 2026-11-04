@@ -595,6 +595,22 @@ export function SandboxReadinessAssessmentCard({
                                           {probe.purpose ? <p className="mt-1 text-xs text-muted-foreground">{probe.purpose}</p> : null}
                                         </summary>
                                         <div className="mt-3 space-y-2 border-t pt-3 text-xs">
+                                          <div className="rounded-md border bg-muted/10 p-3">
+                                            <p className="font-semibold text-foreground">Simulated student behaviour</p>
+                                            {probe.simulatedBehavior.length ? (
+                                              <div className="mt-2 space-y-2">
+                                                {probe.simulatedBehavior.map((behavior, behaviorIndex) => (
+                                                  <div key={`${behavior.dimensionId}-${behaviorIndex}`} className="rounded-md border bg-background p-2">
+                                                    <p className="font-medium text-foreground">{humanize(behavior.dimensionId)}</p>
+                                                    <p className="mt-1 text-muted-foreground">{behavior.behaviorLabel}</p>
+                                                    <p className="mt-1 text-muted-foreground">Behaviour class: <span className="font-medium text-foreground">{humanize(behavior.behaviorClass)}</span>{behavior.contaminated ? " · Support-affected" : ""}</p>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            ) : (
+                                              <p className="mt-1 text-muted-foreground">The saved run did not preserve a simulated behaviour description for this probe.</p>
+                                            )}
+                                          </div>
                                           <p className="text-muted-foreground">Evidence status: <span className="font-semibold text-foreground">{humanize(probe.contaminationStatus)}</span></p>
                                           {probe.contaminationReason ? <p className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-amber-700 dark:text-amber-300">{probe.contaminationReason}</p> : null}
                                           <p className="text-muted-foreground">Recorded support condition/event: <span className="font-medium text-foreground">{humanize(probe.supportEvent)}</span></p>
@@ -618,7 +634,7 @@ export function SandboxReadinessAssessmentCard({
                                                       <p className="text-muted-foreground"><span className="font-medium text-foreground">Specialist recorded:</span> {humanize(comparison.recordedBehaviorId)}</p>
                                                       <p className="text-muted-foreground"><span className="font-medium text-foreground">RI expected:</span> {comparison.expectedBehaviorLabel || humanize(comparison.expectedBehaviorId || "Not available")}</p>
                                                     </div>
-                                                    <div className="mt-2">
+                                                    <div className="mt-2 flex justify-end">
                                                       <Badge variant={comparison.matched === true ? "default" : comparison.matched === false ? "destructive" : "outline"}>
                                                         {comparison.matched === true ? "Aligned" : comparison.matched === false ? "Diverged" : "Unresolved"}
                                                       </Badge>
