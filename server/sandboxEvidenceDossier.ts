@@ -239,18 +239,11 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
             canonicalOutcomeKey: capturedCanonical ? String(capture.outcome_key || "") : null,
             canonicalOutcomeVersion: capturedCanonical ? Number(capture.outcome_version) : null,
             evaluationRulesVersion: "diagnosis-observation-matrix-current",
-            simulatedBehavior: retrospectiveEvidence.map((item: any) => {
-              const dimensionId = String(item?.dimensionId || "");
-              const behaviorId = String(item?.behaviorId || "");
-              const currentRule = getDiagnosisObservationOption(dimensionId as any, behaviorId);
-              return {
-                dimensionId,
-                behaviorId,
-                behaviorLabel: currentRule?.label || String(item?.behaviorLabel || behaviorId),
-                behaviorClass: currentRule?.behaviorClass || String(item?.behaviorClass || "unresolved"),
-                contaminated: Boolean(item?.contaminated),
-              };
-            }).filter((item: any) => item.dimensionId && item.behaviorId),
+            // This is the exact narrative shown to the Specialist for this probe.
+            // Never derive it from canonical or recorded observations.
+            simulatedBehavior: typeof capture?.student_behavior === "string" && capture.student_behavior.trim()
+              ? capture.student_behavior
+              : null,
             contaminationStatus: "not_established",
             contaminationReason: null,
           };
