@@ -135,6 +135,7 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
                  LIMIT 90`, [tutorId, tutorId, assignmentId]);
       const liveEvidenceResult = await db.query(
         `SELECT e.source_context_id, e.sequence_number, e.probe_id, e.id AS event_id,
+                e.student_behavior,
                 t.outcome_key, t.outcome_version, t.canonical_observations, t.trajectory_class
            FROM public.specialist_sandbox_live_evidence_turns e
            INNER JOIN private.specialist_sandbox_live_evidence_truth t ON t.event_id = e.id
@@ -228,7 +229,7 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
             canonicalOutcomeKey: capturedCanonical ? String(capture.outcome_key || "") : null,
             canonicalOutcomeVersion: capturedCanonical ? Number(capture.outcome_version) : null,
             evaluationRulesVersion: "diagnosis-observation-matrix-current",
-            simulatedBehavior: [],
+            simulatedBehavior: capture?.student_behavior ? String(capture.student_behavior) : null,
             contaminationStatus: "not_established",
             contaminationReason: null,
           };
