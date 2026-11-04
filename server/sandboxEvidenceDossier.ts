@@ -194,13 +194,17 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
           const expectedSupportEvents = [...new Set(retrospectiveEvidence.map((item: any) => String(item?.supportEvent || "")).filter(Boolean))];
           const expectedSupportEvent = expectedSupportEvents.length === 1 ? expectedSupportEvents[0] : null;
           const expectedByDimension = new Map(canonical.map((item: any) => [item.dimensionId, item.behaviorId]));
-          const comparisons = recorded.map((item: any) => ({
-            dimensionId: item.dimensionId,
-            recordedBehaviorId: item.behaviorId,
-            expectedBehaviorId: expectedByDimension.get(item.dimensionId) || null,
-            expectedBehaviorLabel: canonical.find((entry: any) => entry.dimensionId === item.dimensionId)?.behaviorLabel || null,
-            matched: expectedByDimension.has(item.dimensionId) ? expectedByDimension.get(item.dimensionId) === item.behaviorId : null,
-          }));
+          const comparisons = recorded.map((item: any) => {
+            const recordedRule = getDiagnosisObservationOption(item.dimensionId as any, item.behaviorId);
+            return {
+              dimensionId: item.dimensionId,
+              recordedBehaviorId: item.behaviorId,
+              recordedBehaviorLabel: recordedRule?.label || String(item.behaviorLabel || item.behaviorId),
+              expectedBehaviorId: expectedByDimension.get(item.dimensionId) || null,
+              expectedBehaviorLabel: canonical.find((entry: any) => entry.dimensionId === item.dimensionId)?.behaviorLabel || null,
+              matched: expectedByDimension.has(item.dimensionId) ? expectedByDimension.get(item.dimensionId) === item.behaviorId : null,
+            };
+          });
           return {
             sequence: index + 1,
             probeId,
