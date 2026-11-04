@@ -110,7 +110,7 @@ type SandboxDossier = {
     sessionContext:string;sessionContainer:string;activityKind:string;status:string;createdAt?:string|null;completedAt?:string|null;
     placementPhase?:string|null;stability?:string|null;canonicalEvidenceAvailable:boolean;evidenceNotice:string;
     probes:Array<{sequence:number;probeId:string;purpose:string;supportEvent:string;contaminationStatus:"clean"|"contaminated"|"not_established";contaminationReason?:string|null;canonicalEvidenceAvailable:boolean;evidenceStatus:string;
-      passiveTiming:any;simulatedBehavior:Array<{dimensionId:string;behaviorId:string;behaviorLabel:string;behaviorClass:string;contaminated:boolean}>;
+      passiveTiming:any;simulatedBehavior:string|null;
       canonicalOutcomeKey?:string|null;canonicalOutcomeVersion?:number|null;evidenceProvenance:"immutable_capture"|"retrospective_current_rules"|"unavailable";evaluationRulesVersion?:string|null;expectedSupportEvent?:string|null;
       canonicalObservations:Array<{dimensionId:string;behaviorId:string;behaviorLabel:string}>;
       comparisons:Array<{dimensionId:string;recordedBehaviorId:string;expectedBehaviorId:string|null;expectedBehaviorLabel:string|null;matched:boolean|null}>;
