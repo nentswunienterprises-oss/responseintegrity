@@ -158,7 +158,17 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
       );
       const diagnosisRows = diagnosisResult.rows.map((row: any) => {
         const history = Array.isArray(row.probe_history) ? row.probe_history : [];
-        const drillPayload = row.drill_payload && typeof row.drill_payload === "object" ? row.drill_payload : {};
+        let drillPayload: any = {};
+        if (row.drill_payload && typeof row.drill_payload === "object" && !Array.isArray(row.drill_payload)) {
+          drillPayload = row.drill_payload;
+        } else if (typeof row.drill_payload === "string") {
+          try {
+            const parsed = JSON.parse(row.drill_payload);
+            drillPayload = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+          } catch {
+            drillPayload = {};
+          }
+        }
         const snapshot = drillPayload.responseSnapshot && typeof drillPayload.responseSnapshot === "object" ? drillPayload.responseSnapshot : {};
         const opportunities = Array.isArray(snapshot.opportunities) ? snapshot.opportunities : [];
         const savedExpectedEvidence = Array.isArray(drillPayload.evidence) ? drillPayload.evidence : [];
@@ -229,7 +239,18 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
             canonicalOutcomeKey: capturedCanonical ? String(capture.outcome_key || "") : null,
             canonicalOutcomeVersion: capturedCanonical ? Number(capture.outcome_version) : null,
             evaluationRulesVersion: "diagnosis-observation-matrix-current",
-            simulatedBehavior: capture?.student_behavior ? String(capture.student_behavior) : null,
+            simulatedBehavior: retrospectiveEvidence.map((item: any) => {
+              const dimensionId = String(item?.dimensionId || "");
+              const behaviorId = String(item?.behaviorId || "");
+              const currentRule = getDiagnosisObservationOption(dimensionId as any, behaviorId);
+              return {
+                dimensionId,
+                behaviorId,
+                behaviorLabel: currentRule?.label || String(item?.behaviorLabel || behaviorId),
+                behaviorClass: currentRule?.behaviorClass || String(item?.behaviorClass || "unresolved"),
+                contaminated: Boolean(item?.contaminated),
+              };
+            }).filter((item: any) => item.dimensionId && item.behaviorId),
             contaminationStatus: "not_established",
             contaminationReason: null,
           };
