@@ -138,7 +138,8 @@ export default function ParentSessions() {
     const day = date.getDay();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return day >= 1 && day <= 6 && date >= today;
+    const isSandbox = data?.operationalMode === "sandbox";
+    return day >= 1 && day <= 6 && (isSandbox || date >= today);
   };
 
   const openAdjustmentEditor = (session: ParentTrainingSession) => {
@@ -311,10 +312,12 @@ export default function ParentSessions() {
     }
   };
 
-  const plannedSessionsPerWeek = Math.max(2, Math.min(4, Number(
-    data?.monthlyQuota?.planned_sessions_per_week ||
-    (Number(data?.monthlyQuota?.session_quota) === 16 ? 4 : Number(data?.monthlyQuota?.session_quota) === 12 ? 3 : 2)
-  )));
+  const plannedSessionsPerWeek = data?.operationalMode === "sandbox"
+    ? Math.max(2, Math.min(4, Number(
+        data?.monthlyQuota?.planned_sessions_per_week ||
+        (Number(data?.monthlyQuota?.session_quota) === 16 ? 4 : Number(data?.monthlyQuota?.session_quota) === 12 ? 3 : 2)
+      )))
+    : 2;
   const handleScheduleWeek = async () => {
     const selectedSlots = scheduleSlots.slice(0, plannedSessionsPerWeek)
       .map((slot) => combineDateAndTime(slot.date, slot.time));
@@ -381,15 +384,17 @@ export default function ParentSessions() {
         description:
           payload?.createdCount > 0
             ? data?.operationalMode === "sandbox"
-              ? "Two weekly session times were proposed. Your specialist must confirm both dates before the lessons are ready."
+              ? `${plannedSessionsPerWeek} simulated weekly session times were proposed. Your Specialist must confirm all dates before the lessons are ready.`
               : "Two weekly session times were proposed. Your Specialist must confirm both dates before Meet links are created."
             : "Those weekly session times already exist.",
       });
 
-      setSlotOneDate(undefined);
-      setSlotOneTime("15:00");
-      setSlotTwoDate(undefined);
-      setSlotTwoTime("17:00");
+      setScheduleSlots([
+        { date: undefined, time: "15:00" },
+        { date: undefined, time: "17:00" },
+        { date: undefined, time: "16:00" },
+        { date: undefined, time: "18:00" },
+      ]);
       queryClient.invalidateQueries({ queryKey: ["/api/parent/training-sessions"] });
     } catch (error) {
       toast({
