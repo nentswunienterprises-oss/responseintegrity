@@ -2437,7 +2437,11 @@ async function upsertMembershipMonth(options: {
   isSandbox?: boolean;
   packageKey?: MonthlyPackageKey | null;
 }) {
-  const monthKey = toMonthKey(options.monthStartIso);
+  // Canonicalize the cycle identifier. For Sandbox this is a simulated
+  // sequence key, not an expiry boundary tied to the real calendar.
+  const normalizedMonthStartIso = getMonthStartIso(options.monthStartIso);
+  if (!normalizedMonthStartIso) return null;
+  const monthKey = toMonthKey(normalizedMonthStartIso);
   const nowIso = new Date().toISOString();
 
   const { data: existing } = await supabase
