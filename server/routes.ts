@@ -2437,7 +2437,11 @@ async function upsertMembershipMonth(options: {
   isSandbox?: boolean;
   packageKey?: MonthlyPackageKey | null;
 }) {
-  const monthKey = toMonthKey(options.monthStartIso);
+  // Every membership cycle key is the first day of its month. Some callers
+  // pass the current timestamp; never persist that day-of-month as authority.
+  const normalizedMonthStartIso = getMonthStartIso(options.monthStartIso);
+  if (!normalizedMonthStartIso) return null;
+  const monthKey = toMonthKey(normalizedMonthStartIso);
   const nowIso = new Date().toISOString();
 
   const { data: existing } = await supabase
@@ -15302,8 +15306,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }))
         .sort((a, b) => new Date(a.scheduledStart).getTime() - new Date(b.scheduledStart).getTime());
 
-      if (parsedSlots.length !== 2) {
-        return res.status(400).json({ message: "Both weekly session times are required." });
+      const packageWeeklyTarget = Number(
+        monthlyQuota?.planned_sessions_per_week ||
+        (Number(monthlyQuota?.session_quota) === 16 ? 4 : Number(monthlyQuota?.session_quota) === 12 ? 3 : 2),
+      );
+      const expectedWeeklySessions = Number.isSafeInteger(packageWeeklyTarget) && packageWeeklyTarget >= 2 && packageWeeklyTarget <= 4
+        ? packageWeeklyTarget
+        : 2;
+      if (parsedSlots.length !== expectedWeeklySessions) {
+        return res.status(400).json({
+          message: `This package requires exactly ${expectedWeeklySessions} session times for the week.`,
+          expectedWeeklySessions,
+        });
       }
 
       const weekInfos = parsedSlots.map((slot) => getLocalWeekInfo(slot.scheduledStart));
@@ -15317,7 +15331,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const targetWeekStartUtc = weekInfos[0]?.weekStartUtc;
       if (weekInfos.some((info) => info?.weekStartUtc !== targetWeekStartUtc)) {
-        return res.status(400).json({ message: "Both weekly session dates must be within the same Monday-to-Saturday week." });
+        return res.status(400).json({ message: "All weekly session dates must be within the same Monday-to-Saturday week." });
       }
 
       const nowMs = Date.now();
