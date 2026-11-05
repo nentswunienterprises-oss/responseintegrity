@@ -45,7 +45,7 @@ test("Sandbox cycle identifiers are canonicalized without using them as expiry d
   const upsert = source("async function upsertMembershipMonth(", "async function recalculateMembershipMonthUsage(");
   assert.match(upsert, /getMonthStartIso\(options\.monthStartIso\)/);
   assert.match(upsert, /const monthKey = toMonthKey\(normalizedMonthStartIso\)/);
-  assert.match(upsert, /simulated sequence key, not an expiry boundary tied to the real calendar/);
+  assert.match(upsert, /sequence key, not an expiry boundary tied to the real calendar/);
 });
 
 test("Sandbox booking uses simulated package cadence and Commercial remains two slots", () => {
@@ -111,7 +111,7 @@ test("Preview fixture retains the simulated cycle and does not grant another mon
   assert.doesNotMatch(lookup, /\.insert\(|\.update\(/);
   assert.ok(preview.includes('normalize(process.env.VERCEL_ENV) !== "preview"'));
   assert.ok(preview.includes('const evidenceUpperBoundIso = "9999-12-31T23:59:59.999Z"'));
-  assert.ok(preview.includes("loadUsageEvents(parentId, studentId, startIso, evidenceUpperBoundIso)"));
+  assert.ok(preview.includes("loadUsageEvents(parentId, studentId, cycleStartIso, evidenceUpperBoundIso)"));
   assert.ok(preview.includes("latestTimes[0] + 1"));
   assert.ok(preview.includes('student_id.eq.${studentId},enrollment_id.eq.${enrollmentId}'));
   assert.ok(preview.includes('normalize(process.env.VERCEL_ENV) !== "preview"'));
