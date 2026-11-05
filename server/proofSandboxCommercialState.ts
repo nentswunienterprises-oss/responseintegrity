@@ -24,10 +24,6 @@ function monthStartIso(reference = new Date()) {
   return new Date(Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth(), 1)).toISOString();
 }
 
-function monthKeyFromIso(value: string) {
-  return value.slice(0, 10);
-}
-
 function parseStoredDrill(value: unknown): any {
   if (!value) return null;
   if (typeof value === "object") return value;
@@ -244,7 +240,6 @@ export async function ensurePreviewSandboxFixtureCommercialState(options: {
 
   const now = new Date();
   const startIso = monthStartIso(now);
-  const monthKey = monthKeyFromIso(startIso);
   const nowIso = now.toISOString();
   const evidenceUpperBoundIso = "9999-12-31T23:59:59.999Z";
   const servicePackage = getMonthlyServicePackage(enrollment.package_key);
@@ -262,10 +257,6 @@ export async function ensurePreviewSandboxFixtureCommercialState(options: {
 
   const existingCycles = Array.isArray(cycleRows) ? cycleRows : [];
   let membership = selectAuthoritativeSandboxCycle(existingCycles, parentId, studentId);
-  if (existingCycles.length > 0 && !membership) {
-    return { repaired: false, reason: "membership_unavailable" as const };
-  }
-
   if (existingCycles.length > 0 && !membership) {
     return { repaired: false, reason: "membership_unavailable" as const };
   }
