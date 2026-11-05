@@ -41,6 +41,13 @@ test("Specialist quota and launch authority resolve through shared package gette
   assert.match(tutor, /applyTrainingPackageQuotaToLaunch/);
 });
 
+test("Sandbox cycle identifiers are canonicalized without using them as expiry dates", () => {
+  const upsert = source("async function upsertMembershipMonth(", "async function recalculateMembershipMonthUsage(");
+  assert.match(upsert, /getMonthStartIso\(options\.monthStartIso\)/);
+  assert.match(upsert, /const monthKey = toMonthKey\(normalizedMonthStartIso\)/);
+  assert.match(upsert, /simulated sequence key, not an expiry boundary tied to the real calendar/);
+});
+
 test("Sandbox booking uses simulated package cadence and Commercial remains two slots", () => {
   const booking = source(
     'app.post("/api/parent/training-sessions/schedule-week"',
