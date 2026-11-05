@@ -184,7 +184,7 @@ export default function ParentSessions() {
     };
     const firstWeekStart = getWeekStart(parsed[0]);
     if (parsed.some((date) => getWeekStart(date) !== firstWeekStart)) {
-      return "Both sessions must be scheduled within the same Monday-to-Saturday week.";
+      return "All sessions must be scheduled within the same Monday-to-Saturday week.";
     }
     return null;
   };
