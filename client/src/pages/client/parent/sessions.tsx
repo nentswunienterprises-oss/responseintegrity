@@ -896,7 +896,7 @@ export default function ParentSessions() {
                               size="sm"
                               variant="outline"
                               onClick={() => handleAdjustSession(session.id)}
-                              className="whitespace-nowrap text-foreground"
+                              className="whitespace-nowrap !text-slate-900 hover:!text-slate-900"
                               disabled={adjustingSessionId === session.id}
                             >
                               {adjustingSessionId === session.id ? "Sending..." : "Send New Time"}
