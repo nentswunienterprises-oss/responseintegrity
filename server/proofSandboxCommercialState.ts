@@ -249,7 +249,7 @@ export async function ensurePreviewSandboxFixtureCommercialState(options: {
   const evidenceUpperBoundIso = "9999-12-31T23:59:59.999Z";
   const servicePackage = getMonthlyServicePackage(enrollment.package_key);
 
-  const { data: existingCycles, error: membershipError } = await supabase
+  const { data: cycleRows, error: membershipError } = await supabase
     .from("membership_months")
     .select("*")
     .eq("parent_id", parentId)
@@ -260,42 +260,15 @@ export async function ensurePreviewSandboxFixtureCommercialState(options: {
     .limit(2);
   if (membershipError) throw membershipError;
 
+  const existingCycles = Array.isArray(cycleRows) ? cycleRows : [];
   let membership = selectAuthoritativeSandboxCycle(existingCycles, parentId, studentId);
   if (existingCycles.length > 0 && !membership) {
     return { repaired: false, reason: "membership_unavailable" as const };
   }
 
-  if (!membership) {
-    const { data: inserted, error } = await supabase
-      .from("membership_months")
-      .insert({
-        parent_id: parentId,
-        student_id: studentId,
-        enrollment_id: enrollmentId,
-        month_start: monthKey,
-        month_key: monthKey,
-        package_key: servicePackage.key,
-        planned_sessions_per_week: servicePackage.plannedSessionsPerWeek,
-        session_price: SESSION_PRICE_ZAR,
-        specialist_per_session_amount: SPECIALIST_SESSION_SHARE_ZAR,
-        platform_per_session_amount: RESPONSE_INTEGRITY_SESSION_SHARE_ZAR,
-        specialist_earned_amount: 0,
-        specialist_payable_amount: 0,
-        payout_status: "accruing",
-        session_quota: servicePackage.sessionsPerMonth,
-        sessions_used: 0,
-        sessions_remaining: servicePackage.sessionsPerMonth,
-        status: "active",
-        is_sandbox: true,
-        created_at: startIso,
-        updated_at: nowIso,
-      })
-      .select("*")
-      .maybeSingle();
-    if (error) throw error;
-    membership = inserted;
+  if (existingCycles.length > 0 && !membership) {
+    return { repaired: false, reason: "membership_unavailable" as const };
   }
-
   if (!membership) {
     return { repaired: false, reason: "membership_unavailable" as const };
   }
