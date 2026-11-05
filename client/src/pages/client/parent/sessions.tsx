@@ -602,9 +602,11 @@ export default function ParentSessions() {
   const renewalBlocked = paymentRequired || quotaExhausted;
   const sandboxPaymentRequired = data?.operationalMode === "sandbox" && paymentRequired;
   const trainingModeScheduling = ["training", "sandbox"].includes(String(data?.operationalMode || ""));
-  const scheduleWeekDescription = trainingModeScheduling
-    ? `Choose ${plannedSessionsPerWeek} Monday-to-Saturday training session times in the same week. Your Specialist must confirm all dates before Response Integrity locks the sessions into the training flow.`
-    : `Choose ${plannedSessionsPerWeek} Monday-to-Saturday training session times in the same week. Your Specialist must confirm all dates before Response Integrity creates the Meet links.`;
+  const scheduleWeekDescription = data?.operationalMode === "sandbox"
+    ? `Choose ${plannedSessionsPerWeek} simulated Monday-to-Saturday training times in the same week. These dates are part of the Sandbox timeline, not live calendar availability. Your Specialist must confirm all dates before lessons are ready.`
+    : trainingModeScheduling
+      ? "Choose two Monday-to-Saturday training session times in the same week. Your Specialist must confirm both dates before Response Integrity locks the sessions into the training flow."
+      : "Choose two Monday-to-Saturday training session times in the same week. Your Specialist must confirm both dates before Response Integrity creates the Meet links.";
   const actionableSessions = sessions.filter(
     (session) => !["completed", "cancelled", "flagged"].includes(String(session.status || "")),
   );
