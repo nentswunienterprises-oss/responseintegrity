@@ -1,3 +1,4 @@
+import { selectAuthoritativeSandboxCycle } from "./sandboxPackageCycle";
 import {
   RESPONSE_INTEGRITY_SESSION_SHARE_ZAR,
   SESSION_PRICE_ZAR,
@@ -245,26 +246,26 @@ export async function ensurePreviewSandboxFixtureCommercialState(options: {
   const startIso = monthStartIso(now);
   const monthKey = monthKeyFromIso(startIso);
   const nowIso = now.toISOString();
+  const evidenceUpperBoundIso = "9999-12-31T23:59:59.999Z";
   const servicePackage = getMonthlyServicePackage(enrollment.package_key);
 
-  let { data: membership, error: membershipError } = await supabase
+  const { data: existingCycles, error: membershipError } = await supabase
     .from("membership_months")
     .select("*")
     .eq("parent_id", parentId)
     .eq("student_id", studentId)
-    .eq("month_key", monthKey)
     .eq("is_sandbox", true)
-    .maybeSingle();
+    .order("month_key", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(2);
   if (membershipError) throw membershipError;
 
-  const usageEvents = await loadUsageEvents(parentId, studentId, startIso, nowIso);
-  const distinctUsageCount = new Set(usageEvents.map((event) => event.key)).size;
+  let membership = selectAuthoritativeSandboxCycle(existingCycles, parentId, studentId);
+  if (existingCycles.length > 0 && !membership) {
+    return { repaired: false, reason: "membership_unavailable" as const };
+  }
 
   if (!membership) {
-    const inferredUsed =
-      distinctUsageCount === 0
-        ? 0
-        : ((distinctUsageCount - 1) % servicePackage.sessionsPerMonth) + 1;
     const { data: inserted, error } = await supabase
       .from("membership_months")
       .insert({
@@ -282,8 +283,8 @@ export async function ensurePreviewSandboxFixtureCommercialState(options: {
         specialist_payable_amount: 0,
         payout_status: "accruing",
         session_quota: servicePackage.sessionsPerMonth,
-        sessions_used: inferredUsed,
-        sessions_remaining: Math.max(0, servicePackage.sessionsPerMonth - inferredUsed),
+        sessions_used: 0,
+        sessions_remaining: servicePackage.sessionsPerMonth,
         status: "active",
         is_sandbox: true,
         created_at: startIso,
@@ -298,6 +299,10 @@ export async function ensurePreviewSandboxFixtureCommercialState(options: {
   if (!membership) {
     return { repaired: false, reason: "membership_unavailable" as const };
   }
+
+  const cycleStartIso = String(membership.month_key) + "T00:00:00.000Z";
+  const usageEvents = await loadUsageEvents(parentId, studentId, cycleStartIso, evidenceUpperBoundIso);
+  const distinctUsageCount = new Set(usageEvents.map((event) => event.key)).size;
 
   const quota = Math.max(1, Number(membership.session_quota || servicePackage.sessionsPerMonth));
   const intendedUsed = Math.max(0, Math.min(quota, Number(membership.sessions_used || 0)));
@@ -314,9 +319,9 @@ export async function ensurePreviewSandboxFixtureCommercialState(options: {
 
   const paid = paidRows || [];
   const hasPaidAuthority = paid.length > 0;
-  const currentMonthRenewal = paid.find((row: any) => {
+  const currentCycleRenewal = paid.find((row: any) => {
     const paidAt = String(row?.paid_at || "");
-    return paidAt >= startIso && row?.raw_payload?.renewal === true;
+    return paidAt >= cycleStartIso && row?.raw_payload?.renewal === true;
   });
 
   let repaired = false;
@@ -325,7 +330,7 @@ export async function ensurePreviewSandboxFixtureCommercialState(options: {
     await upsertSyntheticPaidPayment({
       enrollment,
       studentId,
-      merchantReference: `proof-sandbox-entitlement-${monthKey}-${enrollmentId}`,
+      merchantReference: `proof-sandbox-entitlement-${String(membership.month_key)}-${enrollmentId}`,
       paidAt: anchor >= startIso ? anchor : startIso,
       renewal: false,
       note: "Preview-only synthetic payment authority restored for a progressed sandbox fixture.",
@@ -333,13 +338,13 @@ export async function ensurePreviewSandboxFixtureCommercialState(options: {
     repaired = true;
   }
 
-  if (!currentMonthRenewal && distinctUsageCount > intendedUsed && intendedUsed < quota) {
+  if (!currentCycleRenewal && distinctUsageCount > intendedUsed && intendedUsed < quota) {
     const boundary = deriveSyntheticRenewalBoundary(usageEvents, intendedUsed, nowIso);
     if (boundary) {
       await upsertSyntheticPaidPayment({
         enrollment,
         studentId,
-        merchantReference: `proof-sandbox-renewal-${monthKey}-${enrollmentId}-used-${intendedUsed}`,
+        merchantReference: `proof-sandbox-renewal-${String(membership.month_key)}-${enrollmentId}-used-${intendedUsed}`,
         paidAt: boundary,
         renewal: true,
         note: `Preview-only synthetic renewal boundary preserving fixture quota state ${intendedUsed}/${quota}.`,
