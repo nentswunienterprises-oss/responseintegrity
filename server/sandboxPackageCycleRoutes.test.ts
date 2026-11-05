@@ -22,6 +22,18 @@ test("Sandbox package read chooses stored cycle, not current UTC month", () => {
   assert.doesNotMatch(proofRead, /\.insert\(|\.update\(|upsertMembershipMonth|recalculateMembershipMonthUsage/);
 });
 
+
+test("Preview Sandbox package authority uses the direct Proof DB session path", () => {
+  const src = source("async function getMonthlySessionQuotaSnapshot(", "type TrainingPackageQuotaAuthority =");
+  assert.match(
+    src,
+    /if \(isEmergencyDbMode\(\) \|\| \(options\.isSandboxContext === true && usesDirectProofSessionDatabase\(\)\)\)/,
+  );
+  assert.match(src, /if \(isSandboxContext === true\) \{/);
+  assert.match(src, /selectAuthoritativeSandboxCycle\(result\.rows, options\.parentId, options\.studentId\)/);
+  assert.ok(src.includes("if (isSandbox && !verifySandboxCycleConsumption(row, actualConsumed)) return null;"));
+});
+
 test("real family retains calendar-month quota, payment logic, and reconciler", () => {
   const src = source("async function getMonthlySessionQuotaSnapshot(", "type TrainingPackageQuotaAuthority =");
   assert.ok(src.includes("AND month_key = $3 AND is_sandbox = FALSE"));
