@@ -115,7 +115,8 @@ test("Preview fixture retains the simulated cycle and does not grant another mon
   assert.ok(preview.includes("const newestExcluded = latestTimes[desired]"));
   assert.ok(preview.includes("const oldestIncluded = latestTimes[desired - 1]"));
   assert.ok(preview.includes("Math.floor((newestExcluded + oldestIncluded) / 2)"));
-  assert.ok(preview.includes('student_id.eq.${studentId},enrollment_id.eq.${enrollmentId}'));
+  assert.ok(preview.includes('.eq("enrollment_id", enrollmentId)'));
+  assert.ok(preview.includes('.eq("student_id", studentId)'));
   assert.ok(preview.includes('normalize(process.env.VERCEL_ENV) !== "preview"'));
 
 });
