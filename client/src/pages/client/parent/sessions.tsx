@@ -67,6 +67,8 @@ type ParentTrainingSessionsResponse = {
   monthlyQuota?: {
     sessions_remaining?: number;
     session_quota?: number;
+    planned_sessions_per_week?: number;
+    package_key?: string;
     package_amount_zar?: number;
     session_price?: number;
   } | null;
