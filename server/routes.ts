@@ -2952,7 +2952,7 @@ async function getMonthlySessionQuotaSnapshot(options: {
   if (!monthStartIso) return null;
   const monthKey = toMonthKey(monthStartIso);
 
-  if (isEmergencyDbMode()) {
+  if (isEmergencyDbMode() || (options.isSandboxContext === true && usesDirectProofSessionDatabase())) {
     const isSandbox = options.isSandboxContext === true;
     // Sandbox month_key names a simulated package cycle, not calendar expiry.
     const result = isSandbox
