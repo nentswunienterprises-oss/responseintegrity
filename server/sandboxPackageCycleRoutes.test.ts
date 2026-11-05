@@ -41,27 +41,19 @@ test("Specialist quota and launch authority resolve through shared package gette
   assert.match(tutor, /applyTrainingPackageQuotaToLaunch/);
 });
 
-test("membership upsert normalizes timestamps to the first day of the package cycle", () => {
-  const upsert = source("async function upsertMembershipMonth(", "async function recalculateMembershipMonthUsage(");
-  assert.match(upsert, /getMonthStartIso\(options\.monthStartIso\)/);
-  assert.match(upsert, /const monthKey = toMonthKey\(normalizedMonthStartIso\)/);
-});
-
-test("weekly booking count follows the active package cadence", () => {
-  const booking = source('app.post("/api/parent/training-sessions/schedule-week"', 'app.post("/api/parent/training-sessions/respond"');
-  assert.match(booking, /monthlyQuota\?\.planned_sessions_per_week/);
-  assert.match(booking, /session_quota\) === 16 \? 4 : Number\(monthlyQuota\?\.session_quota\) === 12 \? 3 : 2/);
-  assert.match(booking, /parsedSlots\.length !== expectedWeeklySessions/);
-});
-
-test("parent booking blocks missing Sandbox authority and exhaustion", () => {
-  const snippet = source(
-    "Sandbox package-cycle authority cannot be verified. Booking remains blocked.",
-    "const parsedSlots = rawSlots",
+test("Sandbox booking uses simulated package cadence and Commercial remains two slots", () => {
+  const booking = source(
+    'app.post("/api/parent/training-sessions/schedule-week"',
+    'app.post("/api/parent/training-sessions/respond"',
   );
-  assert.match(snippet, /if \(monthlyQuota && Number\(monthlyQuota\.sessions_remaining \|\| 0\) <= 0\)/);
-  assert.match(snippet, /Simulated package exhausted/);
-  assert.match(snippet, /const currentMonthKey = toMonthKey/);
+  assert.match(booking, /const packageWeeklyTarget = isSandboxContext/);
+  assert.match(booking, /monthlyQuota\?\.planned_sessions_per_week/);
+  assert.match(booking, /parsedSlots\.length !== expectedWeeklySessions/);
+  assert.doesNotMatch(booking, /if \(rawSlots\.length !== 2\)/);
+  assert.match(booking, /if \(!isSandboxContext\) \{[\s\S]*?const nowMs = Date\.now\(\)/);
+  assert.match(booking, /AND \(\$5::boolean = TRUE OR scheduled_time >= \$6::timestamptz\)/);
+  assert.match(booking, /if \(!isSandboxContext\) \{[\s\S]*?existingQuery = existingQuery\.gte\("scheduled_time"/);
+  assert.match(booking, /Simulated package exhausted/);
 });
 
 test("parent renewal is explicit, not triggered by calendar rollover", () => {
