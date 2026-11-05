@@ -2437,11 +2437,7 @@ async function upsertMembershipMonth(options: {
   isSandbox?: boolean;
   packageKey?: MonthlyPackageKey | null;
 }) {
-  // Every membership cycle key is the first day of its month. Some callers
-  // pass the current timestamp; never persist that day-of-month as authority.
-  const normalizedMonthStartIso = getMonthStartIso(options.monthStartIso);
-  if (!normalizedMonthStartIso) return null;
-  const monthKey = toMonthKey(normalizedMonthStartIso);
+  const monthKey = toMonthKey(options.monthStartIso);
   const nowIso = new Date().toISOString();
 
   const { data: existing } = await supabase
@@ -15238,10 +15234,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       };
 
-      if (rawSlots.length !== 2) {
-        return res.status(400).json({ message: "Exactly two weekly session slots are required." });
-      }
-
       const { data: enrollment, error: enrollmentError } = await selectLatestParentEnrollment({
         parentId: userId,
         primarySelect: "id, user_id, assigned_tutor_id, assigned_student_id, student_full_name, student_grade, parent_email",
@@ -15306,10 +15298,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }))
         .sort((a, b) => new Date(a.scheduledStart).getTime() - new Date(b.scheduledStart).getTime());
 
-      const packageWeeklyTarget = Number(
-        monthlyQuota?.planned_sessions_per_week ||
-        (Number(monthlyQuota?.session_quota) === 16 ? 4 : Number(monthlyQuota?.session_quota) === 12 ? 3 : 2),
-      );
+      const packageWeeklyTarget = isSandboxContext
+        ? Number(
+            monthlyQuota?.planned_sessions_per_week ||
+            (Number(monthlyQuota?.session_quota) === 16 ? 4 : Number(monthlyQuota?.session_quota) === 12 ? 3 : 2),
+          )
+        : 2;
       const expectedWeeklySessions = Number.isSafeInteger(packageWeeklyTarget) && packageWeeklyTarget >= 2 && packageWeeklyTarget <= 4
         ? packageWeeklyTarget
         : 2;
@@ -15334,9 +15328,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "All weekly session dates must be within the same Monday-to-Saturday week." });
       }
 
-      const nowMs = Date.now();
-      if (parsedSlots.some((slot) => new Date(slot.scheduledStart).getTime() <= nowMs)) {
-        return res.status(400).json({ message: "Weekly sessions must be scheduled in the future." });
+      // Sandbox dates are simulated timeline coordinates, not live-calendar
+      // availability. Commercial bookings must remain future-dated.
+      if (!isSandboxContext) {
+        const nowMs = Date.now();
+        if (parsedSlots.some((slot) => new Date(slot.scheduledStart).getTime() <= nowMs)) {
+          return res.status(400).json({ message: "Weekly sessions must be scheduled in the future." });
+        }
       }
 
       const slotTimes = parsedSlots.map((slot) => slot.scheduledStart);
@@ -15355,28 +15353,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
               AND tutor_id::text = $3::text
               AND type = 'training'
               AND status::text = ANY($4::text[])
-              AND scheduled_time >= $5::timestamptz
+              AND ($5::boolean = TRUE OR scheduled_time >= $6::timestamptz)
             ORDER BY scheduled_time ASC`,
           [
             userId,
             String(studentId),
             String(enrollment.assigned_tutor_id),
             ["pending_tutor_confirmation", "pending_parent_confirmation", "confirmed", "ready", "live"],
+            isSandboxContext,
             new Date().toISOString(),
           ],
         );
         existingSessions = existingResult.rows || [];
       } else {
-        const result = await supabase
+        let existingQuery = supabase
           .from("scheduled_sessions")
           .select(SCHEDULED_SESSION_SELECT)
           .eq("parent_id", userId)
           .eq("student_id", studentId)
           .eq("tutor_id", enrollment.assigned_tutor_id)
           .eq("type", "training")
-          .in("status", ["pending_tutor_confirmation", "pending_parent_confirmation", "confirmed", "ready", "live"])
-          .gte("scheduled_time", new Date().toISOString())
-          .order("scheduled_time", { ascending: true });
+          .in("status", ["pending_tutor_confirmation", "pending_parent_confirmation", "confirmed", "ready", "live"]);
+        if (!isSandboxContext) {
+          existingQuery = existingQuery.gte("scheduled_time", new Date().toISOString());
+        }
+        const result = await existingQuery.order("scheduled_time", { ascending: true });
 
         if (result.error) {
           return res.status(500).json({ message: "Failed to inspect existing training sessions." });
