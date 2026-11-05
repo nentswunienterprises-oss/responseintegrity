@@ -48,7 +48,7 @@ test("membership upsert normalizes timestamps to the first day of the package cy
 });
 
 test("weekly booking count follows the active package cadence", () => {
-  const booking = source('app.post("/api/parent/training-sessions/schedule-week"', 'app.post("/api/parent/training-sessions/adjust"');
+  const booking = source('app.post("/api/parent/training-sessions/schedule-week"', 'app.post("/api/parent/training-sessions/respond"');
   assert.match(booking, /monthlyQuota\?\.planned_sessions_per_week/);
   assert.match(booking, /session_quota\) === 16 \? 4 : Number\(monthlyQuota\?\.session_quota\) === 12 \? 3 : 2/);
   assert.match(booking, /parsedSlots\.length !== expectedWeeklySessions/);
