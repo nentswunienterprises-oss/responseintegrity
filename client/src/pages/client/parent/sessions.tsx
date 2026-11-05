@@ -895,7 +895,8 @@ export default function ParentSessions() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleAdjustSession(session.id)}
+                              onClick={() =
+                              className="whitespace-nowrap text-foreground"> handleAdjustSession(session.id)}
                               disabled={adjustingSessionId === session.id}
                             >
                               {adjustingSessionId === session.id ? "Sending..." : "Send New Time"}
