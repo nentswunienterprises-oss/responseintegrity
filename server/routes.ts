@@ -33123,6 +33123,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  app.post("/api/parent/topic-focus-requests", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+    try {
+      const parentId = String((req as any).dbUser.id || "");
+      const topic = String(req.body?.topic || "").trim().replace(/\\s+/g, " ");
+      const description = String(req.body?.description || "").trim();
+
+      if (!topic || topic.length > 120) {
+        return res.status(400).json({ message: "Enter a topic name of 1 to 120 characters." });
+      }
+      if (description.length < 10 || description.length > 600) {
+        return res.status(400).json({ message: "Describe what your child experiences in 10 to 600 characters." });
+      }
+
+      const { data: enrollment, error: enrollmentError } = await selectLatestParentEnrollment({
+        parentId,
+        primarySelect: "id, topic_response_symptoms, topic_recommended_starting_phases, assigned_tutor_id, student_full_name",
+        fallbackSelect: "id, topic_response_symptoms, topic_recommended_starting_phases, assigned_tutor_id, student_full_name",
+      });
+
+      if (enrollmentError || !enrollment?.id) {
+        return res.status(404).json({ message: "We could not find an active student enrollment for this account." });
+      }
+
+      const symptoms = enrollment.topic_response_symptoms && typeof enrollment.topic_response_symptoms === "object"
+        ? { ...(enrollment.topic_response_symptoms as Record<string, unknown>) }
+        : {};
+      const recommendations = enrollment.topic_recommended_starting_phases && typeof enrollment.topic_recommended_starting_phases === "object"
+        ? { ...(enrollment.topic_recommended_starting_phases as Record<string, unknown>) }
+        : {};
+      const existingTopic = Object.keys(symptoms).find((value) => value.trim().toLowerCase() === topic.toLowerCase());
+      if (existingTopic) {
+        return res.status(409).json({ message: existingTopic + " is already recorded as a parent-reported topic." });
+      }
+
+      symptoms[topic] = [description];
+      recommendations[topic] = {
+        phase: null,
+        supportingSymptoms: [description],
+        rationale: "Requested by the parent. The Specialist will assess the response and select the appropriate starting phase.",
+      };
+
+      if (isEmergencyDbMode() || process.env.VERCEL_ENV === "preview") {
+        await pool.query(
+          `UPDATE public.parent_enrollments
+              SET topic_response_symptoms = $2::jsonb,
+                  topic_recommended_starting_phases = $3::jsonb,
+                  updated_at = NOW()
+            WHERE id = $1`,
+          [String(enrollment.id), JSON.stringify(symptoms), JSON.stringify(recommendations)],
+        );
+      } else {
+        const { error: updateError } = await supabase
+          .from("parent_enrollments")
+          .update({
+            topic_response_symptoms: symptoms,
+            topic_recommended_starting_phases: recommendations,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", enrollment.id);
+        if (updateError) {
+          console.error("Parent topic focus request update failed:", updateError);
+          return res.status(500).json({ message: "We could not save the topic request. Please try again." });
+        }
+      }
+
+      return res.status(201).json({
+        success: true,
+        topic,
+        message: "Your topic request has been sent to the Specialist for review.",
+      });
+    } catch (error) {
+      console.error("Error saving parent topic focus request:", error);
+      return res.status(500).json({ message: "Failed to submit the topic request." });
+    }
+  });
+
   app.put("/api/tutor/topic-conditioning/:studentId/topic-reference", isAuthenticated, requireRole(["tutor"]), async (req: Request, res: Response) => {
     try {
       const tutorId = (req as any).dbUser.id;
