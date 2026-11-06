@@ -62,7 +62,7 @@ type DiagnosisRunRow = {
   session_context: "intro" | "active_training" | "handover_verification";
   session_container?: DiagnosisSessionContainer | null;
   activity_kind?: DiagnosisActivityKind | null;
-  status: "in_progress" | "blocked" | "completed";
+  status: "in_progress" | "blocked" | "completed" | "superseded";
   probe_history: DiagnosisProbeResult[] | string | null;
   decision: Record<string, unknown> | string | null;
   source_drill_id?: string | null;
