@@ -1646,7 +1646,7 @@ function IntroSessionDrillRunnerCore({
     setPrepReady(false);
     setPrepChecks({});
     setAdaptiveTransition(null);
-  }, [drillMode, handoverReDiagnosisMode, phase, introTopic, sessionTopicIndex]);
+  }, [drillMode, handoverReDiagnosisMode, phase, introTopic, sessionTopicIndex, diagnosisTopicIndex, currentTopicName, activeDiagnosisPhase]);
 
   useEffect(() => {
     setTopicReferenceDraft(EMPTY_TOPIC_REFERENCE);
