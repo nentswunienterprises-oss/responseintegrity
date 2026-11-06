@@ -1940,7 +1940,8 @@ export default function StudentTopicConditioningDialog({
                             if (selectedRows.length === 0 || selectedRows.length > 2) return;
                             const topicsParam = encodeURIComponent(JSON.stringify(selectedRows.map((row) => row.topic)));
                             const phasesParam = encodeURIComponent(JSON.stringify(selectedRows.map((row) => row.parentRecommendedPhase || "Clarity")));
-                            navigate("/specialist/intro-session/" + studentId + "?topic=" + encodeURIComponent(selectedRows[0].topic) + "&phase=" + encodeURIComponent(selectedRows[0].parentRecommendedPhase || "Clarity") + "&topics=" + topicsParam + "&topicPhases=" + phasesParam);
+                            const topicBatchId = window.crypto?.randomUUID?.() || ("ri-" + Date.now() + "-" + Math.random().toString(36).slice(2));
+                            navigate("/specialist/intro-session/" + studentId + "?topic=" + encodeURIComponent(selectedRows[0].topic) + "&phase=" + encodeURIComponent(selectedRows[0].parentRecommendedPhase || "Clarity") + "&topics=" + topicsParam + "&topicPhases=" + phasesParam + "&topicBatchId=" + encodeURIComponent(topicBatchId) + "&topicIndex=0");
                           }}
                         >
                           Start Diagnosis
