@@ -1706,18 +1706,18 @@ export default function StudentTopicConditioningDialog({
   const isConfirmingTrainingSession = (sessionId: string) =>
     confirmTrainingSession.isPending && confirmTrainingSession.variables?.sessionId === sessionId;
   const pendingTrainingConfirmationSession = actionableTrainingSessions.find((session: any) => session.status === "pending_parent_confirmation") || null;
+  const packageSessionQuota = Number(trainingSessionsData?.monthlyQuota?.session_quota);
+  // The purchased package size is authoritative. Older package records may
+  // still carry the legacy two-lessons-per-week planning field.
   const packageWeeklySessionTarget = Math.max(
     1,
     Math.min(
       4,
-      Number(
-        trainingSessionsData?.monthlyQuota?.planned_sessions_per_week ||
-        (Number(trainingSessionsData?.monthlyQuota?.session_quota) === 16
-          ? 4
-          : Number(trainingSessionsData?.monthlyQuota?.session_quota) === 12
-            ? 3
-            : 2),
-      ) || 2,
+      packageSessionQuota === 16
+        ? 4
+        : packageSessionQuota === 12
+          ? 3
+          : Number(trainingSessionsData?.monthlyQuota?.planned_sessions_per_week) || 2,
     ),
   );
   const weeklySessionTargetLabel = `${packageWeeklySessionTarget} ${packageWeeklySessionTarget === 1 ? "lesson" : "lessons"}`;
