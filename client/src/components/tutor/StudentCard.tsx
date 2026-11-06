@@ -1656,7 +1656,7 @@ function IntroDiagnosticTopicSection({
     } catch {
       if (stored.trim()) setSelectedDiagnosticTopics([stored.trim()]);
     }
-  }, [storageKey]);
+  }, [storageKey, legacyStorageKey]);
 
   const getTopicPhase = (topic: string) => {
     const intelligence = (topicIntelligence || []).find((entry) => normalizeTopicKey(entry.topic) === normalizeTopicKey(topic));
