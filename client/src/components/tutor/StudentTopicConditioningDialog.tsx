@@ -932,8 +932,8 @@ function buildTopics(
   // Parent reports remain visible until a diagnosis or activation record exists.
   splitTopics(parentTopics).forEach((rawTopic) => {
     const topic = sanitizeTopic(rawTopic);
-    if (!topic || byTopic.has(topic)) return;
     const topicKey = normalizeTopicKey(topic);
+    if (!topic || !topicKey || [...byTopic.keys()].some((existingTopic) => normalizeTopicKey(existingTopic) === topicKey)) return;
     const symptomEntry = Object.entries(parentTopicSymptoms || {}).find(([key]) => normalizeTopicKey(key) === topicKey);
     const recommendationEntry = Object.entries(parentTopicRecommendations || {}).find(([key]) => normalizeTopicKey(key) === topicKey);
     const recommendation = recommendationEntry?.[1];
