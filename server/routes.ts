@@ -33225,7 +33225,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const recommendations = enrollment.topic_recommended_starting_phases && typeof enrollment.topic_recommended_starting_phases === "object"
         ? { ...(enrollment.topic_recommended_starting_phases as Record<string, unknown>) }
         : {};
-      const existingTopic = Object.keys(symptoms).find((value) => value.trim().toLowerCase() === topic.toLowerCase());
+      const existingTopic = [...new Set([...Object.keys(symptoms), ...Object.keys(recommendations)])]
+        .find((value) => value.trim().toLowerCase() === topic.toLowerCase());
       if (existingTopic) {
         return res.status(409).json({ message: existingTopic + " is already recorded as a parent-reported topic." });
       }
@@ -33238,7 +33239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       if (isEmergencyDbMode() || process.env.VERCEL_ENV === "preview") {
-        await pool.query(
+        const updateResult = await pool.query(
           `UPDATE public.parent_enrollments
               SET topic_response_symptoms = $2::jsonb,
                   topic_recommended_starting_phases = $3::jsonb,
@@ -33246,16 +33247,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             WHERE id = $1`,
           [String(enrollment.id), JSON.stringify(symptoms), JSON.stringify(recommendations)],
         );
+        if (updateResult.rowCount !== 1) {
+          return res.status(500).json({ message: "We could not save the topic request. Please try again." });
+        }
       } else {
-        const { error: updateError } = await supabase
+        const { data: updatedEnrollment, error: updateError } = await supabase
           .from("parent_enrollments")
           .update({
             topic_response_symptoms: symptoms,
             topic_recommended_starting_phases: recommendations,
             updated_at: new Date().toISOString(),
           })
-          .eq("id", enrollment.id);
-        if (updateError) {
+          .eq("id", enrollment.id)
+          .select("id")
+          .maybeSingle();
+        if (updateError || !updatedEnrollment?.id) {
           console.error("Parent topic focus request update failed:", updateError);
           return res.status(500).json({ message: "We could not save the topic request. Please try again." });
         }
