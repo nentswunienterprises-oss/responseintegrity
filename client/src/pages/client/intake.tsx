@@ -212,7 +212,12 @@ export default function ParentIntakeEntry() {
                 </div>
 
                 <p className="mt-6 text-sm leading-7 text-[#564E48]">{definition.bestFor}</p>
-                <p className="mt-4 text-sm font-semibold text-[#171311]">{definition.cadenceLabel}</p>
+                <div className="mt-4 space-y-2">
+                  <p className="text-sm font-semibold text-[#171311]">{definition.cadenceLabel}</p>
+                  {definition.additionalCadenceLabels.map((cadence) => (
+                    <p key={cadence} className="text-sm font-medium text-[#564E48]">{cadence}</p>
+                  ))}
+                </div>
               </Card>
             );
           })}
