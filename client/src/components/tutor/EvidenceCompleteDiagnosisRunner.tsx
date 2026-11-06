@@ -19,6 +19,7 @@ import {
   type DiagnosisObservationOption,
 } from "@shared/diagnosisObservationMatrix";
 import { NEXT_ACTION_ENGINE, tryParsePhase, type TopicPhase } from "@shared/topicConditioningEngine";
+import { getResponseSymptomLabels } from "@shared/responseSymptomMapping";
 import {
   buildPassiveExecutionTimingEvidence,
   buildTimedExecutionEvidence,
@@ -247,6 +248,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
 
   const [runId, setRunId] = useState<string | null>(null);
   const [apiState, setApiState] = useState<DiagnosisApiResponse | null>(null);
+  const [parentReportedSymptoms, setParentReportedSymptoms] = useState<string[]>(topicReportedSymptoms);
   const [runtimeAuthority, setRuntimeAuthority] =
     useState<DiagnosisRuntimeAuthority | null>(null);
   const [sandboxSimulation, setSandboxSimulation] =
@@ -507,12 +509,15 @@ export default function EvidenceCompleteDiagnosisRunner() {
           { headers, credentials: "include" });
         if (!pendingResponse.ok) throw new Error("The existing evidence process could not be checked. Retry before starting a new diagnosis.");
         const pending = await pendingResponse.json();
-        const storedRunId = window.sessionStorage.getItem(storageKey);
-        let id = pending.runId || (storedRunId && isUuidLike(storedRunId) ? storedRunId : createRunId());
-        let state = (pending.runId || storedRunId) ? await loadExisting(id) : null;
-        // This also authorizes a new session boundary against the server-owned booking.
-        if (state && !state.finalized) state = await postHistory(id, state.probeHistory, state.startingPhase || startingPhase);
-        if (!state) state = await postHistory(id, []);
+        const parentStartingPhase = tryParsePhase(String(pending.startingPhase || "")) || startingPhase;
+        const parentSymptoms = Array.isArray(pending.topicSymptoms)
+          ? getResponseSymptomLabels(pending.topicSymptoms.map(String))
+          : topicReportedSymptoms;
+        let id = pending.runId || createRunId();
+        let state = pending.runId ? await loadExisting(id) : null;
+        // Only the server may select a resumable run. Browser storage must never revive a superseded run.
+        if (state && !state.finalized) state = await postHistory(id, state.probeHistory, parentStartingPhase);
+        if (!state) state = await postHistory(id, [], parentStartingPhase);
         id = state.runId;
         window.sessionStorage.setItem(storageKey, id);
         if (!cancelled) setRunId(id);
@@ -543,6 +548,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
         if (!cancelled) {
           setSandboxSimulation(simulation);
           setApiState(state);
+          setParentReportedSymptoms(parentSymptoms);
           setObservations({});
           setSupportEvent("none");
           setExecutionFinished(false);
@@ -634,13 +640,8 @@ export default function EvidenceCompleteDiagnosisRunner() {
     storageKey,
   ]);
 
-  // A resumed run owns its original starting signal. The URL may contain a
-  // newer parent recommendation, but it must never relabel persisted evidence.
-  const authoritativeStartingSignalPhase =
-    apiState?.startingPhase || startingSignalPhase;
-  const startingSignalMismatch =
-    Boolean(apiState?.startingPhase && startingSignalPhase &&
-      apiState.startingPhase !== startingSignalPhase);
+  // The server resolves this from the current parent enrollment before a run is resumed or created.
+  const authoritativeStartingSignalPhase = apiState?.startingPhase || startingSignalPhase;
 
   const currentProbe = apiState?.nextProbe || null;
   const executionProtocol = currentProbe
@@ -1314,14 +1315,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
                   ? `Starting signal: ${authoritativeStartingSignalPhase}. The signal chooses the first question only; observed behavior decides placement.`
                   : "No starting signal. The system is using a neutral independent baseline rather than assuming Clarity."}
               </p>
-              {startingSignalMismatch && (
-                <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
-                  This is a resumed diagnosis. Its original starting signal is {apiState?.startingPhase}; the newly requested signal ({startingSignalPhase}) was not applied. The existing evidence and next question have been preserved.
-                </p>
-              )}
-              {topicReportedSymptoms.length > 0 && (
+              {parentReportedSymptoms.length > 0 && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Parent-reported context: {topicReportedSymptoms.join(" · ")}
+                  Parent-reported context: {parentReportedSymptoms.join(" · ")}
                 </p>
               )}
             </div>
