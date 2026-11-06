@@ -999,8 +999,11 @@ function IntroSessionDrillRunnerCore({
   const [handoverEvidenceSummary, setHandoverEvidenceSummary] =
     useState<HandoverEvidenceSummary | null>(null);
   const [sessionTopicIndex, setSessionTopicIndex] = useState(0);
-  const [diagnosisTopicIndex, setDiagnosisTopicIndex] = useState(0);
-  const diagnosisBatchIdRef = useRef(createTpsAttemptId());
+  const [diagnosisTopicIndex, setDiagnosisTopicIndex] = useState(() => {
+    const requestedIndex = Number(searchParams.get("topicIndex") || 0);
+    return Number.isInteger(requestedIndex) && requestedIndex >= 0 && requestedIndex <= 1 ? requestedIndex : 0;
+  });
+  const diagnosisBatchIdRef = useRef(searchParams.get("topicBatchId") || createTpsAttemptId());
   const [sessionResults, setSessionResults] = useState<any[]>([]);
   const [prepReady, setPrepReady] = useState(false);
   const [prepChecks, setPrepChecks] = useState<Record<string, boolean>>({});
@@ -3326,6 +3329,10 @@ function IntroSessionDrillRunnerCore({
         ) {
           const nextIndex = diagnosisTopicIndex + 1;
           setDiagnosisTopicIndex(nextIndex);
+          const nextSearchParams = new URLSearchParams(searchParams);
+          nextSearchParams.set("topicIndex", String(nextIndex));
+          nextSearchParams.set("topicBatchId", diagnosisBatchIdRef.current);
+          navigate(window.location.pathname + "?" + nextSearchParams.toString(), { replace: true });
           setActiveDiagnosisPhase((diagnosisTopicPhases[nextIndex] || phase) as PhaseLabel);
           setAdaptiveDiagnosisBlocks([]);
           setAdaptiveTransition(null);
