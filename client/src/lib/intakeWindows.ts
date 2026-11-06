@@ -18,6 +18,7 @@ type ParentIntakeDefinition = {
   windowLabel: string;
   bestFor: string;
   cadenceLabel: string;
+  additionalCadenceLabels: string[];
   trainingBeginsLabel: string;
   window: MonthDayWindow;
 };
@@ -152,6 +153,10 @@ const parentIntakeDefinitions: ParentIntakeDefinition[] = [
     windowLabel: "1 November - 15 January",
     bestFor: "Families preparing before the academic year becomes urgent.",
     cadenceLabel: "2 sessions per week • 8 sessions per month",
+    additionalCadenceLabels: [
+      "3 sessions per week • 12 sessions per month",
+      "4 sessions per week • 16 sessions per month",
+    ],
     trainingBeginsLabel: "Conditioning begins 16 January",
     window: {
       startMonth: 11,
