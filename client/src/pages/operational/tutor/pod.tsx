@@ -1035,6 +1035,18 @@ export default function TutorPod() {
             Object.keys((selectedStudent?.parentInfo?.topic_response_symptoms as Record<string, unknown> | undefined) || {}).join(", ") ||
             ""
           }
+          parentTopicSymptoms={
+            selectedStudent?.parentInfo?.topic_response_symptoms &&
+            typeof selectedStudent.parentInfo.topic_response_symptoms === "object"
+              ? selectedStudent.parentInfo.topic_response_symptoms
+              : null
+          }
+          parentTopicRecommendations={
+            selectedStudent?.parentInfo?.topic_recommended_starting_phases &&
+            typeof selectedStudent.parentInfo.topic_recommended_starting_phases === "object"
+              ? selectedStudent.parentInfo.topic_recommended_starting_phases
+              : null
+          }
           topicConditioning={selectedStudent?.topicConditioning || null}
           persistedTopicStates={((selectedStudent as any)?.conceptMastery?.topicConditioning?.topics as Record<string, any>) || null}
         />
