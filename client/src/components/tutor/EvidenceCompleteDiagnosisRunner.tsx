@@ -205,8 +205,8 @@ export default function EvidenceCompleteDiagnosisRunner() {
       return [];
     }
   })();
-  // Intro Session carries a phase recommendation for each selected topic.
-  // Explicit phase remains authoritative for targeted re-diagnosis and legacy links.
+  // URL phase and symptom values are legacy fallbacks only.
+  // The authenticated server resolves the authoritative topic report from the parent enrollment.
   const startingSignalPhase =
     tryParsePhase(searchParams.get("phase")) ||
     (requestedContext === "intro" || !requestedContext
