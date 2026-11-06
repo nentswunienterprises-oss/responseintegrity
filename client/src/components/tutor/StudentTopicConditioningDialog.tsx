@@ -1320,7 +1320,7 @@ export default function StudentTopicConditioningDialog({
     const pendingParentSession = trainingSessionsData?.sessions?.find((session: any) => session.status === "pending_parent_confirmation");
     const pendingTutorSession = trainingSessionsData?.sessions?.find((session: any) => session.status === "pending_tutor_confirmation");
     if (pendingTutorSession) {
-      setTrainingSessionMeetMessage(`${packageWeeklySessionTarget} weekly lesson(s) are waiting for Specialist confirmation. Confirm them before running drills.`);
+      setTrainingSessionMeetMessage(`The package's ${weeklySessionTargetLabel} are waiting for Specialist confirmation. Confirm them before running drills.`);
       setSessionTopicsModalOpen(false);
       return;
     }
@@ -2578,7 +2578,7 @@ export default function StudentTopicConditioningDialog({
                       <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs space-y-2">
                         <p className="font-medium text-blue-900">Awaiting Specialist confirmation</p>
                         <p className="text-blue-800">
-                          The parent has proposed this week's lesson times. Confirm all ${packageWeeklySessionTarget} scheduled lessons before training can launch.
+                          {\`The parent has proposed this week's lesson times. Confirm all ${packageWeeklySessionTarget} scheduled lessons before training can launch.\`}
                         </p>
                         <div className="space-y-2">
                           {pendingTutorConfirmationSessions.map((session: any) => (
@@ -2737,7 +2737,7 @@ export default function StudentTopicConditioningDialog({
                         </p>
                       </div>
                       <div className="text-right text-xs text-muted-foreground">
-                        Parent books the package's ${weeklySessionTargetLabel} in the Sessions tab.
+                        {\`Parent books the package's ${weeklySessionTargetLabel} in the Sessions tab.\`}
                       </div>
                     </div>
                     {activeTrainingSession ? (
