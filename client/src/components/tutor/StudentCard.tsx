@@ -1690,6 +1690,12 @@ function IntroDiagnosticTopicSection({
 
   const launchTopics = selectedDiagnosticTopics;
   const launchPhases = launchTopics.map(getTopicPhase);
+  const launchSymptoms = launchTopics.map((topic) => {
+    const intelligence = (topicIntelligence || []).find(
+      (entry) => normalizeTopicKey(entry.topic) === normalizeTopicKey(topic),
+    );
+    return Array.isArray(intelligence?.symptoms) ? intelligence.symptoms : [];
+  });
 
   return (
     <div className="pt-4 border-t border-border/60 space-y-2">
@@ -1774,13 +1780,14 @@ function IntroDiagnosticTopicSection({
         onClick={() => {
           const topicsParam = encodeURIComponent(JSON.stringify(launchTopics));
           const phasesParam = encodeURIComponent(JSON.stringify(launchPhases));
+          const symptomsParam = encodeURIComponent(JSON.stringify(launchSymptoms));
           const sessionParam = directDrillLaunch
             ? ""
             : introSession?.id
               ? `&scheduledSessionId=${encodeURIComponent(introSession.id)}`
               : "";
           const firstTopic = encodeURIComponent(launchTopics[0] || "");
-          navigate(`/specialist/intro-session/${student.id}?topic=${firstTopic}&topics=${topicsParam}&topicPhases=${phasesParam}&context=intro${sessionParam}`);
+          navigate(`/specialist/intro-session/${student.id}?topic=${firstTopic}&topics=${topicsParam}&topicPhases=${phasesParam}&topicSymptoms=${symptomsParam}&context=intro${sessionParam}`);
         }}
         disabled={
           launchTopics.length < 1 ||
