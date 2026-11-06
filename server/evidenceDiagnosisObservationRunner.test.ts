@@ -61,3 +61,17 @@ test("diagnosis ready and live surfaces use the shared prescribed probe protocol
     /The observation runner stays closed while the student is responding/,
   );
 });
+
+
+test("Intro evidence diagnosis consumes the selected topic's parent-recommended starting phase", () => {
+  assert.match(runnerSource, /JSON\.parse\(searchParams\.get\("topicPhases"\) \|\| "\[\]"\)/);
+  assert.match(runnerSource, /topicStartingPhases\[requestedTopicIndex\]/);
+  assert.match(runnerSource, /tryParsePhase\(searchParams\.get\("phase"\)\)[\s\S]*topicStartingPhases\[requestedTopicIndex\]/);
+  assert.match(runnerSource, /searchParams\.get\("topicSymptoms"\)/);
+  assert.match(runnerSource, /Parent-reported context:/);
+});
+
+test("explicit phase remains authoritative outside the Intro Session recommendation handoff", () => {
+  assert.match(runnerSource, /requestedContext === "intro" \|\| !requestedContext/);
+  assert.match(runnerSource, /tryParsePhase\(searchParams\.get\("phase"\)\)/);
+});
