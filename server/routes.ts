@@ -33231,7 +33231,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(409).json({ message: existingTopic + " is already recorded as a parent-reported topic." });
       }
 
-      symptoms[topic] = [description];
+      // Parent descriptions are free text, not one of the standardized symptom IDs.
+      // Keep the topic in the recommendation map so buildReportedTopics retains it,
+      // and carry the original description as supporting evidence for the Specialist.
+      symptoms[topic] = [];
       recommendations[topic] = {
         phase: null,
         supportingSymptoms: [description],
