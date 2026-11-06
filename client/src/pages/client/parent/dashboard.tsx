@@ -1059,8 +1059,7 @@ export default function ParentDashboard() {
         </Card>
       </div>
 
-      {proposal && (
-        <Dialog open={topicRequestOpen} onOpenChange={setTopicRequestOpen}>
+      <Dialog open={topicRequestOpen} onOpenChange={setTopicRequestOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Request New Topic Focus</DialogTitle>
@@ -1131,7 +1130,8 @@ export default function ParentDashboard() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={proposalDialogOpen} onOpenChange={setProposalDialogOpen}>
+      {proposal && (
+        <Dialog open={proposalDialogOpen} onOpenChange={setProposalDialogOpen}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{studentName} Training Plan</DialogTitle>
