@@ -8626,6 +8626,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             try {
               const tutorId = (req as any).dbUser.id;
               const { studentId, drill, introTopic, phase: rawPhase, startingPhase: rawStartingPhase, adaptiveBlocks: rawAdaptiveBlocks, scheduledSessionId } = req.body;
+              const multiTopicCount = Number(req.body.multiTopicCount ?? 1);
+              const multiTopicIndex = Number(req.body.multiTopicIndex ?? 0);
+              const multiTopicBatchId = String(req.body.multiTopicBatchId || "").trim();
               const drillSets = normalizeIntroDrillSets(drill);
               const adaptiveBlocks = normalizeAdaptiveDiagnosisBlocks(rawAdaptiveBlocks);
               const drillPhase = parseAuthoritativePhase(rawPhase);
@@ -8644,6 +8647,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
               if (!normalizedIntroTopic) {
                 return res.status(400).json({ message: "Diagnostic topic is required before intro drill submission" });
+              }
+              if (
+                !Number.isInteger(multiTopicCount) ||
+                ![1, 2].includes(multiTopicCount) ||
+                !Number.isInteger(multiTopicIndex) ||
+                multiTopicIndex < 0 ||
+                multiTopicIndex >= multiTopicCount ||
+                (multiTopicCount === 2 && !multiTopicBatchId)
+              ) {
+                return res.status(400).json({ message: "An Intro Session can diagnose one or two distinct topics only." });
               }
 
               const drillValidationError = isAdaptiveDiagnosis
@@ -8742,6 +8755,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }
               }
 
+              if (multiTopicCount === 2) {
+                if (diagnosisSessionKind !== "intro" || !scheduledSession) {
+                  return res.status(400).json({ message: "Two-topic diagnosis must run inside one confirmed Intro Session." });
+                }
+                let previousTopicDrills: Array<{ drill: unknown }> = [];
+                if (isEmergencyDbMode()) {
+                  const previousResult = await pool.query(
+                    `SELECT drill
+                       FROM public.intro_session_drills
+                      WHERE scheduled_session_id = $1
+                        AND student_id = $2
+                        AND tutor_id = $3
+                      ORDER BY submitted_at ASC`,
+                    [scheduledSession.id, studentId, tutorId],
+                  );
+                  previousTopicDrills = previousResult.rows;
+                } else {
+                  const { data: previousRows, error: previousRowsError } = await supabase
+                    .from("intro_session_drills")
+                    .select("drill")
+                    .eq("scheduled_session_id", scheduledSession.id)
+                    .eq("student_id", studentId)
+                    .eq("tutor_id", tutorId)
+                    .order("submitted_at", { ascending: true });
+                  if (previousRowsError) {
+                    return res.status(500).json({ message: "Failed to verify the first topic diagnosis." });
+                  }
+                  previousTopicDrills = previousRows || [];
+                }
+
+                if (multiTopicIndex === 0 && previousTopicDrills.length !== 0) {
+                  return res.status(409).json({ message: "This Intro Session already contains a diagnosis. Start a fresh Intro Session to begin another two-topic diagnosis." });
+                }
+                if (multiTopicIndex === 1) {
+                  if (previousTopicDrills.length !== 1) {
+                    return res.status(409).json({ message: "The first topic must be diagnosed successfully before the second topic." });
+                  }
+                  let previousDrill: any = previousTopicDrills[0].drill;
+                  if (typeof previousDrill === "string") {
+                    try { previousDrill = JSON.parse(previousDrill); } catch { previousDrill = null; }
+                  }
+                  if (
+                    String(previousDrill?.multiTopicBatchId || "") !== multiTopicBatchId ||
+                    String(previousDrill?.multiTopicCount || "") !== "2" ||
+                    String(previousDrill?.introTopic || "").trim().toLowerCase() === normalizedIntroTopic.toLowerCase()
+                  ) {
+                    return res.status(409).json({ message: "The second topic must be different and belong to the same two-topic Intro Session." });
+                  }
+                }
+              }
+
               if (scheduledSession) {
                 const diagnosisLaunch = getSessionLaunchState(scheduledSession, diagnosisSessionKind);
                 if (!diagnosisLaunch.canLaunch) {
@@ -8800,9 +8864,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 diagnosisMode: isAdaptiveDiagnosis ? "adaptive" : "legacy",
                 scheduledSessionId: diagnosisScheduledSessionId,
                 sessionContextKind: diagnosisSessionKind,
+                multiTopicCount,
+                multiTopicIndex,
+                multiTopicBatchId: multiTopicCount === 2 ? multiTopicBatchId : null,
                 sets: isAdaptiveDiagnosis ? adaptiveBlocks : drillSets,
                 summary: diagnosisSummary,
                 responseSnapshot,
+                multiTopicProgress: { count: multiTopicCount, completed: multiTopicIndex + 1, batchId: multiTopicCount === 2 ? multiTopicBatchId : null },
               });
               const submittedAt = new Date().toISOString();
               const inserted = isEmergencyDbMode()
@@ -8979,7 +9047,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 console.error("Auto report generation failed after intro drill:", autoReportError);
               }
 
-              if (diagnosisSessionKind === "intro" && scheduledSession) {
+              if (
+                diagnosisSessionKind === "intro" &&
+                scheduledSession &&
+                (multiTopicCount === 1 || multiTopicIndex === multiTopicCount - 1)
+              ) {
                 if (isEmergencyDbMode()) {
                   await pool.query(
                     `UPDATE public.scheduled_sessions
