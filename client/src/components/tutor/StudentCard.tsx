@@ -1641,9 +1641,10 @@ function IntroDiagnosticTopicSection({
   const [activationError, setActivationError] = useState("");
   const directDrillLaunch = usesDirectDrillLaunch(operationalMode);
   const storageKey = `intro-diagnostic-topics:${student.id}`;
+  const legacyStorageKey = `intro-diagnostic-topic:${student.id}`;
 
   useEffect(() => {
-    const stored = window.sessionStorage.getItem(storageKey);
+    const stored = window.sessionStorage.getItem(storageKey) || window.sessionStorage.getItem(legacyStorageKey);
     if (!stored) return;
     try {
       const parsed = JSON.parse(stored);
@@ -1659,7 +1660,7 @@ function IntroDiagnosticTopicSection({
 
   const getTopicPhase = (topic: string) => {
     const intelligence = (topicIntelligence || []).find((entry) => normalizeTopicKey(entry.topic) === normalizeTopicKey(topic));
-    return intelligence?.recommendedStartingPhase || recommendedStartingPhase || "Clarity";
+    return intelligence?.recommendedStartingPhase || "Clarity";
   };
 
   const toggleDiagnosticTopic = (topic: string, checked: boolean) => {
