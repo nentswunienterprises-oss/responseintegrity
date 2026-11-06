@@ -173,6 +173,10 @@ const parentIntakeDefinitions: ParentIntakeDefinition[] = [
     windowLabel: "1 May - 31 May",
     bestFor: "Families who still have serious runway before final-year pressure peaks.",
     cadenceLabel: "2 sessions per week • 8 sessions per month",
+    additionalCadenceLabels: [
+      "3 sessions per week • 12 sessions per month",
+      "4 sessions per week • 16 sessions per month",
+    ],
     trainingBeginsLabel: "Training begins 1 June",
     window: {
       startMonth: 5,
