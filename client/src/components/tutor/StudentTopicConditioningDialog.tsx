@@ -2621,7 +2621,9 @@ export default function StudentTopicConditioningDialog({
                                   <div className="flex justify-end">
                                     <Button
                                       size="sm"
-                                      variant="outline"
+                                      variant="default"
+                                      style={{ backgroundColor: "#1f2937", color: "#ffffff", borderColor: "#1f2937" }}
+                                      className="!opacity-100"
                                       onClick={async () => {
                                         try {
                                           const result = await respondTrainingSession.mutateAsync({
