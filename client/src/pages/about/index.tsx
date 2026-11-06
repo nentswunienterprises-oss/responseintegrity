@@ -70,11 +70,6 @@ export default function AboutIndex() {
               description: "Learn how our teaching structure and conditioning progression build clarity, calm execution, and durable response patterns under pressure.",
               href: "/about/how-we-teach",
             },
-            {
-              title: "Meet the Team",
-              description: "Get to know the leadership team guiding Response Integrity across marketing, people, operations, and technology.",
-              href: "/about/team",
-            },
           ].map((item) => (
             <Card key={item.title} className="rounded-2xl border border-slate-200 bg-[#F7F0EA] shadow-sm">
               <CardContent className="p-8">

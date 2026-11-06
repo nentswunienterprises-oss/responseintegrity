@@ -48,7 +48,6 @@ import AboutIndex from "@/pages/about/index";
 import WhoWeAre from "@/pages/about/who-we-are";
 import HowWeOperate from "@/pages/about/how-we-operate";
 import HowWeTeach from "@/pages/about/how-we-teach";
-import TeamPage from "@/pages/about/team";
 import LeadershipDevelopmentPilot from "@/pages/leadershipdevelopmentpilot";
 import SpecialistLanding from "@/pages/specialist";
 import ResponseConditioningSystem from "@/pages/responseconditioningsystem";
@@ -282,7 +281,6 @@ function Router() {
       <Route path="/about/who-we-are" element={<WhoWeAre />} />
       <Route path="/about/how-we-operate" element={<HowWeOperate />} />
       <Route path="/about/how-we-teach" element={<HowWeTeach />} />
-      <Route path="/about/team" element={<TeamPage />} />
       <Route path="/aboutTT" element={<Navigate to="/about" replace />} />
       <Route path="/leadershipdevelopmentpilot" element={<LeadershipDevelopmentPilot />} />
       <Route path="/specialist" element={<SpecialistLanding />} />
