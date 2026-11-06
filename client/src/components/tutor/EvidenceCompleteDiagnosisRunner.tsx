@@ -328,7 +328,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
       scope: "diagnosis",
       sourceContextId: id,
       topic,
-      startingPhase,
+      startingPhase: state.startingPhase || startingPhase,
       sequenceNumber: String(
         state.opportunityNumber || state.probeHistory.length + 1,
       ),
@@ -379,7 +379,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
           scope: "diagnosis",
           sourceContextId: runId,
           topic,
-          startingPhase,
+          startingPhase: apiState?.startingPhase || startingPhase,
           sequenceNumber: simulation.sequenceNumber,
           probeId: simulation.probeId,
           formId: simulation.formId,
@@ -633,6 +633,14 @@ export default function EvidenceCompleteDiagnosisRunner() {
     sessionContextKind,
     storageKey,
   ]);
+
+  // A resumed run owns its original starting signal. The URL may contain a
+  // newer parent recommendation, but it must never relabel persisted evidence.
+  const authoritativeStartingSignalPhase =
+    apiState?.startingPhase || startingSignalPhase;
+  const startingSignalMismatch =
+    Boolean(apiState?.startingPhase && startingSignalPhase &&
+      apiState.startingPhase !== startingSignalPhase);
 
   const currentProbe = apiState?.nextProbe || null;
   const executionProtocol = currentProbe
@@ -1302,10 +1310,15 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 {topic}
               </h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                {startingSignalPhase
-                  ? `Starting signal: ${startingSignalPhase}. The signal chooses the first question only; observed behavior decides placement.`
+                {authoritativeStartingSignalPhase
+                  ? `Starting signal: ${authoritativeStartingSignalPhase}. The signal chooses the first question only; observed behavior decides placement.`
                   : "No starting signal. The system is using a neutral independent baseline rather than assuming Clarity."}
               </p>
+              {startingSignalMismatch && (
+                <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                  This is a resumed diagnosis. Its original starting signal is {apiState?.startingPhase}; the newly requested signal ({startingSignalPhase}) was not applied. The existing evidence and next question have been preserved.
+                </p>
+              )}
               {topicReportedSymptoms.length > 0 && (
                 <p className="mt-2 text-xs text-muted-foreground">
                   Parent-reported context: {topicReportedSymptoms.join(" · ")}
