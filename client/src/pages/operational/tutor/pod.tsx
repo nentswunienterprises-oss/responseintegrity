@@ -1032,6 +1032,7 @@ export default function TutorPod() {
           studentGrade={selectedStudent?.grade || null}
           parentTopics={
             (selectedStudent?.parentInfo?.reported_topics as string[] | undefined)?.join(", ") ||
+            Object.keys((selectedStudent?.parentInfo?.topic_recommended_starting_phases as Record<string, unknown> | undefined) || {}).join(", ") ||
             Object.keys((selectedStudent?.parentInfo?.topic_response_symptoms as Record<string, unknown> | undefined) || {}).join(", ") ||
             ""
           }
