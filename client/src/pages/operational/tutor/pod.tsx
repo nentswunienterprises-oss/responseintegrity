@@ -1030,12 +1030,13 @@ export default function TutorPod() {
           studentName={selectedStudentName}
           operationalMode={(assignment as any).operationalMode || "training"}
           studentGrade={selectedStudent?.grade || null}
-          parentTopics={
-            (selectedStudent?.parentInfo?.reported_topics as string[] | undefined)?.join(", ") ||
-            Object.keys((selectedStudent?.parentInfo?.topic_recommended_starting_phases as Record<string, unknown> | undefined) || {}).join(", ") ||
-            Object.keys((selectedStudent?.parentInfo?.topic_response_symptoms as Record<string, unknown> | undefined) || {}).join(", ") ||
-            ""
-          }
+          parentTopics={Array.from(new Set([
+            ...(Array.isArray(selectedStudent?.parentInfo?.reported_topics)
+              ? selectedStudent.parentInfo.reported_topics
+              : []),
+            ...Object.keys((selectedStudent?.parentInfo?.topic_recommended_starting_phases as Record<string, unknown> | undefined) || {}),
+            ...Object.keys((selectedStudent?.parentInfo?.topic_response_symptoms as Record<string, unknown> | undefined) || {}),
+          ].map((topic) => String(topic || "").trim()).filter(Boolean))).join(", ")}
           parentTopicSymptoms={
             selectedStudent?.parentInfo?.topic_response_symptoms &&
             typeof selectedStudent.parentInfo.topic_response_symptoms === "object"
