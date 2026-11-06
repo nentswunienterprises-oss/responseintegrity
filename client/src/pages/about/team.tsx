@@ -18,28 +18,12 @@ const leadershipTeam = [
     imagePosition: "center 22%",
   },
   {
-    id: "ntandoyenkosi-dlamini",
-    name: "Ntandoyenkosi Dlamini",
-    role: "Head of HR",
-    focus: "People operations, talent stewardship, and internal culture rhythm.",
-    accent: "#B56576",
-    imagePosition: "center 24%",
-  },
-  {
     id: "kevin-lubanda",
     name: "Kevin Lubanda",
     role: "Chief Operating Officer",
     focus: "Operational execution, delivery standards, and organizational discipline.",
     accent: "#8A4B35",
     imagePosition: "center 18%",
-  },
-  {
-    id: "lawrence-zwenyere",
-    name: "Lawrence Zwenyere",
-    role: "Chief Technology Officer",
-    focus: "Technical architecture, systems reliability, and product infrastructure.",
-    accent: "#264653",
-    imagePosition: "center 12%",
   },
 ] as const;
 
@@ -76,7 +60,7 @@ export default function TeamPage() {
         name: "Meet the Team",
         url: `${SITE_ORIGIN}/about/team`,
         description:
-          "Meet the Response Integrity leadership team across marketing, human resources, operations, and technology.",
+          "Meet the Response Integrity leadership team across marketing and operations.",
         about: {
           "@type": "Organization",
           name: SITE_NAME,
@@ -140,8 +124,7 @@ export default function TeamPage() {
                   The leadership behind Response Integrity.
                 </h1>
                 <p className="mt-6 max-w-2xl text-base leading-8 text-[#5A5A5A] sm:text-lg">
-                  Our executive team carries the company across growth, people, execution, and
-                  technology, with each seat protecting a core part of how the system moves.
+                  Our executive team carries the company across growth and execution, with each seat protecting a core part of how the system moves.
                 </p>
               </div>
             </div>
@@ -169,7 +152,7 @@ export default function TeamPage() {
       </section>
 
       <section className="mx-auto max-w-7xl px-6 pb-24">
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-2">
           {leadershipTeam.map((member) => {
             const portraitCandidates = buildPortraitCandidates(member.id);
             const portraitIndex = portraitIndexes[member.id] ?? 0;
@@ -257,9 +240,7 @@ export default function TeamPage() {
                 Leadership that protects the system from every angle.
               </h2>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-[#5A5A5A] sm:text-base">
-                From public growth to internal people systems, from operating rhythm to technical
-                infrastructure, these seats help keep Response Integrity disciplined, clear, and
-                buildable at scale.
+                From public growth to operating rhythm, these seats help keep Response Integrity disciplined, clear, and buildable at scale.
               </p>
             </div>
 
