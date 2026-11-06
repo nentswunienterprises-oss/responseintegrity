@@ -77,25 +77,25 @@ test("explicit phase remains authoritative outside the Intro Session recommendat
 });
 
 
-test("resumed diagnosis displays and uses the persisted starting signal", () => {
-  assert.match(
-    runnerSource,
-    /const authoritativeStartingSignalPhase =\s*apiState\?\.startingPhase \|\| startingSignalPhase/,
+test("parent report is authoritative and a changed report cannot revive a browser-cached diagnosis", () => {
+  assert.match(runnerSource, /pending\.startingPhase/);
+  assert.match(runnerSource, /pending\.topicSymptoms/);
+  assert.match(runnerSource, /let id = pending\.runId \|\| createRunId\(\)/);
+  assert.match(runnerSource, /let state = pending\.runId \? await loadExisting\(id\) : null/);
+  assert.doesNotMatch(runnerSource, /startingSignalMismatch/);
+  assert.doesNotMatch(runnerSource, /This is a resumed diagnosis/);
+  assert.match(runnerSource, /Starting signal: \$\{authoritativeStartingSignalPhase\}/);
+});
+
+test("server supersedes unfinished diagnoses when parent-reported symptoms or starting phase change", () => {
+  const routes = readFileSync(
+    new URL("./evidenceCompleteDiagnosisRoutes.ts", import.meta.url),
+    "utf8",
   );
-  assert.match(
-    runnerSource,
-    /Starting signal: \$\{authoritativeStartingSignalPhase\}/,
-  );
-  assert.match(
-    runnerSource,
-    /startingSignalMismatch[\s\S]*This is a resumed diagnosis/,
-  );
-  assert.match(
-    runnerSource,
-    /startingPhase: state\.startingPhase \|\| startingPhase/,
-  );
-  assert.match(
-    runnerSource,
-    /startingPhase: apiState\?\.startingPhase \|\| startingPhase/,
-  );
+  assert.match(routes, /loadParentDiagnosisAuthority/);
+  assert.match(routes, /topic_response_symptoms/);
+  assert.match(routes, /topic_recommended_starting_phases/);
+  assert.match(routes, /sameParentDiagnosisAuthority/);
+  assert.match(routes, /status='superseded'/);
+  assert.match(routes, /parentReportAuthority/);
 });
