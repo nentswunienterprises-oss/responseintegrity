@@ -1921,7 +1921,7 @@ export default function StudentTopicConditioningDialog({
                             />
                             <span className="min-w-0 flex-1 space-y-1">
                               <span className="block text-sm font-semibold">{row.topic}</span>
-                              <span className="block text-xs text-muted-foreground">Recommended starting phase: {row.parentRecommendedPhase || row.phase}</span>
+                              <span className="block text-xs text-muted-foreground">Recommended starting phase: {row.parentRecommendedPhase || "To be determined during diagnosis"}</span>
                               {row.parentReportedSymptoms?.length ? <span className="block text-xs text-muted-foreground">Reported symptoms: {row.parentReportedSymptoms.join(" · ")}</span> : null}
                             </span>
                           </label>
@@ -1939,8 +1939,8 @@ export default function StudentTopicConditioningDialog({
                               .filter((row): row is TopicRow => !!row);
                             if (selectedRows.length === 0 || selectedRows.length > 2) return;
                             const topicsParam = encodeURIComponent(JSON.stringify(selectedRows.map((row) => row.topic)));
-                            const phasesParam = encodeURIComponent(JSON.stringify(selectedRows.map((row) => row.parentRecommendedPhase || row.phase)));
-                            navigate("/specialist/intro-session/" + studentId + "?topic=" + encodeURIComponent(selectedRows[0].topic) + "&phase=" + encodeURIComponent(selectedRows[0].parentRecommendedPhase || selectedRows[0].phase) + "&topics=" + topicsParam + "&topicPhases=" + phasesParam);
+                            const phasesParam = encodeURIComponent(JSON.stringify(selectedRows.map((row) => row.parentRecommendedPhase || "Clarity")));
+                            navigate("/specialist/intro-session/" + studentId + "?topic=" + encodeURIComponent(selectedRows[0].topic) + "&phase=" + encodeURIComponent(selectedRows[0].parentRecommendedPhase || "Clarity") + "&topics=" + topicsParam + "&topicPhases=" + phasesParam);
                           }}
                         >
                           Start Diagnosis
