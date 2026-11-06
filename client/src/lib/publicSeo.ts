@@ -130,20 +130,6 @@ export const routeSeoDefinitions: RouteSeoDefinition[] = [
     includeInSitemap: true,
   },
   {
-    path: "/about/team",
-    title: "Meet the Team | Response Integrity",
-    description:
-      "Meet the Response Integrity leadership team across marketing, human resources, operations, and technology.",
-    jsonLd: buildAboutPageJsonLd(
-      "/about/team",
-      "Meet the Team",
-      "Meet the Response Integrity leadership team across marketing, human resources, operations, and technology.",
-    ),
-    prerender: true,
-    injectInSpa: false,
-    includeInSitemap: true,
-  },
-  {
     path: "/operational/specialist/landing",
     title: "Become a Response Integrity Specialist | Operator Certification",
     description:
