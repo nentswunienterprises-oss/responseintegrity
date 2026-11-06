@@ -218,54 +218,6 @@ export default function ParentIntakeEntry() {
           })}
         </section>
 
-        <section className="mt-10 rounded-[30px] border border-[#E5D3C5] bg-white/86 p-7 shadow-sm sm:p-8">
-          <div className="max-w-3xl">
-            <h2 className="text-3xl font-bold tracking-tight text-[#171311]">The rhythm is part of the product.</h2>
-            <p className="mt-4 text-sm leading-7 text-[#534B45] sm:text-base">
-              Response Integrity does not organize families around random sessions. The intake window, the fixed cadence,
-              and the protected login path all reinforce the same standard for true conditioning: preparation happens on purpose before pressure peaks.
-            </p>
-          </div>
-
-          <div className="mt-7 grid gap-4 md:grid-cols-3">
-            <Card className="rounded-[24px] border border-[#EEDFD3] bg-[#FFF8F3] p-5 shadow-none">
-              <p className="text-sm font-semibold text-[#171311]">Families commit by intake</p>
-              <p className="mt-3 text-sm leading-7 text-[#534B45]">Entry happens through defined windows, not through emergency timing.</p>
-            </Card>
-            <Card className="rounded-[24px] border border-[#EEDFD3] bg-[#FFF8F3] p-5 shadow-none">
-              <p className="text-sm font-semibold text-[#171311]">Cadence stays fixed</p>
-              <p className="mt-3 text-sm leading-7 text-[#534B45]">The standard remains 2 sessions per week and 8 sessions per month.</p>
-            </Card>
-            <Card className="rounded-[24px] border border-[#EEDFD3] bg-[#FFF8F3] p-5 shadow-none">
-              <p className="text-sm font-semibold text-[#171311]">Existing families stay separate</p>
-              <p className="mt-3 text-sm leading-7 text-[#534B45]">Already enrolled users continue through a login-only path with no signup detour.</p>
-            </Card>
-          </div>
-
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            {signupPath ? (
-              <Button
-                size="lg"
-                className="rounded-full px-8 shadow-sm"
-                style={{ backgroundColor: "#E63946" }}
-                onClick={() => navigate(signupPath)}
-              >
-                Continue to Parent Sign Up
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            ) : null}
-            <Button
-              size="lg"
-              variant="outline"
-              className="rounded-full border-[#D7C0AF] bg-white/75 px-8 text-[#171311] hover:bg-white"
-              onClick={() => navigate(loginPath)}
-            >
-              <LogIn className="mr-2 h-4 w-4" />
-              Continue to Log In
-            </Button>
-          </div>
-        </section>
-
         {fastTrackEnabled ? (
           <section className="mt-10 rounded-[30px] border border-dashed border-[#D9B8AA] bg-[#FFF8F4] p-7 shadow-sm sm:p-8">
             <div className="max-w-3xl">
