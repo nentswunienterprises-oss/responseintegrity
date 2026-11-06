@@ -1320,7 +1320,7 @@ export default function StudentTopicConditioningDialog({
     const pendingParentSession = trainingSessionsData?.sessions?.find((session: any) => session.status === "pending_parent_confirmation");
     const pendingTutorSession = trainingSessionsData?.sessions?.find((session: any) => session.status === "pending_tutor_confirmation");
     if (pendingTutorSession) {
-      setTrainingSessionMeetMessage("Two weekly lesson times are waiting for Specialist confirmation. Confirm them before running drills.");
+      setTrainingSessionMeetMessage(`${packageWeeklySessionTarget} weekly lesson(s) are waiting for Specialist confirmation. Confirm them before running drills.`);
       setSessionTopicsModalOpen(false);
       return;
     }
@@ -1706,6 +1706,21 @@ export default function StudentTopicConditioningDialog({
   const isConfirmingTrainingSession = (sessionId: string) =>
     confirmTrainingSession.isPending && confirmTrainingSession.variables?.sessionId === sessionId;
   const pendingTrainingConfirmationSession = actionableTrainingSessions.find((session: any) => session.status === "pending_parent_confirmation") || null;
+  const packageWeeklySessionTarget = Math.max(
+    1,
+    Math.min(
+      4,
+      Number(
+        trainingSessionsData?.monthlyQuota?.planned_sessions_per_week ||
+        (Number(trainingSessionsData?.monthlyQuota?.session_quota) === 16
+          ? 4
+          : Number(trainingSessionsData?.monthlyQuota?.session_quota) === 12
+            ? 3
+            : 2),
+      ) || 2,
+    ),
+  );
+  const weeklySessionTargetLabel = `${packageWeeklySessionTarget} ${packageWeeklySessionTarget === 1 ? "lesson" : "lessons"}`;
   const futureCancelledTrainingSessions = (trainingSessionsData?.sessions || []).filter((session: any) => {
     if (String(session.status || "") !== "cancelled") return false;
     const scheduledTime = new Date(session.scheduled_time || 0).getTime();
@@ -1716,7 +1731,7 @@ export default function StudentTopicConditioningDialog({
   );
   const weeklyScheduleReady =
     !packageQuotaBlocked &&
-    confirmedTrainingSessions.length > 0 &&
+    confirmedTrainingSessions.length >= packageWeeklySessionTarget &&
     pendingTutorConfirmationSessions.length === 0 &&
     !pendingTrainingConfirmationSession &&
     replacementRequiredCancelledTrainingSessions.length === 0;
@@ -2431,7 +2446,7 @@ export default function StudentTopicConditioningDialog({
                               ? "Package capacity is available, but the parent has not booked a current lesson."
                               : packageQuotaBlocked
                                 ? "Start Session is locked until the family's package quota can be verified."
-                                : "Start Session unlocks after the week's lesson is confirmed by both parent and Specialist."}
+                                : `Start Session unlocks after all ${weeklySessionTargetLabel} are confirmed by both parent and Specialist.`}
                       </div>
                     </div>
                     <div className="rounded border border-primary/20 bg-background px-3 py-2 text-xs space-y-2">
@@ -2453,7 +2468,7 @@ export default function StudentTopicConditioningDialog({
                           ? trainingTabAvailability.message
                           : weeklyScheduleReady
                             ? "Use Start Session to choose topics and enter the runner for a confirmed weekly lesson."
-                            : "Training launch stays locked until both weekly sessions are scheduled and fully confirmed."}
+                            : `Training launch stays locked until all ${weeklySessionTargetLabel} are scheduled and fully confirmed.`}
                       </p>
                     </div>
                     {replacementRequiredCancelledTrainingSessions.length > 0 ? (
@@ -2563,7 +2578,7 @@ export default function StudentTopicConditioningDialog({
                       <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs space-y-2">
                         <p className="font-medium text-blue-900">Awaiting Specialist confirmation</p>
                         <p className="text-blue-800">
-                          The parent has proposed this week's lesson times. Confirm both dates before training can launch.
+                          The parent has proposed this week's lesson times. Confirm all ${packageWeeklySessionTarget} scheduled lessons before training can launch.
                         </p>
                         <div className="space-y-2">
                           {pendingTutorConfirmationSessions.map((session: any) => (
@@ -2722,7 +2737,7 @@ export default function StudentTopicConditioningDialog({
                         </p>
                       </div>
                       <div className="text-right text-xs text-muted-foreground">
-                        Parent books the two weekly lesson times in the Sessions tab.
+                        Parent books the package's ${weeklySessionTargetLabel} in the Sessions tab.
                       </div>
                     </div>
                     {activeTrainingSession ? (
@@ -2780,8 +2795,8 @@ export default function StudentTopicConditioningDialog({
                         <p className="font-medium text-blue-900">Awaiting Specialist confirmation</p>
                         <p className="text-blue-800">
                           {isSandboxMode
-                            ? "The parent has proposed this week's training lessons. Confirm both dates before the lessons are ready."
-                            : "The parent has proposed this week's training lessons. Confirm both dates before Meet links are created."}
+                            ? `The parent has proposed this week's training lessons. Confirm all ${weeklySessionTargetLabel} before the lessons are ready.`
+                            : `The parent has proposed this week's training lessons. Confirm all ${weeklySessionTargetLabel} before Meet links are created.`}
                         </p>
                         <div className="space-y-2">
                           {pendingTutorConfirmationSessions.map((session: any) => (
@@ -2905,7 +2920,7 @@ export default function StudentTopicConditioningDialog({
                     {!activeTrainingSession && pendingTutorConfirmationSessions.length === 0 && !pendingTrainingConfirmationSession && !nextTrainingSession && confirmedTrainingSessions.length === 0 ? (
                       <div className="space-y-1">
                         <p className="text-xs text-muted-foreground">
-                          No Response Integrity training lesson is attached yet. The parent must schedule this week's two lesson times in the Sessions tab.
+                          No Response Integrity training lesson is attached yet. The parent must schedule the package's ${weeklySessionTargetLabel} in the Sessions tab.
                         </p>
                         {trainingSessionMeetMessage ? (
                           <p className={trainingSessionMeetMessage.includes("created") ? "text-xs text-green-700" : "text-xs text-red-600"}>
