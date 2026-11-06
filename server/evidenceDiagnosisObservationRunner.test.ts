@@ -75,3 +75,27 @@ test("explicit phase remains authoritative outside the Intro Session recommendat
   assert.match(runnerSource, /requestedContext === "intro" \|\| !requestedContext/);
   assert.match(runnerSource, /tryParsePhase\(searchParams\.get\("phase"\)\)/);
 });
+
+
+test("resumed diagnosis displays and uses the persisted starting signal", () => {
+  assert.match(
+    runnerSource,
+    /const authoritativeStartingSignalPhase =\s*apiState\?\.startingPhase \|\| startingSignalPhase/,
+  );
+  assert.match(
+    runnerSource,
+    /Starting signal: \$\{authoritativeStartingSignalPhase\}/,
+  );
+  assert.match(
+    runnerSource,
+    /startingSignalMismatch[\s\S]*This is a resumed diagnosis/,
+  );
+  assert.match(
+    runnerSource,
+    /startingPhase: state\.startingPhase \|\| startingPhase/,
+  );
+  assert.match(
+    runnerSource,
+    /startingPhase: apiState\?\.startingPhase \|\| startingPhase/,
+  );
+});
