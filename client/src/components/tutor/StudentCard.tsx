@@ -1635,7 +1635,6 @@ function IntroDiagnosticTopicSection({
 }) {
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [diagnosticTopic, setDiagnosticTopic] = useState("");
   const topicOptions = Array.from(new Set((reportedTopics || []).map((topic) => String(topic || "").trim()).filter(Boolean)));
   const [selectedDiagnosticTopics, setSelectedDiagnosticTopics] = useState<string[]>([]);
   const [activationError, setActivationError] = useState("");
@@ -1680,21 +1679,12 @@ function IntroDiagnosticTopicSection({
   const handleSaveTopics = () => {
     setActivationError("");
     const nextTopics = [...selectedDiagnosticTopics];
-    const customTopic = diagnosticTopic.trim();
-    if (customTopic && !nextTopics.some((entry) => normalizeTopicKey(entry) === normalizeTopicKey(customTopic))) {
-      if (nextTopics.length >= 2) {
-        setActivationError("Choose no more than two topics for one Intro Session.");
-        return;
-      }
-      nextTopics.push(customTopic);
-    }
     if (nextTopics.length < 1 || nextTopics.length > 2) {
       setActivationError("Choose one or two topics to diagnose in the scheduled Intro Session.");
       return;
     }
     window.sessionStorage.setItem(storageKey, JSON.stringify(nextTopics));
     setSelectedDiagnosticTopics(nextTopics);
-    setDiagnosticTopic("");
     setDialogOpen(false);
   };
 
@@ -1741,7 +1731,9 @@ function IntroDiagnosticTopicSection({
               <div className="space-y-2">
                 {topicOptions.map((topic) => {
                   const checked = selectedDiagnosticTopics.some((entry) => normalizeTopicKey(entry) === normalizeTopicKey(topic));
-                  const phase = getTopicPhase(topic);
+                  const intelligence = (topicIntelligence || []).find((entry) => normalizeTopicKey(entry.topic) === normalizeTopicKey(topic));
+                  const phase = intelligence?.recommendedStartingPhase || "Clarity";
+                  const symptoms = Array.isArray(intelligence?.symptoms) ? intelligence.symptoms : [];
                   return (
                     <label key={topic} className="flex items-start gap-3 rounded-md border p-3 text-sm">
                       <input
@@ -1753,28 +1745,20 @@ function IntroDiagnosticTopicSection({
                       />
                       <span className="min-w-0">
                         <span className="block font-medium">{topic}</span>
-                        <span className="block text-xs text-muted-foreground">Parent-reported starting hypothesis: {phase}</span>
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          Symptoms: {symptoms.length > 0 ? symptoms.join(" · ") : "No symptoms recorded"}
+                        </span>
+                        <span className="mt-1 block text-xs text-muted-foreground">Recommended starting phase: {phase}</span>
                       </span>
                     </label>
                   );
                 })}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No parent-reported topics are available. Enter the topic below.</p>
+              <p className="text-sm text-muted-foreground">There are no parent-reported topics available to select for this Intro Session.</p>
             )}
-            <div className="space-y-2">
-              <label className="text-sm font-medium" htmlFor={`intro-diagnostic-custom-${student.id}`}>Add another topic (optional)</label>
-              <Input
-                id={`intro-diagnostic-custom-${student.id}`}
-                value={diagnosticTopic}
-                onChange={(event) => setDiagnosticTopic(event.target.value)}
-                placeholder="For example, Linear Equations"
-                maxLength={120}
-                disabled={selectedDiagnosticTopics.length >= 2 && !diagnosticTopic.trim()}
-              />
-            </div>
             {activationError ? <p role="alert" className="text-xs text-destructive">{activationError}</p> : null}
-            <p className="text-xs text-muted-foreground">{selectedDiagnosticTopics.length + (diagnosticTopic.trim() ? 1 : 0)} of 2 topics selected.</p>
+            <p className="text-xs text-muted-foreground">{selectedDiagnosticTopics.length} of 2 topics selected.</p>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
