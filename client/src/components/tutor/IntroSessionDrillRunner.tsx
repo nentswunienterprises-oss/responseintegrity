@@ -4100,8 +4100,8 @@ function IntroSessionDrillRunnerCore({
                   ? `Targeted Re-Diagnosis - ${displayPhase}`
                   : `Handover Verification - ${displayPhase}`
                 : diagnosisTopics.length > 1
-                  ? `Adaptive Intro Diagnosis - Topic ${diagnosisTopicIndex + 1} of ${diagnosisTopics.length} - ${displayPhase}`
-                  : `Adaptive Intro Diagnosis - ${displayPhase}`}
+                  ? `${diagnosisSessionKind === "intro" ? "Intro Session Diagnosis" : "Adaptive Diagnosis"} - Topic ${diagnosisTopicIndex + 1} of ${diagnosisTopics.length} - ${displayPhase}`
+                  : `${diagnosisSessionKind === "intro" ? "Intro Session Diagnosis" : "Adaptive Diagnosis"} - ${displayPhase}`}
           </h2>
       <p className="mb-2 text-sm">
         <span className="font-semibold">
