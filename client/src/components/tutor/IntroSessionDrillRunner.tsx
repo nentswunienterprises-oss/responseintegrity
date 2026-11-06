@@ -999,6 +999,8 @@ function IntroSessionDrillRunnerCore({
   const [handoverEvidenceSummary, setHandoverEvidenceSummary] =
     useState<HandoverEvidenceSummary | null>(null);
   const [sessionTopicIndex, setSessionTopicIndex] = useState(0);
+  const [diagnosisTopicIndex, setDiagnosisTopicIndex] = useState(0);
+  const diagnosisBatchIdRef = useRef(createTpsAttemptId());
   const [sessionResults, setSessionResults] = useState<any[]>([]);
   const [prepReady, setPrepReady] = useState(false);
   const [prepChecks, setPrepChecks] = useState<Record<string, boolean>>({});
@@ -1079,6 +1081,31 @@ function IntroSessionDrillRunnerCore({
     return String(raw).trim();
   }, [searchParams]);
 
+  const diagnosisTopics = useMemo(() => {
+    const raw = searchParams.get("topics") || "";
+    if (!raw) return introTopic ? [introTopic] : [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return Array.from(new Set(parsed.map((topic) => String(topic || "").trim()).filter(Boolean))).slice(0, 2);
+      }
+    } catch {
+      // Older training-session URLs use a comma-separated topic list.
+    }
+    return raw.split(",").map((topic) => topic.trim()).filter(Boolean).slice(0, 2);
+  }, [searchParams, introTopic]);
+
+  const diagnosisTopicPhases = useMemo(() => {
+    const raw = searchParams.get("topicPhases") || "";
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.map((value) => String(value || "").trim()) : [];
+    } catch {
+      return [];
+    }
+  }, [searchParams]);
+
   const sessionTopics = useMemo(() => {
     const raw = searchParams.get("topics") || "";
     return raw ? raw.split(',').map(t => decodeURIComponent(t).trim()).filter(Boolean) : [];
@@ -1097,9 +1124,11 @@ function IntroSessionDrillRunnerCore({
 
   const currentTopicPhase = currentSessionTopic?.phase || phase;
   const currentTopicStability = currentSessionTopic?.stability || previousStability;
-  const currentTopicName = isSessionMode && sessionTopicIndex < sessionTopics.length 
+  const currentTopicName = isSessionMode && sessionTopicIndex < sessionTopics.length
     ? sessionTopics[sessionTopicIndex]
-    : introTopic;
+    : drillMode === "diagnosis"
+      ? diagnosisTopics[diagnosisTopicIndex] || introTopic
+      : introTopic;
   const currentTopicRecord = useMemo(
     () => topicData?.topics?.find(
       (topic) => topic.topic.trim().toLowerCase() === currentTopicName.trim().toLowerCase(),
@@ -1277,7 +1306,7 @@ function IntroSessionDrillRunnerCore({
     [displayPhase, isAdaptiveDiagnosisMode, handoverReDiagnosisMode]
   );
 
-  const hasIntroTopic = !!introTopic;
+  const hasIntroTopic = !!currentTopicName;
 
   const { data: studentsData } = useQuery<StudentListEntry[] | { students?: StudentListEntry[] }>({
     queryKey: ["/api/tutor/students"],
@@ -3234,11 +3263,14 @@ function IntroSessionDrillRunnerCore({
             }
           : {
               studentId,
-              introTopic,
-              startingPhase: phase,
+              introTopic: currentTopicName,
+              startingPhase: activeDiagnosisPhase,
               adaptiveBlocks: finalAdaptiveBlocks,
               scheduledSessionId,
               sessionContextKind: diagnosisSessionKind,
+              multiTopicCount: diagnosisTopics.length,
+              multiTopicIndex: diagnosisTopicIndex,
+              multiTopicBatchId: diagnosisBatchIdRef.current,
             };
         const { data: { session } } = await supabase.auth.getSession();
         const headers: HeadersInit = {
@@ -3287,10 +3319,32 @@ function IntroSessionDrillRunnerCore({
           ]);
         }
 
+        if (
+          !isHandoverMode &&
+          diagnosisTopics.length === 2 &&
+          diagnosisTopicIndex < diagnosisTopics.length - 1
+        ) {
+          const nextIndex = diagnosisTopicIndex + 1;
+          setDiagnosisTopicIndex(nextIndex);
+          setActiveDiagnosisPhase((diagnosisTopicPhases[nextIndex] || phase) as PhaseLabel);
+          setAdaptiveDiagnosisBlocks([]);
+          setAdaptiveTransition(null);
+          setAdaptiveDiagnosisMessage(null);
+          setSubmitSuccess(false);
+          setScoring(null);
+          setResponseSnapshots([]);
+          setCurrentSet(0);
+          setCurrentRep(0);
+          setObservations({});
+          return;
+        }
+
         setAdaptiveDiagnosisMessage(
           isHandoverMode
             ? `Targeted re-diagnosis resolved to ${res.data?.summary?.resultingPhase || activeDiagnosisPhase} from the recorded evidence.`
-            : `Diagnosis locked at ${res.data?.summary?.phase || activeDiagnosisPhase} from the recorded evidence.`
+            : diagnosisTopics.length === 2
+              ? `Intro diagnosis completed for ${diagnosisTopics.join(" and ")}. Both topic results have been recorded.`
+              : `Diagnosis locked at ${res.data?.summary?.phase || activeDiagnosisPhase} from the recorded evidence.`
         );
         setSubmitSuccess(true);
         setScoring(res.data?.scoring || null);
