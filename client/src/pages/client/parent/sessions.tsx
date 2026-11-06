@@ -67,6 +67,8 @@ type ParentTrainingSessionsResponse = {
   monthlyQuota?: {
     sessions_remaining?: number;
     session_quota?: number;
+    planned_sessions_per_week?: number;
+    package_key?: string;
     package_amount_zar?: number;
     session_price?: number;
   } | null;
@@ -77,10 +79,12 @@ export default function ParentSessions() {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [slotOneDate, setSlotOneDate] = useState<Date | undefined>(undefined);
-  const [slotOneTime, setSlotOneTime] = useState("15:00");
-  const [slotTwoDate, setSlotTwoDate] = useState<Date | undefined>(undefined);
-  const [slotTwoTime, setSlotTwoTime] = useState("17:00");
+  const [scheduleSlots, setScheduleSlots] = useState([
+    { date: undefined as Date | undefined, time: "15:00" },
+    { date: undefined as Date | undefined, time: "17:00" },
+    { date: undefined as Date | undefined, time: "16:00" },
+    { date: undefined as Date | undefined, time: "18:00" },
+  ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPreparingSandboxPayment, setIsPreparingSandboxPayment] = useState(false);
   const [sandboxCheckout, setSandboxCheckout] = useState<{
@@ -134,7 +138,8 @@ export default function ParentSessions() {
     const day = date.getDay();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return day >= 1 && day <= 6 && date >= today;
+    const isSandbox = data?.operationalMode === "sandbox";
+    return day >= 1 && day <= 6 && (isSandbox || date >= today);
   };
 
   const openAdjustmentEditor = (session: ParentTrainingSession) => {
@@ -180,7 +185,7 @@ export default function ParentSessions() {
     };
     const firstWeekStart = getWeekStart(parsed[0]);
     if (parsed.some((date) => getWeekStart(date) !== firstWeekStart)) {
-      return "Both sessions must be scheduled within the same Monday-to-Saturday week.";
+      return "All sessions must be scheduled within the same Monday-to-Saturday week.";
     }
     return null;
   };
@@ -307,20 +312,26 @@ export default function ParentSessions() {
     }
   };
 
+  const plannedSessionsPerWeek = data?.operationalMode === "sandbox"
+    ? Math.max(2, Math.min(4, Number(
+        data?.monthlyQuota?.planned_sessions_per_week ||
+        (Number(data?.monthlyQuota?.session_quota) === 16 ? 4 : Number(data?.monthlyQuota?.session_quota) === 12 ? 3 : 2)
+      )))
+    : 2;
   const handleScheduleWeek = async () => {
-    const slotOne = combineDateAndTime(slotOneDate, slotOneTime);
-    const slotTwo = combineDateAndTime(slotTwoDate, slotTwoTime);
+    const selectedSlots = scheduleSlots.slice(0, plannedSessionsPerWeek)
+      .map((slot) => combineDateAndTime(slot.date, slot.time));
 
-    if (!slotOne || !slotTwo) {
+    if (selectedSlots.some((slot) => !slot)) {
       toast({
         title: "Missing times",
-        description: "Choose both session dates before scheduling the week.",
+        description: `Choose all ${plannedSessionsPerWeek} session dates before scheduling the week.`,
         variant: "destructive",
       });
       return;
     }
 
-    const weekValidationMessage = getWeekValidationMessage([slotOne, slotTwo]);
+    const weekValidationMessage = getWeekValidationMessage(selectedSlots);
     if (weekValidationMessage) {
       toast({
         title: "Invalid week",
@@ -344,10 +355,9 @@ export default function ParentSessions() {
         headers,
         body: JSON.stringify({
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Johannesburg",
-          slots: [
-            { scheduledStart: new Date(slotOne).toISOString() },
-            { scheduledStart: new Date(slotTwo).toISOString() },
-          ],
+          slots: selectedSlots.map((scheduledStart) => ({
+            scheduledStart: new Date(scheduledStart as string).toISOString(),
+          })),
         }),
       });
 
@@ -374,15 +384,17 @@ export default function ParentSessions() {
         description:
           payload?.createdCount > 0
             ? data?.operationalMode === "sandbox"
-              ? "Two weekly session times were proposed. Your specialist must confirm both dates before the lessons are ready."
+              ? `${plannedSessionsPerWeek} simulated weekly session times were proposed. Your Specialist must confirm all dates before the lessons are ready.`
               : "Two weekly session times were proposed. Your Specialist must confirm both dates before Meet links are created."
             : "Those weekly session times already exist.",
       });
 
-      setSlotOneDate(undefined);
-      setSlotOneTime("15:00");
-      setSlotTwoDate(undefined);
-      setSlotTwoTime("17:00");
+      setScheduleSlots([
+        { date: undefined, time: "15:00" },
+        { date: undefined, time: "17:00" },
+        { date: undefined, time: "16:00" },
+        { date: undefined, time: "18:00" },
+      ]);
       queryClient.invalidateQueries({ queryKey: ["/api/parent/training-sessions"] });
     } catch (error) {
       toast({
@@ -590,9 +602,11 @@ export default function ParentSessions() {
   const renewalBlocked = paymentRequired || quotaExhausted;
   const sandboxPaymentRequired = data?.operationalMode === "sandbox" && paymentRequired;
   const trainingModeScheduling = ["training", "sandbox"].includes(String(data?.operationalMode || ""));
-  const scheduleWeekDescription = trainingModeScheduling
-    ? "Choose two Monday-to-Saturday training session times in the same week. Your Specialist must confirm both dates before Response Integrity locks the sessions into the training flow."
-    : "Choose two Monday-to-Saturday training session times in the same week. Your Specialist must confirm both dates before Response Integrity creates the Meet links.";
+  const scheduleWeekDescription = data?.operationalMode === "sandbox"
+    ? `Choose ${plannedSessionsPerWeek} simulated Monday-to-Saturday training times in the same week. These dates are part of the Sandbox timeline, not live calendar availability. Your Specialist must confirm all dates before lessons are ready.`
+    : trainingModeScheduling
+      ? "Choose two Monday-to-Saturday training session times in the same week. Your Specialist must confirm both dates before Response Integrity locks the sessions into the training flow."
+      : "Choose two Monday-to-Saturday training session times in the same week. Your Specialist must confirm both dates before Response Integrity creates the Meet links.";
   const actionableSessions = sessions.filter(
     (session) => !["completed", "cancelled", "flagged"].includes(String(session.status || "")),
   );
@@ -686,54 +700,36 @@ export default function ParentSessions() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-2 rounded-lg border border-border p-3">
-                <label className="text-sm font-medium">Session 1</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button type="button" variant="outline" className="w-full justify-start text-left font-normal">
-                      <CalendarDays className="mr-2 h-4 w-4" />
-                      {formatScheduleLabel(slotOneDate)}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent align="start" className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={slotOneDate}
-                      onSelect={setSlotOneDate}
-                      disabled={(date) => !isSelectableSessionDate(date)}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                <Input type="time" value={slotOneTime} onChange={(e) => setSlotOneTime(e.target.value)} />
-                <p className="text-xs text-muted-foreground">
-                  {slotOneDate ? `${formatScheduleLabel(slotOneDate)} at ${slotOneTime}` : "Pick a Monday-Saturday date and time."}
-                </p>
-              </div>
-              <div className="space-y-2 rounded-lg border border-border p-3">
-                <label className="text-sm font-medium">Session 2</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button type="button" variant="outline" className="w-full justify-start text-left font-normal">
-                      <CalendarDays className="mr-2 h-4 w-4" />
-                      {formatScheduleLabel(slotTwoDate)}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent align="start" className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={slotTwoDate}
-                      onSelect={setSlotTwoDate}
-                      disabled={(date) => !isSelectableSessionDate(date)}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                <Input type="time" value={slotTwoTime} onChange={(e) => setSlotTwoTime(e.target.value)} />
-                <p className="text-xs text-muted-foreground">
-                  {slotTwoDate ? `${formatScheduleLabel(slotTwoDate)} at ${slotTwoTime}` : "Pick a Monday-Saturday date and time."}
-                </p>
-              </div>
+              {scheduleSlots.slice(0, plannedSessionsPerWeek).map((slot, index) => (
+                <div key={index} className="space-y-2 rounded-lg border border-border p-3">
+                  <label className="text-sm font-medium">Session {index + 1}</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" className="w-full justify-start text-left font-normal">
+                        <CalendarDays className="mr-2 h-4 w-4" />
+                        {formatScheduleLabel(slot.date)}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={slot.date}
+                        onSelect={(date) => setScheduleSlots((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, date } : item))}
+                        disabled={(date) => !isSelectableSessionDate(date)}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <Input
+                    type="time"
+                    value={slot.time}
+                    onChange={(event) => setScheduleSlots((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, time: event.target.value } : item))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {slot.date ? `${formatScheduleLabel(slot.date)} at ${slot.time}` : "Pick a Monday-Saturday date and time."}
+                  </p>
+                </div>
+              ))}
             </div>
 
             <Button onClick={handleScheduleWeek} disabled={isSubmitting}>
@@ -871,8 +867,12 @@ export default function ParentSessions() {
                         <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-2">
                           <Popover>
                             <PopoverTrigger asChild>
-                              <Button type="button" variant="outline" className="w-full justify-start text-left font-normal bg-white">
-                                <CalendarDays className="mr-2 h-4 w-4" />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full justify-start text-left font-normal !bg-white !text-slate-900 [&_svg]:!text-slate-900 hover:!bg-white hover:!text-slate-900"
+                              >
+                                <CalendarDays className="mr-2 h-4 w-4 !text-slate-900" />
                                 {formatScheduleLabel(adjustedDate)}
                               </Button>
                             </PopoverTrigger>
@@ -890,16 +890,19 @@ export default function ParentSessions() {
                             type="time"
                             value={adjustedTime}
                             onChange={(e) => setAdjustedTime(e.target.value)}
-                            className="bg-white"
+                            className="!bg-white !text-slate-900 [color-scheme:light] placeholder:!text-slate-500"
                           />
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-slate-700">
                             {adjustedDate ? `${formatScheduleLabel(adjustedDate)} at ${adjustedTime}` : "Pick a Monday-Saturday date and time."}
                           </p>
                           <div className="flex justify-end">
                             <Button
+                              type="button"
                               size="sm"
-                              variant="outline"
+                              variant="default"
                               onClick={() => handleAdjustSession(session.id)}
+                              className="!bg-[#1f2937] !text-white !border-[#1f2937] hover:!bg-[#111827] hover:!text-white disabled:!bg-[#1f2937] disabled:!text-white disabled:!opacity-100 [&_*]:!text-white"
+                              style={{ backgroundColor: "#1f2937", color: "#ffffff", borderColor: "#1f2937", opacity: 1 }}
                               disabled={adjustingSessionId === session.id}
                             >
                               {adjustingSessionId === session.id ? "Sending..." : "Send New Time"}
@@ -936,8 +939,12 @@ export default function ParentSessions() {
                         <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-2">
                           <Popover>
                             <PopoverTrigger asChild>
-                              <Button type="button" variant="outline" className="w-full justify-start text-left font-normal bg-white">
-                                <CalendarDays className="mr-2 h-4 w-4" />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full justify-start text-left font-normal !bg-white !text-slate-900 [&_svg]:!text-slate-900 hover:!bg-white hover:!text-slate-900"
+                              >
+                                <CalendarDays className="mr-2 h-4 w-4 !text-slate-900" />
                                 {formatScheduleLabel(adjustedDate)}
                               </Button>
                             </PopoverTrigger>
@@ -955,16 +962,19 @@ export default function ParentSessions() {
                             type="time"
                             value={adjustedTime}
                             onChange={(e) => setAdjustedTime(e.target.value)}
-                            className="bg-white"
+                            className="!bg-white !text-slate-900 [color-scheme:light] placeholder:!text-slate-500"
                           />
                           <p className="text-xs text-muted-foreground">
                             {adjustedDate ? `${formatScheduleLabel(adjustedDate)} at ${adjustedTime}` : "Pick a Monday-Saturday date and time."}
                           </p>
                           <div className="flex justify-end">
                             <Button
+                              type="button"
                               size="sm"
-                              variant="outline"
+                              variant="default"
                               onClick={() => handleAdjustSession(session.id)}
+                              className="!bg-[#1f2937] !text-white !border-[#1f2937] hover:!bg-[#111827] hover:!text-white disabled:!bg-[#1f2937] disabled:!text-white disabled:!opacity-100 [&_*]:!text-white"
+                              style={{ backgroundColor: "#1f2937", color: "#ffffff", borderColor: "#1f2937", opacity: 1 }}
                               disabled={adjustingSessionId === session.id}
                             >
                               {adjustingSessionId === session.id ? "Sending..." : "Send New Time"}
@@ -1023,8 +1033,12 @@ export default function ParentSessions() {
                         <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-2">
                           <Popover>
                             <PopoverTrigger asChild>
-                              <Button type="button" variant="outline" className="w-full justify-start text-left font-normal bg-white">
-                                <CalendarDays className="mr-2 h-4 w-4" />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full justify-start text-left font-normal !bg-white !text-slate-900 [&_svg]:!text-slate-900 hover:!bg-white hover:!text-slate-900"
+                              >
+                                <CalendarDays className="mr-2 h-4 w-4 !text-slate-900" />
                                 {formatScheduleLabel(adjustedDate)}
                               </Button>
                             </PopoverTrigger>
@@ -1042,16 +1056,19 @@ export default function ParentSessions() {
                             type="time"
                             value={adjustedTime}
                             onChange={(e) => setAdjustedTime(e.target.value)}
-                            className="bg-white"
+                            className="!bg-white !text-slate-900 [color-scheme:light] placeholder:!text-slate-500"
                           />
                           <p className="text-xs text-muted-foreground">
                             {adjustedDate ? `${formatScheduleLabel(adjustedDate)} at ${adjustedTime}` : "Pick a Monday-Saturday date and time."}
                           </p>
                           <div className="flex justify-end">
                             <Button
+                              type="button"
                               size="sm"
-                              variant="outline"
+                              variant="default"
                               onClick={() => handleAdjustSession(session.id)}
+                              className="!bg-[#1f2937] !text-white !border-[#1f2937] hover:!bg-[#111827] hover:!text-white disabled:!bg-[#1f2937] disabled:!text-white disabled:!opacity-100 [&_*]:!text-white"
+                              style={{ backgroundColor: "#1f2937", color: "#ffffff", borderColor: "#1f2937", opacity: 1 }}
                               disabled={adjustingSessionId === session.id}
                             >
                               {adjustingSessionId === session.id ? "Sending..." : "Send New Time"}

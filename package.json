@@ -31,6 +31,8 @@
     "db:authority:plan": "tsx scripts/productionMigrationAuthority.ts plan",
     "db:authority:apply": "tsx scripts/productionMigrationAuthority.ts apply",
     "test:db-authority": "node --import tsx --test scripts/productionMigrationAuthority.test.ts",
+    "test:p0-security": "node --import tsx --test scripts/p0ContainmentIntegration.test.ts server/confidentialStorage.test.ts server/executiveProofSecurity.test.ts shared/storedDocumentUrl.test.ts",
+    "test:production-link": "node --import tsx --test client/src/lib/google-homepage.test.ts client/src/lib/oauth-attribution.test.ts server/productionLinks.test.ts server/productionLinkPersistence.test.ts server/productionLinkLive.integration.test.ts server/productionLinkOwnership.test.ts server/productionLinkServerBoundary.test.ts server/productionCloseLineage.test.ts",
     "test:practicals": "node --import tsx --test shared/practicalExecuteChallenge.test.ts shared/capabilityPracticalEvidence.test.ts shared/practicalCompletionGate.test.ts shared/practicalEntryGate.test.ts",
     "test:practicals-db": "node --import tsx --test scripts/practicalsMigrationIntegration.test.ts",
     "test:practicals-prod-unauth": "node --import tsx --test scripts/practicalsProductionUnauthenticated.test.ts",

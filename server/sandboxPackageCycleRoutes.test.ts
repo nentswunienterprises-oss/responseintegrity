@@ -22,6 +22,18 @@ test("Sandbox package read chooses stored cycle, not current UTC month", () => {
   assert.doesNotMatch(proofRead, /\.insert\(|\.update\(|upsertMembershipMonth|recalculateMembershipMonthUsage/);
 });
 
+
+test("Preview Sandbox package authority uses the direct Proof DB session path", () => {
+  const src = source("async function getMonthlySessionQuotaSnapshot(", "type TrainingPackageQuotaAuthority =");
+  assert.match(
+    src,
+    /if \(isEmergencyDbMode\(\) \|\| \(options\.isSandboxContext === true && usesDirectProofSessionDatabase\(\)\)\)/,
+  );
+  assert.match(src, /if \(isSandboxContext === true\) \{/);
+  assert.match(src, /selectAuthoritativeSandboxCycle\(result\.rows, options\.parentId, options\.studentId\)/);
+  assert.ok(src.includes("if (isSandbox && !verifySandboxCycleConsumption(row, actualConsumed)) return null;"));
+});
+
 test("real family retains calendar-month quota, payment logic, and reconciler", () => {
   const src = source("async function getMonthlySessionQuotaSnapshot(", "type TrainingPackageQuotaAuthority =");
   assert.ok(src.includes("AND month_key = $3 AND is_sandbox = FALSE"));
@@ -41,14 +53,26 @@ test("Specialist quota and launch authority resolve through shared package gette
   assert.match(tutor, /applyTrainingPackageQuotaToLaunch/);
 });
 
-test("parent booking blocks missing Sandbox authority and exhaustion", () => {
-  const snippet = source(
-    "Sandbox package-cycle authority cannot be verified. Booking remains blocked.",
-    "const parsedSlots = rawSlots",
+test("Sandbox cycle identifiers are canonicalized without using them as expiry dates", () => {
+  const upsert = source("async function upsertMembershipMonth(", "async function recalculateMembershipMonthUsage(");
+  assert.match(upsert, /getMonthStartIso\(options\.monthStartIso\)/);
+  assert.match(upsert, /const monthKey = toMonthKey\(normalizedMonthStartIso\)/);
+  assert.match(upsert, /sequence key, not an expiry boundary tied to the real calendar/);
+});
+
+test("Sandbox booking uses simulated package cadence and Commercial remains two slots", () => {
+  const booking = source(
+    'app.post("/api/parent/training-sessions/schedule-week"',
+    'app.post("/api/parent/training-sessions/respond"',
   );
-  assert.match(snippet, /if \(monthlyQuota && Number\(monthlyQuota\.sessions_remaining \|\| 0\) <= 0\)/);
-  assert.match(snippet, /Simulated package exhausted/);
-  assert.match(snippet, /const currentMonthKey = toMonthKey/);
+  assert.match(booking, /const packageWeeklyTarget = isSandboxContext/);
+  assert.match(booking, /monthlyQuota\?\.planned_sessions_per_week/);
+  assert.match(booking, /parsedSlots\.length !== expectedWeeklySessions/);
+  assert.doesNotMatch(booking, /if \(rawSlots\.length !== 2\)/);
+  assert.match(booking, /if \(!isSandboxContext\) \{[\s\S]*?const nowMs = Date\.now\(\)/);
+  assert.match(booking, /AND \(\$5::boolean = TRUE OR scheduled_time >= \$6::timestamptz\)/);
+  assert.match(booking, /if \(!isSandboxContext\) \{[\s\S]*?existingQuery = existingQuery\.gte\("scheduled_time"/);
+  assert.match(booking, /Simulated package exhausted/);
 });
 
 test("parent renewal is explicit, not triggered by calendar rollover", () => {
@@ -99,9 +123,12 @@ test("Preview fixture retains the simulated cycle and does not grant another mon
   assert.doesNotMatch(lookup, /\.insert\(|\.update\(/);
   assert.ok(preview.includes('normalize(process.env.VERCEL_ENV) !== "preview"'));
   assert.ok(preview.includes('const evidenceUpperBoundIso = "9999-12-31T23:59:59.999Z"'));
-  assert.ok(preview.includes("loadUsageEvents(parentId, studentId, startIso, evidenceUpperBoundIso)"));
-  assert.ok(preview.includes("latestTimes[0] + 1"));
-  assert.ok(preview.includes('student_id.eq.${studentId},enrollment_id.eq.${enrollmentId}'));
+  assert.ok(preview.includes("loadUsageEvents(parentId, studentId, cycleStartIso, evidenceUpperBoundIso)"));
+  assert.ok(preview.includes("const newestExcluded = latestTimes[desired]"));
+  assert.ok(preview.includes("const oldestIncluded = latestTimes[desired - 1]"));
+  assert.ok(preview.includes("Math.floor((newestExcluded + oldestIncluded) / 2)"));
+  assert.ok(preview.includes('.eq("enrollment_id", enrollmentId)'));
+  assert.ok(preview.includes('.eq("student_id", studentId)'));
   assert.ok(preview.includes('normalize(process.env.VERCEL_ENV) !== "preview"'));
 
 });

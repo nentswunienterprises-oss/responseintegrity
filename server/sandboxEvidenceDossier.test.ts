@@ -9,10 +9,39 @@ before(async () => {
   database = new PGlite();
   await database.exec(`
     CREATE SCHEMA private;
+    CREATE TABLE public.specialist_sandbox_live_evidence_turns (
+      id text, tutor_assignment_id text, tutor_id text, student_id text, scope text,
+      source_context_id text, sequence_number int, probe_id text, student_behavior text, completed_at timestamptz DEFAULT now());
+    CREATE TABLE private.specialist_sandbox_live_evidence_truth (
+      event_id text, outcome_key text, outcome_version int, canonical_observations jsonb, trajectory_class text);
+    CREATE TABLE public.users (id text, name text);
+    CREATE TABLE public.students (id text, name text, tutor_id text);
+    CREATE TABLE public.response_integrity_diagnosis_runs (
+      id text, student_id text, tutor_id text, topic text, starting_phase text,
+      session_context text, session_container text, activity_kind text, status text,
+      probe_history jsonb, decision jsonb, source_drill_id text, scheduled_session_id text,
+      created_at timestamptz, completed_at timestamptz);
+    CREATE TABLE public.intro_session_drills (
+      id text, tutor_id text, student_id text, scheduled_session_id text,
+      drill jsonb, submitted_at timestamptz DEFAULT NULL);
+    CREATE TABLE public.scheduled_sessions (
+      id text, tutor_id text, student_id text);
+    INSERT INTO users VALUES ('student-a','Sandbox learner');
+    INSERT INTO students VALUES ('student-a','Sandbox learner','specialist');
+    INSERT INTO response_integrity_diagnosis_runs
+      (id,student_id,tutor_id,topic,starting_phase,session_context,session_container,activity_kind,status,probe_history,decision,source_drill_id,scheduled_session_id,created_at,completed_at)
+    VALUES ('diagnosis-a','student-a','specialist','Percentages','Controlled Discomfort','intro','intro_session','intro_diagnosis','completed',
+      '[{"probeId":"clarity.recognition","observations":[{"dimensionId":"clarity.vocabulary","behaviorId":"no_recognition"}],"supportEvent":"teaching"}]',
+      '{"placementPhase":"Clarity","stability":"Medium"}','drill-a','scheduled-a','2026-10-31','2026-11-02');
+    INSERT INTO intro_session_drills VALUES
+      ('drill-a','specialist','student-a','scheduled-a','{"responseSnapshot":{"opportunities":[{"order":1,"probeId":"clarity.recognition","purpose":"Cold recognition without teaching","observations":[{"dimensionId":"clarity.vocabulary","behaviorId":"no_recognition"}],"supportEvent":"teaching"}]},"evidence":[{"probeId":"clarity.recognition","dimensionId":"clarity.vocabulary","behaviorId":"no_recognition","behaviorClass":"breakdown","behaviorLabel":"Could not identify the important terms or symbols","contaminated":false,"supportEvent":"none"}]}','2026-11-02');
+    -- Production stores this legacy drill payload as a JSON string inside jsonb.
+    UPDATE intro_session_drills SET drill = to_jsonb(drill::text) WHERE id = 'drill-a';
+    INSERT INTO scheduled_sessions VALUES ('scheduled-a','specialist','student-a');
     CREATE TABLE public.pods (id text, td_id text);
     CREATE TABLE public.tutor_assignments (id text, pod_id text, tutor_id text, created_at timestamptz);
     CREATE TABLE public.specialist_sandbox_rep_events (
-      id text, tutor_assignment_id text, tutor_id text, event_sequence int,
+      id text, trajectory_id text, tutor_assignment_id text, tutor_id text, student_id text, event_sequence int,
       session_number int, phase text, topic_key text, set_id text, rep_number int,
       student_behavior text, specialist_submission jsonb, condition_kept boolean,
       total_observations int, matching_observations int, observation_exact boolean,
@@ -22,7 +51,7 @@ before(async () => {
       canonical_observations jsonb, canonical_prerequisite_sentinel text,
       canonical_inherited_rescue_signal text, actual_intervention_event text);
     CREATE TABLE public.specialist_sandbox_session_evaluations (
-      id text, tutor_assignment_id text, tutor_id text, session_number int,
+      id text, trajectory_id text, tutor_assignment_id text, tutor_id text, student_id text, session_number int,
       phase text, topic_key text, authority_aligned boolean, state_track_aligned boolean,
       state_change_observed boolean, specialist_authority jsonb, completed_at timestamptz DEFAULT now());
     CREATE TABLE private.specialist_sandbox_session_truth (session_evaluation_id text, canonical_authority jsonb);
@@ -31,19 +60,19 @@ before(async () => {
       ('a','pod-a','specialist','2026-10-01'), ('b','pod-b','other','2026-10-01'),
       ('old','pod-a','moved','2026-10-01'), ('new','pod-b','moved','2026-10-02');
     INSERT INTO specialist_sandbox_rep_events
-      (id,tutor_assignment_id,tutor_id,event_sequence,session_number,phase,set_id,rep_number,
+      (id,tutor_assignment_id,tutor_id,student_id,event_sequence,session_number,phase,set_id,rep_number,
        student_behavior,specialist_submission,condition_kept,total_observations,matching_observations,observation_exact,evidence_exact)
     VALUES
-      ('rep-a','a','specialist',1,1,'Clarity','set-1',1,'Independent response',
+      ('rep-a','a','specialist','student-a',1,1,'Clarity','set-1',1,'Independent response',
        '{"observations":{"step":{"optionId":"wrong"}}}',true,1,0,false,true),
-      ('missing-truth','a','specialist',2,1,'Clarity','set-1',2,'Response recorded','{}',null,1,1,true,true),
-      ('foreign-rep','b','other',1,1,'Clarity','set-1',1,'FOREIGN SECRET','{}',true,1,1,true,true);
+      ('missing-truth','a','specialist','student-a',2,1,'Clarity','set-1',2,'Response recorded','{}',null,1,1,true,true),
+      ('foreign-rep','b','other','student-b',1,1,'Clarity','set-1',1,'FOREIGN SECRET','{}',true,1,1,true,true);
     INSERT INTO private.specialist_sandbox_rep_event_truth (event_id,canonical_observations)
     VALUES ('rep-a','{"step":{"optionId":"correct","evidenceStatus":"observed"}}'),
       ('foreign-rep','{"secret":"FOREIGN SECRET"}'), ('future-event','{"secret":"FUTURE ANSWER"}');
     INSERT INTO specialist_sandbox_session_evaluations
-      (id,tutor_assignment_id,tutor_id,session_number,phase,authority_aligned,state_track_aligned,specialist_authority)
-    VALUES ('session-a','a','specialist',1,'Clarity',false,false,'{"phase":"SE"}');
+      (id,tutor_assignment_id,tutor_id,student_id,session_number,phase,authority_aligned,state_track_aligned,specialist_authority)
+    VALUES ('session-a','a','specialist','student-a',1,'Clarity',false,false,'{"phase":"SE"}');
     INSERT INTO private.specialist_sandbox_session_truth VALUES ('session-a','{"phase":"Clarity"}');
   `);
 });
@@ -95,6 +124,50 @@ test('assigned TD sees committed mismatches and state consequences without forei
   assert.equal(result.body.sessions[0].stateTrackAligned,false);
   assert.deepEqual(result.body.sessions[0].canonicalAuthority,{phase:'Clarity'});
   assert.doesNotMatch(JSON.stringify(result.body),/FOREIGN SECRET|FUTURE ANSWER/);
+});
+test('assigned TD can inspect diagnosis runs and probe submissions without fabricated canonical truth', async () => {
+  const result = await invoke({id:'td-a',role:'td'});
+  assert.equal(result.status,200);
+  assert.equal(result.body.diagnoses.length,1);
+  const run = result.body.diagnoses[0];
+  assert.equal(run.topic,'Percentages');
+  assert.equal(run.placementPhase,'Clarity');
+  assert.equal(run.probes.length,1);
+  assert.equal(run.probes[0].probeId,'clarity.recognition');
+  assert.equal(run.probes[0].supportEvent,'teaching');
+  assert.equal(run.probes[0].contaminationStatus,'not_established');
+  assert.equal(run.probes[0].contaminationReason,null);
+  assert.equal(run.probes[0].canonicalEvidenceAvailable,true);
+  assert.equal(run.probes[0].evidenceProvenance,'retrospective_current_rules');
+  assert.equal(run.probes[0].evaluationRulesVersion,'diagnosis-observation-matrix-current');
+  assert.equal(run.probes[0].observations[0].behaviorId,'no_recognition');
+  assert.equal(run.probes[0].canonicalObservations[0].behaviorId,'no_recognition');
+  assert.equal(run.probes[0].comparisons[0].matched,true);
+  assert.equal(run.probes[0].expectedSupportEvent,'none');
+  assert.equal(run.probes[0].supportRecognitionStatus,'diverged');
+  assert.equal(run.probes[0].simulatedBehavior,null);
+  assert.match(run.evidenceNotice,/retrospectively evaluated against the saved simulated response and current RI diagnosis observation rules/);
+});
+test('assigned TD sees exact captured diagnosis outcome truth beside the Specialist observation', async () => {
+  await database.exec(`
+    INSERT INTO public.specialist_sandbox_live_evidence_turns
+      (id,tutor_assignment_id,tutor_id,student_id,scope,source_context_id,sequence_number,probe_id,student_behavior)
+    VALUES ('capture-a','a','specialist','student-a','diagnosis','diagnosis-a',1,'clarity.recognition',
+      'The student identifies the relevant quantities, selects a method independently, and explains the first step.');
+    INSERT INTO private.specialist_sandbox_live_evidence_truth
+      (event_id,outcome_key,outcome_version,canonical_observations,trajectory_class)
+    VALUES ('capture-a','percentages.clarity.pattern_1',3,
+      '[{"dimensionId":"clarity.vocabulary","behaviorId":"no_recognition"}]','breakdown');
+  `);
+  const result = await invoke({id:'td-a',role:'td'});
+  const probe = result.body.diagnoses[0].probes[0];
+  assert.equal(probe.canonicalEvidenceAvailable,true);
+  assert.equal(probe.canonicalOutcomeKey,'percentages.clarity.pattern_1');
+  assert.equal(probe.canonicalOutcomeVersion,3);
+  assert.equal(probe.simulatedBehavior,'The student identifies the relevant quantities, selects a method independently, and explains the first step.');
+  assert.equal(probe.comparisons[0].matched,true);
+  assert.equal(probe.comparisons[0].expectedBehaviorLabel,'Could not identify the important terms or symbols');
+  assert.equal(probe.supportRecognitionStatus,'not_independently_compared');
 });
 test('legacy human-readable option IDs still resolve to canonical labels', async () => {
   await database.exec(`

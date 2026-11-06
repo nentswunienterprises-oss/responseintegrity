@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { getDrillSchemaDefinition, getFieldDefinitionsForRep } from "@shared/responseIntegrityDrillRegistry";
 import type { TopicPhase } from "@shared/topicConditioningEngine";
+import { getDiagnosisObservationOption } from "@shared/diagnosisObservationMatrix";
 
 // The live route retains isAuthenticated middleware; the handler also checks role
 // before reading private truth. Inject only the server-side PostgreSQL query API.
@@ -102,6 +103,176 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
           [assignmentId, tutorId],
         ),
       ]);
+      const diagnosisResult = await db.query(`SELECT r.id, r.student_id, u.name AS student_name, r.topic, r.starting_phase,
+                       r.session_context, r.session_container, r.activity_kind, r.status,
+                       r.probe_history, r.decision, r.source_drill_id,
+                       r.created_at, r.completed_at, d.submitted_at,
+                       CASE WHEN jsonb_typeof(d.drill) = 'string'
+                         THEN (d.drill #>> '{}')::jsonb
+                         ELSE d.drill
+                       END AS drill_payload
+                  FROM public.response_integrity_diagnosis_runs r
+                  INNER JOIN public.intro_session_drills d
+                    ON d.id = r.source_drill_id
+                   AND d.tutor_id = r.tutor_id
+                   AND d.student_id = r.student_id
+                   AND d.scheduled_session_id::text = r.scheduled_session_id
+                  INNER JOIN public.scheduled_sessions ss
+                    ON ss.id::text = r.scheduled_session_id
+                   AND ss.tutor_id = r.tutor_id
+                   AND ss.student_id::text = r.student_id
+                  INNER JOIN public.tutor_assignments authorised_assignment
+                    ON authorised_assignment.id = $3
+                   AND authorised_assignment.tutor_id = r.tutor_id
+                  LEFT JOIN public.users u ON u.id = r.student_id
+                 WHERE r.tutor_id = $1
+                   AND d.tutor_id = $2
+                   AND r.student_id IN (SELECT id FROM public.students WHERE tutor_id = $1)
+                   AND r.session_container = 'intro_session'
+                   AND r.activity_kind = 'intro_diagnosis'
+                   AND r.status = 'completed'
+                 ORDER BY COALESCE(r.completed_at, r.created_at) DESC
+                 LIMIT 90`, [tutorId, tutorId, assignmentId]);
+      const liveEvidenceResult = await db.query(
+        `SELECT e.source_context_id, e.sequence_number, e.probe_id, e.id AS event_id,
+                e.student_behavior,
+                t.outcome_key, t.outcome_version, t.canonical_observations, t.trajectory_class
+           FROM public.specialist_sandbox_live_evidence_turns e
+           INNER JOIN private.specialist_sandbox_live_evidence_truth t ON t.event_id = e.id
+          WHERE e.scope = 'diagnosis'
+            AND e.tutor_assignment_id = $1
+            AND e.tutor_id = $2
+            AND e.student_id IN (SELECT id FROM public.students WHERE tutor_id = $2)
+            AND e.source_context_id IN (
+              SELECT r.id::text FROM public.response_integrity_diagnosis_runs r
+               WHERE r.tutor_id = $2 AND r.session_container = 'intro_session'
+                 AND r.activity_kind = 'intro_diagnosis' AND r.status = 'completed'
+            )
+          ORDER BY e.source_context_id, e.sequence_number`,
+        [assignmentId, tutorId],
+      );
+      const liveEvidenceByProbe = new Map(
+        liveEvidenceResult.rows.map((capture: any) => [
+          `${capture.source_context_id}:${capture.sequence_number}:${capture.probe_id}`, capture
+        ])
+      );
+      const diagnosisRows = diagnosisResult.rows.map((row: any) => {
+        const history = Array.isArray(row.probe_history) ? row.probe_history : [];
+        let drillPayload: any = {};
+        if (row.drill_payload && typeof row.drill_payload === "object" && !Array.isArray(row.drill_payload)) {
+          drillPayload = row.drill_payload;
+        } else if (typeof row.drill_payload === "string") {
+          try {
+            const parsed = JSON.parse(row.drill_payload);
+            drillPayload = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+          } catch {
+            drillPayload = {};
+          }
+        }
+        const snapshot = drillPayload.responseSnapshot && typeof drillPayload.responseSnapshot === "object" ? drillPayload.responseSnapshot : {};
+        const opportunities = Array.isArray(snapshot.opportunities) ? snapshot.opportunities : [];
+        const savedExpectedEvidence = Array.isArray(drillPayload.evidence) ? drillPayload.evidence : [];
+        const probes = history.map((probe: any, index: number) => {
+          const submitted = opportunities.find((opportunity: any) =>
+            Number(opportunity?.order) === index + 1 ||
+            (opportunity?.probeId && opportunity.probeId === probe?.probeId)
+          );
+          const observations = Array.isArray(probe?.observations)
+            ? probe.observations
+            : Array.isArray(submitted?.observations) ? submitted.observations : [];
+          const probeId = String(probe?.probeId || submitted?.probeId || "unknown");
+          const recorded = observations.map((observation: any) => ({
+            dimensionId: String(observation?.dimensionId || ""),
+            behaviorId: String(observation?.behaviorId || ""),
+          })).filter((observation: any) => observation.dimensionId && observation.behaviorId);
+          const capture = liveEvidenceByProbe.get(`${row.id}:${index + 1}:${probeId}`) as any;
+          const retrospectiveEvidence = savedExpectedEvidence.filter((item: any) => String(item?.probeId || "") === probeId);
+          const capturedCanonical = capture && Array.isArray(capture.canonical_observations)
+            ? capture.canonical_observations
+            : null;
+          const canonicalSource = capturedCanonical || retrospectiveEvidence;
+          const canonical = canonicalSource.map((observation: any) => {
+            const dimensionId = String(observation?.dimensionId || "");
+            const behaviorId = String(observation?.behaviorId || "");
+            const currentRule = getDiagnosisObservationOption(dimensionId as any, behaviorId);
+            return {
+              dimensionId,
+              behaviorId,
+              behaviorLabel: currentRule?.label || String(observation?.behaviorLabel || behaviorId),
+              behaviorClass: currentRule?.behaviorClass || String(observation?.behaviorClass || "unresolved"),
+            };
+          }).filter((observation: any) => observation.dimensionId && observation.behaviorId);
+          const expectedSupportEvents = [...new Set(retrospectiveEvidence.map((item: any) => String(item?.supportEvent || "")).filter(Boolean))];
+          const expectedSupportEvent = expectedSupportEvents.length === 1 ? expectedSupportEvents[0] : null;
+          const expectedByDimension = new Map(canonical.map((item: any) => [item.dimensionId, item.behaviorId]));
+          const comparisons = recorded.map((item: any) => {
+            const recordedRule = getDiagnosisObservationOption(item.dimensionId as any, item.behaviorId);
+            return {
+              dimensionId: item.dimensionId,
+              recordedBehaviorId: item.behaviorId,
+              recordedBehaviorLabel: recordedRule?.label || String(item.behaviorLabel || item.behaviorId),
+              expectedBehaviorId: expectedByDimension.get(item.dimensionId) || null,
+              expectedBehaviorLabel: canonical.find((entry: any) => entry.dimensionId === item.dimensionId)?.behaviorLabel || null,
+              matched: expectedByDimension.has(item.dimensionId) ? expectedByDimension.get(item.dimensionId) === item.behaviorId : null,
+            };
+          });
+          return {
+            sequence: index + 1,
+            probeId,
+            purpose: String(submitted?.purpose || ""),
+            observations: recorded,
+            canonicalObservations: canonical,
+            comparisons,
+            supportEvent: String(probe?.supportEvent || submitted?.supportEvent || "not_recorded"),
+            expectedSupportEvent: capturedCanonical ? null : expectedSupportEvent,
+            supportRecognitionStatus: capturedCanonical
+              ? "not_independently_compared"
+              : expectedSupportEvent
+                ? (expectedSupportEvent === String(probe?.supportEvent || submitted?.supportEvent || "not_recorded")
+                    ? "aligned"
+                    : "diverged")
+                : "unresolved",
+            passiveTiming: probe?.passiveTiming || null,
+            canonicalEvidenceAvailable: canonical.length > 0,
+            evidenceStatus: capturedCanonical ? "versioned_outcome_captured" : canonical.length ? "retrospective_current_rules" : "canonical_truth_not_captured",
+            evidenceProvenance: capturedCanonical ? "immutable_capture" : canonical.length ? "retrospective_current_rules" : "unavailable",
+            canonicalOutcomeKey: capturedCanonical ? String(capture.outcome_key || "") : null,
+            canonicalOutcomeVersion: capturedCanonical ? Number(capture.outcome_version) : null,
+            evaluationRulesVersion: "diagnosis-observation-matrix-current",
+            // This is the exact narrative shown to the Specialist for this probe.
+            // Never derive it from canonical or recorded observations.
+            simulatedBehavior: typeof capture?.student_behavior === "string" && capture.student_behavior.trim()
+              ? capture.student_behavior
+              : null,
+            contaminationStatus: "not_established",
+            contaminationReason: null,
+          };
+        });
+        const hasCanonical = probes.some((probe: any) => probe.canonicalEvidenceAvailable);
+        return {
+          id: String(row.id),
+          sourceDrillId: row.source_drill_id ? String(row.source_drill_id) : null,
+          studentId: String(row.student_id),
+          studentName: row.student_name || null,
+          topic: String(row.topic || ""),
+          startingPhase: String(row.starting_phase || ""),
+          sessionContext: String(row.session_context || ""),
+          sessionContainer: String(row.session_container || ""),
+          activityKind: String(row.activity_kind || ""),
+          status: String(row.status || ""),
+          createdAt: row.created_at ? String(row.created_at) : null,
+          completedAt: row.completed_at ? String(row.completed_at) : row.submitted_at ? String(row.submitted_at) : null,
+          placementPhase: row.decision?.placementPhase || row.decision?.placement_phase || snapshot.placementPhase || null,
+          stability: row.decision?.stability || snapshot.placementStability || null,
+          probes,
+          canonicalEvidenceAvailable: hasCanonical,
+          evidenceNotice: hasCanonical
+            ? probes.some((probe: any) => probe.evidenceProvenance === "retrospective_current_rules")
+              ? "Historical probes are retrospectively evaluated against the saved simulated response and current RI diagnosis observation rules. This is a current-rules assessment, not an immutable capture from the original run."
+              : "RI's exact versioned diagnosis outcome was captured for the marked probes. Expected observations are compared with the Specialist's recorded observations."
+            : "No usable expected diagnosis observations were preserved for this run. The dossier does not infer canonical truth from the placement decision.",
+        };
+      });
       const repRows = reps.rows.map((r: any) => {
         const observed = r.specialist_submission?.observations || {};
         const canonical = r.canonical_observations;
@@ -144,6 +315,7 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
         students: roster.rows.map((row: any) => ({ id: String(row.id), name: row.name || null })),
         note: "Completed Sandbox evidence only. Canonical responses are TD-restricted and non-authoritative for real student state.",
         reps: repRows,
+        diagnoses: diagnosisRows,
         sessions: sessions.rows.map((r: any) => ({
           id: String(r.id), trajectoryId: String(r.trajectory_id), studentId: String(r.student_id), studentName: r.student_name || null, sessionNumber: Number(r.session_number), phase: r.phase,
           topicKey: r.topic_key, authorityAligned: r.authority_aligned,
