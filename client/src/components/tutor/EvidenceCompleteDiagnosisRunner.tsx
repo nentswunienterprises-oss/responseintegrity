@@ -211,6 +211,17 @@ export default function EvidenceCompleteDiagnosisRunner() {
     (requestedContext === "intro" || !requestedContext
       ? topicStartingPhases[requestedTopicIndex] || null
       : null);
+  const topicReportedSymptoms = (() => {
+    try {
+      const parsed = JSON.parse(searchParams.get("topicSymptoms") || "[]");
+      const selected = Array.isArray(parsed) ? parsed[requestedTopicIndex] : [];
+      return Array.isArray(selected)
+        ? selected.map((value) => String(value || "").trim()).filter(Boolean)
+        : [];
+    } catch {
+      return [];
+    }
+  })();
   const startingPhase = startingSignalPhase || "Structured Execution";
   const scheduledSessionId =
     String(searchParams.get("scheduledSessionId") || "").trim() || null;
@@ -1295,6 +1306,11 @@ export default function EvidenceCompleteDiagnosisRunner() {
                   ? `Starting signal: ${startingSignalPhase}. The signal chooses the first question only; observed behavior decides placement.`
                   : "No starting signal. The system is using a neutral independent baseline rather than assuming Clarity."}
               </p>
+              {topicReportedSymptoms.length > 0 && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Parent-reported context: {topicReportedSymptoms.join(" · ")}
+                </p>
+              )}
             </div>
             <div className="rounded-xl border px-4 py-3 text-sm">
               <div className="text-xs uppercase tracking-wide text-muted-foreground">
