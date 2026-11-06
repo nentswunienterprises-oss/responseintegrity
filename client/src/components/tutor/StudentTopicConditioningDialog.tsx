@@ -1427,6 +1427,7 @@ export default function StudentTopicConditioningDialog({
   );
   const parentReportedTopics = topics.filter((row) => row.parentReported);
   const [showParentReportedTopics, setShowParentReportedTopics] = useState(false);
+  const [selectedParentReportedTopics, setSelectedParentReportedTopics] = useState<string[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<string>(topics[0]?.topic || "");
 
   const [activeTopicField, setActiveTopicField] = useState("");
@@ -1898,13 +1899,55 @@ export default function StudentTopicConditioningDialog({
 
               {showParentReportedTopics ? (
                 <div className="rounded-xl border border-primary/20 bg-muted/20 p-3 space-y-3">
-                  <div><p className="text-sm font-semibold">Parent Reported Topics</p><p className="text-xs text-muted-foreground">Topics reported by the parent that have not yet entered the diagnosis or activation record.</p></div>
-                  {parentReportedTopics.length === 0 ? <p className="text-sm text-muted-foreground">There are no undiagnosed parent-reported topics.</p> : parentReportedTopics.map((row) => (
-                    <div key={"parent-reported-" + row.topic} className="flex flex-col gap-3 rounded-lg border bg-background p-3 sm:flex-row sm:items-center">
-                      <div className="min-w-0 flex-1 space-y-1"><p className="text-sm font-semibold">{row.topic}</p><p className="text-xs text-muted-foreground">Recommended starting phase: {row.parentRecommendedPhase || row.phase}</p>{row.parentReportedSymptoms?.length ? <p className="text-xs text-muted-foreground">Reported symptoms: {row.parentReportedSymptoms.join(" · ")}</p> : null}</div>
-                      <Button type="button" size="sm" onClick={() => navigate("/specialist/intro-session/" + studentId + "?topic=" + encodeURIComponent(row.topic) + "&phase=" + encodeURIComponent(row.parentRecommendedPhase || row.phase))}>Start Diagnosis</Button>
-                    </div>
-                  ))}
+                  <div>
+                    <p className="text-sm font-semibold">Parent Reported Topics</p>
+                    <p className="text-xs text-muted-foreground">Undiagnosed parent reports remain here until they enter the normal diagnosis and activation flow. Select up to two for one Intro Session.</p>
+                  </div>
+                  {parentReportedTopics.length === 0 ? <p className="text-sm text-muted-foreground">There are no undiagnosed parent-reported topics.</p> : (
+                    <>
+                      {parentReportedTopics.map((row) => {
+                        const checked = selectedParentReportedTopics.includes(row.topic);
+                        const atLimit = selectedParentReportedTopics.length >= 2 && !checked;
+                        return (
+                          <label key={"parent-reported-" + row.topic} className="flex cursor-pointer items-start gap-3 rounded-lg border bg-background p-3">
+                            <input
+                              type="checkbox"
+                              className="mt-1 h-4 w-4 accent-primary"
+                              checked={checked}
+                              disabled={atLimit}
+                              onChange={(event) => setSelectedParentReportedTopics((current) => event.target.checked
+                                ? (current.length < 2 ? [...current, row.topic] : current)
+                                : current.filter((topic) => topic !== row.topic))}
+                            />
+                            <span className="min-w-0 flex-1 space-y-1">
+                              <span className="block text-sm font-semibold">{row.topic}</span>
+                              <span className="block text-xs text-muted-foreground">Recommended starting phase: {row.parentRecommendedPhase || row.phase}</span>
+                              {row.parentReportedSymptoms?.length ? <span className="block text-xs text-muted-foreground">Reported symptoms: {row.parentReportedSymptoms.join(" · ")}</span> : null}
+                            </span>
+                          </label>
+                        );
+                      })}
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
+                        <p className="text-xs text-muted-foreground">{selectedParentReportedTopics.length} of 2 topics selected</p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={selectedParentReportedTopics.length === 0}
+                          onClick={() => {
+                            const selectedRows = selectedParentReportedTopics
+                              .map((topic) => parentReportedTopics.find((row) => row.topic === topic))
+                              .filter((row): row is TopicRow => !!row);
+                            if (selectedRows.length === 0 || selectedRows.length > 2) return;
+                            const topicsParam = encodeURIComponent(JSON.stringify(selectedRows.map((row) => row.topic)));
+                            const phasesParam = encodeURIComponent(JSON.stringify(selectedRows.map((row) => row.parentRecommendedPhase || row.phase)));
+                            navigate("/specialist/intro-session/" + studentId + "?topic=" + encodeURIComponent(selectedRows[0].topic) + "&phase=" + encodeURIComponent(selectedRows[0].parentRecommendedPhase || selectedRows[0].phase) + "&topics=" + topicsParam + "&topicPhases=" + phasesParam);
+                          }}
+                        >
+                          Start Diagnosis
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : null}
 
