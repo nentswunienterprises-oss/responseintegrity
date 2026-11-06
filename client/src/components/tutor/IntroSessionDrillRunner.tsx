@@ -1064,7 +1064,17 @@ function IntroSessionDrillRunnerCore({
   const rawPhase = searchParams.get("phase");
   const parsedLaunchPhase = tryParsePhase(rawPhase);
   const phase = parsedLaunchPhase || "Clarity";
-  const [activeDiagnosisPhase, setActiveDiagnosisPhase] = useState<PhaseLabel>(phase);
+  const requestedDiagnosisIndex = Number(searchParams.get("topicIndex") || 0);
+  let initialDiagnosisPhase: PhaseLabel = phase;
+  try {
+    const requestedPhases = JSON.parse(searchParams.get("topicPhases") || "[]");
+    if (Array.isArray(requestedPhases) && requestedPhases[requestedDiagnosisIndex]) {
+      initialDiagnosisPhase = tryParsePhase(String(requestedPhases[requestedDiagnosisIndex])) || phase;
+    }
+  } catch {
+    // Fall back to the launch phase for older single-topic URLs.
+  }
+  const [activeDiagnosisPhase, setActiveDiagnosisPhase] = useState<PhaseLabel>(initialDiagnosisPhase);
   const [adaptiveDiagnosisBlocks, setAdaptiveDiagnosisBlocks] = useState<Array<{
     phase: PhaseLabel;
     setName: string;
