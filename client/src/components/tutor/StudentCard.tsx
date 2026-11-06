@@ -1665,17 +1665,16 @@ function IntroDiagnosticTopicSection({
 
   const toggleDiagnosticTopic = (topic: string, checked: boolean) => {
     setActivationError("");
-    setSelectedDiagnosticTopics((current) => {
-      if (checked) {
-        if (current.some((entry) => normalizeTopicKey(entry) === normalizeTopicKey(topic))) return current;
-        if (current.length >= 2) {
-          setActivationError("An Intro Session can cover up to two topics.");
-          return current;
-        }
-        return [...current, topic];
-      }
-      return current.filter((entry) => normalizeTopicKey(entry) !== normalizeTopicKey(topic));
-    });
+    const alreadySelected = selectedDiagnosticTopics.some((entry) => normalizeTopicKey(entry) === normalizeTopicKey(topic));
+    if (checked && !alreadySelected && selectedDiagnosticTopics.length >= 2) {
+      setActivationError("An Intro Session can cover up to two topics.");
+      return;
+    }
+    setSelectedDiagnosticTopics((current) =>
+      checked
+        ? alreadySelected ? current : [...current, topic]
+        : current.filter((entry) => normalizeTopicKey(entry) !== normalizeTopicKey(topic)),
+    );
   };
 
   const handleSaveTopics = () => {
@@ -1771,7 +1770,7 @@ function IntroDiagnosticTopicSection({
                 onChange={(event) => setDiagnosticTopic(event.target.value)}
                 placeholder="For example, Linear Equations"
                 maxLength={120}
-                disabled={selectedDiagnosticTopics.length >= 2}
+                disabled={selectedDiagnosticTopics.length >= 2 && !diagnosticTopic.trim()}
               />
             </div>
             {activationError ? <p role="alert" className="text-xs text-destructive">{activationError}</p> : null}
