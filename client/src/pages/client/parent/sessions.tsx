@@ -867,8 +867,12 @@ export default function ParentSessions() {
                         <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-2">
                           <Popover>
                             <PopoverTrigger asChild>
-                              <Button type="button" variant="outline" className="w-full justify-start text-left font-normal bg-white">
-                                <CalendarDays className="mr-2 h-4 w-4" />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full justify-start text-left font-normal !bg-white !text-slate-900 [&_svg]:!text-slate-900 hover:!bg-white hover:!text-slate-900"
+                              >
+                                <CalendarDays className="mr-2 h-4 w-4 !text-slate-900" />
                                 {formatScheduleLabel(adjustedDate)}
                               </Button>
                             </PopoverTrigger>
@@ -886,9 +890,9 @@ export default function ParentSessions() {
                             type="time"
                             value={adjustedTime}
                             onChange={(e) => setAdjustedTime(e.target.value)}
-                            className="bg-white"
+                            className="!bg-white !text-slate-900 [color-scheme:light] placeholder:!text-slate-500"
                           />
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-slate-700">
                             {adjustedDate ? `${formatScheduleLabel(adjustedDate)} at ${adjustedTime}` : "Pick a Monday-Saturday date and time."}
                           </p>
                           <div className="flex justify-end">
