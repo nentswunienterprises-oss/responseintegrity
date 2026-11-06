@@ -894,8 +894,10 @@ export default function ParentSessions() {
                           <div className="flex justify-end">
                             <Button
                               size="sm"
-                              variant="outline"
+                              variant="default"
                               onClick={() => handleAdjustSession(session.id)}
+                              style={{ backgroundColor: "#1f2937", color: "#ffffff", borderColor: "#1f2937" }}
+                              className="!opacity-100 hover:!opacity-100"
                               disabled={adjustingSessionId === session.id}
                             >
                               {adjustingSessionId === session.id ? "Sending..." : "Send New Time"}
