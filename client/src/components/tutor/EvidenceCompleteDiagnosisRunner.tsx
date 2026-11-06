@@ -190,7 +190,27 @@ export default function EvidenceCompleteDiagnosisRunner() {
   const navigate = useNavigate();
 
   const topic = String(searchParams.get("topic") || "").trim();
-  const startingSignalPhase = tryParsePhase(searchParams.get("phase"));
+  const requestedTopicIndex = Math.max(0, Number(searchParams.get("topicIndex") || 0));
+  const requestedContext = String(
+    searchParams.get("sessionContextKind") || searchParams.get("context") || "intro",
+  ).trim().toLowerCase();
+  const topicStartingPhases = (() => {
+    try {
+      const parsed = JSON.parse(searchParams.get("topicPhases") || "[]");
+      return Array.isArray(parsed)
+        ? parsed.map((value) => tryParsePhase(String(value || "")))
+        : [];
+    } catch {
+      return [];
+    }
+  })();
+  // Intro Session carries a phase recommendation for each selected topic.
+  // Explicit phase remains authoritative for targeted re-diagnosis and legacy links.
+  const startingSignalPhase =
+    tryParsePhase(searchParams.get("phase")) ||
+    (requestedContext === "intro" || !requestedContext
+      ? topicStartingPhases[requestedTopicIndex] || null
+      : null);
   const startingPhase = startingSignalPhase || "Structured Execution";
   const scheduledSessionId =
     String(searchParams.get("scheduledSessionId") || "").trim() || null;
