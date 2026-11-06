@@ -8919,12 +8919,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 sets: (isAdaptiveDiagnosis ? adaptiveBlocks : drillSets) as any,
               });
 
-              // Mark intro completed on the first successful diagnosis submission.
+              // A two-topic Intro Session is complete only after its final topic is saved.
               // Sandbox/training-mode intros can run without a scheduled intro shell, so this
               // cannot depend on `diagnosisSessionKind === "intro"`.
               const existingProfile = (student.personalProfile as any) || {};
               const existingWorkflow = (existingProfile.workflow as any) || {};
-              if (!existingWorkflow.introCompletedAt) {
+              const isFinalTopicDiagnosis = multiTopicCount === 1 || multiTopicIndex === multiTopicCount - 1;
+              if (!existingWorkflow.introCompletedAt && isFinalTopicDiagnosis) {
                 await storage.updateStudent(studentId, {
                   personalProfile: {
                     ...existingProfile,
@@ -9041,10 +9042,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
               await storage.updateStudent(studentId, { conceptMastery });
 
-              try {
-                await maybeAutoSendDeterministicReports(studentId, tutorId);
-              } catch (autoReportError) {
-                console.error("Auto report generation failed after intro drill:", autoReportError);
+              if (isFinalTopicDiagnosis) {
+                try {
+                  await maybeAutoSendDeterministicReports(studentId, tutorId);
+                } catch (autoReportError) {
+                  console.error("Auto report generation failed after intro drill:", autoReportError);
+                }
               }
 
               if (
