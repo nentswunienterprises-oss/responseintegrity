@@ -939,8 +939,12 @@ export default function ParentSessions() {
                         <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-2">
                           <Popover>
                             <PopoverTrigger asChild>
-                              <Button type="button" variant="outline" className="w-full justify-start text-left font-normal bg-white">
-                                <CalendarDays className="mr-2 h-4 w-4" />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full justify-start text-left font-normal !bg-white !text-slate-900 [&_svg]:!text-slate-900 hover:!bg-white hover:!text-slate-900"
+                              >
+                                <CalendarDays className="mr-2 h-4 w-4 !text-slate-900" />
                                 {formatScheduleLabel(adjustedDate)}
                               </Button>
                             </PopoverTrigger>
@@ -958,16 +962,19 @@ export default function ParentSessions() {
                             type="time"
                             value={adjustedTime}
                             onChange={(e) => setAdjustedTime(e.target.value)}
-                            className="bg-white"
+                            className="!bg-white !text-slate-900 [color-scheme:light] placeholder:!text-slate-500"
                           />
                           <p className="text-xs text-muted-foreground">
                             {adjustedDate ? `${formatScheduleLabel(adjustedDate)} at ${adjustedTime}` : "Pick a Monday-Saturday date and time."}
                           </p>
                           <div className="flex justify-end">
                             <Button
+                              type="button"
                               size="sm"
-                              variant="outline"
+                              variant="default"
                               onClick={() => handleAdjustSession(session.id)}
+                              className="!bg-[#1f2937] !text-white !border-[#1f2937] hover:!bg-[#111827] hover:!text-white disabled:!bg-[#1f2937] disabled:!text-white disabled:!opacity-100 [&_*]:!text-white"
+                              style={{ backgroundColor: "#1f2937", color: "#ffffff", borderColor: "#1f2937", opacity: 1 }}
                               disabled={adjustingSessionId === session.id}
                             >
                               {adjustingSessionId === session.id ? "Sending..." : "Send New Time"}
@@ -1026,8 +1033,12 @@ export default function ParentSessions() {
                         <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-2">
                           <Popover>
                             <PopoverTrigger asChild>
-                              <Button type="button" variant="outline" className="w-full justify-start text-left font-normal bg-white">
-                                <CalendarDays className="mr-2 h-4 w-4" />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full justify-start text-left font-normal !bg-white !text-slate-900 [&_svg]:!text-slate-900 hover:!bg-white hover:!text-slate-900"
+                              >
+                                <CalendarDays className="mr-2 h-4 w-4 !text-slate-900" />
                                 {formatScheduleLabel(adjustedDate)}
                               </Button>
                             </PopoverTrigger>
@@ -1045,16 +1056,19 @@ export default function ParentSessions() {
                             type="time"
                             value={adjustedTime}
                             onChange={(e) => setAdjustedTime(e.target.value)}
-                            className="bg-white"
+                            className="!bg-white !text-slate-900 [color-scheme:light] placeholder:!text-slate-500"
                           />
                           <p className="text-xs text-muted-foreground">
                             {adjustedDate ? `${formatScheduleLabel(adjustedDate)} at ${adjustedTime}` : "Pick a Monday-Saturday date and time."}
                           </p>
                           <div className="flex justify-end">
                             <Button
+                              type="button"
                               size="sm"
-                              variant="outline"
+                              variant="default"
                               onClick={() => handleAdjustSession(session.id)}
+                              className="!bg-[#1f2937] !text-white !border-[#1f2937] hover:!bg-[#111827] hover:!text-white disabled:!bg-[#1f2937] disabled:!text-white disabled:!opacity-100 [&_*]:!text-white"
+                              style={{ backgroundColor: "#1f2937", color: "#ffffff", borderColor: "#1f2937", opacity: 1 }}
                               disabled={adjustingSessionId === session.id}
                             >
                               {adjustingSessionId === session.id ? "Sending..." : "Send New Time"}
