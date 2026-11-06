@@ -4082,13 +4082,15 @@ function IntroSessionDrillRunnerCore({
                 ? handoverReDiagnosisMode
                   ? `Targeted Re-Diagnosis - ${displayPhase}`
                   : `Handover Verification - ${displayPhase}`
-                : `Adaptive Intro Diagnosis - ${displayPhase}`}
+                : diagnosisTopics.length > 1
+                  ? `Adaptive Intro Diagnosis - Topic ${diagnosisTopicIndex + 1} of ${diagnosisTopics.length} - ${displayPhase}`
+                  : `Adaptive Intro Diagnosis - ${displayPhase}`}
           </h2>
       <p className="mb-2 text-sm">
         <span className="font-semibold">
           {isSessionMode ? "Current Topic:" : drillMode === "handover" ? "Carry-Over Topic:" : "Diagnostic Topic:"}
         </span>{" "}
-        {isSessionMode ? currentTopicName : hasIntroTopic ? introTopic : "Not set"}
+        {isSessionMode ? currentTopicName : hasIntroTopic ? currentTopicName : "Not set"}
         {isSessionMode && currentSessionTopic && (
           <span className="ml-2 text-muted-foreground">
             ({currentTopicPhase} - {currentTopicStability})
