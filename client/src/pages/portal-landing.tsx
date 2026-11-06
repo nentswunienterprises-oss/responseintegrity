@@ -91,7 +91,7 @@ const responseIntegrityDifferentiators = [
 const khanyaParentTestimonial = {
   quote:
     "It is probably rare for a parent to share feedback before getting a report from school, but I can see the change already. Khanya has always been a child who did not like maths and school in general. Ever since she started with the sessions, her confidence has improved. She likes school now and enjoys Mathematics unlike before. Before, she never cared what mark she got for maths, but now she pushes harder because she believes she has the potential to get a level 7.",
-  attribution: "Khanya's mom | Kempton Park, South Africa",
+  attribution: "Kempton Park, South Africa",
 };
 
 function PortalLanding() {
