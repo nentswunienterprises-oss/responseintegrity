@@ -1800,6 +1800,7 @@ function IntroDiagnosticTopicSection({
         }}
         disabled={
           launchTopics.length < 1 ||
+          (launchTopics.length === 2 && !introSession?.id) ||
           (!directDrillLaunch && (!introSession?.id || !["confirmed", "ready", "live", "scheduled"].includes(String(introSession?.status || ""))))
         }
       >
@@ -1810,6 +1811,9 @@ function IntroDiagnosticTopicSection({
           ? "Select up to two topics before opening the scheduled Intro Session."
           : `Selected for first-time diagnosis: ${launchTopics.join(" and ")}.`}
       </p>
+      {launchTopics.length === 2 && !introSession?.id ? (
+        <p className="text-xs text-primary text-center">Diagnosing two topics requires one scheduled Intro Session so both results remain attached to the same booking.</p>
+      ) : null}
       {!directDrillLaunch && (!introSession?.id || !["confirmed", "ready", "live", "scheduled"].includes(String(introSession?.status || ""))) ? (
         <p className="text-xs text-primary text-center">The proposed Intro Session must be confirmed before the diagnosis can begin.</p>
       ) : null}
