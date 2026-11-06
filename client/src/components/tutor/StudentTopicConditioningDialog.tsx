@@ -929,6 +929,20 @@ function buildTopics(
     });
   });
 
+  // Parent reports remain visible until a diagnosis or activation record exists.
+  splitTopics(parentTopics).forEach((rawTopic) => {
+    const topic = sanitizeTopic(rawTopic);
+    if (!topic || byTopic.has(topic)) return;
+    const topicKey = normalizeTopicKey(topic);
+    const symptomEntry = Object.entries(parentTopicSymptoms || {}).find(([key]) => normalizeTopicKey(key) === topicKey);
+    const recommendationEntry = Object.entries(parentTopicRecommendations || {}).find(([key]) => normalizeTopicKey(key) === topicKey);
+    const recommendation = recommendationEntry?.[1];
+    const symptoms = Array.isArray(symptomEntry?.[1]) ? symptomEntry[1].map((item) => String(item).trim()).filter(Boolean)
+      : Array.isArray(recommendation?.supportingSymptoms) ? recommendation.supportingSymptoms.map((item) => String(item).trim()).filter(Boolean) : [];
+    const recommendedPhase = String(recommendation?.phase || "").trim() || null;
+    byTopic.set(topic, { history: [], seeded: { phase: normalizePhase(recommendedPhase), stability: "Low" }, parentReported: true, parentReportedSymptoms: symptoms, parentRecommendedPhase: recommendedPhase });
+  });
+
   const rows: TopicRow[] = [];
 
   byTopic.forEach((entry, topic) => {
@@ -1001,20 +1015,6 @@ function buildTopics(
       parentReportedSymptoms: entry.parentReportedSymptoms || [],
       parentRecommendedPhase: entry.parentRecommendedPhase || null,
     });
-  });
-
-  // Parent reports remain visible until a diagnosis or activation record exists.
-  splitTopics(parentTopics).forEach((rawTopic) => {
-    const topic = sanitizeTopic(rawTopic);
-    if (!topic || byTopic.has(topic)) return;
-    const topicKey = normalizeTopicKey(topic);
-    const symptomEntry = Object.entries(parentTopicSymptoms || {}).find(([key]) => normalizeTopicKey(key) === topicKey);
-    const recommendationEntry = Object.entries(parentTopicRecommendations || {}).find(([key]) => normalizeTopicKey(key) === topicKey);
-    const recommendation = recommendationEntry?.[1];
-    const symptoms = Array.isArray(symptomEntry?.[1]) ? symptomEntry[1].map((item) => String(item).trim()).filter(Boolean)
-      : Array.isArray(recommendation?.supportingSymptoms) ? recommendation.supportingSymptoms.map((item) => String(item).trim()).filter(Boolean) : [];
-    const recommendedPhase = String(recommendation?.phase || "").trim() || null;
-    byTopic.set(topic, { history: [], seeded: { phase: normalizePhase(recommendedPhase), stability: "Low" }, parentReported: true, parentReportedSymptoms: symptoms, parentRecommendedPhase: recommendedPhase });
   });
 
   return rows.sort((a, b) => a.topic.localeCompare(b.topic));
