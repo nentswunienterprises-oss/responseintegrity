@@ -8,7 +8,6 @@ import AboutIndex from "../client/src/pages/about/index";
 import WhoWeAre from "../client/src/pages/about/who-we-are";
 import HowWeOperate from "../client/src/pages/about/how-we-operate";
 import HowWeTeach from "../client/src/pages/about/how-we-teach";
-import TeamPage from "../client/src/pages/about/team";
 import TutorLanding from "../client/src/pages/operational/tutor/landing";
 import TdLanding from "../client/src/pages/operational/td/landing";
 import AffiliateLanding from "../client/src/pages/affiliate/landing";
@@ -28,7 +27,6 @@ const COMPONENT_BY_PATH = {
   "/about/who-we-are": WhoWeAre,
   "/about/how-we-operate": HowWeOperate,
   "/about/how-we-teach": HowWeTeach,
-  "/about/team": TeamPage,
   "/operational/specialist/landing": TutorLanding,
   "/operational/tutor/landing": TutorLanding,
   "/operational/td/landing": TdLanding,
