@@ -225,7 +225,7 @@ try{
   });
   await put("private.specialist_sandbox_rediagnosis_turn_truth",{
    rediagnosis_turn_id:id,outcome_key:"ci.rediagnosis.pattern_"+i,outcome_version:1,
-   trajectory_class:"conditional",canonical_observations:observations,
+   trajectory_class:"conditional",canonical_observations:handoverObservations,
   });
  }
  await put("public.specialist_sandbox_context_preparation_events",{
