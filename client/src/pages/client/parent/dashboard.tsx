@@ -6,8 +6,8 @@ import {
   UserRound,
   LogOut,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { getQueryFn } from "@/lib/queryClient";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest, getQueryFn } from "@/lib/queryClient";
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ProposalView from "@/components/parent/ProposalView";
@@ -432,6 +432,13 @@ export default function ParentDashboard() {
   const [emergencyDbMode, setEmergencyDbMode] = useState(false);
   const [proposalDialogOpen, setProposalDialogOpen] = useState(false);
   const [topicConditioningDialogOpen, setTopicConditioningDialogOpen] = useState(false);
+  const [topicRequestOpen, setTopicRequestOpen] = useState(false);
+  const [topicRequestName, setTopicRequestName] = useState("");
+  const [topicRequestDescription, setTopicRequestDescription] = useState("");
+  const [topicRequestSubmitting, setTopicRequestSubmitting] = useState(false);
+  const [topicRequestError, setTopicRequestError] = useState<string | null>(null);
+  const [topicRequestNotice, setTopicRequestNotice] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     let active = true;
@@ -743,10 +750,14 @@ export default function ParentDashboard() {
 
       <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
         <Card className="lg:col-span-2 border-primary/20 shadow-sm">
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-3 flex flex-row flex-wrap items-center justify-between gap-3">
             <CardTitle className="text-lg sm:text-xl font-semibold tracking-[-0.01em]">Topic Focus</CardTitle>
+            <Button type="button" size="sm" variant="outline" onClick={() => { setTopicRequestError(null); setTopicRequestOpen(true); }}>
+              Request New Topic Focus
+            </Button>
           </CardHeader>
           <CardContent>
+            {topicRequestNotice ? <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{topicRequestNotice}</div> : null}
             {topicCards.length === 0 ? (
               <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
                 Topic cards appear as soon as a topic is activated or a scored session confirms its current state.
@@ -1047,6 +1058,77 @@ export default function ParentDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={topicRequestOpen} onOpenChange={setTopicRequestOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Request New Topic Focus</DialogTitle>
+          </DialogHeader>
+          <form
+            className="space-y-4"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              setTopicRequestSubmitting(true);
+              setTopicRequestError(null);
+              setTopicRequestNotice(null);
+              try {
+                const response = await apiRequest("POST", "/api/parent/topic-focus-requests", {
+                  topic: topicRequestName,
+                  description: topicRequestDescription,
+                });
+                const result = await response.json();
+                setTopicRequestNotice(result.message || "Your topic request has been sent to the Specialist.");
+                setTopicRequestName("");
+                setTopicRequestDescription("");
+                setTopicRequestOpen(false);
+                await Promise.all([
+                  queryClient.invalidateQueries({ queryKey: ["/api/parent/topic-conditioning-states"] }),
+                  queryClient.invalidateQueries({ queryKey: ["/api/parent/student-info"] }),
+                ]);
+              } catch (error) {
+                setTopicRequestError(error instanceof Error ? error.message : "We could not submit your request. Please try again.");
+              } finally {
+                setTopicRequestSubmitting(false);
+              }
+            }}
+          >
+            <div className="space-y-2">
+              <label htmlFor="parent-topic-request-name" className="text-sm font-medium">Topic</label>
+              <input
+                id="parent-topic-request-name"
+                value={topicRequestName}
+                onChange={(event) => setTopicRequestName(event.target.value)}
+                maxLength={120}
+                required
+                placeholder="For example, Linear Equations"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="parent-topic-request-description" className="text-sm font-medium">What does your child experience in this topic?</label>
+              <textarea
+                id="parent-topic-request-description"
+                value={topicRequestDescription}
+                onChange={(event) => setTopicRequestDescription(event.target.value)}
+                minLength={10}
+                maxLength={600}
+                required
+                rows={4}
+                placeholder="Describe what you have noticed, such as where they get stuck or what happens when the work becomes difficult."
+                className="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <p className="text-xs text-muted-foreground">The Specialist will review the request and assess the appropriate starting phase during diagnosis.</p>
+            </div>
+            {topicRequestError ? <p role="alert" className="text-sm text-destructive">{topicRequestError}</p> : null}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setTopicRequestOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={topicRequestSubmitting || topicRequestName.trim().length === 0 || topicRequestDescription.trim().length < 10}>
+                {topicRequestSubmitting ? "Sending..." : "Send Request"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {proposal && (
         <Dialog open={proposalDialogOpen} onOpenChange={setProposalDialogOpen}>

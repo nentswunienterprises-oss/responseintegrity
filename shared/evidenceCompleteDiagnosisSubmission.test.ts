@@ -438,3 +438,77 @@ test("server session boundaries resume the precise missing question while retain
  assert.equal(resumed.state.probeHistory.length,3);
  assert.equal(replayEvidenceCompleteDiagnosis("Clarity",history,null,{sessionStarts:[0,0]}).ok,false);
 });
+
+
+test("Sandbox replay accepts only server-authorized scenario dimensions for the matching opportunity", () => {
+  const scenarioDimensions: DiagnosisDimensionId[] = [
+    "clarity.vocabulary",
+    "clarity.method",
+    "clarity.reason",
+    "execution.start",
+    "execution.step_discipline",
+    "execution.independence",
+    "difficulty.initial_response",
+  ];
+  const partialScenario = full("stack.challenge_no_timer", {
+    "clarity.vocabulary": "accurate_recognition",
+    "clarity.method": "correct_method_cleanly",
+    "clarity.reason": "clear_reason",
+    "execution.start": "valid_independent_start",
+    "execution.step_discipline": "structure_maintained",
+    "execution.independence": "independent_throughout",
+    "difficulty.initial_response": "controlled_attempt",
+  });
+
+  const ordinaryReplay = replayEvidenceCompleteDiagnosis(
+    "Controlled Discomfort",
+    [partialScenario],
+  );
+  assert.equal(ordinaryReplay.ok, false);
+  if (!ordinaryReplay.ok) assert.match(ordinaryReplay.error, /exactly 11 evidence dimensions/);
+
+  const authorizedReplay = replayEvidenceCompleteDiagnosis(
+    "Controlled Discomfort",
+    [partialScenario],
+    null,
+    {
+      sandboxScenarioDimensions: [{
+        probeHistoryIndex: 0,
+        probeId: "stack.challenge_no_timer",
+        dimensions: scenarioDimensions,
+      }],
+    },
+  );
+  assert.equal(authorizedReplay.ok, true);
+  if (authorizedReplay.ok) {
+    assert.equal(authorizedReplay.state.probeHistory[0].observations.length, 7);
+  }
+
+  const wrongProbeProof = replayEvidenceCompleteDiagnosis(
+    "Controlled Discomfort",
+    [partialScenario],
+    null,
+    {
+      sandboxScenarioDimensions: [{
+        probeHistoryIndex: 0,
+        probeId: "stack.normal_independent",
+        dimensions: scenarioDimensions,
+      }],
+    },
+  );
+  assert.equal(wrongProbeProof.ok, false);
+
+  const wrongIndexProof = replayEvidenceCompleteDiagnosis(
+    "Controlled Discomfort",
+    [partialScenario],
+    null,
+    {
+      sandboxScenarioDimensions: [{
+        probeHistoryIndex: 1,
+        probeId: "stack.challenge_no_timer",
+        dimensions: scenarioDimensions,
+      }],
+    },
+  );
+  assert.equal(wrongIndexProof.ok, false);
+});

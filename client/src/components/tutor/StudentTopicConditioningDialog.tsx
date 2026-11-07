@@ -83,6 +83,9 @@ type TopicRow = {
   entryDiagnosis: string;
   recentLogs: string[];
   timeline: Array<{ date: string; phase: PhaseLabel; stability: StabilityLabel; kind: ObservationKind }>;
+  parentReported?: boolean;
+  parentReportedSymptoms?: string[];
+  parentRecommendedPhase?: string | null;
 };
 
 /**
@@ -835,6 +838,8 @@ function buildTopics(
   map: TopicConditioningMap | null | undefined,
   persistedTopicStates: StudentTopicConditioningDialogProps["persistedTopicStates"],
   sessions: TutorSessionRecord[] | undefined,
+  parentTopicSymptoms?: Record<string, string[]> | null,
+  parentTopicRecommendations?: Record<string, { phase?: string | null; supportingSymptoms?: string[]; rationale?: string | null }> | null,
 ): TopicRow[] {
   const byTopic = new Map<
     string,
@@ -845,6 +850,9 @@ function buildTopics(
       targetedRediagnosisStartPhase?: PhaseLabel | null;
       systemNextAction?: string | null;
       prerequisiteContradictionReason?: string | null;
+      parentReported?: boolean;
+      parentReportedSymptoms?: string[];
+      parentRecommendedPhase?: string | null;
     }
   >();
 
@@ -921,6 +929,20 @@ function buildTopics(
     });
   });
 
+  // Parent reports remain visible until a diagnosis or activation record exists.
+  splitTopics(parentTopics).forEach((rawTopic) => {
+    const topic = sanitizeTopic(rawTopic);
+    const topicKey = normalizeTopicKey(topic);
+    if (!topic || !topicKey || [...byTopic.keys()].some((existingTopic) => normalizeTopicKey(existingTopic) === topicKey)) return;
+    const symptomEntry = Object.entries(parentTopicSymptoms || {}).find(([key]) => normalizeTopicKey(key) === topicKey);
+    const recommendationEntry = Object.entries(parentTopicRecommendations || {}).find(([key]) => normalizeTopicKey(key) === topicKey);
+    const recommendation = recommendationEntry?.[1];
+    const symptoms = Array.isArray(symptomEntry?.[1]) ? symptomEntry[1].map((item) => String(item).trim()).filter(Boolean)
+      : Array.isArray(recommendation?.supportingSymptoms) ? recommendation.supportingSymptoms.map((item) => String(item).trim()).filter(Boolean) : [];
+    const recommendedPhase = String(recommendation?.phase || "").trim() || null;
+    byTopic.set(topic, { history: [], seeded: { phase: normalizePhase(recommendedPhase), stability: "Low" }, parentReported: true, parentReportedSymptoms: symptoms, parentRecommendedPhase: recommendedPhase });
+  });
+
   const rows: TopicRow[] = [];
 
   byTopic.forEach((entry, topic) => {
@@ -989,6 +1011,9 @@ function buildTopics(
         stability: h.stability,
         kind: h.kind,
       })),
+      parentReported: entry.parentReported === true,
+      parentReportedSymptoms: entry.parentReportedSymptoms || [],
+      parentRecommendedPhase: entry.parentRecommendedPhase || null,
     });
   });
 
@@ -1033,6 +1058,8 @@ export default function StudentTopicConditioningDialog({
   mapOnly = false,
   apiBasePath = "/api/tutor",
   parentTopics,
+  parentTopicSymptoms,
+  parentTopicRecommendations,
   topicConditioning,
   persistedTopicStates,
 }: StudentTopicConditioningDialogProps) {
@@ -1369,7 +1396,7 @@ export default function StudentTopicConditioningDialog({
   const topics = useMemo(
     () => {
       // Build the normal topics
-      const baseTopics = buildTopics(parentTopics, topicConditioning, effectivePersistedTopicStates, studentSessions);
+      const baseTopics = buildTopics(parentTopics, topicConditioning, effectivePersistedTopicStates, studentSessions, parentTopicSymptoms, parentTopicRecommendations);
       // Add any activation topics not already present, case-insensitively.
       const baseTopicNames = new Set(baseTopics.map((t) => normalizeTopicKey(t.topic)).filter(Boolean));
       const merged = [...baseTopics];
@@ -1389,12 +1416,17 @@ export default function StudentTopicConditioningDialog({
             timeline: [],
           });
           baseTopicNames.add(topicKey);
+        } else if (topicKey) {
+          const existing = merged.find((row) => normalizeTopicKey(row.topic) === topicKey);
+          if (existing) existing.parentReported = false;
         }
       });
       return merged;
     },
-    [parentTopics, topicConditioning, effectivePersistedTopicStates, studentSessions, activationTopics],
+    [parentTopics, parentTopicSymptoms, parentTopicRecommendations, topicConditioning, effectivePersistedTopicStates, studentSessions, activationTopics],
   );
+  const parentReportedTopics = topics.filter((row) => row.parentReported);
+  const [showParentReportedTopics, setShowParentReportedTopics] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<string>(topics[0]?.topic || "");
 
   const [activeTopicField, setActiveTopicField] = useState("");
@@ -1840,6 +1872,9 @@ export default function StudentTopicConditioningDialog({
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                   <h3 className="font-semibold">Active Conditioning Map</h3>
+                  <Button type="button" variant="outline" size="sm" className="h-8" onClick={() => setShowParentReportedTopics((current) => !current)}>
+                    Parent Reported Topics ({parentReportedTopics.length})
+                  </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button type="button" variant="ghost" size="sm" className="h-8 w-8 px-0">
@@ -1860,6 +1895,41 @@ export default function StudentTopicConditioningDialog({
               <p className="text-xs text-muted-foreground">
                 Select a topic to review observed state and next-session preparation. Activated topics stay Unknown until a scored drill/session is logged.
               </p>
+
+              {showParentReportedTopics ? (
+                <div className="rounded-xl border border-primary/20 bg-muted/20 p-3 space-y-3">
+                  <div>
+                    <p className="text-sm font-semibold">Parent Reported Topics</p>
+                    <p className="text-xs text-muted-foreground">Review each request and explicitly activate the topic before it enters the normal booked-session diagnosis workflow.</p>
+                  </div>
+                  {parentReportedTopics.length === 0 ? <p className="text-sm text-muted-foreground">There are no pending parent-reported topics.</p> : (
+                    parentReportedTopics.map((row) => (
+                      <div key={"parent-reported-" + row.topic} className="flex flex-col gap-3 rounded-lg border bg-background p-3 sm:flex-row sm:items-start">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <p className="text-sm font-semibold">{row.topic}</p>
+                          <p className="text-xs text-muted-foreground">Recommended starting phase: {row.parentRecommendedPhase || "To be determined during diagnosis"}</p>
+                          {row.parentReportedSymptoms?.length ? <p className="text-xs text-muted-foreground">Reported symptoms: {row.parentReportedSymptoms.join(" · ")}</p> : null}
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={readOnly || addTopicMutation.isPending}
+                          onClick={() => {
+                            setNewTopic(row.topic);
+                            setActivationReason("Parent reported struggle");
+                            setActivationNote("");
+                            setActivateError("");
+                            setActivateDialogOpen(true);
+                          }}
+                        >
+                          Review &amp; Activate
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : null}
 
               {topics.length === 0 ? (
                 <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">

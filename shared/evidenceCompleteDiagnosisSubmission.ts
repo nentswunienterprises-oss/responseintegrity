@@ -181,7 +181,15 @@ export function replayEvidenceCompleteDiagnosis(
   startingPhase: TopicPhase | null,
   rawProbeHistory: unknown,
   inheritedTimingBaselineSeconds: number | null = null,
-  context: { sessionStarts?: number[]; legacyPrefixLength?: number } = {},
+  context: {
+    sessionStarts?: number[];
+    legacyPrefixLength?: number;
+    sandboxScenarioDimensions?: Array<{
+      probeHistoryIndex: number;
+      probeId: DiagnosisProbeId;
+      dimensions: DiagnosisDimensionId[];
+    }>;
+  } = {},
 ): EvidenceCompleteDiagnosisReplay {
   if (!Array.isArray(rawProbeHistory)) {
     return { ok: false, error: "probeHistory must be an array" };
@@ -242,7 +250,16 @@ export function replayEvidenceCompleteDiagnosis(
     }
 
     const definition = DIAGNOSIS_PROBES[result.probeId];
-    const dimensionError = validateExactProbeDimensions(definition, result);
+    const sandboxProof = context.sandboxScenarioDimensions?.find(
+      (proof) => proof.probeHistoryIndex === index,
+    );
+    const dimensionError =
+      sandboxProof && sandboxProof.probeId === result.probeId
+        ? validateExactProbeDimensions(
+            { ...definition, dimensions: sandboxProof.dimensions },
+            result,
+          )
+        : validateExactProbeDimensions(definition, result);
     if (dimensionError) {
       return { ok: false, failedAtProbeIndex: index, error: dimensionError };
     }

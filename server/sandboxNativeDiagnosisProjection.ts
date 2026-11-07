@@ -1,9 +1,9 @@
-import { DIAGNOSIS_OBSERVATION_MATRIX, getDiagnosisObservationOption } from "../shared/diagnosisObservationMatrix";
 import type { SandboxDiagnosisOutcomeDefinition } from "../shared/sandboxDiagnosisEnvironment";
+import { DIAGNOSIS_OBSERVATION_MATRIX, getDiagnosisObservationOption } from "../shared/diagnosisObservationMatrix";
 
 // Version the public opportunity as well as its scoring projection. A form
 // issued before a protocol correction must not silently acquire new truth.
-export const SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION = 2;
+export const SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION = 3;
 
 export function projectSandboxNativeDiagnosisOutcome(
   outcome: SandboxDiagnosisOutcomeDefinition,
@@ -15,10 +15,13 @@ export function projectSandboxNativeDiagnosisOutcome(
       ? { ...observation, behaviorId: "not_observed" }
       : { ...observation },
   );
-  // Describe the actual evidence dimension by dimension. A generic claim
-  // about a usable response cannot distinguish a late start, step drift and
-  // reassurance seeking. Private behavior IDs never enter the public story.
-  const details = canonicalObservations.flatMap(observation => {
+  // V2 Untimed Challenge outcomes are authored as complete, continuous
+  // narratives. Their structured observations are not appended as a checklist.
+  // Other probes retain the evidence-complete projection: every observed
+  // dimension must be represented in prose or a semantically equivalent clause.
+  const authoredContinuousScenario =
+    outcome.probeId === "stack.challenge_no_timer" && outcome.version >= 2;
+  const details = authoredContinuousScenario ? [] : canonicalObservations.flatMap(observation => {
     if (independentOnly && (observation.dimensionId === "clarity.vocabulary" ||
       observation.dimensionId === "clarity.reason")) return [];
     const option = getDiagnosisObservationOption(observation.dimensionId, observation.behaviorId);

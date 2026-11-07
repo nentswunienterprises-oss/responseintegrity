@@ -48,14 +48,16 @@ const outcomeFor = (
   };
 };
 
-test("Sandbox diagnosis outcome is bound to the live evidence-complete probe dimensions", () => {
+test("Sandbox diagnosis outcomes record only dimensions exposed by the concrete response", () => {
   const outcome = outcomeFor("clarity.recognition", "clarity-clean");
   assert.doesNotThrow(() => validateSandboxDiagnosisOutcomeDefinition(outcome));
-  const broken = {
+  const sparse = {
     ...outcome,
-    canonicalObservations: outcome.canonicalObservations.slice(1),
+    canonicalObservations: outcome.canonicalObservations.slice(0, 2),
   };
-  assert.throws(() => validateSandboxDiagnosisOutcomeDefinition(broken));
+  assert.doesNotThrow(() => validateSandboxDiagnosisOutcomeDefinition(sparse));
+  const empty = { ...outcome, canonicalObservations: [] };
+  assert.throws(() => validateSandboxDiagnosisOutcomeDefinition(empty), /at least one observable behavior/);
 });
 
 test("Sandbox diagnosis selector prioritizes the earliest unsupported capability when plausible", () => {

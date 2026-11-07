@@ -999,6 +999,11 @@ function IntroSessionDrillRunnerCore({
   const [handoverEvidenceSummary, setHandoverEvidenceSummary] =
     useState<HandoverEvidenceSummary | null>(null);
   const [sessionTopicIndex, setSessionTopicIndex] = useState(0);
+  const [diagnosisTopicIndex, setDiagnosisTopicIndex] = useState(() => {
+    const requestedIndex = Number(searchParams.get("topicIndex") || 0);
+    return Number.isInteger(requestedIndex) && requestedIndex >= 0 && requestedIndex <= 1 ? requestedIndex : 0;
+  });
+  const diagnosisBatchIdRef = useRef(searchParams.get("topicBatchId") || createTpsAttemptId());
   const [sessionResults, setSessionResults] = useState<any[]>([]);
   const [prepReady, setPrepReady] = useState(false);
   const [prepChecks, setPrepChecks] = useState<Record<string, boolean>>({});
@@ -1059,7 +1064,17 @@ function IntroSessionDrillRunnerCore({
   const rawPhase = searchParams.get("phase");
   const parsedLaunchPhase = tryParsePhase(rawPhase);
   const phase = parsedLaunchPhase || "Clarity";
-  const [activeDiagnosisPhase, setActiveDiagnosisPhase] = useState<PhaseLabel>(phase);
+  const requestedDiagnosisIndex = Number(searchParams.get("topicIndex") || 0);
+  let initialDiagnosisPhase: PhaseLabel = phase;
+  try {
+    const requestedPhases = JSON.parse(searchParams.get("topicPhases") || "[]");
+    if (Array.isArray(requestedPhases) && requestedPhases[requestedDiagnosisIndex]) {
+      initialDiagnosisPhase = tryParsePhase(String(requestedPhases[requestedDiagnosisIndex])) || phase;
+    }
+  } catch {
+    // Fall back to the launch phase for older single-topic URLs.
+  }
+  const [activeDiagnosisPhase, setActiveDiagnosisPhase] = useState<PhaseLabel>(initialDiagnosisPhase);
   const [adaptiveDiagnosisBlocks, setAdaptiveDiagnosisBlocks] = useState<Array<{
     phase: PhaseLabel;
     setName: string;
@@ -1077,6 +1092,31 @@ function IntroSessionDrillRunnerCore({
   const introTopic = useMemo(() => {
     const raw = searchParams.get("topic") || "";
     return String(raw).trim();
+  }, [searchParams]);
+
+  const diagnosisTopics = useMemo(() => {
+    const raw = searchParams.get("topics") || "";
+    if (!raw) return introTopic ? [introTopic] : [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return Array.from(new Set(parsed.map((topic) => String(topic || "").trim()).filter(Boolean))).slice(0, 2);
+      }
+    } catch {
+      // Older training-session URLs use a comma-separated topic list.
+    }
+    return raw.split(",").map((topic) => topic.trim()).filter(Boolean).slice(0, 2);
+  }, [searchParams, introTopic]);
+
+  const diagnosisTopicPhases = useMemo(() => {
+    const raw = searchParams.get("topicPhases") || "";
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.map((value) => String(value || "").trim()) : [];
+    } catch {
+      return [];
+    }
   }, [searchParams]);
 
   const sessionTopics = useMemo(() => {
@@ -1097,9 +1137,11 @@ function IntroSessionDrillRunnerCore({
 
   const currentTopicPhase = currentSessionTopic?.phase || phase;
   const currentTopicStability = currentSessionTopic?.stability || previousStability;
-  const currentTopicName = isSessionMode && sessionTopicIndex < sessionTopics.length 
+  const currentTopicName = isSessionMode && sessionTopicIndex < sessionTopics.length
     ? sessionTopics[sessionTopicIndex]
-    : introTopic;
+    : drillMode === "diagnosis"
+      ? diagnosisTopics[diagnosisTopicIndex] || introTopic
+      : introTopic;
   const currentTopicRecord = useMemo(
     () => topicData?.topics?.find(
       (topic) => topic.topic.trim().toLowerCase() === currentTopicName.trim().toLowerCase(),
@@ -1277,7 +1319,7 @@ function IntroSessionDrillRunnerCore({
     [displayPhase, isAdaptiveDiagnosisMode, handoverReDiagnosisMode]
   );
 
-  const hasIntroTopic = !!introTopic;
+  const hasIntroTopic = !!currentTopicName;
 
   const { data: studentsData } = useQuery<StudentListEntry[] | { students?: StudentListEntry[] }>({
     queryKey: ["/api/tutor/students"],
@@ -1617,7 +1659,7 @@ function IntroSessionDrillRunnerCore({
     setPrepReady(false);
     setPrepChecks({});
     setAdaptiveTransition(null);
-  }, [drillMode, handoverReDiagnosisMode, phase, introTopic, sessionTopicIndex]);
+  }, [drillMode, handoverReDiagnosisMode, phase, introTopic, sessionTopicIndex, diagnosisTopicIndex, currentTopicName, activeDiagnosisPhase]);
 
   useEffect(() => {
     setTopicReferenceDraft(EMPTY_TOPIC_REFERENCE);
@@ -3234,11 +3276,14 @@ function IntroSessionDrillRunnerCore({
             }
           : {
               studentId,
-              introTopic,
-              startingPhase: phase,
+              introTopic: currentTopicName,
+              startingPhase: activeDiagnosisPhase,
               adaptiveBlocks: finalAdaptiveBlocks,
               scheduledSessionId,
               sessionContextKind: diagnosisSessionKind,
+              multiTopicCount: diagnosisTopics.length,
+              multiTopicIndex: diagnosisTopicIndex,
+              multiTopicBatchId: diagnosisBatchIdRef.current,
             };
         const { data: { session } } = await supabase.auth.getSession();
         const headers: HeadersInit = {
@@ -3287,10 +3332,36 @@ function IntroSessionDrillRunnerCore({
           ]);
         }
 
+        if (
+          !isHandoverMode &&
+          diagnosisTopics.length === 2 &&
+          diagnosisTopicIndex < diagnosisTopics.length - 1
+        ) {
+          const nextIndex = diagnosisTopicIndex + 1;
+          setDiagnosisTopicIndex(nextIndex);
+          const nextSearchParams = new URLSearchParams(searchParams);
+          nextSearchParams.set("topicIndex", String(nextIndex));
+          nextSearchParams.set("topicBatchId", diagnosisBatchIdRef.current);
+          navigate(window.location.pathname + "?" + nextSearchParams.toString(), { replace: true });
+          setActiveDiagnosisPhase((diagnosisTopicPhases[nextIndex] || phase) as PhaseLabel);
+          setAdaptiveDiagnosisBlocks([]);
+          setAdaptiveTransition(null);
+          setAdaptiveDiagnosisMessage(null);
+          setSubmitSuccess(false);
+          setScoring(null);
+          setResponseSnapshots([]);
+          setCurrentSet(0);
+          setCurrentRep(0);
+          setObservations({});
+          return;
+        }
+
         setAdaptiveDiagnosisMessage(
           isHandoverMode
             ? `Targeted re-diagnosis resolved to ${res.data?.summary?.resultingPhase || activeDiagnosisPhase} from the recorded evidence.`
-            : `Diagnosis locked at ${res.data?.summary?.phase || activeDiagnosisPhase} from the recorded evidence.`
+            : diagnosisTopics.length === 2
+              ? `Intro diagnosis completed for ${diagnosisTopics.join(" and ")}. Both topic results have been recorded.`
+              : `Diagnosis locked at ${res.data?.summary?.phase || activeDiagnosisPhase} from the recorded evidence.`
         );
         setSubmitSuccess(true);
         setScoring(res.data?.scoring || null);
@@ -4028,13 +4099,15 @@ function IntroSessionDrillRunnerCore({
                 ? handoverReDiagnosisMode
                   ? `Targeted Re-Diagnosis - ${displayPhase}`
                   : `Handover Verification - ${displayPhase}`
-                : `Adaptive Intro Diagnosis - ${displayPhase}`}
+                : diagnosisTopics.length > 1
+                  ? `${diagnosisSessionKind === "intro" ? "Intro Session Diagnosis" : "Adaptive Diagnosis"} - Topic ${diagnosisTopicIndex + 1} of ${diagnosisTopics.length} - ${displayPhase}`
+                  : `${diagnosisSessionKind === "intro" ? "Intro Session Diagnosis" : "Adaptive Diagnosis"} - ${displayPhase}`}
           </h2>
       <p className="mb-2 text-sm">
         <span className="font-semibold">
           {isSessionMode ? "Current Topic:" : drillMode === "handover" ? "Carry-Over Topic:" : "Diagnostic Topic:"}
         </span>{" "}
-        {isSessionMode ? currentTopicName : hasIntroTopic ? introTopic : "Not set"}
+        {isSessionMode ? currentTopicName : hasIntroTopic ? currentTopicName : "Not set"}
         {isSessionMode && currentSessionTopic && (
           <span className="ml-2 text-muted-foreground">
             ({currentTopicPhase} - {currentTopicStability})

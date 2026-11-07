@@ -34,6 +34,10 @@ import {
 } from "@shared/evidenceCompleteDiagnosisSubmission";
 import { deriveDiagnosisTpsTimerContract } from "@shared/tpsTimingRuntime";
 import {
+  normalizeResponseSymptoms,
+  recommendStartingPhaseFromSymptoms,
+} from "@shared/responseSymptomMapping";
+import {
   loadLatestTpsTimerContract,
   loadTpsTimerContractById,
   persistTpsTimerContract,
@@ -58,7 +62,7 @@ type DiagnosisRunRow = {
   session_context: "intro" | "active_training" | "handover_verification";
   session_container?: DiagnosisSessionContainer | null;
   activity_kind?: DiagnosisActivityKind | null;
-  status: "in_progress" | "blocked" | "completed";
+  status: "in_progress" | "blocked" | "completed" | "superseded";
   probe_history: DiagnosisProbeResult[] | string | null;
   decision: Record<string, unknown> | string | null;
   source_drill_id?: string | null;
@@ -142,6 +146,59 @@ const parseJsonValue = <T,>(value: unknown, fallback: T): T => {
   return fallback;
 };
 
+type ParentDiagnosisAuthority = {
+  topic: string;
+  symptoms: string[];
+  startingPhase: TopicPhase;
+};
+
+const loadParentDiagnosisAuthority = async ({
+  studentId, tutorId, topic,
+}: { studentId: string; tutorId: string; topic: string }): Promise<ParentDiagnosisAuthority | null> => {
+  const result = await pool.query(
+    `SELECT pe.topic_response_symptoms, pe.topic_recommended_starting_phases
+       FROM public.students s
+       JOIN public.parent_enrollments pe ON pe.id = s.parent_enrollment_id
+      WHERE s.id::text = $1 AND s.tutor_id::text = $2 LIMIT 1`,
+    [studentId, tutorId],
+  );
+  const enrollment = result.rows[0];
+  if (!enrollment) return null;
+  const symptomMap = parseJsonValue<Record<string, unknown>>(enrollment.topic_response_symptoms, {});
+  const phaseMap = parseJsonValue<Record<string, unknown>>(enrollment.topic_recommended_starting_phases, {});
+  const key = Object.keys(symptomMap).find(k => k.trim().toLowerCase() === topic.trim().toLowerCase())
+    || Object.keys(phaseMap).find(k => k.trim().toLowerCase() === topic.trim().toLowerCase());
+  if (!key) return null;
+  const symptoms = normalizeResponseSymptoms(symptomMap[key]);
+  const recommendation = phaseMap[key];
+  const recommendedPhase = recommendation && typeof recommendation === "object"
+    ? (recommendation as Record<string, unknown>).phase : recommendation;
+  const startingPhase = tryParsePhase(String(recommendedPhase || ""))
+    || recommendStartingPhaseFromSymptoms(symptoms).phase;
+  return { topic: key, symptoms, startingPhase };
+};
+
+const sameParentDiagnosisAuthority = (decision: unknown, authority: ParentDiagnosisAuthority): boolean => {
+  const parsed = parseJsonValue<Record<string, unknown> | null>(decision, null);
+  const stored = parsed?.parentReportAuthority as
+    | { topic?: unknown; symptoms?: unknown; startingPhase?: unknown; version?: unknown } | undefined;
+  if (!stored || stored.version !== 1) return false;
+  const symptoms = Array.isArray(stored.symptoms) ? stored.symptoms.map(String) : [];
+  return String(stored.topic || "").trim().toLowerCase() === authority.topic.trim().toLowerCase()
+    && String(stored.startingPhase || "") === authority.startingPhase
+    && JSON.stringify(symptoms) === JSON.stringify(authority.symptoms);
+};
+
+const attachParentDiagnosisAuthority = (decision: Record<string, unknown>, authority: ParentDiagnosisAuthority) => ({
+  ...decision,
+  parentReportAuthority: {
+    version: 1,
+    topic: authority.topic,
+    symptoms: authority.symptoms,
+    startingPhase: authority.startingPhase,
+  },
+});
+
 const requireTutor = (req: Request, res: Response): string | null => {
   const user = (req as any).dbUser;
   if (!user || user.role !== "tutor") {
@@ -150,6 +207,58 @@ const requireTutor = (req: Request, res: Response): string | null => {
   }
   return String(user.id || "").trim() || null;
 };
+
+async function loadSandboxScenarioReplayDimensions(input: {
+  runId: string;
+  tutorId: string;
+  studentId: string;
+  probeHistory: DiagnosisProbeResult[];
+}): Promise<Array<{
+  probeHistoryIndex: number;
+  probeId: DiagnosisProbeResult["probeId"];
+  dimensions: DiagnosisDimensionId[];
+}>> {
+  // Sandbox scenario dimensions are accepted only when the matching immutable
+  // live-evidence turn and its private canonical truth were persisted server-side.
+  if (process.env.RI_SANDBOX_CROSSMODE_CAPTURE_V1 !== "true") return [];
+  const result = await pool.query(
+    `SELECT e.sequence_number, e.probe_id, e.specialist_submission,
+            e.total_observations, t.canonical_observations
+       FROM public.specialist_sandbox_live_evidence_turns e
+       JOIN private.specialist_sandbox_live_evidence_truth t ON t.event_id=e.id
+      WHERE e.tutor_id::text=$1 AND e.student_id::text=$2
+        AND e.scope='diagnosis' AND e.source_context_id=$3
+      ORDER BY e.sequence_number ASC`,
+    [input.tutorId, input.studentId, input.runId],
+  );
+  const proofs: Array<{
+    probeHistoryIndex: number;
+    probeId: DiagnosisProbeResult["probeId"];
+    dimensions: DiagnosisDimensionId[];
+  }> = [];
+  const seen = new Set<number>();
+  for (const row of result.rows) {
+    const index = Number(row.sequence_number) - 1;
+    const probe = input.probeHistory[index];
+    if (!Number.isInteger(index) || index < 0 || !probe || probe.probeId !== row.probe_id || seen.has(index)) continue;
+    const canonical = parseJsonValue<Array<{ dimensionId?: unknown }>>(row.canonical_observations, []);
+    const submission = parseJsonValue<{ observations?: Array<{ dimensionId?: unknown }> }>(row.specialist_submission, {});
+    const dimensions = canonical.map(item => String(item?.dimensionId || "").trim() as DiagnosisDimensionId);
+    const submitted = (submission.observations || []).map(item => String(item?.dimensionId || "").trim());
+    const unique = new Set(dimensions);
+    if (
+      dimensions.length === 0 ||
+      dimensions.length !== Number(row.total_observations) ||
+      unique.size !== dimensions.length ||
+      submitted.length !== dimensions.length ||
+      new Set(submitted).size !== submitted.length ||
+      dimensions.some((dimension, i) => dimension !== submitted[i])
+    ) continue;
+    seen.add(index);
+    proofs.push({ probeHistoryIndex: index, probeId: probe.probeId, dimensions });
+  }
+  return proofs;
+}
 
 async function loadDiagnosisRun(runId: string): Promise<DiagnosisRunRow | null> {
   if (isEmergencyDbMode()) {
@@ -1209,10 +1318,23 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
       const studentId = String(req.query.studentId || "").trim();
       const topic = String(req.query.topic || "").trim();
       if (!studentId || !topic) return res.status(400).json({ message: "Student and topic are required." });
-      const result = await pool.query(`SELECT id, starting_phase FROM ${RUN_TABLE}
+      const authority = await loadParentDiagnosisAuthority({ studentId, tutorId, topic });
+      if (!authority) return res.status(409).json({ message: "The current parent-reported topic symptoms and starting recommendation could not be found. Refresh the student record before starting diagnosis." });
+      const result = await pool.query(`SELECT id, decision FROM ${RUN_TABLE}
         WHERE tutor_id::text=$1 AND student_id::text=$2 AND lower(topic)=lower($3)
           AND status IN ('in_progress','blocked') ORDER BY created_at ASC LIMIT 1`, [tutorId,studentId,topic]);
-      return res.json({ runId: result.rows[0]?.id || null, startingPhase: result.rows[0]?.starting_phase || null });
+      const pendingRun = result.rows[0];
+      const parentReportChanged = Boolean(pendingRun && !sameParentDiagnosisAuthority(pendingRun.decision, authority));
+      if (parentReportChanged) {
+        await pool.query(`UPDATE ${RUN_TABLE} SET status='superseded', updated_at=NOW()
+          WHERE id=$1 AND status IN ('in_progress','blocked')`, [pendingRun.id]);
+      }
+      return res.json({
+        runId: parentReportChanged ? null : pendingRun?.id || null,
+        startingPhase: authority.startingPhase,
+        topicSymptoms: authority.symptoms,
+        parentReportChanged,
+      });
     } catch (error) { return res.status(500).json({ message: "The pending diagnosis could not be restored." }); }
   });
 
@@ -1243,12 +1365,19 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           topic: run.topic,
           startingPhase: run.starting_phase,
         });
+        const sandboxScenarioDimensions = await loadSandboxScenarioReplayDimensions({
+          runId: run.id, tutorId, studentId: run.student_id, probeHistory: history,
+        });
         const replay = replayEvidenceCompleteDiagnosis(
           run.starting_phase,
           history,
           diagnosisReplayInheritedBaselineSeconds(run.id, boundContract?.baselineSourceEpochKey,
             boundContract?.baselineSeconds ?? boundTimingBaselineSeconds(run)),
-          (() => { const context = diagnosisContinuationContext(parseJsonValue(run.decision, null), history.length, run.scheduled_session_id || null); return { legacyPrefixLength: context.legacyPrefixLength, sessionStarts: context.sessions.map(s => s.startProbeIndex) }; })(),
+          (() => { const context = diagnosisContinuationContext(parseJsonValue(run.decision, null), history.length, run.scheduled_session_id || null); return {
+            legacyPrefixLength: context.legacyPrefixLength,
+            sessionStarts: context.sessions.map(s => s.startProbeIndex),
+            sandboxScenarioDimensions,
+          }; })(),
         );
         if (replay.ok === false) {
           return res.status(409).json({ message: `Stored diagnosis evidence is invalid: ${replay.error}` });
@@ -1317,6 +1446,12 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           return res.status(403).json({ message: "Accept this assignment before running diagnosis" });
         }
 
+        const parentAuthority = await loadParentDiagnosisAuthority({ studentId, tutorId, topic });
+        if (!parentAuthority) return res.status(409).json({ message: "The current parent-reported topic symptoms and starting recommendation could not be found. Refresh the student record before starting diagnosis." });
+        if (startingPhase !== parentAuthority.startingPhase) {
+          return res.status(409).json({ message: "The parent report has changed. Restart diagnosis so the latest parent-reported starting signal is used." });
+        }
+
         const existingRun = await loadDiagnosisRun(runId);
         if (!existingRun) {
           const pending = await pool.query(`SELECT id FROM ${RUN_TABLE} WHERE tutor_id::text=$1 AND student_id::text=$2
@@ -1328,6 +1463,12 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
         let continuationContext = diagnosisContinuationContext(previousDecision, storedHistoryForReplay.length, existingRun?.scheduled_session_id || scheduledSessionId);
         const currentSessionId = continuationContext.sessions.at(-1)?.scheduledSessionId || null;
         const continuingInNewSession = !!existingRun && !!scheduledSessionId && scheduledSessionId !== currentSessionId;
+        if (existingRun && existingRun.status !== "completed" &&
+            !sameParentDiagnosisAuthority(existingRun.decision, parentAuthority)) {
+          await pool.query(`UPDATE ${RUN_TABLE} SET status='superseded', updated_at=NOW()
+            WHERE id=$1 AND status IN ('in_progress','blocked')`, [runId]);
+          return res.status(409).json({ message: "The parent report changed after diagnosis was opened. The previous run has been superseded; start again to use the latest parent report." });
+        }
         if (existingRun) {
           const identityMismatch =
             String(existingRun.student_id) !== studentId ||
@@ -1370,11 +1511,15 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
               topic,
               startingPhase,
             });
+            const completedSandboxScenarioDimensions = await loadSandboxScenarioReplayDimensions({
+              runId, tutorId, studentId, probeHistory: storedHistory,
+            });
             const storedReplay = replayEvidenceCompleteDiagnosis(
               existingRun.starting_phase,
               storedHistory,
               completedBoundContract?.baselineSeconds ??
                 boundTimingBaselineSeconds(existingRun),
+              { sandboxScenarioDimensions: completedSandboxScenarioDimensions },
             );
             if (storedReplay.ok === false) {
               return res.status(409).json({ message: "Completed diagnosis evidence is internally inconsistent" });
@@ -1397,23 +1542,38 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           topic,
           startingPhase,
         });
+        const sandboxScenarioDimensions = await loadSandboxScenarioReplayDimensions({
+          runId, tutorId, studentId, probeHistory: storedHistoryForReplay,
+        });
         if (continuingInNewSession) {
           const prior = replayEvidenceCompleteDiagnosis(startingPhase, storedHistoryForReplay,
             diagnosisReplayInheritedBaselineSeconds(runId, preexistingTimingContract?.baselineSourceEpochKey,
               preexistingTimingContract?.baselineSeconds ?? boundTimingBaselineSeconds(existingRun)),
-            { legacyPrefixLength: continuationContext.legacyPrefixLength, sessionStarts: continuationContext.sessions.map(s => s.startProbeIndex) });
+            {
+              legacyPrefixLength: continuationContext.legacyPrefixLength,
+              sessionStarts: continuationContext.sessions.map(s => s.startProbeIndex),
+              sandboxScenarioDimensions,
+            });
           if (prior.ok === false) return res.status(409).json({ message: prior.error });
           // Opening a new lesson does not append a response or manufacture a placement.
           if (!prior.decision.complete) continuationContext = await authorizeDiagnosisContinuation({ tutorId, studentId,
             scheduledSessionId: scheduledSessionId!, context: continuationContext,
             historyLength: storedHistoryForReplay.length, decision: prior.decision }, pool);
         }
+        const submittedProbeHistory = req.body?.probeHistory || [];
+        const submittedSandboxScenarioDimensions = await loadSandboxScenarioReplayDimensions({
+          runId, tutorId, studentId, probeHistory: submittedProbeHistory,
+        });
         const replay = replayEvidenceCompleteDiagnosis(
           startingPhase,
-          req.body?.probeHistory || [],
+          submittedProbeHistory,
           diagnosisReplayInheritedBaselineSeconds(runId, preexistingTimingContract?.baselineSourceEpochKey,
             preexistingTimingContract?.baselineSeconds ?? boundTimingBaselineSeconds(existingRun)),
-          { legacyPrefixLength: continuationContext.legacyPrefixLength, sessionStarts: continuationContext.sessions.map(s => s.startProbeIndex) },
+          {
+            legacyPrefixLength: continuationContext.legacyPrefixLength,
+            sessionStarts: continuationContext.sessions.map(s => s.startProbeIndex),
+            sandboxScenarioDimensions: submittedSandboxScenarioDimensions,
+          },
         );
         if (replay.ok === false) {
           return res.status(400).json({
@@ -1515,7 +1675,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           sessionContext: existingRun?.session_context || sessionResult.sessionContext,
           status: runStatus,
           probeHistory: replay.state.probeHistory,
-          decision: diagnosisDecisionWithContext(replay.decision, continuationContext, previousDecision),
+          decision: attachParentDiagnosisAuthority(diagnosisDecisionWithContext(replay.decision, continuationContext, previousDecision), parentAuthority),
           timingPolicyVersion: 1,
           timingAuthorityContractId: effectiveTimingContractId,
           timingAuthorityBaselineSeconds: effectiveTimingBaselineSeconds,
@@ -1555,7 +1715,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           sessionContext: existingRun?.session_context || sessionResult.sessionContext,
           status: "completed",
           probeHistory: replay.state.probeHistory,
-          decision: diagnosisDecisionWithContext(replay.decision, continuationContext, previousDecision),
+          decision: attachParentDiagnosisAuthority(diagnosisDecisionWithContext(replay.decision, continuationContext, previousDecision), parentAuthority),
           sourceDrillId: runId,
           completedAt: finalized.observedAt,
           timingPolicyVersion: 1,
