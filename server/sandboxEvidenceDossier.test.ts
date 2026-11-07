@@ -12,6 +12,7 @@ before(async () => {
     CREATE TABLE public.pods (id text, td_id text);
     CREATE TABLE public.tutor_assignments (id text, pod_id text, tutor_id text, created_at timestamptz);
     CREATE TABLE public.students (id text, name text, tutor_id text);
+    CREATE TABLE public.users (id text, name text);
     CREATE TABLE public.scheduled_sessions (id text, type text, scheduled_time timestamptz);
     CREATE TABLE public.response_integrity_diagnosis_runs (
       id text, student_id text, tutor_id text, topic text, starting_phase text,
@@ -46,6 +47,7 @@ before(async () => {
       ('a','pod-a','specialist','2026-10-01'), ('b','pod-b','other','2026-10-01'),
       ('old','pod-a','moved','2026-10-01'), ('new','pod-b','moved','2026-10-02');
     INSERT INTO students VALUES ('student-a','Sandbox Student A','specialist');
+    INSERT INTO users VALUES ('student-a','Sandbox Student A');
     INSERT INTO scheduled_sessions VALUES ('training-session-a','training','2026-11-07 15:00:00+00');
     INSERT INTO response_integrity_diagnosis_runs
       (id,student_id,tutor_id,topic,starting_phase,session_context,session_container,
