@@ -844,7 +844,7 @@ export function SandboxReadinessAssessmentCard({
                         </details>
                       );
                     })}
-                  {dossier.sessions.length === 0 ? <p className="text-sm text-muted-foreground">No completed Sandbox sessions recorded.</p> : null}
+                  {dossier.sessions.length === 0 && dossier.diagnosisRuns.length === 0 ? <p className="text-sm text-muted-foreground">No completed sessions recorded.</p> : null}
                 </section>
               </div>
             ) : null}
