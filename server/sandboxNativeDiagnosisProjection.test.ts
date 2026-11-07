@@ -34,18 +34,18 @@ test("independent native probe cannot demand unelicited vocabulary or explanatio
   assert.equal(JSON.stringify(original), before, "Do not mutate issued/historical definitions");
 });
 
-test("native stories distinguish the observed dimensions without exposing private IDs", () => {
+test("native student narrative remains a coherent account rather than an observation checklist", () => {
   for (const probeId of Object.keys(DIAGNOSIS_PROBES) as Array<SandboxDiagnosisOutcomeDefinition["probeId"]>) {
     const original = fixture(probeId, "near_stable");
     const result = projectSandboxNativeDiagnosisOutcome(original);
     if (probeId !== "stack.normal_independent") assert.deepEqual(result.canonicalObservations, original.canonicalObservations);
+    assert.ok(result.studentBehavior.startsWith(original.studentBehavior), "Preserve the authored student narrative");
     for (const observation of result.canonicalObservations) {
-      if (observation.behaviorId === "not_observed") continue;
-      const dimension = DIAGNOSIS_OBSERVATION_MATRIX[observation.dimensionId];
-      assert.ok(result.studentBehavior.includes(dimension.options.find(o => o.id === observation.behaviorId)!.detail));
-      assert.ok(!result.studentBehavior.includes(observation.behaviorId));
+      assert.ok(!result.studentBehavior.includes(observation.behaviorId), "Private behavior IDs must not enter the narrative");
     }
-    assert.ok(result.studentBehavior.startsWith(original.studentBehavior), "Preserve incident context, including real reference cues");
+    if (probeId !== "stack.normal_independent") {
+      assert.equal(result.studentBehavior, original.studentBehavior, "Do not append a dimension-by-dimension checklist");
+    }
   }
 });
 
