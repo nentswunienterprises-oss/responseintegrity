@@ -84,7 +84,7 @@ const capabilitySequencingSource = readFileSync(
   "utf8",
 );
 const tdOverviewSource = readFileSync(
-  new URL("../client/src/pages/operational/td/overview.tsx", import.meta.url),
+  new URL("../client/src/pages/operational/td/specialist-development.tsx", import.meta.url),
   "utf8",
 );
 const cooPodDetailSource = readFileSync(
@@ -852,7 +852,7 @@ test("Sandbox history stays separate from the current package balance in the stu
 
 
 test("required re-diagnosis launches the owner of the active operational lane", () => {
-  assert.match(topicMapSource, /sandbox-environment\/timing-rediagnosis/);
+  assert.match(topicMapSource, /\/specialist\/intro-session\/\$\{studentId\}\?topic=\$\{topicParam\}&phase=\$\{rediagnosisPhaseParam\}&stability=\$\{stabilityParam\}&context=training&rediagnosis=1/);
   assert.match(sandboxAuthoritySource, /export async function armSandboxTimingRediagnosis/);
   assert.match(sandboxAuthoritySource, /loadLatestTpsTimerContract/);
   assert.match(
