@@ -1014,9 +1014,6 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
       // in-progress observation state, so a retry must acknowledge the original
       // record rather than compare a newly reconstructed form against it.
       // Never replace the committed Specialist submission with retry data.
-      const committedSubmission = parseJsonValue<{
-        supportEvent?: DiagnosisSupportEvent;
-      }>(committed.specialist_submission, {});
       const committedConditionConformed = Boolean(committed.condition_conformed);
       const committedObservationExact = Boolean(committed.observation_exact);
       const committedMatching = Number(committed.matching_observations || 0);
