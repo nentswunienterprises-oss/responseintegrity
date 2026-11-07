@@ -208,6 +208,58 @@ const requireTutor = (req: Request, res: Response): string | null => {
   return String(user.id || "").trim() || null;
 };
 
+async function loadSandboxScenarioReplayDimensions(input: {
+  runId: string;
+  tutorId: string;
+  studentId: string;
+  probeHistory: DiagnosisProbeResult[];
+}): Promise<Array<{
+  probeHistoryIndex: number;
+  probeId: DiagnosisProbeResult["probeId"];
+  dimensions: DiagnosisDimensionId[];
+}>> {
+  // Sandbox scenario dimensions are accepted only when the matching immutable
+  // live-evidence turn and its private canonical truth were persisted server-side.
+  if (process.env.RI_SANDBOX_CROSSMODE_CAPTURE_V1 !== "true") return [];
+  const result = await pool.query(
+    `SELECT e.sequence_number, e.probe_id, e.specialist_submission,
+            e.total_observations, t.canonical_observations
+       FROM public.specialist_sandbox_live_evidence_turns e
+       JOIN private.specialist_sandbox_live_evidence_truth t ON t.event_id=e.id
+      WHERE e.tutor_id::text=$1 AND e.student_id::text=$2
+        AND e.scope='diagnosis' AND e.source_context_id=$3
+      ORDER BY e.sequence_number ASC`,
+    [input.tutorId, input.studentId, input.runId],
+  );
+  const proofs: Array<{
+    probeHistoryIndex: number;
+    probeId: DiagnosisProbeResult["probeId"];
+    dimensions: DiagnosisDimensionId[];
+  }> = [];
+  const seen = new Set<number>();
+  for (const row of result.rows) {
+    const index = Number(row.sequence_number) - 1;
+    const probe = input.probeHistory[index];
+    if (!Number.isInteger(index) || index < 0 || !probe || probe.probeId !== row.probe_id || seen.has(index)) continue;
+    const canonical = parseJsonValue<Array<{ dimensionId?: unknown }>>(row.canonical_observations, []);
+    const submission = parseJsonValue<{ observations?: Array<{ dimensionId?: unknown }> }>(row.specialist_submission, {});
+    const dimensions = canonical.map(item => String(item?.dimensionId || "").trim() as DiagnosisDimensionId);
+    const submitted = (submission.observations || []).map(item => String(item?.dimensionId || "").trim());
+    const unique = new Set(dimensions);
+    if (
+      dimensions.length === 0 ||
+      dimensions.length !== Number(row.total_observations) ||
+      unique.size !== dimensions.length ||
+      submitted.length !== dimensions.length ||
+      new Set(submitted).size !== submitted.length ||
+      dimensions.some((dimension, i) => dimension !== submitted[i])
+    ) continue;
+    seen.add(index);
+    proofs.push({ probeHistoryIndex: index, probeId: probe.probeId, dimensions });
+  }
+  return proofs;
+}
+
 async function loadDiagnosisRun(runId: string): Promise<DiagnosisRunRow | null> {
   if (isEmergencyDbMode()) {
     const result = await pool.query(
@@ -1313,12 +1365,19 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           topic: run.topic,
           startingPhase: run.starting_phase,
         });
+        const sandboxScenarioDimensions = await loadSandboxScenarioReplayDimensions({
+          runId: run.id, tutorId, studentId: run.student_id, probeHistory: history,
+        });
         const replay = replayEvidenceCompleteDiagnosis(
           run.starting_phase,
           history,
           diagnosisReplayInheritedBaselineSeconds(run.id, boundContract?.baselineSourceEpochKey,
             boundContract?.baselineSeconds ?? boundTimingBaselineSeconds(run)),
-          (() => { const context = diagnosisContinuationContext(parseJsonValue(run.decision, null), history.length, run.scheduled_session_id || null); return { legacyPrefixLength: context.legacyPrefixLength, sessionStarts: context.sessions.map(s => s.startProbeIndex) }; })(),
+          (() => { const context = diagnosisContinuationContext(parseJsonValue(run.decision, null), history.length, run.scheduled_session_id || null); return {
+            legacyPrefixLength: context.legacyPrefixLength,
+            sessionStarts: context.sessions.map(s => s.startProbeIndex),
+            sandboxScenarioDimensions,
+          }; })(),
         );
         if (replay.ok === false) {
           return res.status(409).json({ message: `Stored diagnosis evidence is invalid: ${replay.error}` });
@@ -1479,11 +1538,18 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           topic,
           startingPhase,
         });
+        const sandboxScenarioDimensions = await loadSandboxScenarioReplayDimensions({
+          runId, tutorId, studentId, probeHistory: storedHistoryForReplay,
+        });
         if (continuingInNewSession) {
           const prior = replayEvidenceCompleteDiagnosis(startingPhase, storedHistoryForReplay,
             diagnosisReplayInheritedBaselineSeconds(runId, preexistingTimingContract?.baselineSourceEpochKey,
               preexistingTimingContract?.baselineSeconds ?? boundTimingBaselineSeconds(existingRun)),
-            { legacyPrefixLength: continuationContext.legacyPrefixLength, sessionStarts: continuationContext.sessions.map(s => s.startProbeIndex) });
+            {
+              legacyPrefixLength: continuationContext.legacyPrefixLength,
+              sessionStarts: continuationContext.sessions.map(s => s.startProbeIndex),
+              sandboxScenarioDimensions,
+            });
           if (prior.ok === false) return res.status(409).json({ message: prior.error });
           // Opening a new lesson does not append a response or manufacture a placement.
           if (!prior.decision.complete) continuationContext = await authorizeDiagnosisContinuation({ tutorId, studentId,
@@ -1495,7 +1561,11 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           req.body?.probeHistory || [],
           diagnosisReplayInheritedBaselineSeconds(runId, preexistingTimingContract?.baselineSourceEpochKey,
             preexistingTimingContract?.baselineSeconds ?? boundTimingBaselineSeconds(existingRun)),
-          { legacyPrefixLength: continuationContext.legacyPrefixLength, sessionStarts: continuationContext.sessions.map(s => s.startProbeIndex) },
+          {
+            legacyPrefixLength: continuationContext.legacyPrefixLength,
+            sessionStarts: continuationContext.sessions.map(s => s.startProbeIndex),
+            sandboxScenarioDimensions,
+          },
         );
         if (replay.ok === false) {
           return res.status(400).json({
