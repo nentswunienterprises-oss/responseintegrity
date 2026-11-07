@@ -866,7 +866,7 @@ test("required re-diagnosis launches the owner of the active operational lane", 
     /completedPlacementNeedsTimer[\s\S]*deriveDiagnosisTpsTimerContract[\s\S]*persistTpsTimerContract/,
     "new completed re-diagnoses persist timing authority before ordinary Training resumes",
   );
-  assert.match(sandboxAuthoritySource, /canonical_targeted_rediagnosis_phase='Structured Execution'/);
+  assert.match(sandboxRediagnosisSource, /canonical_targeted_rediagnosis_phase[\s\S]{0,500}"Structured Execution"/);
   const start = topicMapSource.indexOf("      const topicParam = encodeURIComponent(topicState.topic);");
   const end = topicMapSource.indexOf("\n    }", start);
   assert.ok(start >= 0 && end > start);
