@@ -1,4 +1,3 @@
-import { DIAGNOSIS_OBSERVATION_MATRIX, getDiagnosisObservationOption } from "../shared/diagnosisObservationMatrix";
 import type { SandboxDiagnosisOutcomeDefinition } from "../shared/sandboxDiagnosisEnvironment";
 
 // Version the public opportunity as well as its scoring projection. A form
