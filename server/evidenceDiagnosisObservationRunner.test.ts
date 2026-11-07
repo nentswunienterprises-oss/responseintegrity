@@ -23,7 +23,7 @@ test("diagnosis opportunity presents behavioral observations one at a time", () 
   assert.match(runnerSource, /"Next observation"/);
   assert.match(
     runnerSource,
-    /activeObservationIndex === currentProbe\.dimensions\.length - 1[\s\S]*"Review Opportunity"/,
+    /activeObservationIndex === currentProbeDimensions\.length - 1[\s\S]*"Review Opportunity"/,
   );
 });
 
