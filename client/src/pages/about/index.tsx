@@ -53,7 +53,7 @@ export default function AboutIndex() {
       </section>
 
       <section className="max-w-7xl mx-auto px-6 pb-24">
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {[
             {
               title: "Who We Are",
@@ -82,7 +82,7 @@ export default function AboutIndex() {
                   className="mt-8 w-full rounded-full border-[#1A1A1A] text-[#1A1A1A] bg-[#FCF6F2]"
                   onClick={() => navigate(buildTrackedPath(item.href, location.search, trackedNavigationParams))}
                 >
-                  {item.title === "Meet the Team" ? "View the Team" : `Read ${item.title}`}
+                  `Read ${item.title}`
                 </Button>
               </CardContent>
             </Card>
