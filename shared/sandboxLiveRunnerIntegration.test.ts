@@ -209,6 +209,15 @@ test("Sandbox diagnosis keeps the evidence-native runner and projects private si
     /runtimeAuthority\?\.operationalMode === "sandbox"[\s\S]*recordSandboxSimulation/,
   );
   assert.match(
+    evidenceDiagnosisRunnerSource,
+    /const currentProbeDimensions = currentProbe[\s\S]*sandboxSimulation\.observedDimensions/,
+  );
+  assert.match(evidenceDiagnosisRunnerSource, /currentProbeDimensions\.map\(/);
+  assert.match(
+    sandboxRediagnosisSource,
+    /observedDimensions: selected\.canonicalObservations[\s\S]*input\.scope === "diagnosis"/,
+  );
+  assert.match(
     sandboxRediagnosisSource,
     /private\.specialist_sandbox_diagnosis_outcomes/,
   );
