@@ -6,7 +6,7 @@ import { DIAGNOSIS_OBSERVATION_MATRIX } from "@shared/diagnosisObservationMatrix
 // The live route retains isAuthenticated middleware; the handler also checks role
 // before reading private truth. Inject only the server-side PostgreSQL query API.
 type DossierDatabase = {
-  query: (sql: string, values: string[]) => Promise<{ rows: any[] }>;
+  query: (sql: string, values: unknown[]) => Promise<{ rows: any[] }>;
 };
 
 function observationLabel(phase: unknown, setId: unknown, repNumber: unknown, fieldKey: string, value: any) {
@@ -197,6 +197,9 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
             comparisons,
             recordedSupportEvent: turn?.specialist_submission?.supportEvent ?? probe?.supportEvent ?? null,
             expectedSupportEvent: turn?.actual_support_event ?? null,
+            supportEventMatched: turn?.actual_support_event == null
+              ? null
+              : String(turn?.specialist_submission?.supportEvent ?? probe?.supportEvent ?? "") === String(turn.actual_support_event),
             conditionConformed: turn?.condition_conformed ?? null,
             observationExact: turn?.observation_exact ?? null,
             matchingObservations: turn?.matching_observations == null ? null : Number(turn.matching_observations),
