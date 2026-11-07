@@ -1,5 +1,6 @@
 import type { Express, Request, RequestHandler, Response } from "express";
 import { z } from "zod";
+import { randomUUID } from "crypto";
 import { supabase } from "../storage";
 import { pool } from "../db";
 import { isEmergencyDbMode } from "../emergencyMode";
@@ -1443,7 +1444,7 @@ export function registerExecutiveCommandRhythmRoutes(app: Express, isAuthenticat
         const { currentUser } = context;
         const task = await getTaskById(req.params.taskId);
         if (!task) return res.status(404).json({ message: "File not found" });
-        const canReadTask = currentUser.role === "coo" || task.ownerUserId === currentUser.id || task.supportingUserIds.includes(currentUser.id);
+        const canReadTask = (currentUser.role === "coo" || currentUser.role === "ceo") || task.ownerUserId === currentUser.id || task.supportingUserIds.includes(currentUser.id);
         if (!canReadTask) return res.status(404).json({ message: "File not found" });
         const { data: proof, error: proofError } = await supabase
           .from("executive_task_proofs")
@@ -1521,12 +1522,12 @@ export function registerExecutiveCommandRhythmRoutes(app: Express, isAuthenticat
 
           await ensurePrivateBucket(supabase, bucketName);
 
-          const storagePath = `task-proofs/${task.id}/${Date.now()}-${safeFileName}`;
+          const storagePath = `task-proofs/${task.id}/${randomUUID()}-${safeFileName}`;
           const { error: uploadError } = await supabase.storage
             .from(bucketName)
             .upload(storagePath, buffer, {
               contentType: parsed.contentType,
-              upsert: true,
+              upsert: false,
             });
 
           if (uploadError) {
