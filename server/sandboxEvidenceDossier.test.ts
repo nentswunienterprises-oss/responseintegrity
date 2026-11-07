@@ -85,7 +85,7 @@ before(async () => {
     VALUES ('rep-a','{"step":{"optionId":"correct","evidenceStatus":"observed"}}'),
       ('foreign-rep','{"secret":"FOREIGN SECRET"}'), ('future-event','{"secret":"FUTURE ANSWER"}');
     INSERT INTO specialist_sandbox_session_evaluations
-      (id,tutor_assignment_id,tutor_id,student_id,session_number,phase,authority_aligned,state_track_aligned,specialist_authority)
+      (id,tutor_assignment_id,tutor_id,student_id,trajectory_id,session_number,phase,authority_aligned,state_track_aligned,specialist_authority)
     VALUES ('session-a','a','specialist','student-a','trajectory-a',1,'Clarity',false,false,'{"phase":"SE"}');
     INSERT INTO private.specialist_sandbox_session_truth VALUES ('session-a','{"phase":"Clarity"}');
   `);
