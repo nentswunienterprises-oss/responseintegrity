@@ -2,7 +2,7 @@ import type { SandboxDiagnosisOutcomeDefinition } from "../shared/sandboxDiagnos
 
 // Version the public opportunity as well as its scoring projection. A form
 // issued before a protocol correction must not silently acquire new truth.
-export const SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION = 2;
+export const SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION = 3;
 
 export function projectSandboxNativeDiagnosisOutcome(
   outcome: SandboxDiagnosisOutcomeDefinition,
