@@ -983,31 +983,84 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
       // AND its private canonical truth match every decision-relevant field.
       // Never overwrite or reinterpret the first committed observation.
       const previouslyStored = await pool.query(
-        `SELECT e.id FROM public.specialist_sandbox_live_evidence_turns e
+        `SELECT e.id,e.condition_conformed,e.observation_exact,
+                e.matching_observations,e.total_observations,e.specialist_submission
+           FROM public.specialist_sandbox_live_evidence_turns e
            JOIN private.specialist_sandbox_live_evidence_truth t ON t.event_id=e.id
           WHERE e.tutor_assignment_id=$1 AND e.tutor_id=$2
             AND e.trajectory_id=$3 AND e.student_id=$4
             AND e.scope=$5 AND e.source_context_id=$6 AND e.form_id=$7
             AND e.sequence_number=$8 AND e.phase=$9 AND e.probe_id=$10
             AND e.bank_version=$11 AND e.behavior_model_version=$12
-            AND e.student_behavior=$13 AND e.specialist_submission=$14::jsonb
-            AND e.condition_conformed=$15 AND e.observation_exact=$16
-            AND e.matching_observations=$17 AND e.total_observations=$18
-            AND t.outcome_ref=$19 AND t.outcome_key=$20 AND t.outcome_version=$21
-            AND t.canonical_observations=$22::jsonb
-            AND t.trajectory_class=$23 AND t.actual_support_event=$24
+            AND e.student_behavior=$13
+            AND e.total_observations=$14
+            AND t.outcome_ref=$15 AND t.outcome_key=$16 AND t.outcome_version=$17
+            AND t.canonical_observations=$18::jsonb
+            AND t.trajectory_class=$19
           LIMIT 1`,
         [input.tutorAssignmentId,input.tutorId,trajectory.id,input.studentId,input.scope,
          input.sourceContextId,prepared.formId,input.sequenceNumber,input.startingPhase,
          prepared.probeId,prepared.bankVersion,truth.behavior_model_version,
-         prepared.studentBehavior,JSON.stringify({supportEvent:input.supportEvent,observations:input.observations}),
-         conditionConformed,observationExact,matchingObservations,expectedDimensionIds.length,
+         prepared.studentBehavior,expectedDimensionIds.length,
          selectedRecord.publicRef,selected.key,selected.version,
-         JSON.stringify(selected.canonicalObservations),selected.trajectoryClass,input.supportEvent],
+         JSON.stringify(selected.canonicalObservations),selected.trajectoryClass],
       );
-      if (!previouslyStored.rows[0]) {
+      const committed = previouslyStored.rows[0];
+      if (!committed) {
         throw httpError(409, "The previous Sandbox evidence record conflicts with this submission. Preserve the original and escalate for evidence review.");
       }
+
+      // The immutable turn already committed. A refresh can lose the browser's
+      // in-progress observation state, so a retry must acknowledge the original
+      // record rather than compare a newly reconstructed form against it.
+      // Never replace the committed Specialist submission with retry data.
+      const committedSubmission = parseJsonValue<{
+        supportEvent?: DiagnosisSupportEvent;
+      }>(committed.specialist_submission, {});
+      const committedConditionConformed = Boolean(committed.condition_conformed);
+      const committedObservationExact = Boolean(committed.observation_exact);
+      const committedMatching = Number(committed.matching_observations || 0);
+      const committedTotal = Number(committed.total_observations || 0);
+      await insertCapabilityEvidence({
+        trajectory,
+        sourceType: "turn",
+        sourceId,
+        occurrences: [
+          ...(input.scope === "diagnosis"
+            ? [occurrence(
+                "condition_integrity",
+                committedConditionConformed ? "supported" : "breakdown",
+                committedConditionConformed
+                  ? "The Specialist preserved the prescribed Sandbox evidence condition."
+                  : "The Specialist changed the prescribed Sandbox evidence condition through mathematical support.",
+              )]
+            : []),
+          occurrence(
+            "observation_integrity",
+            committedObservationExact ? "supported" : "breakdown",
+            committedObservationExact
+              ? "The Specialist recorded the concrete simulated student behavior that occurred."
+              : "At least one recorded behavior differed from the hidden simulated student truth.",
+          ),
+          occurrence(
+            "evidence_integrity",
+            committedObservationExact ? "supported" : "breakdown",
+            committedObservationExact
+              ? "The Specialist preserved the evidence class carried by the simulated response."
+              : "The Specialist record changed decision-relevant evidence truth.",
+          ),
+        ],
+      });
+      return {
+        success: true as const,
+        alreadyRecorded: true as const,
+        matchingObservations: committedMatching,
+        totalObservations: committedTotal,
+        observationExact: committedObservationExact,
+        conditionConformed: committedConditionConformed,
+        studentStateAuthoritative: false as const,
+        evidenceScope: "sandbox" as const,
+      };
     }
   }
   // Record qualification capability only AFTER immutable capture validation.
