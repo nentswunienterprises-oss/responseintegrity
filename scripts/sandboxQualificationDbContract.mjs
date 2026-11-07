@@ -16,6 +16,7 @@ try {
  ].join("\n"));
  const sql=readFileSync(new URL("../docs/migration-proposals/20261015_sandbox_coverage_crossmode_evidence.sql",import.meta.url),"utf8");
  await db.query(sql);
+ await db.query(readFileSync(new URL("../docs/migration-proposals/20261026_sandbox_context_preparation_evidence.sql",import.meta.url),"utf8"));
  const protections=await db.query([
  "SELECT c.relname,c.relrowsecurity,",
  "has_table_privilege('anon',c.oid,'SELECT') AS anonymous_read,",
@@ -23,9 +24,9 @@ try {
  "has_table_privilege('authenticated',c.oid,'INSERT') AS authenticated_write",
  "FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace",
  "WHERE c.relname IN ('specialist_sandbox_preparation_events',",
- "'specialist_sandbox_live_evidence_turns','specialist_sandbox_live_evidence_truth')",
+ "'specialist_sandbox_live_evidence_turns','specialist_sandbox_live_evidence_truth',\n'specialist_sandbox_context_preparation_events')",
  ].join(" "));
- assert.equal(protections.rows.length,3,"All protected tables must exist");
+ assert.equal(protections.rows.length,4,"All protected tables must exist");
  for(const row of protections.rows){
    assert.equal(row.relrowsecurity,true,row.relname+" must use RLS");
    assert.equal(row.anonymous_read,false,row.relname+" anonymous read");
