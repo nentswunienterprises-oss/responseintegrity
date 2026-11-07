@@ -34,7 +34,7 @@ test("independent native probe cannot demand unelicited vocabulary or explanatio
   assert.equal(JSON.stringify(original), before, "Do not mutate issued/historical definitions");
 });
 
-test("native student narrative remains a coherent account rather than an observation checklist", () => {
+test("V2 Untimed Challenge keeps its authored continuous narrative; other probes retain evidence-complete detail", () => {
   for (const probeId of Object.keys(DIAGNOSIS_PROBES) as Array<SandboxDiagnosisOutcomeDefinition["probeId"]>) {
     const original = fixture(probeId, "near_stable");
     const result = projectSandboxNativeDiagnosisOutcome(original);
@@ -43,8 +43,15 @@ test("native student narrative remains a coherent account rather than an observa
     for (const observation of result.canonicalObservations) {
       assert.ok(!result.studentBehavior.includes(observation.behaviorId), "Private behavior IDs must not enter the narrative");
     }
-    if (probeId !== "stack.normal_independent") {
-      assert.equal(result.studentBehavior, original.studentBehavior, "Do not append a dimension-by-dimension checklist");
+    if (probeId === "stack.challenge_no_timer") {
+      const v2 = { ...original, version: 2 };
+      assert.equal(projectSandboxNativeDiagnosisOutcome(v2).studentBehavior, v2.studentBehavior);
+      assert.notEqual(result.studentBehavior, original.studentBehavior, "Legacy challenge scenarios retain their historical detail projection");
+    } else if (probeId !== "stack.normal_independent") {
+      for (const observation of result.canonicalObservations) {
+        const option = DIAGNOSIS_OBSERVATION_MATRIX[observation.dimensionId].options.find(o => o.id === observation.behaviorId)!;
+        assert.ok(result.studentBehavior.includes(option.detail), "Observed dimensions remain represented in narrative");
+      }
     }
   }
 });
