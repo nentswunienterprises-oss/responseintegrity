@@ -678,6 +678,7 @@ export function SandboxReadinessAssessmentCard({
                                   </div>
                                 </details>
                               );
+                            })}
                             {studentDiagnosisRuns.length ? (
                               <section className="space-y-3">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -815,7 +816,7 @@ export function SandboxReadinessAssessmentCard({
                             ) : (
                               <p className="text-sm text-muted-foreground">No completed diagnosis runs recorded for this student.</p>
                             )}
-                            })}
+
                           </div>
                         </details>
                       );
