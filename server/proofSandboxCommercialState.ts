@@ -5,6 +5,7 @@ import {
   getMonthlyServicePackage,
 } from "@shared/servicePackages";
 import { supabase } from "./storage";
+import { selectAuthoritativeSandboxCycle } from "./sandboxPackageCycle";
 
 type SyntheticUsageEvent = {
   key: string;
@@ -242,22 +243,34 @@ export async function ensurePreviewSandboxFixtureCommercialState(options: {
   }
 
   const now = new Date();
-  const startIso = monthStartIso(now);
-  const monthKey = monthKeyFromIso(startIso);
+  const currentMonthStartIso = monthStartIso(now);
+  const currentMonthKey = monthKeyFromIso(currentMonthStartIso);
   const nowIso = now.toISOString();
   const servicePackage = getMonthlyServicePackage(enrollment.package_key);
 
-  let { data: membership, error: membershipError } = await supabase
+  const { data: existingCycles, error: membershipError } = await supabase
     .from("membership_months")
     .select("*")
     .eq("parent_id", parentId)
     .eq("student_id", studentId)
-    .eq("month_key", monthKey)
     .eq("is_sandbox", true)
-    .maybeSingle();
+    .order("month_key", { ascending: false })
+    .limit(2);
   if (membershipError) throw membershipError;
 
-  const usageEvents = await loadUsageEvents(parentId, studentId, startIso, nowIso);
+  let membership = selectAuthoritativeSandboxCycle(existingCycles, parentId, studentId);
+  if (existingCycles.length > 0 && !membership) {
+    return { repaired: false, reason: "membership_unavailable" as const };
+  }
+
+  // A Sandbox month_key is a cycle identity, not a calendar expiry. Only an
+  // explicit renewal may advance it; a later wall-clock month cannot grant quota.
+  const startIso = membership
+    ? String(membership.month_key) + "T00:00:00.000Z"
+    : currentMonthStartIso;
+  const monthKey = membership ? String(membership.month_key) : currentMonthKey;
+  const evidenceUpperBoundIso = "9999-12-31T23:59:59.999Z";
+  const usageEvents = await loadUsageEvents(parentId, studentId, startIso, evidenceUpperBoundIso);
   const distinctUsageCount = new Set(usageEvents.map((event) => event.key)).size;
 
   if (!membership) {
