@@ -160,13 +160,14 @@ export function validateSandboxDiagnosisOutcomeDefinition(
       );
     }
   }
-  for (const dimensionId of probe.dimensions) {
-    if (!seen.has(dimensionId)) {
-      throw new Error(
-        `Sandbox diagnosis outcome ${definition.key} is missing ${dimensionId}.`,
-      );
-    }
+  if (seen.size === 0) {
+    throw new Error(
+      `Sandbox diagnosis outcome ${definition.key} must expose at least one observable behavior.`,
+    );
   }
+  // Probe dimensions define the dimensions that could be exposed. An outcome
+  // records only the dimensions its concrete student response actually exposes.
+  // Absence is not an unsupported observation and must not be filled by quota.
 }
 
 export function selectSandboxDiagnosisOutcome(input: {
@@ -239,24 +240,14 @@ export function selectSandboxDiagnosisOutcome(input: {
       input.context.probeId, item.key, item.version,
     ].join(":"))) / Math.max(0.05, item.weight);
     const chosen = [...scenes].sort((a,b) => score(a)-score(b) || a.key.localeCompare(b.key))[0];
-    // New-plan authoring only. Cross-layer probes must preserve demonstrated
-    // prerequisite strengths while exposing the profile's difficulty. The
-    // native projector describes every authored dimension before submission;
-    // the resulting canonical observations are persisted with the issued turn.
-    // This never reinterprets a historical response or assigns a placement.
-    return {
-      ...chosen,
-      studentBehavior: "The student responds to the prescribed probe under its stated conditions.",
-      canonicalObservations: chosen.canonicalObservations.map(observation => {
-        const dimension = DIAGNOSIS_OBSERVATION_MATRIX[observation.dimensionId];
-        const difficulty = dimension.phase === sandboxProfileDifficultyPhase(resolveSandboxBehaviorProfile(input.profileSeed!));
-        const dimensionLessons = sandboxDevelopmentLessons(input.context.continuityTags!, input.context.developmentTopicKey!, dimension.phase);
-        const behaviorClass = difficulty && dimensionLessons === 0 && input.context.probeId !== "stack.normal_independent" ? "conditional" : "supported";
-        const option = dimension.options.find(item => item.behaviorClass === behaviorClass);
-        if (!option) throw new Error("Sandbox development Diagnosis lacks an authored dimension response.");
-        return { ...observation, behaviorId: option.id };
-      }),
-    };
+    // The selected outcome is a complete learner-response scenario authored
+    // for this probe. Preserve its narrative and its cross-layer observations:
+    // a development phase may influence which coherent scenario is selected,
+    // but it must never rewrite each dimension independently by phase.
+    // This prevents a difficult probe from manufacturing a lower-layer
+    // execution breakdown after the same scenario has established intact
+    // method structure and independent execution.
+    return chosen;
   }
 
   const recent = new Set(input.context.recentOutcomeKeys || []);
