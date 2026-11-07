@@ -139,6 +139,22 @@ test('Diagnosis shares profile strengths and weakness without overriding its pla
 });
 
 
+test('Controlled Discomfort scenarios preserve established method structure while varying pressure response',()=>{
+ const seed=seedFor('reassurance_seeker');
+ const probe=DIAGNOSIS_PROBES['stack.challenge_no_timer'];
+ const outcomes:SandboxDiagnosisOutcomeDefinition[]=classes.map((cls,index)=>({
+  key:`coherent-${index}`,version:1,probeId:'stack.challenge_no_timer',studentBehavior:'One continuous student response.',trajectoryClass:cls,weight:1,simulatedElapsedSeconds:48,
+  canonicalObservations:(cls==='conditional'
+   ? [['clarity.method','correct_method_cleanly'],['execution.start','valid_independent_start'],['execution.step_discipline','structure_maintained'],['difficulty.initial_response','avoidant_hesitation'],['difficulty.tolerance','brief_hold_then_break'],['difficulty.rescue_dependence','early_repeated_rescue']]
+   : [['clarity.method','correct_method_cleanly'],['execution.start','valid_independent_start'],['execution.step_discipline','structure_maintained'],['difficulty.initial_response','controlled_attempt'],['difficulty.first_step_control','controlled_independent_step'],['difficulty.tolerance','holds_and_recovers'],['difficulty.rescue_dependence','no_rescue']])
+   .map(([dimensionId,behaviorId])=>({dimensionId,behaviorId})),
+ }));
+ const selected=selectSandboxDiagnosisOutcome({seed,profileSeed:seed,outcomes,context:{startingPhase:'Clarity',probeId:probe.id,sequenceNumber:1,behaviorModelVersion:2,continuityTags:[marker],developmentTopicKey:'test topic'}});
+ assert.ok(selected.canonicalObservations.some(o=>o.dimensionId==='execution.step_discipline'&&o.behaviorId==='structure_maintained'));
+ assert.ok(selected.canonicalObservations.some(o=>o.dimensionId==='difficulty.tolerance'));
+ assert.ok(selected.canonicalObservations.length<probe.dimensions.length);
+});
+
 test('native Diagnosis establishes the missing profile phases through observed probes',()=>{
  for(const profile of ['reassurance_seeker','pressure_fragile']) {
   const seed=seedFor(profile),history:any[]=[];
@@ -148,7 +164,26 @@ test('native Diagnosis establishes the missing profile phases through observed p
    const probeId=decision.nextProbeId!,probe=DIAGNOSIS_PROBES[probeId];
    const outcomes:SandboxDiagnosisOutcomeDefinition[]=classes.map((cls,index)=>({
     key:`public-contract-${probeId}-${index}`,version:1,probeId,studentBehavior:'Generic public-contract diagnosis.',trajectoryClass:cls,weight:1,simulatedElapsedSeconds:48,
-    canonicalObservations:probe.dimensions.map(d=>({dimensionId:d,behaviorId:DIAGNOSIS_OBSERVATION_MATRIX[d].options.find(o=>o.behaviorClass===cls)!.id})),
+    canonicalObservations:probeId==='stack.challenge_no_timer'
+     ? ({
+        supported:[
+         ['clarity.method','correct_method_cleanly'],['execution.start','valid_independent_start'],['execution.step_discipline','structure_maintained'],
+         ['difficulty.initial_response','controlled_attempt'],['difficulty.first_step_control','controlled_independent_step'],['difficulty.tolerance','holds_and_recovers'],['difficulty.rescue_dependence','no_rescue'],
+        ],
+        near_stable:[
+         ['clarity.method','correct_method_cleanly'],['execution.start','valid_independent_start'],['execution.step_discipline','structure_maintained'],
+         ['difficulty.initial_response','brief_hesitation_then_attempt'],['difficulty.first_step_control','plausible_step_with_uncertainty'],['difficulty.tolerance','holds_with_visible_instability'],['difficulty.rescue_dependence','meaningful_attempt_then_checks'],
+        ],
+        conditional:[
+         ['clarity.method','correct_method_cleanly'],['clarity.reason','clear_reason'],['execution.start','valid_independent_start'],['execution.step_discipline','structure_maintained'],
+         ['difficulty.initial_response','avoidant_hesitation'],['difficulty.tolerance','brief_hold_then_break'],['difficulty.rescue_dependence','early_repeated_rescue'],
+        ],
+        breakdown:[
+         ['clarity.method','correct_method_cleanly'],['execution.start','valid_independent_start'],['execution.step_discipline','material_step_drift'],
+         ['difficulty.first_step_control','unstable_or_guessing_step'],['difficulty.tolerance','exits_difficulty'],['difficulty.rescue_dependence','immediate_rescue'],
+        ],
+       }[cls] as Array<[string,string]>).map(([dimensionId,behaviorId])=>({dimensionId,behaviorId}))
+     : probe.dimensions.map(d=>({dimensionId:d,behaviorId:DIAGNOSIS_OBSERVATION_MATRIX[d].options.find(o=>o.behaviorClass===cls)!.id})),
    }));
    let outcome=selectSandboxDiagnosisOutcome({seed,profileSeed:seed,outcomes,context:{startingPhase:'Clarity',probeId,sequenceNumber:i+1,behaviorModelVersion:2,continuityTags:[marker],developmentTopicKey:'test topic'}});
    // Match the native independent-only protocol: it cannot establish an
