@@ -1511,11 +1511,15 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
               topic,
               startingPhase,
             });
+            const completedSandboxScenarioDimensions = await loadSandboxScenarioReplayDimensions({
+              runId, tutorId, studentId, probeHistory: storedHistory,
+            });
             const storedReplay = replayEvidenceCompleteDiagnosis(
               existingRun.starting_phase,
               storedHistory,
               completedBoundContract?.baselineSeconds ??
                 boundTimingBaselineSeconds(existingRun),
+              { sandboxScenarioDimensions: completedSandboxScenarioDimensions },
             );
             if (storedReplay.ok === false) {
               return res.status(409).json({ message: "Completed diagnosis evidence is internally inconsistent" });
@@ -1556,15 +1560,19 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
             scheduledSessionId: scheduledSessionId!, context: continuationContext,
             historyLength: storedHistoryForReplay.length, decision: prior.decision }, pool);
         }
+        const submittedProbeHistory = req.body?.probeHistory || [];
+        const submittedSandboxScenarioDimensions = await loadSandboxScenarioReplayDimensions({
+          runId, tutorId, studentId, probeHistory: submittedProbeHistory,
+        });
         const replay = replayEvidenceCompleteDiagnosis(
           startingPhase,
-          req.body?.probeHistory || [],
+          submittedProbeHistory,
           diagnosisReplayInheritedBaselineSeconds(runId, preexistingTimingContract?.baselineSourceEpochKey,
             preexistingTimingContract?.baselineSeconds ?? boundTimingBaselineSeconds(existingRun)),
           {
             legacyPrefixLength: continuationContext.legacyPrefixLength,
             sessionStarts: continuationContext.sessions.map(s => s.startProbeIndex),
-            sandboxScenarioDimensions,
+            sandboxScenarioDimensions: submittedSandboxScenarioDimensions,
           },
         );
         if (replay.ok === false) {
