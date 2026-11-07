@@ -640,7 +640,7 @@ export function SandboxReadinessAssessmentCard({
                                       <summary className="cursor-pointer list-none">
                                         <div className="flex flex-wrap items-center justify-between gap-2">
                                           <span className="text-sm font-medium">
-                                            Session {entry.sessionNumber} · {humanize(entry.phase)} · Diagnosis
+                                            {`Session ${entry.sessionNumber} · ${Array.from(new Set(group.runs.map((run) => run.topic).filter(Boolean))).map(humanize).join(", ") || "Topic unavailable"} · ${humanize(entry.phase)} · Diagnosis`}
                                           </span>
                                           <Badge variant="outline">
                                             {group.runs.length} {group.runs.length === 1 ? "diagnosis dossier" : "diagnosis dossiers"}
@@ -758,7 +758,7 @@ export function SandboxReadinessAssessmentCard({
                                   <details key={entry.id} className="rounded-lg border bg-muted/10 p-3">
                                     <summary className="cursor-pointer list-none text-sm font-medium">
                                       <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <span>Session {entry.sessionNumber} · {humanize(session.phase)} · Training{session.topicKey ? " · " + humanize(session.topicKey) : ""}</span>
+                                        <span>{`Session ${entry.sessionNumber} · ${humanize(session.topicKey || "Topic unavailable")} · ${humanize(session.phase)} · Training`}</span>
                                         <Badge variant={session.authorityAligned && session.stateTrackAligned ? "default" : "destructive"}>{session.authorityAligned && session.stateTrackAligned ? "Evidence aligned" : "Review required"}</Badge>
                                       </div>
                                     </summary>
