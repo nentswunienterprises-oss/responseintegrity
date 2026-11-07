@@ -228,6 +228,12 @@ try{
    trajectory_class:"conditional",canonical_observations:observations,
   });
  }
+ await put("public.specialist_sandbox_context_preparation_events",{
+  id:"ci-prep-targeted-rediagnosis",tutor_assignment_id:assignment,tutor_id:tutor,
+  trajectory_id:native.id,student_id:native.student,preparation_context:"targeted_rediagnosis",
+  source_context_id:"ci-rediagnosis-1",phase:"Clarity",topic_key:"synthetic clarity",
+  sequence_number:1,probe_id:"clarity.recognition",recorded_at:stamp(),
+ });
  const development=await project();
  assert.equal(development.status.developmentCoverageReady,true,JSON.stringify(development.status.requirements.filter(r=>!r.met)));
  assert.equal(development.status.qualificationReady,false);
