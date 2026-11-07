@@ -121,6 +121,7 @@ type DiagnosisDossierProbe = {
   }>;
   recordedSupportEvent?: string | null;
   expectedSupportEvent?: string | null;
+  supportEventMatched?: boolean | null;
   conditionConformed?: boolean | null;
   observationExact?: boolean | null;
   matchingObservations?: number | null;
@@ -758,7 +759,12 @@ export function SandboxReadinessAssessmentCard({
                                                                 <p>{observation.behaviorLabel}</p>
                                                               </div>
                                                             ))}
-                                                            <p className="border-t pt-2 text-muted-foreground">Support event: {humanize(probe.recordedSupportEvent || "not recorded")}</p>
+                                                            <div className="border-t pt-2">
+                                                              <div className="flex items-center justify-between gap-2">
+                                                                <p className="text-muted-foreground">Support event: {humanize(probe.recordedSupportEvent || "not recorded")}</p>
+                                                                {probe.supportEventMatched == null ? null : <Badge variant={probe.supportEventMatched ? "default" : "destructive"}>{probe.supportEventMatched ? "Aligned" : "Diverged"}</Badge>}
+                                                              </div>
+                                                            </div>
                                                           </div>
                                                         </div>
                                                         <div className="rounded-md border bg-background p-3">
