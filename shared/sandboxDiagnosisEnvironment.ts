@@ -15,10 +15,7 @@ import {
   type EvidenceCompleteDiagnosisDecision,
   type EvidenceCompleteDiagnosisState,
 } from "./evidenceCompleteDiagnosis";
-import {
-  getDiagnosisObservationOption,
-  DIAGNOSIS_OBSERVATION_MATRIX,
-} from "./diagnosisObservationMatrix";
+import { getDiagnosisObservationOption } from "./diagnosisObservationMatrix";
 import {
   buildPassiveExecutionTimingEvidence,
   buildTimedExecutionEvidence,
