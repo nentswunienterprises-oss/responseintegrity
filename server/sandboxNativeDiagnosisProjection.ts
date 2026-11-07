@@ -15,23 +15,17 @@ export function projectSandboxNativeDiagnosisOutcome(
       ? { ...observation, behaviorId: "not_observed" }
       : { ...observation },
   );
-  // Describe the actual evidence dimension by dimension. A generic claim
-  // about a usable response cannot distinguish a late start, step drift and
-  // reassurance seeking. Private behavior IDs never enter the public story.
-  const details = canonicalObservations.flatMap(observation => {
-    if (independentOnly && (observation.dimensionId === "clarity.vocabulary" ||
-      observation.dimensionId === "clarity.reason")) return [];
-    const option = getDiagnosisObservationOption(observation.dimensionId, observation.behaviorId);
-    if (!option) throw new Error("Native Sandbox response has unknown observation truth.");
-    return [`${DIAGNOSIS_OBSERVATION_MATRIX[observation.dimensionId].label}: ${option.detail}`];
-  });
+  // The authored student narrative is the continuous account of what the
+  // learner did. Do not turn it into a checklist by appending every dimension's
+  // option text: those are structured evidence records, not separate events.
+  // Keep the one protocol-specific clarification where the task genuinely
+  // does not elicit vocabulary or a spoken reason.
   return {
     ...outcome,
     canonicalObservations,
     studentBehavior: [
       outcome.studentBehavior,
       ...(independentOnly ? ["This independent-solving protocol does not ask the student to name the mathematical features or explain why the method fits; neither is established by the working alone."] : []),
-      ...details,
     ].join("\n\n"),
   };
 }
