@@ -10,7 +10,11 @@ import { registerSandboxEnvironmentRoutes } from "./routes/sandboxEnvironment";
 import { registerSpecialistDevelopmentRoutes } from "./routes/specialistDevelopment";
 import { registerCapabilityPracticalEvidenceRoutes } from "./routes/capabilityPracticalEvidence";
 import { registerIssueReportingRoutes } from "./routes/issueReporting";
-import { setupAuth } from "./supabaseAuth";
+import { setupAuth, isAuthenticated } from "./supabaseAuth";
+import { registerExecutiveCommandRhythmRoutes } from "./routes/executiveCommandRhythm";
+import { createConfidentialDownloadHandler } from "./confidentialStorage";
+import { pool } from "./db";
+import { supabase } from "./storage";
 
 let appPromise: Promise<Express> | null = null;
 
@@ -85,6 +89,12 @@ async function initializeApp(): Promise<Express> {
   registerSpecialistDevelopmentRoutes(app);
   registerCapabilityPracticalEvidenceRoutes(app);
   registerIssueReportingRoutes(app);
+  registerExecutiveCommandRhythmRoutes(app, isAuthenticated);
+  app.get("/api/confidential-file", isAuthenticated, createConfidentialDownloadHandler({
+    query: (sql, values) => pool.query(sql, values),
+    client: supabase,
+    supabaseUrl: String(process.env.SUPABASE_URL || ""),
+  }));
   await registerRoutes(app);
 
   app.use((req, res) => {
