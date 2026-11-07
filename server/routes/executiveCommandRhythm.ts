@@ -1484,6 +1484,13 @@ export function registerExecutiveCommandRhythmRoutes(app: Express, isAuthenticat
         if (!task) {
           return res.status(404).json({ message: "Task not found" });
         }
+        const canSubmitTask =
+          currentUser.role === "coo" ||
+          task.ownerUserId === currentUser.id ||
+          task.supportingUserIds.includes(currentUser.id);
+        if (!canSubmitTask) {
+          return res.status(403).json({ message: "You are not assigned to this task" });
+        }
 
         const parsed = executiveProofSchema.parse(req.body || {});
         let persistedProofUrl = "";
