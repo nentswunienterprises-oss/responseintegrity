@@ -81,7 +81,7 @@ UPDATE tutor_assignments SET pod_id='pod';
 ALTER TABLE students ADD COLUMN name text, ADD COLUMN parent_contact text, ADD COLUMN parent_enrollment_id uuid, ADD COLUMN session_progress integer DEFAULT 0;
 ALTER TABLE intro_session_drills ADD COLUMN tutor_id text, ADD COLUMN submitted_at timestamptz DEFAULT now();
 ALTER TABLE onboarding_proposals ADD COLUMN primary_identity text, ADD COLUMN math_relationship text, ADD COLUMN confidence_triggers text,
- ADD COLUMN confidence_killers text, ADD COLUMN pressure_response text, ADD COLUMN growth_drivers text, ADD COLUMN current_topics jsonb,
+ ADD COLUMN confidence_killers text, ADD COLUMN pressure_response text, ADD COLUMN growth_drivers text, ADD COLUMN current_topics text,
  ADD COLUMN immediate_struggles text, ADD COLUMN gaps_identified text, ADD COLUMN tutor_notes text, ADD COLUMN future_identity text,
  ADD COLUMN want_to_remembered text, ADD COLUMN hidden_motivations text, ADD COLUMN internal_conflict text, ADD COLUMN recommended_plan text,
  ADD COLUMN justification text, ADD COLUMN child_will_win text, ADD COLUMN specialist_per_session_amount numeric, ADD COLUMN platform_per_session_amount numeric,
