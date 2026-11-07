@@ -11,7 +11,7 @@ test("actual executive file route denies unappointed/cross-task actors and never
   const {supabase}=await import("./storage");
   const {registerExecutiveCommandRhythmRoutes}=await import("./routes/executiveCommandRhythm");
   const originalQuery=pool.query, originalFrom=supabase.from,originalStorage=supabase.storage;
-  let downloads=0,publicCalls=0;
+  let downloads=0,publicCalls=0,insertedProof:any=null;
   const users=[["owner","cto"],["other","cmo"],["supporter","hr"],["reviewer","coo"]].map(([id,role])=>({id,role,name:"Synthetic",email:id+"@example.invalid"}));
   (pool as any).query=async(sql:string)=>({rows:sql.includes("executive_role_appointments")
     ? users.map(u=>({id:u.id,role:u.role,appointed_user_id:u.id}))
@@ -20,15 +20,23 @@ test("actual executive file route denies unappointed/cross-task actors and never
     const filters:Record<string,string>={};
     const chain:any={
       select:()=>chain,eq:(key:string,value:string)=>{filters[key]=value;return chain;},
+      insert:(row:any)=>{insertedProof=row;return chain;},
+      update:()=>chain,
+      single:async()=>({error:null,data:{id:"proof-uploaded",...insertedProof}}),
+      then:(resolve:any)=>resolve({error:null,data:null}),
       maybeSingle:async()=>({error:null,data:table==="executive_command_tasks"
         ? (filters.id==="task-a"?{id:"task-a",owner_user_id:"owner",supporting_user_ids:["supporter"]}:null)
         : (filters.task_id==="task-a" && filters.id==="proof-a"?{proof_type:"doc",proof_url:"ri-storage://executive-task-proofs/task-proofs/task-a/fictional.pdf"}:null)}),
     };return chain;
   };
-  (supabase as any).storage={from:()=>({
-    download:async()=>{downloads++;return {data:new Blob(["fictional-proof"],{type:"application/pdf"}),error:null};},
-    getPublicUrl:()=>{publicCalls++;throw new Error("Forbidden public URL");},
-  })};
+  (supabase as any).storage={
+    getBucket:async()=>({data:{public:false},error:null}),
+    from:()=>({
+      upload:async()=>({error:null}),
+      download:async()=>{downloads++;return {data:new Blob(["fictional-proof"],{type:"application/pdf"}),error:null};},
+      getPublicUrl:()=>{publicCalls++;throw new Error("Forbidden public URL");},
+    }),
+  };
   const app=express();app.use(express.json());
   registerExecutiveCommandRhythmRoutes(app,(req,res,next)=>{
     if (!req.headers["x-fixture-id"]) {res.status(401).end();return;}
@@ -54,6 +62,9 @@ test("actual executive file route denies unappointed/cross-task actors and never
     }
     const deniedUpload=await fetch(origin+"/api/executive/command-rhythm/tasks/task-a/proofs",{method:"POST",headers:{"content-type":"application/json","x-fixture-id":"other","x-fixture-role":"cmo"},body:JSON.stringify({proofType:"doc",label:"Synthetic"})});
     assert.equal(deniedUpload.status,403);
+    const authorizedUpload=await fetch(origin+"/api/executive/command-rhythm/tasks/task-a/proofs",{method:"POST",headers:{"content-type":"application/json","x-fixture-id":"owner","x-fixture-role":"cto"},body:JSON.stringify({proofType:"doc",label:"Synthetic proof",fileData:"ZmljdGlvbmFs",fileName:"proof.pdf",contentType:"application/pdf"})});
+    assert.equal(authorizedUpload.status,200);
+    assert.match(String(insertedProof?.proof_url),/^ri-storage:\/\/executive-task-proofs\/task-proofs\/task-a\//);
     assert.equal(publicCalls,0);
   } finally {
     await new Promise<void>(resolve=>server.close(()=>resolve()));
