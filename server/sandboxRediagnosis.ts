@@ -800,6 +800,13 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
       probeId,
       behavior: selected.studentBehavior,
     }),
+    observedDimensions: selected.canonicalObservations
+      .map((observation) => observation.dimensionId)
+      .filter(
+        (dimensionId) =>
+          input.scope === "diagnosis" ||
+          DIAGNOSIS_OBSERVATION_MATRIX[dimensionId].phase === input.startingPhase,
+      ),
     simulatedElapsedSeconds: selected.simulatedElapsedSeconds,
     timerAuthority: timerContract
       ? {
