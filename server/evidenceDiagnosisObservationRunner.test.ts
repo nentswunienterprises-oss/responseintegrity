@@ -14,7 +14,7 @@ test("diagnosis opportunity presents behavioral observations one at a time", () 
   );
   assert.match(
     runnerSource,
-    /currentProbe\?\.dimensions\[activeObservationIndex\]/,
+    /currentProbeDimensions\[activeObservationIndex\]/,
   );
   assert.match(runnerSource, /activeDimension\.options\.map/);
   assert.doesNotMatch(runnerSource, /activeLayer\.dimensions\.map/);
