@@ -552,7 +552,10 @@ async function plan(input: {
   };
 }
 
-function projectProbe(probeId: DiagnosisProbeId) {
+function projectProbe(
+  probeId: DiagnosisProbeId,
+  observedDimensionIds: DiagnosisDimensionId[] = DIAGNOSIS_PROBES[probeId].dimensions,
+) {
   const probe = DIAGNOSIS_PROBES[probeId];
   return {
     probeId,
@@ -561,7 +564,7 @@ function projectProbe(probeId: DiagnosisProbeId) {
     evidenceQuestion: probe.evidenceQuestion,
     specialistInstruction: probe.specialistInstruction,
     constraints: { ...probe.constraints },
-    fields: probe.dimensions.map((dimensionId) => {
+    fields: observedDimensionIds.map((dimensionId) => {
       const dimension = DIAGNOSIS_OBSERVATION_MATRIX[dimensionId];
       return {
         dimensionId,
@@ -1103,7 +1106,10 @@ export async function prepareSandboxRediagnosis(input: {
     sequenceNumber: planned.sequenceNumber,
     turnFormId: planned.turnFormId,
     probe: {
-      ...projectProbe(planned.canonicalDecision.nextProbeId!),
+      ...projectProbe(
+        planned.canonicalDecision.nextProbeId!,
+        planned.selected.canonicalObservations.map((observation) => observation.dimensionId),
+      ),
       studentBehavior: planned.selected.studentBehavior,
     },
     studentStateAuthoritative: false as const,
@@ -1140,15 +1146,18 @@ export async function submitSandboxRediagnosisProbe(input: {
     throw httpError(400, "Submitted diagnosis probe does not match the prescribed RI probe.");
   }
 
-  const probe = DIAGNOSIS_PROBES[input.submission.probeId];
+  const expectedDimensionIds = planned.selected.canonicalObservations.map(
+    (observation) => observation.dimensionId,
+  );
   const submittedDimensions = new Set(
     input.submission.observations.map((item) => item.dimensionId),
   );
   if (
-    submittedDimensions.size !== probe.dimensions.length ||
-    probe.dimensions.some((dimensionId) => !submittedDimensions.has(dimensionId))
+    submittedDimensions.size !== expectedDimensionIds.length ||
+    expectedDimensionIds.some((dimensionId) => !submittedDimensions.has(dimensionId)) ||
+    [...submittedDimensions].some((dimensionId) => !expectedDimensionIds.includes(dimensionId))
   ) {
-    throw httpError(400, "Sandbox targeted diagnosis must record every prescribed behavior dimension.");
+    throw httpError(400, "Sandbox targeted diagnosis must record exactly the behaviors exposed by this simulated response.");
   }
 
   const timingBaselineSeconds =
