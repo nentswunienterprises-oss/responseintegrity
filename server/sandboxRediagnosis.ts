@@ -5,6 +5,7 @@ import { loadTutorOperationalModeAuthority } from "./tutorOperationalModeAuthori
 import {
   DIAGNOSIS_PROBES,
   evaluateEvidenceCompleteDiagnosis,
+  type DiagnosisDimensionId,
   type DiagnosisProbeId,
   type DiagnosisProbeResult,
   type DiagnosisSupportEvent,
@@ -863,15 +864,13 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
   // Handover observes only its own phase, and only dimensions actually
   // created by the prescribed probe. In particular, an immediate execution
   // probe does NOT establish repeatability from a missing second opportunity.
-  const prescribedDimensions =
-    DIAGNOSIS_PROBES[prepared.probeId as DiagnosisProbeId].dimensions;
-  const expectedDimensionIds =
-    input.scope === "diagnosis"
-      ? prescribedDimensions
-      : prescribedDimensions.filter(
-          (dimensionId) =>
-            DIAGNOSIS_OBSERVATION_MATRIX[dimensionId].phase === input.startingPhase,
-        );
+  const expectedDimensionIds = selected.canonicalObservations
+    .map((observation) => observation.dimensionId)
+    .filter(
+      (dimensionId) =>
+        input.scope === "diagnosis" ||
+        DIAGNOSIS_OBSERVATION_MATRIX[dimensionId].phase === input.startingPhase,
+    );
 
   const submitted = new Map(
     input.observations.map((item) => [
