@@ -142,7 +142,7 @@ try{
  // A second clean linked development lesson supplies actual temporal continuity.
  await session(trajectories[0],"Clarity",2,true);
  const native=trajectories[0];
- const native=trajectories[0];
+
  const probeByPhase:Record<string,string>={
   "Clarity":"clarity.recognition",
   "Structured Execution":"stack.normal_independent",
