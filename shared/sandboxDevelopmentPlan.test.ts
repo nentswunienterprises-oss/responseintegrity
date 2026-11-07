@@ -183,7 +183,10 @@ test('native Diagnosis establishes the missing profile phases through observed p
          ['difficulty.first_step_control','unstable_or_guessing_step'],['difficulty.tolerance','exits_difficulty'],['difficulty.rescue_dependence','immediate_rescue'],
         ],
        }[cls] as Array<[string,string]>).map(([dimensionId,behaviorId])=>({dimensionId,behaviorId}))
-     : probe.dimensions.map(d=>({dimensionId:d,behaviorId:DIAGNOSIS_OBSERVATION_MATRIX[d].options.find(o=>o.behaviorClass===cls)!.id})),
+     : probe.dimensions.map(d=>{
+        const observedClass=DIAGNOSIS_OBSERVATION_MATRIX[d].phase===probe.primaryPhase?cls:'supported';
+        return {dimensionId:d,behaviorId:DIAGNOSIS_OBSERVATION_MATRIX[d].options.find(o=>o.behaviorClass===observedClass)!.id};
+       }),
    }));
    let outcome=selectSandboxDiagnosisOutcome({seed,profileSeed:seed,outcomes,context:{startingPhase:'Clarity',probeId,sequenceNumber:i+1,behaviorModelVersion:2,continuityTags:[marker],developmentTopicKey:'test topic'}});
    // Match the native independent-only protocol: it cannot establish an
