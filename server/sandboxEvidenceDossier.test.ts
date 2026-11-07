@@ -28,7 +28,7 @@ before(async () => {
     CREATE TABLE private.specialist_sandbox_live_evidence_truth (
       event_id text, canonical_observations jsonb, actual_support_event text);
     CREATE TABLE public.specialist_sandbox_rep_events (
-      id text, tutor_assignment_id text, tutor_id text, event_sequence int,
+      id text, tutor_assignment_id text, tutor_id text, student_id text, event_sequence int,
       session_number int, phase text, topic_key text, set_id text, rep_number int,
       student_behavior text, specialist_submission jsonb, condition_kept boolean,
       total_observations int, matching_observations int, observation_exact boolean,
@@ -38,7 +38,7 @@ before(async () => {
       canonical_observations jsonb, canonical_prerequisite_sentinel text,
       canonical_inherited_rescue_signal text, actual_intervention_event text);
     CREATE TABLE public.specialist_sandbox_session_evaluations (
-      id text, tutor_assignment_id text, tutor_id text, session_number int,
+      id text, tutor_assignment_id text, tutor_id text, student_id text, session_number int,
       phase text, topic_key text, authority_aligned boolean, state_track_aligned boolean,
       state_change_observed boolean, specialist_authority jsonb, completed_at timestamptz DEFAULT now());
     CREATE TABLE private.specialist_sandbox_session_truth (session_evaluation_id text, canonical_authority jsonb);
@@ -74,19 +74,19 @@ before(async () => {
         '[{"dimensionId":"execution.start","behaviorId":"valid_independent_start"}]'::jsonb,
         'none');
     INSERT INTO specialist_sandbox_rep_events
-      (id,tutor_assignment_id,tutor_id,event_sequence,session_number,phase,set_id,rep_number,
+      (id,tutor_assignment_id,tutor_id,student_id,event_sequence,session_number,phase,set_id,rep_number,
        student_behavior,specialist_submission,condition_kept,total_observations,matching_observations,observation_exact,evidence_exact)
     VALUES
-      ('rep-a','a','specialist',1,1,'Clarity','set-1',1,'Independent response',
+      ('rep-a','a','specialist','student-a',1,1,'Clarity','set-1',1,'Independent response',
        '{"observations":{"step":{"optionId":"wrong"}}}',true,1,0,false,true),
-      ('missing-truth','a','specialist',2,1,'Clarity','set-1',2,'Response recorded','{}',null,1,1,true,true),
-      ('foreign-rep','b','other',1,1,'Clarity','set-1',1,'FOREIGN SECRET','{}',true,1,1,true,true);
+      ('missing-truth','a','specialist','student-a',2,1,'Clarity','set-1',2,'Response recorded','{}',null,1,1,true,true),
+      ('foreign-rep','b','other','student-a',1,1,'Clarity','set-1',1,'FOREIGN SECRET','{}',true,1,1,true,true);
     INSERT INTO private.specialist_sandbox_rep_event_truth (event_id,canonical_observations)
     VALUES ('rep-a','{"step":{"optionId":"correct","evidenceStatus":"observed"}}'),
       ('foreign-rep','{"secret":"FOREIGN SECRET"}'), ('future-event','{"secret":"FUTURE ANSWER"}');
     INSERT INTO specialist_sandbox_session_evaluations
-      (id,tutor_assignment_id,tutor_id,session_number,phase,authority_aligned,state_track_aligned,specialist_authority)
-    VALUES ('session-a','a','specialist',1,'Clarity',false,false,'{"phase":"SE"}');
+      (id,tutor_assignment_id,tutor_id,student_id,session_number,phase,authority_aligned,state_track_aligned,specialist_authority)
+    VALUES ('session-a','a','specialist','student-a',1,'Clarity',false,false,'{"phase":"SE"}');
     INSERT INTO private.specialist_sandbox_session_truth VALUES ('session-a','{"phase":"Clarity"}');
   `);
 });
