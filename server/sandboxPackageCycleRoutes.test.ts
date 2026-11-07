@@ -101,7 +101,12 @@ test("Preview fixture retains the simulated cycle and does not grant another mon
   assert.ok(preview.includes('const evidenceUpperBoundIso = "9999-12-31T23:59:59.999Z"'));
   assert.ok(preview.includes("loadUsageEvents(parentId, studentId, startIso, evidenceUpperBoundIso)"));
   assert.ok(preview.includes("deriveSyntheticRenewalBoundary(usageEvents, intendedUsed, nowIso)"));
-  assert.ok(preview.includes('student_id.eq.${studentId},enrollment_id.eq.${enrollmentId}'));
+  const usageLoader = preview.slice(
+    preview.indexOf("async function loadUsageEvents("),
+    preview.indexOf("async function upsertSyntheticPaidPayment("),
+  );
+  assert.match(usageLoader, /\.eq\("student_id", studentId\)/);
+  assert.match(usageLoader, /\.eq\("parent_id", parentId\)/);
   assert.ok(preview.includes('normalize(process.env.VERCEL_ENV) !== "preview"'));
 
 });
