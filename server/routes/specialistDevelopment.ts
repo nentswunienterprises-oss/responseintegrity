@@ -499,6 +499,16 @@ async function loadCapabilityInspectionAttempts(tutorId: string, assessmentKey: 
           ? parseStoredJson(item?.correct_option_keys).map((key: unknown) => String(key))
           : []);
       const labels = (keys: string[]) => keys.map((key) => options.find((option) => option.key === key)?.label || key);
+      const optionFeedback = parseStoredJson(item?.option_feedback);
+      const optionReview = options.map((option) => ({
+        key: option.key,
+        label: option.label,
+        selected: selectedOptionKeys.includes(option.key),
+        correct: correctOptionKeys.includes(option.key),
+        feedback: optionFeedback && typeof optionFeedback === "object"
+          ? String((optionFeedback as Record<string, unknown>)[option.key] || "")
+          : "",
+      }));
       return {
         questionKey,
         prompt: String(item?.prompt || ""),
@@ -507,10 +517,14 @@ async function loadCapabilityInspectionAttempts(tutorId: string, assessmentKey: 
         selectedOptions: labels(selectedOptionKeys),
         correctOptionKeys,
         correctOptions: labels(correctOptionKeys),
+        optionReview,
         correct: Boolean(result.correct),
         criticalFail: Boolean(result.criticalFail),
         explanation: String(result.explanation || item?.explanation || ""),
-        feedback: String(item?.option_feedback?.[selectedOptionKeys[0]] || ""),
+        feedback: selectedOptionKeys
+          .map((key) => optionReview.find((option) => option.key === key)?.feedback)
+          .filter(Boolean)
+          .join(" "),
       };
     });
     attempts.push({

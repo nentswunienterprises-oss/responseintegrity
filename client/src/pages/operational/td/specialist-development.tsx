@@ -65,6 +65,13 @@ type CapabilityInspectionAttempt = {
     questionKind: string;
     selectedOptions: string[];
     correctOptions: string[];
+    optionReview: Array<{
+      key: string;
+      label: string;
+      selected: boolean;
+      correct: boolean;
+      feedback: string;
+    }>;
     correct: boolean;
     criticalFail: boolean;
     explanation: string;
@@ -680,8 +687,29 @@ export default function SpecialistDevelopmentRecordPage() {
                         <div key={question.questionKey} className="rounded-md border bg-muted/10 p-3">
                           <div className="flex items-start justify-between gap-3"><p className="text-sm font-medium">Question {index + 1}</p><Badge variant={question.correct ? "default" : "destructive"}>{question.correct ? "Correct" : question.criticalFail ? "Critical fail" : "Incorrect"}</Badge></div>
                           <p className="mt-2 text-sm">{question.prompt || question.questionKey}</p>
-                          <div className="mt-3 grid gap-3 md:grid-cols-2"><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Specialist response</p><p className="mt-1 text-sm">{question.selectedOptions.join(", ") || "No recorded selection"}</p></div><div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Expected response</p><p className="mt-1 text-sm">{question.correctOptions.join(", ") || "Not available"}</p></div></div>
-                          {question.feedback || question.explanation ? <p className="mt-3 text-xs text-muted-foreground">{question.feedback || question.explanation}</p> : null}
+                          <div className="mt-3 space-y-2">
+                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Option-by-option review</p>
+                            {question.optionReview?.length ? question.optionReview.map((option) => {
+                              const status = option.selected
+                                ? option.correct ? "Selected · correct" : "Selected · incorrect"
+                                : option.correct ? "Correct · missed" : "Not required";
+                              return (
+                                <div key={option.key} className="flex flex-col gap-1 rounded-md border p-2 sm:flex-row sm:items-start sm:justify-between">
+                                  <p className="min-w-0 flex-1 text-sm">{option.label}</p>
+                                  <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
+                                    <Badge variant={option.selected && !option.correct ? "destructive" : option.correct ? "default" : "outline"}>{status}</Badge>
+                                    {option.feedback ? <p className="max-w-md text-xs text-muted-foreground sm:text-right">{option.feedback}</p> : null}
+                                  </div>
+                                </div>
+                              );
+                            }) : (
+                              <div className="grid gap-3 md:grid-cols-2">
+                                <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Specialist response</p><p className="mt-1 text-sm">{question.selectedOptions.join(", ") || "No recorded selection"}</p></div>
+                                <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Expected response</p><p className="mt-1 text-sm">{question.correctOptions.join(", ") || "Not available"}</p></div>
+                              </div>
+                            )}
+                          </div>
+                          {question.explanation ? <p className="mt-3 text-xs text-muted-foreground">{question.explanation}</p> : null}
                         </div>
                       ))}
                     </div>
