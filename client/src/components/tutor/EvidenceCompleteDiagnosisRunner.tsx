@@ -660,9 +660,10 @@ export default function EvidenceCompleteDiagnosisRunner() {
 
   const currentProbe = apiState?.nextProbe || null;
   const currentProbeDimensions = currentProbe
-    ? runtimeAuthority?.operationalMode === "sandbox" &&
-      sandboxSimulation?.probeId === currentProbe.id
-      ? sandboxSimulation.observedDimensions
+    ? runtimeAuthority?.operationalMode === "sandbox"
+      ? sandboxSimulation?.probeId === currentProbe.id
+        ? sandboxSimulation.observedDimensions
+        : []
       : currentProbe.dimensions
     : [];
   const executionProtocol = currentProbe
@@ -719,7 +720,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
     currentTimingMode === "timed" && prescribedSeconds > 0
       ? Math.ceil(timedRemainingMs / 1000)
       : null;
-  const allDimensionsComplete = currentProbe
+  const allDimensionsComplete = currentProbe && currentProbeDimensions.length > 0
     ? currentProbeDimensions.every((dimensionId) => !!observations[dimensionId])
     : false;
 
