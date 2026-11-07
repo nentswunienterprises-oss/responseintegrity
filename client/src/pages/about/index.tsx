@@ -82,7 +82,7 @@ export default function AboutIndex() {
                   className="mt-8 w-full rounded-full border-[#1A1A1A] text-[#1A1A1A] bg-[#FCF6F2]"
                   onClick={() => navigate(buildTrackedPath(item.href, location.search, trackedNavigationParams))}
                 >
-                  `Read ${item.title}`
+                  {`Read ${item.title}`}
                 </Button>
               </CardContent>
             </Card>
