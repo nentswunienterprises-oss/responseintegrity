@@ -553,12 +553,12 @@ export function SandboxReadinessAssessmentCard({
             {showDossier && !dossierLoading && !dossierError && dossier ? (
               <div className="space-y-4 max-h-[700px] overflow-y-auto">
                 <div className="rounded-lg border bg-muted/20 px-3 py-3 text-xs text-muted-foreground">
-                  Completed Sandbox sessions and rep evidence are shown below. Open a session to review its sets and reps.
+                  Completed Sandbox sessions, rep evidence, and diagnosis history are shown below. Open a student to review their session and probe dossiers.
                 </div>
                 <section className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Assigned students</p>
-                    <Badge variant="outline">{new Set([...dossier.sessions.map((session) => session.studentId), ...dossier.diagnosisRuns.map((run) => run.studentId)]).size} students · {dossier.sessions.length} Sandbox sessions · {dossier.reps.length} reps · {dossier.diagnosisRuns.length} diagnosis runs</Badge>
+                    <Badge variant="outline">{dossier.students.length} students · {dossier.sessions.length} Sandbox sessions · {dossier.reps.length} reps · {dossier.diagnosisRuns.length} diagnosis runs</Badge>
                   </div>
                   {(() => {
                     const byId = new Map<string, any>(
