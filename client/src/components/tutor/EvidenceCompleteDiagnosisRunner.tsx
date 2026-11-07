@@ -737,7 +737,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
           DIAGNOSIS_OBSERVATION_MATRIX[dimensionId].phase === phase,
       ),
     })).filter((group) => group.dimensions.length > 0);
-  }, [currentProbe]);
+  }, [currentProbe, currentProbeDimensions]);
 
   const activeDimensionId =
     currentProbeDimensions[activeObservationIndex] || null;
