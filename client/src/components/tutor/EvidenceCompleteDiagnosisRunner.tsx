@@ -190,8 +190,22 @@ export default function EvidenceCompleteDiagnosisRunner() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const topic = String(searchParams.get("topic") || "").trim();
+  const requestedTopic = String(searchParams.get("topic") || "").trim();
   const requestedTopicIndex = Math.max(0, Number(searchParams.get("topicIndex") || 0));
+  const diagnosisTopics = (() => {
+    const raw = String(searchParams.get("topics") || "").trim();
+    if (!raw) return requestedTopic ? [requestedTopic] : [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return Array.from(new Set(parsed.map((value) => String(value || "").trim()).filter(Boolean))).slice(0, 2);
+      }
+    } catch {
+      // Older launch links may encode the selected topics as a comma-separated list.
+    }
+    return Array.from(new Set(raw.split(",").map((value) => value.trim()).filter(Boolean))).slice(0, 2);
+  })();
+  const topic = diagnosisTopics[requestedTopicIndex] || requestedTopic;
   const requestedContext = String(
     searchParams.get("sessionContextKind") || searchParams.get("context") || "intro",
   ).trim().toLowerCase();
@@ -1525,9 +1539,29 @@ export default function EvidenceCompleteDiagnosisRunner() {
             <button
               type="button"
               className="mt-6 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"
-              onClick={() => navigate("/specialist/pod")}
+              onClick={() => {
+                const nextTopicIndex = requestedTopicIndex + 1;
+                if (
+                  sessionContextKind === "intro" &&
+                  diagnosisTopics.length === 2 &&
+                  nextTopicIndex < diagnosisTopics.length
+                ) {
+                  const nextParams = new URLSearchParams(searchParams);
+                  nextParams.set("topic", diagnosisTopics[nextTopicIndex]);
+                  nextParams.set("topicIndex", String(nextTopicIndex));
+                  const nextPhase = topicStartingPhases[nextTopicIndex];
+                  if (nextPhase) nextParams.set("phase", nextPhase);
+                  navigate(window.location.pathname + "?" + nextParams.toString(), { replace: true });
+                  return;
+                }
+                navigate("/specialist/pod");
+              }}
             >
-              Back to Pod
+              {sessionContextKind === "intro" &&
+              diagnosisTopics.length === 2 &&
+              requestedTopicIndex === 0
+                ? "Continue to second topic"
+                : "Back to Pod"}
             </button>
           </section>
         ) : blocked && decision ? (
