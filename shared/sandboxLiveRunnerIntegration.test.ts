@@ -853,12 +853,13 @@ test("Sandbox history stays separate from the current package balance in the stu
 
 test("required re-diagnosis launches the owner of the active operational lane", () => {
   assert.match(topicMapSource, /\/specialist\/intro-session\/\$\{studentId\}\?topic=\$\{topicParam\}&phase=\$\{rediagnosisPhaseParam\}&stability=\$\{stabilityParam\}&context=training&rediagnosis=1/);
-  assert.match(sandboxAuthoritySource, /export async function armSandboxTimingRediagnosis/);
-  assert.match(sandboxAuthoritySource, /loadLatestTpsTimerContract/);
+  assert.match(sandboxRouteSource, /prepareSandboxRediagnosis/);
+  assert.match(sandboxRouteSource, /continueSandboxDiagnosis/);
+  assert.match(sandboxRouteSource, /submitSandboxRediagnosisProbe/);
   assert.match(
-    sandboxAuthoritySource,
+    sandboxRediagnosisSource,
     /specialist_sandbox_rediagnosis_runs[\s\S]*status='completed'[\s\S]*deriveDiagnosisTpsTimerContract[\s\S]*persistTpsTimerContract/,
-    "a completed clean re-diagnosis repairs its missing timer lineage instead of opening another episode",
+    "a completed clean re-diagnosis persists its timer lineage in the rediagnosis authority",
   );
   assert.match(
     sandboxRediagnosisSource,
