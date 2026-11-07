@@ -786,9 +786,10 @@ test("Sandbox V2 Diagnosis and Handover POST compare the exact visible profile-w
     assert.match(body, /profileSeed: truth\.trajectory_seed/);
     assert.match(body, /behaviorModelVersion: truth\.behavior_model_version/);
   }
-  assert.match(submit,/const prescribedDimensions =\s*DIAGNOSIS_PROBES\[prepared\.probeId as DiagnosisProbeId\]\.dimensions/);
-  assert.match(submit,/prescribedDimensions\.filter\(/);
+  assert.match(submit,/const expectedDimensionIds = selected\.canonicalObservations/);
+  assert.match(submit,/input\.scope === "diagnosis" \|\|/);
   assert.match(submit,/DIAGNOSIS_OBSERVATION_MATRIX\[dimensionId\]\.phase === input\.startingPhase/);
+  assert.doesNotMatch(submit,/const prescribedDimensions =\s*DIAGNOSIS_PROBES/);
   assert.ok(!submit.includes(".filter((dimension) => dimension.phase === input.startingPhase)"),
     "A single Handover observation cannot certify repeatability without a repeat opportunity");
 });
