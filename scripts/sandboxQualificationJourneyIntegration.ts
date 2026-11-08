@@ -50,6 +50,7 @@ const tables=[
  ["private.specialist_sandbox_rep_event_truth","event_id varchar PRIMARY KEY,outcome_ref varchar,outcome_key varchar,outcome_version int,trajectory_class varchar,canonical_observations jsonb,canonical_prerequisite_sentinel varchar,canonical_inherited_rescue_signal varchar,bank_version int"],
  ["public.specialist_sandbox_session_evaluations","id varchar PRIMARY KEY,tutor_assignment_id varchar,tutor_id varchar,trajectory_id varchar,student_id varchar,session_number int,phase varchar,topic_key varchar,authority_aligned boolean,state_track_aligned boolean,student_breakdown_recovery_observed boolean,state_change_observed boolean,specialist_authority jsonb,completed_at timestamptz"],
  ["private.specialist_sandbox_session_truth","session_evaluation_id varchar PRIMARY KEY,canonical_authority jsonb"],
+ ["public.specialist_sandbox_context_preparation_events","id varchar PRIMARY KEY,tutor_assignment_id varchar,tutor_id varchar,trajectory_id varchar,student_id varchar,preparation_context varchar,source_context_id varchar,phase varchar,topic_key varchar,sequence_number integer,probe_id varchar,plan_fingerprint varchar,recorded_at timestamptz"],
  ["public.specialist_sandbox_rediagnosis_runs","id varchar PRIMARY KEY,status varchar,specialist_decision jsonb"],
  ["private.specialist_sandbox_rediagnosis_truth","rediagnosis_run_id varchar PRIMARY KEY,canonical_decision jsonb"],
  ["public.specialist_sandbox_rediagnosis_turns","id varchar PRIMARY KEY,tutor_assignment_id varchar,tutor_id varchar,trajectory_id varchar,student_id varchar,rediagnosis_run_id varchar,phase varchar,probe_id varchar,student_behavior text,condition_conformed boolean,observation_exact boolean,authority_aligned boolean,completed_at timestamptz"],
@@ -141,36 +142,77 @@ try{
  // A second clean linked development lesson supplies actual temporal continuity.
  await session(trajectories[0],"Clarity",2,true);
  const native=trajectories[0];
- const dimension=Object.keys(DIAGNOSIS_OBSERVATION_MATRIX).find(k=>DIAGNOSIS_OBSERVATION_MATRIX[k as keyof typeof DIAGNOSIS_OBSERVATION_MATRIX].phase==="Clarity")!;
- const def=DIAGNOSIS_OBSERVATION_MATRIX[dimension as keyof typeof DIAGNOSIS_OBSERVATION_MATRIX];
- const choice=def.options[0];
- const observations=[{dimensionId:dimension,behaviorId:choice.id}];
- for(const scope of ["diagnosis","handover"]){
-  const source="ci-native-"+scope;
-  if(scope==="diagnosis")await put("public.response_integrity_diagnosis_runs",{
+
+ const probeByPhase:Record<string,string>={
+  "Clarity":"clarity.recognition",
+  "Structured Execution":"stack.normal_independent",
+  "Controlled Discomfort":"stack.challenge_no_timer",
+  "Time Pressure Stability":"time.consistency",
+ };
+ const diagnosisFixtureByPhase=new Map<string,{dimension:string;choice:{id:string;label:string}}>();
+ for(const phase of phases){
+  const dimension=Object.keys(DIAGNOSIS_OBSERVATION_MATRIX).find(k=>
+   DIAGNOSIS_OBSERVATION_MATRIX[k as keyof typeof DIAGNOSIS_OBSERVATION_MATRIX].phase===phase
+  )!;
+  const def=DIAGNOSIS_OBSERVATION_MATRIX[dimension as keyof typeof DIAGNOSIS_OBSERVATION_MATRIX];
+  const choice=def.options[0];
+  const observations=[{dimensionId:dimension,behaviorId:choice.id}];
+  const probeId=probeByPhase[phase];
+  const source="ci-native-diagnosis-"+phase.toLowerCase().replace(/[^a-z]+/g,"-");
+  await put("public.response_integrity_diagnosis_runs",{
    id:source,tutor_id:tutor,student_id:native.student,status:"completed",session_context:"intro",
-   probe_history:[{probeId:"clarity.recognition",observations,supportEvent:"none"}],
+   probe_history:[{probeId,observations,supportEvent:"none"}],
   });
-  else await put("public.scheduled_sessions",{id:source,tutor_id:tutor,student_id:native.student,type:"handover",status:"completed"});
-  const id="ci-cross-"+scope;
+  const id="ci-cross-diagnosis-"+phase.toLowerCase().replace(/[^a-z]+/g,"-");
   await put("public.specialist_sandbox_live_evidence_turns",{
    id,tutor_assignment_id:assignment,tutor_id:tutor,trajectory_id:native.id,student_id:native.student,
-   scope,source_context_id:source,form_id:"form-"+scope,sequence_number:1,phase:"Clarity",
-   probe_id:"clarity.recognition",bank_version:1,behavior_model_version:2,
+   scope:"diagnosis",source_context_id:source,form_id:"form-"+phase,sequence_number:1,phase,
+   probe_id:probeId,bank_version:1,behavior_model_version:2,
    student_behavior:"Explicit synthetic native-source fixture",specialist_submission:{supportEvent:"none",observations},
    condition_conformed:true,observation_exact:true,matching_observations:1,total_observations:1,completed_at:stamp(),
   });
   await put("private.specialist_sandbox_live_evidence_truth",{
-   event_id:id,outcome_ref:"ci-ref-"+scope,outcome_key:"ci."+scope+".pattern_3",outcome_version:1,
+   event_id:id,outcome_ref:"ci-ref-"+phase,outcome_key:"ci.diagnosis.pattern_3",outcome_version:1,
    canonical_observations:observations,trajectory_class:"conditional",actual_support_event:"none",
   });
-  if(scope==="handover")await put("public.intro_session_drills",{
-   id:"ci-native-handover-drill",tutor_id:tutor,student_id:native.student,scheduled_session_id:source,
-   drill:{drillType:"handover_verification",handoverMode:"verification",phase:"Clarity",
-    sets:[{observations:[{observation_dimension_id:dimension,observation_option_id:choice.id,observation:choice.label}]}]},
-   submitted_at:stamp(),
+  await put("public.specialist_sandbox_context_preparation_events",{
+   id:"ci-prep-diagnosis-"+phase.toLowerCase().replace(/[^a-z]+/g,"-"),
+   tutor_assignment_id:assignment,tutor_id:tutor,trajectory_id:native.id,student_id:native.student,
+   preparation_context:"diagnosis:"+phase,source_context_id:source,phase,topic_key:"synthetic "+phase.toLowerCase(),
+   sequence_number:1,probe_id:probeId,recorded_at:stamp(),
   });
+  diagnosisFixtureByPhase.set(phase,{dimension,choice});
  }
+ const clarityFixture=diagnosisFixtureByPhase.get("Clarity")!;
+ const handoverSource="ci-native-handover";
+ await put("public.scheduled_sessions",{
+  id:handoverSource,tutor_id:tutor,student_id:native.student,type:"handover",status:"completed",
+ });
+ const handoverId="ci-cross-handover";
+ const handoverObservations=[{dimensionId:clarityFixture.dimension,behaviorId:clarityFixture.choice.id}];
+ await put("public.specialist_sandbox_live_evidence_turns",{
+  id:handoverId,tutor_assignment_id:assignment,tutor_id:tutor,trajectory_id:native.id,student_id:native.student,
+  scope:"handover",source_context_id:handoverSource,form_id:"form-handover",sequence_number:1,phase:"Clarity",
+  probe_id:"clarity.recognition",bank_version:1,behavior_model_version:2,
+  student_behavior:"Explicit synthetic native handover fixture",
+  specialist_submission:{supportEvent:"none",observations:handoverObservations},
+  condition_conformed:true,observation_exact:true,matching_observations:1,total_observations:1,completed_at:stamp(),
+ });
+ await put("private.specialist_sandbox_live_evidence_truth",{
+  event_id:handoverId,outcome_ref:"ci-ref-handover",outcome_key:"ci.handover.pattern_3",outcome_version:1,
+  canonical_observations:handoverObservations,trajectory_class:"conditional",actual_support_event:"none",
+ });
+ await put("public.intro_session_drills",{
+  id:"ci-native-handover-drill",tutor_id:tutor,student_id:native.student,scheduled_session_id:handoverSource,
+  drill:{drillType:"handover_verification",handoverMode:"verification",phase:"Clarity",
+   sets:[{observations:[{observation_dimension_id:clarityFixture.dimension,observation_option_id:clarityFixture.choice.id,observation:clarityFixture.choice.label}]}]},
+  submitted_at:stamp(),
+ });
+ await put("public.specialist_sandbox_context_preparation_events",{
+  id:"ci-prep-handover",tutor_assignment_id:assignment,tutor_id:tutor,trajectory_id:native.id,
+  student_id:native.student,preparation_context:"handover",source_context_id:handoverSource,
+  phase:"Clarity",topic_key:"synthetic clarity",sequence_number:1,probe_id:"clarity.recognition",recorded_at:stamp(),
+ });
  for(let i=1;i<=2;i++){
   const id="ci-rediagnosis-"+i;
   const decision={complete:true,placementPhase:"Clarity",stability:"Low"};
@@ -183,9 +225,15 @@ try{
   });
   await put("private.specialist_sandbox_rediagnosis_turn_truth",{
    rediagnosis_turn_id:id,outcome_key:"ci.rediagnosis.pattern_"+i,outcome_version:1,
-   trajectory_class:"conditional",canonical_observations:observations,
+   trajectory_class:"conditional",canonical_observations:handoverObservations,
   });
  }
+ await put("public.specialist_sandbox_context_preparation_events",{
+  id:"ci-prep-targeted-rediagnosis",tutor_assignment_id:assignment,tutor_id:tutor,
+  trajectory_id:native.id,student_id:native.student,preparation_context:"targeted_rediagnosis",
+  source_context_id:"ci-rediagnosis-1",phase:"Clarity",topic_key:"synthetic clarity",
+  sequence_number:1,probe_id:"clarity.recognition",recorded_at:stamp(),
+ });
  const development=await project();
  assert.equal(development.status.developmentCoverageReady,true,JSON.stringify(development.status.requirements.filter(r=>!r.met)));
  assert.equal(development.status.qualificationReady,false);
@@ -339,6 +387,15 @@ try{
    const denied=diagnosisScheduledSessionQuery({...identities,scheduledSessionId,tutorId:"44444444-4444-4444-8444-444444444444"});
    assert.equal((await db.query(denied.text,denied.values)).rows.length,0);
   }
+  const entryDiagnosisQuery=diagnosisScheduledSessionQuery({
+   ...identities,requestedKind:"sandbox_entry_diagnosis",scheduledSessionId:identities.scheduledSessionId,
+  });
+  assert.equal(entryDiagnosisQuery.values[2],identities.scheduledSessionId);
+  assert.equal((await db.query(entryDiagnosisQuery.text,entryDiagnosisQuery.values)).rows[0]?.type,"training");
+  const entryDiagnosisDiscovery=diagnosisScheduledSessionQuery({
+   ...identities,requestedKind:"sandbox_entry_diagnosis",scheduledSessionId:null,
+  });
+  assert.equal(entryDiagnosisDiscovery.values[2],"training");
   const nextId="55555555-5555-4555-8555-555555555555";
   await db.query("INSERT INTO public.scheduled_sessions VALUES ($1,$2,$3,'training','confirmed',now()+interval '1 day',now())",[nextId,identities.tutorId,identities.studentId]);
   const paused={...evaluateEvidenceCompleteDiagnosis(createEvidenceCompleteDiagnosisState("Clarity")),nextProbeId:null,

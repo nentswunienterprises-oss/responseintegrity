@@ -1396,8 +1396,16 @@ test("diagnosis semantics separate the booked session container from the activit
     resolve(process.cwd(), "server/evidenceCompleteDiagnosisRoutes.ts"),
     "utf8",
   );
+  const runnerSource = readFileSync(
+    resolve(process.cwd(), "client/src/components/tutor/EvidenceCompleteDiagnosisRunner.tsx"),
+    "utf8",
+  );
   const migrationSource = readFileSync(
     resolve(process.cwd(), "migrations/20260927_diagnosis_activity_context_separation.sql"),
+    "utf8",
+  );
+  const sandboxEntryMigration = readFileSync(
+    resolve(process.cwd(), "migrations/20261108_sandbox_entry_diagnosis_context.sql"),
     "utf8",
   );
 
@@ -1424,6 +1432,34 @@ test("diagnosis semantics separate the booked session container from the activit
   assert.match(
     migrationSource,
     /Do not interpret as activity type\. Use session_container \+ activity_kind\./,
+  );
+  assert.match(
+    diagnosisSource,
+    /kind === "sandbox_entry_diagnosis"[\s\S]*sessionContainer: "scheduled_training_session"[\s\S]*activityKind: "intro_diagnosis"/,
+  );
+  assert.match(
+    diagnosisSource,
+    /operationalMode !== "sandbox"[\s\S]*scheduledSession\?\.type !== "training"/,
+  );
+  assert.match(
+    diagnosisSource,
+    /canUpgradeEmptySandboxEntryRun[\s\S]*storedHistoryForReplay\.length === 0/,
+  );
+  assert.match(
+    runnerSource,
+    /isEntryDiagnosisActivity[\s\S]*diagnosisTopics\.length === 2[\s\S]*Continue to second topic/,
+  );
+  assert.match(
+    sandboxEntryMigration,
+    /WHEN 'sandbox_entry_diagnosis' THEN 'scheduled_training_session'/,
+  );
+  assert.match(
+    sandboxEntryMigration,
+    /WHEN 'sandbox_entry_diagnosis' THEN 'intro_diagnosis'/,
+  );
+  assert.match(
+    sandboxEntryMigration,
+    /response_integrity_evidence_ledger_session_context_check/,
   );
 });
 

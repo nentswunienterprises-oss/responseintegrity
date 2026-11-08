@@ -3,8 +3,7 @@
 -- tutor_certification_mode_old when the table alteration was run before the
 -- enum was recreated. That makes COALESCE(mode, operational_mode) fail with
 -- an enum-type mismatch in Specialist Development Record reads.
-DO $$
-BEGIN
+DO $enum$ BEGIN
   IF EXISTS (
     SELECT 1
     FROM information_schema.columns
@@ -23,10 +22,9 @@ BEGIN
     ALTER TABLE public.tutor_battle_test_statuses
       ALTER COLUMN mode SET DEFAULT 'training'::tutor_operational_mode;
   END IF;
-END $$;
+END $enum$;
 
-DO $$
-BEGIN
+DO $cleanup$ BEGIN
   IF NOT EXISTS (
     SELECT 1
     FROM pg_attribute a
@@ -41,4 +39,4 @@ BEGIN
   ) THEN
     DROP TYPE IF EXISTS tutor_certification_mode_old;
   END IF;
-END $$;
+END $cleanup$;

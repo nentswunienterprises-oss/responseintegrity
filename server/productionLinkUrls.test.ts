@@ -40,10 +40,10 @@ test("Capacity canonical Production Links use the app host", () => {
 
 test("Production Link canonical host remains configurable through APP_BASE_URL", () => {
   withAppBaseUrl("https://preview.responseintegrity.co.za/path", () => {
-    assert.equal(getAppBaseUrl(), "https://preview.responseintegrity.co.za/path");
+    assert.equal(getAppBaseUrl(), "https://preview.responseintegrity.co.za");
     assert.equal(
       buildCanonicalProductionLinkUrl("AFIX123", "demand"),
-      "https://preview.responseintegrity.co.za/path?production=AFIX123&pipeline=demand",
+      "https://preview.responseintegrity.co.za/?production=AFIX123&pipeline=demand",
     );
   });
 });

@@ -19,6 +19,7 @@ import {
   type DiagnosisObservationOption,
 } from "@shared/diagnosisObservationMatrix";
 import { NEXT_ACTION_ENGINE, tryParsePhase, type TopicPhase } from "@shared/topicConditioningEngine";
+import { getResponseSymptomLabels } from "@shared/responseSymptomMapping";
 import {
   buildPassiveExecutionTimingEvidence,
   buildTimedExecutionEvidence,
@@ -65,6 +66,7 @@ type SandboxDiagnosisSimulation = {
   sequenceNumber: number;
   formId: string;
   studentBehavior: string;
+  observedDimensions: DiagnosisDimensionId[];
   simulatedElapsedSeconds: number;
   studentStateAuthoritative: false;
   evidenceScope: "sandbox";
@@ -189,8 +191,55 @@ export default function EvidenceCompleteDiagnosisRunner() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const topic = String(searchParams.get("topic") || "").trim();
-  const startingSignalPhase = tryParsePhase(searchParams.get("phase"));
+  const requestedTopic = String(searchParams.get("topic") || "").trim();
+  const requestedTopicIndex = Math.max(0, Number(searchParams.get("topicIndex") || 0));
+  const diagnosisTopics = (() => {
+    const raw = String(searchParams.get("topics") || "").trim();
+    if (!raw) return requestedTopic ? [requestedTopic] : [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return Array.from(new Set(parsed.map((value) => String(value || "").trim()).filter(Boolean))).slice(0, 2);
+      }
+    } catch {
+      // Older launch links may encode the selected topics as a comma-separated list.
+    }
+    return Array.from(new Set(raw.split(",").map((value) => value.trim()).filter(Boolean))).slice(0, 2);
+  })();
+  const topic = diagnosisTopics[requestedTopicIndex] || requestedTopic;
+  const requestedContext = String(
+    searchParams.get("sessionContextKind") || searchParams.get("context") || "intro",
+  ).trim().toLowerCase();
+  const topicStartingPhases = (() => {
+    try {
+      const parsed = JSON.parse(searchParams.get("topicPhases") || "[]");
+      return Array.isArray(parsed)
+        ? parsed.map((value) => tryParsePhase(String(value || "")))
+        : [];
+    } catch {
+      return [];
+    }
+  })();
+  // URL phase and symptom values are legacy fallbacks only.
+  // The authenticated server resolves the authoritative topic report from the parent enrollment.
+  const startingSignalPhase =
+    tryParsePhase(searchParams.get("phase")) ||
+    (requestedContext === "intro" ||
+    requestedContext === "sandbox_entry_diagnosis" ||
+    !requestedContext
+      ? topicStartingPhases[requestedTopicIndex] || null
+      : null);
+  const topicReportedSymptoms = (() => {
+    try {
+      const parsed = JSON.parse(searchParams.get("topicSymptoms") || "[]");
+      const selected = Array.isArray(parsed) ? parsed[requestedTopicIndex] : [];
+      return Array.isArray(selected)
+        ? selected.map((value) => String(value || "").trim()).filter(Boolean)
+        : [];
+    } catch {
+      return [];
+    }
+  })();
   const startingPhase = startingSignalPhase || "Structured Execution";
   const scheduledSessionId =
     String(searchParams.get("scheduledSessionId") || "").trim() || null;
@@ -202,12 +251,16 @@ export default function EvidenceCompleteDiagnosisRunner() {
     .trim()
     .toLowerCase();
   const sessionContextKind =
-    requestedSessionContext === "handover"
-      ? "handover"
-      : requestedSessionContext === "training"
-        ? "training"
-        : "intro";
+    requestedSessionContext === "sandbox_entry_diagnosis"
+      ? "sandbox_entry_diagnosis"
+      : requestedSessionContext === "handover"
+        ? "handover"
+        : requestedSessionContext === "training"
+          ? "training"
+          : "intro";
   const isTargetedHandoverRediagnosis = sessionContextKind === "handover";
+  const isEntryDiagnosisActivity =
+    sessionContextKind === "intro" || sessionContextKind === "sandbox_entry_diagnosis";
 
   const storageKey = useMemo(
     () => buildStorageKey(studentId, topic, scheduledSessionId),
@@ -216,6 +269,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
 
   const [runId, setRunId] = useState<string | null>(null);
   const [apiState, setApiState] = useState<DiagnosisApiResponse | null>(null);
+  const [parentReportedSymptoms, setParentReportedSymptoms] = useState<string[]>(topicReportedSymptoms);
   const [runtimeAuthority, setRuntimeAuthority] =
     useState<DiagnosisRuntimeAuthority | null>(null);
   const [sandboxSimulation, setSandboxSimulation] =
@@ -297,7 +351,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
       scope: "diagnosis",
       sourceContextId: id,
       topic,
-      startingPhase,
+      startingPhase: state.startingPhase || startingPhase,
       sequenceNumber: String(
         state.opportunityNumber || state.probeHistory.length + 1,
       ),
@@ -348,7 +402,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
           scope: "diagnosis",
           sourceContextId: runId,
           topic,
-          startingPhase,
+          startingPhase: apiState?.startingPhase || startingPhase,
           sequenceNumber: simulation.sequenceNumber,
           probeId: simulation.probeId,
           formId: simulation.formId,
@@ -476,12 +530,15 @@ export default function EvidenceCompleteDiagnosisRunner() {
           { headers, credentials: "include" });
         if (!pendingResponse.ok) throw new Error("The existing evidence process could not be checked. Retry before starting a new diagnosis.");
         const pending = await pendingResponse.json();
-        const storedRunId = window.sessionStorage.getItem(storageKey);
-        let id = pending.runId || (storedRunId && isUuidLike(storedRunId) ? storedRunId : createRunId());
-        let state = (pending.runId || storedRunId) ? await loadExisting(id) : null;
-        // This also authorizes a new session boundary against the server-owned booking.
-        if (state && !state.finalized) state = await postHistory(id, state.probeHistory, state.startingPhase || startingPhase);
-        if (!state) state = await postHistory(id, []);
+        const parentStartingPhase = tryParsePhase(String(pending.startingPhase || "")) || startingPhase;
+        const parentSymptoms = Array.isArray(pending.topicSymptoms)
+          ? getResponseSymptomLabels(pending.topicSymptoms.map(String))
+          : topicReportedSymptoms;
+        let id = pending.runId || createRunId();
+        let state = pending.runId ? await loadExisting(id) : null;
+        // Only the server may select a resumable run. Browser storage must never revive a superseded run.
+        if (state && !state.finalized) state = await postHistory(id, state.probeHistory, parentStartingPhase);
+        if (!state) state = await postHistory(id, [], parentStartingPhase);
         id = state.runId;
         window.sessionStorage.setItem(storageKey, id);
         if (!cancelled) setRunId(id);
@@ -512,6 +569,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
         if (!cancelled) {
           setSandboxSimulation(simulation);
           setApiState(state);
+          setParentReportedSymptoms(parentSymptoms);
           setObservations({});
           setSupportEvent("none");
           setExecutionFinished(false);
@@ -603,7 +661,17 @@ export default function EvidenceCompleteDiagnosisRunner() {
     storageKey,
   ]);
 
+  // The server resolves this from the current parent enrollment before a run is resumed or created.
+  const authoritativeStartingSignalPhase = apiState?.startingPhase || startingSignalPhase;
+
   const currentProbe = apiState?.nextProbe || null;
+  const currentProbeDimensions = currentProbe
+    ? runtimeAuthority?.operationalMode === "sandbox"
+      ? sandboxSimulation?.probeId === currentProbe.id
+        ? sandboxSimulation.observedDimensions
+        : []
+      : currentProbe.dimensions
+    : [];
   const executionProtocol = currentProbe
     ? DIAGNOSIS_PROBE_EXECUTION_PROTOCOLS[currentProbe.id]
     : null;
@@ -658,8 +726,8 @@ export default function EvidenceCompleteDiagnosisRunner() {
     currentTimingMode === "timed" && prescribedSeconds > 0
       ? Math.ceil(timedRemainingMs / 1000)
       : null;
-  const allDimensionsComplete = currentProbe
-    ? currentProbe.dimensions.every((dimensionId) => !!observations[dimensionId])
+  const allDimensionsComplete = currentProbe && currentProbeDimensions.length > 0
+    ? currentProbeDimensions.every((dimensionId) => !!observations[dimensionId])
     : false;
 
   const groupedDimensions = useMemo(() => {
@@ -671,15 +739,15 @@ export default function EvidenceCompleteDiagnosisRunner() {
     }
     return PHASE_ORDER.map((phase) => ({
       phase,
-      dimensions: currentProbe.dimensions.filter(
+      dimensions: currentProbeDimensions.filter(
         (dimensionId) =>
           DIAGNOSIS_OBSERVATION_MATRIX[dimensionId].phase === phase,
       ),
     })).filter((group) => group.dimensions.length > 0);
-  }, [currentProbe]);
+  }, [currentProbe, currentProbeDimensions]);
 
   const activeDimensionId =
-    currentProbe?.dimensions[activeObservationIndex] || null;
+    currentProbeDimensions[activeObservationIndex] || null;
   const activeDimension = activeDimensionId
     ? DIAGNOSIS_OBSERVATION_MATRIX[activeDimensionId]
     : null;
@@ -694,7 +762,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
     ? Boolean(observations[activeDimensionId])
     : false;
   const recordedBehaviorCount = currentProbe
-    ? currentProbe.dimensions.filter((dimensionId) => observations[dimensionId]).length
+    ? currentProbeDimensions.filter((dimensionId) => observations[dimensionId]).length
     : 0;
 
   const scrollRunnerTop = () => {
@@ -977,7 +1045,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
   const continueFromObservation = () => {
     if (!activeObservationComplete || !currentProbe) return;
 
-    if (activeObservationIndex < currentProbe.dimensions.length - 1) {
+    if (activeObservationIndex < currentProbeDimensions.length - 1) {
       setActiveObservationIndex((current) => current + 1);
       scrollRunnerTop();
       return;
@@ -1000,7 +1068,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
     if (confirmStep) {
       setConfirmStep(false);
       setActiveObservationIndex(
-        Math.max(0, (currentProbe?.dimensions.length || 1) - 1),
+        Math.max(0, (currentProbeDimensions.length || 1) - 1),
       );
       scrollRunnerTop();
       return;
@@ -1061,7 +1129,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
     setError(null);
 
     try {
-      const submittedObservations = currentProbe.dimensions.map((dimensionId) => ({
+      const submittedObservations = currentProbeDimensions.map((dimensionId) => ({
         dimensionId,
         behaviorId: observations[dimensionId]!,
       }));
@@ -1271,10 +1339,15 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 {topic}
               </h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                {startingSignalPhase
-                  ? `Starting signal: ${startingSignalPhase}. The signal chooses the first question only; observed behavior decides placement.`
+                {authoritativeStartingSignalPhase
+                  ? `Starting signal: ${authoritativeStartingSignalPhase}. The signal chooses the first question only; observed behavior decides placement.`
                   : "No starting signal. The system is using a neutral independent baseline rather than assuming Clarity."}
               </p>
+              {parentReportedSymptoms.length > 0 && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Parent-reported context: {parentReportedSymptoms.join(" · ")}
+                </p>
+              )}
             </div>
             <div className="rounded-xl border px-4 py-3 text-sm">
               <div className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -1480,9 +1553,29 @@ export default function EvidenceCompleteDiagnosisRunner() {
             <button
               type="button"
               className="mt-6 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"
-              onClick={() => navigate("/specialist/pod")}
+              onClick={() => {
+                const nextTopicIndex = requestedTopicIndex + 1;
+                if (
+                  isEntryDiagnosisActivity &&
+                  diagnosisTopics.length === 2 &&
+                  nextTopicIndex < diagnosisTopics.length
+                ) {
+                  const nextParams = new URLSearchParams(searchParams);
+                  nextParams.set("topic", diagnosisTopics[nextTopicIndex]);
+                  nextParams.set("topicIndex", String(nextTopicIndex));
+                  const nextPhase = topicStartingPhases[nextTopicIndex];
+                  if (nextPhase) nextParams.set("phase", nextPhase);
+                  navigate(window.location.pathname + "?" + nextParams.toString(), { replace: true });
+                  return;
+                }
+                navigate("/specialist/pod");
+              }}
             >
-              Back to Pod
+              {isEntryDiagnosisActivity &&
+              diagnosisTopics.length === 2 &&
+              requestedTopicIndex === 0
+                ? "Continue to second topic"
+                : "Back to Pod"}
             </button>
           </section>
         ) : blocked && decision ? (
@@ -1634,7 +1727,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 </p>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   This opportunity uses one problem and one continuous student response.
-                  You will record {currentProbe.dimensions.length} behavioral observations across{" "}
+                  You will record {currentProbeDimensions.length} behavioral observations across{" "}
                   {groupedDimensions.length} evidence {groupedDimensions.length === 1 ? "layer" : "layers"} from that same response.
                 </p>
                 <p className="mt-2 text-xs leading-5 text-muted-foreground">
@@ -1830,7 +1923,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 Confirm what happened
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                {recordedBehaviorCount} / {currentProbe.dimensions.length} behaviors recorded.
+                {recordedBehaviorCount} / {currentProbeDimensions.length} behaviors recorded.
                 Record any intervention separately before committing this opportunity.
               </p>
 
@@ -1924,11 +2017,11 @@ export default function EvidenceCompleteDiagnosisRunner() {
                   </h2>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Evidence layer {activeLayerIndex + 1} of {groupedDimensions.length} · {activeLayer.phase}
-                    {" "}· Observation {activeObservationIndex + 1} of {currentProbe.dimensions.length}
+                    {" "}· Observation {activeObservationIndex + 1} of {currentProbeDimensions.length}
                   </p>
                 </div>
                 <div className="rounded-lg border px-3 py-2 text-xs text-muted-foreground">
-                  {recordedBehaviorCount} / {currentProbe.dimensions.length} recorded
+                  {recordedBehaviorCount} / {currentProbeDimensions.length} recorded
                 </div>
               </div>
 
@@ -1988,7 +2081,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
                   onClick={continueFromObservation}
                   className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {activeObservationIndex === currentProbe.dimensions.length - 1
+                  {activeObservationIndex === currentProbeDimensions.length - 1
                     ? "Review Opportunity"
                     : "Next observation"}
                 </button>
@@ -2040,8 +2133,3 @@ function ResultCell({ label, value }: { label: string; value: string }) {
   );
 }
 
-function isUuidLike(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    value,
-  );
-}

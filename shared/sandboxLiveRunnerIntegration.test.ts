@@ -84,7 +84,7 @@ const capabilitySequencingSource = readFileSync(
   "utf8",
 );
 const tdOverviewSource = readFileSync(
-  new URL("../client/src/pages/operational/td/overview.tsx", import.meta.url),
+  new URL("../client/src/pages/operational/td/specialist-development.tsx", import.meta.url),
   "utf8",
 );
 const cooPodDetailSource = readFileSync(
@@ -207,6 +207,15 @@ test("Sandbox diagnosis keeps the evidence-native runner and projects private si
   assert.match(
     evidenceDiagnosisRunnerSource,
     /runtimeAuthority\?\.operationalMode === "sandbox"[\s\S]*recordSandboxSimulation/,
+  );
+  assert.match(
+    evidenceDiagnosisRunnerSource,
+    /const currentProbeDimensions = currentProbe[\s\S]*sandboxSimulation\.observedDimensions/,
+  );
+  assert.match(evidenceDiagnosisRunnerSource, /currentProbeDimensions\.map\(/);
+  assert.match(
+    sandboxRediagnosisSource,
+    /observedDimensions: selected\.canonicalObservations[\s\S]*input\.scope === "diagnosis"/,
   );
   assert.match(
     sandboxRediagnosisSource,
@@ -786,9 +795,10 @@ test("Sandbox V2 Diagnosis and Handover POST compare the exact visible profile-w
     assert.match(body, /profileSeed: truth\.trajectory_seed/);
     assert.match(body, /behaviorModelVersion: truth\.behavior_model_version/);
   }
-  assert.match(submit,/const prescribedDimensions =\s*DIAGNOSIS_PROBES\[prepared\.probeId as DiagnosisProbeId\]\.dimensions/);
-  assert.match(submit,/prescribedDimensions\.filter\(/);
+  assert.match(submit,/const expectedDimensionIds = selected\.canonicalObservations/);
+  assert.match(submit,/input\.scope === "diagnosis" \|\|/);
   assert.match(submit,/DIAGNOSIS_OBSERVATION_MATRIX\[dimensionId\]\.phase === input\.startingPhase/);
+  assert.doesNotMatch(submit,/const prescribedDimensions =\s*DIAGNOSIS_PROBES/);
   assert.ok(!submit.includes(".filter((dimension) => dimension.phase === input.startingPhase)"),
     "A single Handover observation cannot certify repeatability without a repeat opportunity");
 });
@@ -842,20 +852,25 @@ test("Sandbox history stays separate from the current package balance in the stu
 
 
 test("required re-diagnosis launches the owner of the active operational lane", () => {
-  assert.match(topicMapSource, /sandbox-environment\/timing-rediagnosis/);
-  assert.match(sandboxAuthoritySource, /export async function armSandboxTimingRediagnosis/);
-  assert.match(sandboxAuthoritySource, /loadLatestTpsTimerContract/);
+  assert.match(topicMapSource, /\/specialist\/intro-session\/\$\{studentId\}\?topic=\$\{topicParam\}&phase=\$\{rediagnosisPhaseParam\}&stability=\$\{stabilityParam\}&context=training&rediagnosis=1/);
+  assert.match(sandboxRouteSource, /prepareSandboxRediagnosis/);
+  assert.match(sandboxRouteSource, /continueSandboxDiagnosis/);
+  assert.match(sandboxRouteSource, /submitSandboxRediagnosisProbe/);
   assert.match(
-    sandboxAuthoritySource,
+    sandboxRediagnosisSource,
     /specialist_sandbox_rediagnosis_runs[\s\S]*status='completed'[\s\S]*deriveDiagnosisTpsTimerContract[\s\S]*persistTpsTimerContract/,
-    "a completed clean re-diagnosis repairs its missing timer lineage instead of opening another episode",
+    "a completed clean re-diagnosis persists its timer lineage in the rediagnosis authority",
   );
   assert.match(
     sandboxRediagnosisSource,
     /completedPlacementNeedsTimer[\s\S]*deriveDiagnosisTpsTimerContract[\s\S]*persistTpsTimerContract/,
     "new completed re-diagnoses persist timing authority before ordinary Training resumes",
   );
-  assert.match(sandboxAuthoritySource, /canonical_targeted_rediagnosis_phase='Structured Execution'/);
+  assert.match(sandboxRediagnosisSource, /canonical_targeted_rediagnosis_phase/);
+  assert.match(
+    sandboxRediagnosisSource,
+    /canonical_phase === "Time Pressure Stability"[\s\S]{0,120}\? "Structured Execution"/,
+  );
   const start = topicMapSource.indexOf("      const topicParam = encodeURIComponent(topicState.topic);");
   const end = topicMapSource.indexOf("\n    }", start);
   assert.ok(start >= 0 && end > start);

@@ -181,7 +181,15 @@ export function replayEvidenceCompleteDiagnosis(
   startingPhase: TopicPhase | null,
   rawProbeHistory: unknown,
   inheritedTimingBaselineSeconds: number | null = null,
-  context: { sessionStarts?: number[]; legacyPrefixLength?: number } = {},
+  context: {
+    sessionStarts?: number[];
+    legacyPrefixLength?: number;
+    sandboxScenarioDimensions?: Array<{
+      probeHistoryIndex: number;
+      probeId: DiagnosisProbeId;
+      dimensions: DiagnosisDimensionId[];
+    }>;
+  } = {},
 ): EvidenceCompleteDiagnosisReplay {
   if (!Array.isArray(rawProbeHistory)) {
     return { ok: false, error: "probeHistory must be an array" };
@@ -242,7 +250,16 @@ export function replayEvidenceCompleteDiagnosis(
     }
 
     const definition = DIAGNOSIS_PROBES[result.probeId];
-    const dimensionError = validateExactProbeDimensions(definition, result);
+    const sandboxProof = context.sandboxScenarioDimensions?.find(
+      (proof) => proof.probeHistoryIndex === index,
+    );
+    const dimensionError =
+      sandboxProof && sandboxProof.probeId === result.probeId
+        ? validateExactProbeDimensions(
+            { ...definition, dimensions: sandboxProof.dimensions },
+            result,
+          )
+        : validateExactProbeDimensions(definition, result);
     if (dimensionError) {
       return { ok: false, failedAtProbeIndex: index, error: dimensionError };
     }
@@ -323,7 +340,7 @@ export type EvidenceCompleteDiagnosisLedgerRow = {
   scheduled_session_id: string | null;
   training_session_run_id: string | null;
   session_group_id: string;
-  session_context: "intro" | "active_training" | "handover_verification";
+  session_context: "intro" | "active_training" | "handover_verification" | "sandbox_entry_diagnosis";
   drill_type: "diagnosis";
   drill_schema_id: string;
   drill_schema_version: number;
@@ -358,7 +375,7 @@ export function buildEvidenceCompleteDiagnosisLedgerRows(input: {
   topic: string;
   scheduledSessionId?: string | null;
   sessionGroupId?: string | null;
-  sessionContext: "intro" | "active_training" | "handover_verification";
+  sessionContext: "intro" | "active_training" | "handover_verification" | "sandbox_entry_diagnosis";
   observedAt: string;
   state: EvidenceCompleteDiagnosisState;
   decision: EvidenceCompleteDiagnosisDecision;

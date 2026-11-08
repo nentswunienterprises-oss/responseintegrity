@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, FileStack, Flag, ShieldCheck } from "lucide-react";
 import { ExecutivePortalGuard } from "@/lib/portalGuard";
+import { API_URL } from "@/lib/config";
 import { useAuth } from "@/hooks/useAuth";
 import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -975,7 +976,7 @@ export default function ExecutiveCommandRhythmDashboard(props: { hideTabs?: bool
                           {task.proofs[0] ? (
                             <div className="mt-2 space-y-1 text-sm text-muted-foreground">
                               <div>{task.proofs[0].label}</div>
-                              <a className="text-blue-600 underline" href={task.proofs[0].proofUrl} target="_blank" rel="noreferrer">
+                              <a className="text-blue-600 underline" href={task.proofs[0].proofType === "link" ? task.proofs[0].proofUrl : `${API_URL}/api/executive/command-rhythm/tasks/${task.id}/proofs/${task.proofs[0].id}/file`} target="_blank" rel="noreferrer">
                                 Open proof
                               </a>
                             </div>

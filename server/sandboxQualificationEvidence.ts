@@ -118,7 +118,7 @@ const CROSS_MODE=[
  "    AND native_run.tutor_id::text=r.tutor_id::text",
  "    AND native_run.student_id::text=r.student_id::text",
  "    AND native_run.status='completed'",
- "    AND native_run.session_context IN ('intro','active_training')",
+ "    AND native_run.session_context IN ('intro','active_training','sandbox_entry_diagnosis')",
  "    AND EXISTS (SELECT 1 FROM jsonb_array_elements(native_run.probe_history) native_probe",
  "      WHERE native_probe->>'probeId'=r.probe_id",
  "      AND native_probe->'observations'=r.specialist_submission->'observations'",

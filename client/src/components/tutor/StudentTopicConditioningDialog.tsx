@@ -83,6 +83,9 @@ type TopicRow = {
   entryDiagnosis: string;
   recentLogs: string[];
   timeline: Array<{ date: string; phase: PhaseLabel; stability: StabilityLabel; kind: ObservationKind }>;
+  parentReported?: boolean;
+  parentReportedSymptoms?: string[];
+  parentRecommendedPhase?: string | null;
 };
 
 /**
@@ -835,6 +838,8 @@ function buildTopics(
   map: TopicConditioningMap | null | undefined,
   persistedTopicStates: StudentTopicConditioningDialogProps["persistedTopicStates"],
   sessions: TutorSessionRecord[] | undefined,
+  parentTopicSymptoms?: Record<string, string[]> | null,
+  parentTopicRecommendations?: Record<string, { phase?: string | null; supportingSymptoms?: string[]; rationale?: string | null }> | null,
 ): TopicRow[] {
   const byTopic = new Map<
     string,
@@ -845,6 +850,9 @@ function buildTopics(
       targetedRediagnosisStartPhase?: PhaseLabel | null;
       systemNextAction?: string | null;
       prerequisiteContradictionReason?: string | null;
+      parentReported?: boolean;
+      parentReportedSymptoms?: string[];
+      parentRecommendedPhase?: string | null;
     }
   >();
 
@@ -921,6 +929,33 @@ function buildTopics(
     });
   });
 
+  // Parent reports remain separate from the active Map until a diagnosis or
+  // explicit Specialist activation exists. Overlay the report on an existing
+  // persisted seed as well, rather than losing it merely because a seed exists.
+  splitTopics(parentTopics).forEach((rawTopic) => {
+    const topic = sanitizeTopic(rawTopic);
+    const topicKey = normalizeTopicKey(topic);
+    if (!topic || !topicKey) return;
+    const symptomEntry = Object.entries(parentTopicSymptoms || {}).find(([key]) => normalizeTopicKey(key) === topicKey);
+    const recommendationEntry = Object.entries(parentTopicRecommendations || {}).find(([key]) => normalizeTopicKey(key) === topicKey);
+    const recommendation = recommendationEntry?.[1];
+    const symptoms = Array.isArray(symptomEntry?.[1]) ? symptomEntry[1].map((item) => String(item).trim()).filter(Boolean)
+      : Array.isArray(recommendation?.supportingSymptoms) ? recommendation.supportingSymptoms.map((item) => String(item).trim()).filter(Boolean) : [];
+    const recommendedPhase = String(recommendation?.phase || "").trim() || null;
+    const existingTopic = [...byTopic.keys()].find((existing) => normalizeTopicKey(existing) === topicKey);
+    if (existingTopic) {
+      const existing = byTopic.get(existingTopic)!;
+      byTopic.set(existingTopic, {
+        ...existing,
+        parentReported: true,
+        parentReportedSymptoms: symptoms,
+        parentRecommendedPhase: recommendedPhase,
+      });
+      return;
+    }
+    byTopic.set(topic, { history: [], seeded: { phase: normalizePhase(recommendedPhase), stability: "Low" }, parentReported: true, parentReportedSymptoms: symptoms, parentRecommendedPhase: recommendedPhase });
+  });
+
   const rows: TopicRow[] = [];
 
   byTopic.forEach((entry, topic) => {
@@ -989,6 +1024,9 @@ function buildTopics(
         stability: h.stability,
         kind: h.kind,
       })),
+      parentReported: entry.parentReported === true,
+      parentReportedSymptoms: entry.parentReportedSymptoms || [],
+      parentRecommendedPhase: entry.parentRecommendedPhase || null,
     });
   });
 
@@ -1033,6 +1071,8 @@ export default function StudentTopicConditioningDialog({
   mapOnly = false,
   apiBasePath = "/api/tutor",
   parentTopics,
+  parentTopicSymptoms,
+  parentTopicRecommendations,
   topicConditioning,
   persistedTopicStates,
 }: StudentTopicConditioningDialogProps) {
@@ -1205,8 +1245,18 @@ export default function StudentTopicConditioningDialog({
       return;
     }
 
-    if (unobservedTopics.length > 1) {
-      setTrainingSessionMeetMessage("Newly activated topics must be placed one at a time. Select a single unobserved topic and run diagnosis first.");
+    // Entry placement supports a two-topic Intro diagnosis batch. The runner
+    // processes each topic sequentially and persists each result before moving
+    // to the next. Do not mix unobserved topics with ordinary Training topics.
+    if (unobservedTopics.length > 1 && unobservedTopics.length !== selectedTopicStates.length) {
+      setTrainingSessionMeetMessage(
+        "Unobserved topics must complete entry diagnosis before they can be combined with observed Training topics.",
+      );
+      return;
+    }
+
+    if (unobservedTopics.length === selectedTopicStates.length && unobservedTopics.length > 2) {
+      setTrainingSessionMeetMessage("Intro diagnosis supports up to two topics in one session. Select two or fewer unobserved topics.");
       return;
     }
 
@@ -1215,11 +1265,23 @@ export default function StudentTopicConditioningDialog({
       return;
     }
 
-    if (isSandboxMode && selectedTopics.length !== 1) {
-      // The stateful Sandbox currently maintains one active topic per
-      // confirmed lesson, with a separate evidence track for each topic.
+    const isTwoTopicEntryDiagnosis =
+      !isSandboxMode &&
+      unobservedTopics.length === selectedTopicStates.length &&
+      selectedTopicStates.length === 2;
+
+    const isSandboxEntryDiagnosisBatch =
+      isSandboxMode &&
+      unobservedTopics.length === selectedTopicStates.length &&
+      selectedTopicStates.length === 2 &&
+      rediagnosisTopics.length === 0;
+
+    if (isSandboxMode && selectedTopics.length !== 1 && !isSandboxEntryDiagnosisBatch) {
+      // Sandbox Training and targeted re-diagnosis retain one active topic.
+      // The two-topic exception is only for sequential entry placement; it
+      // does not create a multi-topic Sandbox Training evidence track.
       setSandboxPreparationError(
-        "Select one topic for this Sandbox lesson. Its preparation and observed evidence must remain traceable.",
+        "Sandbox Training and targeted re-diagnosis require one topic. Two unobserved entry topics may be diagnosed sequentially before Training.",
       );
       return;
     }
@@ -1295,9 +1357,29 @@ export default function StudentTopicConditioningDialog({
       return;
     }
 
-    const topicsParam = selectedTopics.map((t) => encodeURIComponent(t)).join(',');
     const sessionParam = sessionId ? `&scheduledSessionId=${encodeURIComponent(sessionId)}` : "";
     setSessionTopicsModalOpen(false);
+
+    if (unobservedTopics.length === selectedTopicStates.length &&
+        selectedTopicStates.length === 2 &&
+        (isTwoTopicEntryDiagnosis || isSandboxEntryDiagnosisBatch)) {
+      // Omit mode=session: the Intro Session runner's default mode is adaptive
+      // diagnosis. Passing the topic batch here makes it diagnose the selected
+      // entry topics sequentially rather than opening ordinary Training.
+      const topicsParam = encodeURIComponent(JSON.stringify(selectedTopics));
+      const topicPhasesParam = encodeURIComponent(JSON.stringify(
+        selectedTopicStates.map((topic) => topic.phase),
+      ));
+      const entryActivityParam = isSandboxEntryDiagnosisBatch
+        ? "&sessionContextKind=sandbox_entry_diagnosis"
+        : "";
+      navigate(
+        `/specialist/intro-session/${studentId}?topics=${topicsParam}&topicPhases=${topicPhasesParam}${entryActivityParam}${sessionParam}`,
+      );
+      return;
+    }
+
+    const topicsParam = selectedTopics.map((t) => encodeURIComponent(t)).join(',');
     navigate(`/specialist/intro-session/${studentId}?mode=session&topics=${topicsParam}${sessionParam}`);
   };
 
@@ -1369,7 +1451,7 @@ export default function StudentTopicConditioningDialog({
   const topics = useMemo(
     () => {
       // Build the normal topics
-      const baseTopics = buildTopics(parentTopics, topicConditioning, effectivePersistedTopicStates, studentSessions);
+      const baseTopics = buildTopics(parentTopics, topicConditioning, effectivePersistedTopicStates, studentSessions, parentTopicSymptoms, parentTopicRecommendations);
       // Add any activation topics not already present, case-insensitively.
       const baseTopicNames = new Set(baseTopics.map((t) => normalizeTopicKey(t.topic)).filter(Boolean));
       const merged = [...baseTopics];
@@ -1389,13 +1471,33 @@ export default function StudentTopicConditioningDialog({
             timeline: [],
           });
           baseTopicNames.add(topicKey);
+        } else if (topicKey) {
+          const existing = merged.find((row) => normalizeTopicKey(row.topic) === topicKey);
+          if (existing) existing.parentReported = false;
         }
       });
       return merged;
     },
-    [parentTopics, topicConditioning, effectivePersistedTopicStates, studentSessions, activationTopics],
+    [parentTopics, parentTopicSymptoms, parentTopicRecommendations, topicConditioning, effectivePersistedTopicStates, studentSessions, activationTopics],
   );
-  const [selectedTopic, setSelectedTopic] = useState<string>(topics[0]?.topic || "");
+  // The Map is an activation/evidence view, not a catalogue of every known
+  // topic. Persisted proposal/enrollment seeds and parent requests stay out
+  // until a Specialist activation or genuine observed session evidence exists.
+  const activeMapTopics = useMemo(() => {
+    const explicitlyActivatedKeys = new Set(
+      activationTopics.map(({ topic }) => normalizeTopicKey(topic)).filter((key): key is string => !!key),
+    );
+    return topics.filter((row) =>
+      row.hasObservedState || explicitlyActivatedKeys.has(normalizeTopicKey(row.topic) || ""),
+    );
+  }, [topics, activationTopics]);
+  const parentReportedTopics = topics.filter((row) =>
+    row.parentReported &&
+    !row.hasObservedState &&
+    !activationTopics.some(({ topic }) => normalizeTopicKey(topic) === normalizeTopicKey(row.topic)),
+  );
+  const [showParentReportedTopics, setShowParentReportedTopics] = useState(false);
+  const [selectedTopic, setSelectedTopic] = useState<string>(activeMapTopics[0]?.topic || "");
 
   const [activeTopicField, setActiveTopicField] = useState("");
   const [manualTopicField, setManualTopicField] = useState("");
@@ -1419,16 +1521,16 @@ export default function StudentTopicConditioningDialog({
 
   // Initialize topic selection when dialog opens
   useEffect(() => {
-    if (!open || topics.length === 0) return;
-    if (!selectedTopic || !topics.some((t) => t.topic === selectedTopic)) {
-      setSelectedTopic(topics[0].topic);
+    if (!open || activeMapTopics.length === 0) return;
+    if (!selectedTopic || !activeMapTopics.some((t) => t.topic === selectedTopic)) {
+      setSelectedTopic(activeMapTopics[0].topic);
     }
-  }, [open, topics.length, topics[0]?.topic, selectedTopic]);
+  }, [open, activeMapTopics, selectedTopic]);
 
   // Reset form state when dialog opens
   useEffect(() => {
     if (!open) return;
-    const firstTopic = topics[0]?.topic || sanitizeTopic(splitTopics(parentTopics)[0]) || "";
+    const firstTopic = activeMapTopics[0]?.topic || "";
     setActiveTab("dashboard");
     setActiveTopicField(firstTopic);
     setManualTopicField("");
@@ -1492,8 +1594,8 @@ export default function StudentTopicConditioningDialog({
     return Array.from(new Set([...fromCards, ...fromParent]));
   }, [topics, parentTopics]);
   const prioritizedTopics = useMemo(
-    () => [...topics].sort((a, b) => topicPriorityScore(b) - topicPriorityScore(a) || a.topic.localeCompare(b.topic)),
-    [topics],
+    () => [...activeMapTopics].sort((a, b) => topicPriorityScore(b) - topicPriorityScore(a) || a.topic.localeCompare(b.topic)),
+    [activeMapTopics],
   );
 
   const attentionQueue = useMemo(() => {
@@ -1508,7 +1610,7 @@ export default function StudentTopicConditioningDialog({
     (row) => !!getNextActionData(row.phase, nextActionStabilityFor(row)).advanceTo,
   ).length;
 
-  const selectedRow = topics.find((row) => row.topic === selectedTopic) || prioritizedTopics[0];
+  const selectedRow = activeMapTopics.find((row) => row.topic === selectedTopic) || prioritizedTopics[0];
   const hasObservedSelection = !!selectedRow?.hasObservedState;
   const selectedRediagnosisCopy = selectedRow?.requiresTargetedRediagnosis
     ? sandboxTargetedRediagnosisCopy({ topic: selectedRow.topic, authority: {
@@ -1672,9 +1774,12 @@ export default function StudentTopicConditioningDialog({
   const selectedSessionStartLabel =
     selectedSessionRediagnosisTopics.length === 1 && selectedSessionPrepPlans.length === 1
       ? "Start Re-Diagnosis"
-      : selectedSessionUnknownTopics.length === 1 && selectedSessionPrepPlans.length === 1
-        ? "Start Diagnosis"
-        : "Start Session";
+      : selectedSessionUnknownTopics.length === selectedSessionPrepPlans.length &&
+          selectedSessionUnknownTopics.length > 1 && selectedSessionUnknownTopics.length <= 2
+        ? "Start 2-Topic Diagnosis"
+        : selectedSessionUnknownTopics.length === 1 && selectedSessionPrepPlans.length === 1
+          ? "Start Diagnosis"
+          : "Start Session";
   const sessionPrepChecklistComplete =
     selectedSessionPrepPlans.length > 0 &&
     selectedSessionPrepPlans.every((entry) => !!sessionPrepChecks[`session-prep-${entry.topic}`]);
@@ -1840,6 +1945,9 @@ export default function StudentTopicConditioningDialog({
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                   <h3 className="font-semibold">Active Conditioning Map</h3>
+                  <Button type="button" variant="outline" size="sm" className="h-8" onClick={() => setShowParentReportedTopics((current) => !current)}>
+                    Parent Reported Topics ({parentReportedTopics.length})
+                  </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button type="button" variant="ghost" size="sm" className="h-8 w-8 px-0">
@@ -1861,7 +1969,42 @@ export default function StudentTopicConditioningDialog({
                 Select a topic to review observed state and next-session preparation. Activated topics stay Unknown until a scored drill/session is logged.
               </p>
 
-              {topics.length === 0 ? (
+              {showParentReportedTopics ? (
+                <div className="rounded-xl border border-primary/20 bg-muted/20 p-3 space-y-3">
+                  <div>
+                    <p className="text-sm font-semibold">Parent Reported Topics</p>
+                    <p className="text-xs text-muted-foreground">Review each request and explicitly activate the topic before it enters the normal booked-session diagnosis workflow.</p>
+                  </div>
+                  {parentReportedTopics.length === 0 ? <p className="text-sm text-muted-foreground">There are no pending parent-reported topics.</p> : (
+                    parentReportedTopics.map((row) => (
+                      <div key={"parent-reported-" + row.topic} className="flex flex-col gap-3 rounded-lg border bg-background p-3 sm:flex-row sm:items-start">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <p className="text-sm font-semibold">{row.topic}</p>
+                          <p className="text-xs text-muted-foreground">Recommended starting phase: {row.parentRecommendedPhase || "To be determined during diagnosis"}</p>
+                          {row.parentReportedSymptoms?.length ? <p className="text-xs text-muted-foreground">Reported symptoms: {row.parentReportedSymptoms.join(" · ")}</p> : null}
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={readOnly || addTopicMutation.isPending}
+                          onClick={() => {
+                            setNewTopic(row.topic);
+                            setActivationReason("Parent reported struggle");
+                            setActivationNote("");
+                            setActivateError("");
+                            setActivateDialogOpen(true);
+                          }}
+                        >
+                          Review &amp; Activate
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : null}
+
+              {activeMapTopics.length === 0 ? (
                 <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
                   No active topics yet. Activate a topic, then run intro/training drills to update phase and stability.
                 </div>
@@ -2959,13 +3102,13 @@ export default function StudentTopicConditioningDialog({
                 <DialogHeader>
                   <DialogTitle>Start Session</DialogTitle>
                   <DialogDescription>
-                    Select one or more topics for this lesson. Unobserved topics are diagnosis-first. Topics with a prerequisite contradiction are re-diagnosis-first and cannot return to ordinary Training until placement is re-established.
+                    Select the topics for this lesson. Up to two unobserved topics can complete entry diagnosis sequentially in one Intro Session. Topics with a prerequisite contradiction require targeted re-diagnosis on their own before returning to ordinary Training.
                   </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    Choose the topics you want to cover in this lesson. A single unobserved topic launches diagnosis. A topic flagged by a prerequisite sentinel launches targeted re-diagnosis. Ordinary observed topics launch Training. Diagnosis and re-diagnosis topics must be handled one at a time.
+                    Choose the topics you want to cover. One or two unobserved topics launch sequential entry diagnosis. A topic flagged by a prerequisite sentinel launches targeted re-diagnosis on its own. Ordinary observed topics launch Training.
                   </p>
                   <div className="grid gap-2 max-h-60 overflow-y-auto">
                     {topics.map((topic) => (
@@ -3006,9 +3149,17 @@ export default function StudentTopicConditioningDialog({
                   </div>
                 ) : null}
 
-                {selectedSessionUnknownTopics.length > 1 ? (
+                {selectedSessionUnknownTopics.length > 1 &&
+                selectedSessionUnknownTopics.length === selectedSessionPrepPlans.length &&
+                selectedSessionUnknownTopics.length <= 2 ? (
+                  <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm">
+                    These topics will complete entry diagnosis sequentially in the same Intro Session. Each topic is saved before the next begins.
+                  </div>
+                ) : null}
+                {selectedSessionUnknownTopics.length > 2 &&
+                selectedSessionUnknownTopics.length === selectedSessionPrepPlans.length ? (
                   <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                    More than one unobserved topic is selected. Entry placement must run one topic at a time.
+                    Intro diagnosis supports up to two unobserved topics per session. Select two or fewer.
                   </div>
                 ) : null}
 

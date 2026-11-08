@@ -95,8 +95,61 @@ type SandboxReadinessPayload = {
   };
 };
 
+type DiagnosisDossierObservation = {
+  dimensionId: string;
+  dimensionLabel: string;
+  behaviorId: string;
+  behaviorLabel: string;
+};
+type DiagnosisDossierProbe = {
+  sequenceNumber: number;
+  probeId: string;
+  phase?: string | null;
+  studentBehavior?: string | null;
+  narrativePreserved: boolean;
+  bankVersion?: number | null;
+  behaviorModelVersion?: number | null;
+  truthPresent: boolean;
+  recordedObservations: DiagnosisDossierObservation[];
+  expectedObservations: DiagnosisDossierObservation[] | null;
+  comparisons: Array<{
+    dimensionId: string;
+    dimensionLabel: string;
+    recorded: DiagnosisDossierObservation | null;
+    expected: DiagnosisDossierObservation | null;
+    matched: boolean;
+  }>;
+  recordedSupportEvent?: string | null;
+  expectedSupportEvent?: string | null;
+  supportEventMatched?: boolean | null;
+  conditionConformed?: boolean | null;
+  observationExact?: boolean | null;
+  matchingObservations?: number | null;
+  totalObservations: number;
+  completedAt?: string | null;
+};
+type DiagnosisDossierRun = {
+  id: string;
+  studentId: string;
+  topic: string;
+  startingPhase: string;
+  sessionContext: string;
+  sessionContainer?: string | null;
+  activityKind?: string | null;
+  scheduledSessionId?: string | null;
+  scheduledSessionType?: string | null;
+  scheduledTime?: string | null;
+  completedAt?: string | null;
+  placementPhase?: string | null;
+  confidence?: string | null;
+  stability?: string | null;
+  reason?: string | null;
+  probes: DiagnosisDossierProbe[];
+};
+
 type SandboxDossier = {
   students: Array<{id:string;name?:string|null}>;
+  diagnosisRuns: DiagnosisDossierRun[];
   reps: Array<{id:string; trajectoryId:string; studentId:string; studentName?:string|null; sessionNumber:number; phase:string; setId:string; repNumber:number;
     studentBehavior:string; observationExact:boolean|null; evidenceExact:boolean|null;
     conditionKept:boolean|null; intervention?:string|null; expectedIntervention?:string|null; truthPresent:boolean; comparisons:Array<{
@@ -500,12 +553,12 @@ export function SandboxReadinessAssessmentCard({
             {showDossier && !dossierLoading && !dossierError && dossier ? (
               <div className="space-y-4 max-h-[700px] overflow-y-auto">
                 <div className="rounded-lg border bg-muted/20 px-3 py-3 text-xs text-muted-foreground">
-                  Completed Sandbox sessions and rep evidence are shown below. Open a session to review its sets and reps.
+                  Completed sessions are shown together for each student. Training sessions contain set and rep dossiers; diagnosis sessions contain probe dossiers.
                 </div>
                 <section className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Assigned students</p>
-                    <Badge variant="outline">{new Set(dossier.sessions.map((session) => session.studentId)).size} students · {dossier.sessions.length} sessions · {dossier.reps.length} reps</Badge>
+                    <Badge variant="outline">{dossier.students.length} students · {dossier.sessions.length + new Set(dossier.diagnosisRuns.map((run) => `${run.studentId}:${run.scheduledSessionId || `unlinked:${run.id}`}`)).size} sessions · {dossier.reps.length} reps · {dossier.diagnosisRuns.length} diagnoses</Badge>
                   </div>
                   {(() => {
                     const byId = new Map<string, any>(
@@ -530,106 +583,268 @@ export function SandboxReadinessAssessmentCard({
                         .filter((session) => session.studentId === student.studentId)
                         .sort((a, b) => (b.completedAt || "").localeCompare(a.completedAt || ""));
                       const studentReps = dossier.reps.filter((rep) => rep.studentId === student.studentId);
+                      const studentDiagnosisRuns = dossier.diagnosisRuns.filter((run) => run.studentId === student.studentId);
                       return (
                         <details key={student.studentId} className="rounded-lg border bg-background p-3">
                           <summary className="cursor-pointer list-none">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <span className="text-sm font-semibold">{student.studentName || humanize(student.studentId)}</span>
-                              <span className="text-xs text-muted-foreground">{studentSessions.length} sessions · {studentReps.length} reps</span>
+                              <span className="text-xs text-muted-foreground">{studentSessions.length + new Set(studentDiagnosisRuns.map((run) => run.scheduledSessionId || `unlinked:${run.id}`)).size} sessions · {studentReps.length} reps</span>
                             </div>
                           </summary>
                           <div className="mt-3 space-y-3 border-t pt-3">
-                            {studentSessions.map((session) => {
-                              const sessionReps = dossier.reps
-                                .filter((rep) => rep.studentId === session.studentId && rep.trajectoryId === session.trajectoryId && rep.sessionNumber === session.sessionNumber)
-                                .sort((a, b) => a.repNumber - b.repNumber);
-                              const setIds = Array.from(new Set(sessionReps.map((rep) => rep.setId)));
-                              return (
-                                <details key={session.id} className="rounded-lg border bg-muted/10 p-3">
-                                  <summary className="cursor-pointer list-none text-sm font-medium">
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                      <span>Session {session.sessionNumber} · {humanize(session.phase)}{session.topicKey ? " · " + humanize(session.topicKey) : ""}</span>
-                                      <Badge variant={session.authorityAligned && session.stateTrackAligned ? "default" : "destructive"}>{session.authorityAligned && session.stateTrackAligned ? "Evidence aligned" : "Review required"}</Badge>
-                                    </div>
-                                  </summary>
-                                  <div className="mt-3 space-y-3 border-t pt-3 text-xs">
-                                    <p className="text-muted-foreground">Completed {formatDossierTimestamp(session.completedAt)} · Decision: {session.authorityAligned ? "Aligned" : "Needs review"} · State: {session.stateTrackAligned ? "Aligned" : "Diverged"} · State change observed: {session.stateChangeObserved == null ? "Not recorded" : session.stateChangeObserved ? "Yes" : "No"}</p>
-                                    <div className="grid gap-3 md:grid-cols-2">
-                                      {[{ title: "Recorded decision", value: session.specialistAuthority }, { title: "Expected decision", value: session.canonicalAuthority }].map((decision) => (
-                                        <div key={decision.title} className="rounded-md border bg-muted/20 p-3">
-                                          <p className="font-semibold text-foreground">{decision.title}</p>
-                                          <dl className="mt-2 space-y-1.5">
-                                            {authorityParts(decision.value).map((part) => (
-                                              <div key={`${decision.title}-${part.label}`} className="grid grid-cols-[auto_1fr] gap-2 text-xs">
-                                                <dt className="font-medium text-muted-foreground">{part.label}</dt>
-                                                <dd className="text-foreground">{part.value}</dd>
-                                              </div>
-                                            ))}
-                                          </dl>
+                            {(() => {
+                              const diagnosisGroups = new Map<string, {
+                                id: string;
+                                scheduledTime?: string | null;
+                                runs: DiagnosisDossierRun[];
+                              }>();
+                              studentDiagnosisRuns.forEach((run) => {
+                                const key = run.scheduledSessionId || `unlinked:${run.id}`;
+                                const group = diagnosisGroups.get(key) || {
+                                  id: key,
+                                  scheduledTime: run.scheduledTime,
+                                  runs: [],
+                                };
+                                group.runs.push(run);
+                                diagnosisGroups.set(key, group);
+                              });
+                              const timeline = [
+                                ...studentSessions.map((session) => ({
+                                  kind: "training" as const,
+                                  id: `training:${session.id}`,
+                                  occurredAt: session.completedAt || "",
+                                  phase: session.phase,
+                                  session,
+                                })),
+                                ...Array.from(diagnosisGroups.values()).map((group) => ({
+                                  kind: "diagnosis" as const,
+                                  id: `diagnosis:${group.id}`,
+                                  occurredAt: group.scheduledTime || group.runs[0]?.completedAt || "",
+                                  phase: group.runs[0]?.startingPhase || "Phase unavailable",
+                                  group,
+                                })),
+                              ]
+                                .sort((a, b) =>
+                                  String(a.occurredAt).localeCompare(String(b.occurredAt)) ||
+                                  a.id.localeCompare(b.id),
+                                )
+                                .map((entry, index) => ({ ...entry, sessionNumber: index + 1 }))
+                                .reverse();
+
+                              return timeline.length ? timeline.map((entry) => {
+                                if (entry.kind === "diagnosis") {
+                                  const group = entry.group;
+                                  return (
+                                    <details key={entry.id} className="rounded-lg border bg-muted/10 p-3">
+                                      <summary className="cursor-pointer list-none">
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                          <span className="text-sm font-medium">
+                                            {`Session ${entry.sessionNumber} · ${Array.from(new Set(group.runs.map((run) => run.topic).filter(Boolean))).map(humanize).join(", ") || "Topic unavailable"} · ${humanize(entry.phase)} · Diagnosis`}
+                                          </span>
+                                          <Badge variant="outline">
+                                            {group.runs.length} {group.runs.length === 1 ? "diagnosis dossier" : "diagnosis dossiers"}
+                                          </Badge>
                                         </div>
-                                      ))}
-                                    </div>
-                                    <div className="space-y-2">
-                                      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Sets</p>
-                                      {setIds.map((setId, setIndex) => {
-                                        const setReps = sessionReps.filter((rep) => rep.setId === setId);
-                                        return (
-                                          <details key={setId} className="rounded-md border bg-background p-3">
-                                            <summary className="cursor-pointer list-none font-medium">Set {setIndex + 1} · {setReps.length} reps</summary>
-                                            <div className="mt-3 space-y-2">
-                                              {setReps.map((rep) => {
-                                                const aligned = repEvidenceAligned(rep);
-                                                return (
-                                                  <details key={rep.id} className="rounded-md border bg-muted/10 p-3">
-                                                    <summary className="cursor-pointer list-none">
-                                                      <div className="flex items-center justify-between gap-2">
-                                                        <span>Rep {rep.repNumber}</span>
-                                                        <Badge variant={aligned ? "default" : "destructive"}>{aligned ? "Evidence aligned" : "Review required"}</Badge>
-                                                      </div>
-                                                    </summary>
-                                                    <div className="mt-3 space-y-3 border-t pt-3">
-                                                      <p><span className="font-semibold text-foreground">Student behaviour:</span> <span className="text-muted-foreground">{rep.studentBehavior}</span></p>
-                                                      <p className="text-muted-foreground">Condition preserved: {rep.conditionKept == null ? "Not recorded" : rep.conditionKept ? "Yes" : "No"} · Canonical evidence: {rep.truthPresent ? "Available" : "Unavailable"}</p>
-                                                      <div className="rounded-md border bg-muted/20 p-3">
-                                                        <div className="flex items-center justify-between gap-2">
-                                                          <p className="font-semibold text-foreground">Condition Integrity</p>
-                                                          <Badge variant={!rep.truthPresent ? "outline" : rep.conditionKept === true ? "default" : "destructive"}>{!rep.truthPresent ? "Review required" : rep.conditionKept === true ? "Aligned" : "Diverged"}</Badge>
-                                                        </div>
-                                                        <div className="mt-2 grid gap-2 md:grid-cols-2">
-                                                          <p className="text-muted-foreground"><span className="font-medium text-foreground">Recorded:</span> {formatIntervention(rep.intervention)}</p>
-                                                          <p className="text-muted-foreground"><span className="font-medium text-foreground">Expected:</span> {formatIntervention(rep.expectedIntervention)}</p>
-                                                        </div>
-                                                      </div>
-                                                      {rep.comparisons.map((comparison) => (
-                                                        <div key={comparison.fieldKey} className="rounded-md border bg-muted/20 p-3">
-                                                          <div className="flex items-center justify-between gap-2">
-                                                            <p className="font-semibold text-foreground">{humanize(comparison.fieldKey)}</p>
-                                                            <Badge variant={comparison.matched ? "default" : "destructive"}>{comparison.matched ? "Aligned" : "Diverged"}</Badge>
-                                                          </div>
-                                                          <div className="mt-2 grid gap-2 md:grid-cols-2">
-                                                            <p className="text-muted-foreground"><span className="font-medium text-foreground">Recorded:</span> {formatEvidenceValue(comparison.recorded)}</p>
-                                                            <p className="text-muted-foreground"><span className="font-medium text-foreground">Expected:</span> {formatEvidenceValue(comparison.expected)}</p>
-                                                          </div>
-                                                        </div>
-                                                      ))}
+                                      </summary>
+                                      <div className="mt-3 space-y-3 border-t pt-3">
+                                        {group.runs.map((run) => (
+                                          <details key={run.id} className="rounded-md border bg-background p-3">
+                                            <summary className="cursor-pointer list-none">
+                                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                                <span className="text-sm font-semibold">{run.topic} · Diagnosis dossier</span>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                  <Badge variant="outline">{run.placementPhase || "Placement unavailable"}</Badge>
+                                                  <Badge variant={run.confidence === "strong" ? "default" : "secondary"}>{humanize(run.confidence || "confidence unavailable")}</Badge>
+                                                  <Badge variant="outline">{humanize(run.stability || "stability unavailable")} stability</Badge>
+                                                </div>
+                                              </div>
+                                            </summary>
+                                            <div className="mt-3 space-y-3 border-t pt-3 text-xs">
+                                              <p className="text-muted-foreground">
+                                                {humanize(run.activityKind || run.sessionContext)} · Starting signal: {run.startingPhase} · Completed {formatDossierTimestamp(run.completedAt)}
+                                              </p>
+                                              {run.reason ? <p className="rounded-md bg-muted/30 p-2 text-muted-foreground">{run.reason}</p> : null}
+                                              {run.probes.map((probe) => (
+                                                <details key={`${run.id}-${probe.sequenceNumber}`} className="rounded-md border bg-muted/10 p-3">
+                                                  <summary className="cursor-pointer list-none">
+                                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                                      <span className="font-semibold">Probe {probe.sequenceNumber} · {humanize(probe.probeId)}</span>
+                                                      {probe.truthPresent ? (
+                                                        <Badge variant={probe.observationExact === true ? "default" : "destructive"}>
+                                                          {probe.matchingObservations ?? 0}/{probe.totalObservations} observations match
+                                                        </Badge>
+                                                      ) : <Badge variant="outline">Canonical comparison unavailable</Badge>}
                                                     </div>
-                                                  </details>
-                                                );
-                                              })}
+                                                  </summary>
+                                                  <div className="mt-3 space-y-3 border-t pt-3">
+                                                    <div className="rounded-md border bg-background p-3">
+                                                      <p className="font-semibold text-foreground">Original simulated student behaviour</p>
+                                                      {probe.narrativePreserved ? (
+                                                        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{probe.studentBehavior}</p>
+                                                      ) : (
+                                                        <p className="mt-2 text-muted-foreground">The original simulated student narrative was not preserved for this probe. No replacement narrative has been generated.</p>
+                                                      )}
+                                                    </div>
+                                                    <div className="grid gap-3 md:grid-cols-2">
+                                                      <div className="rounded-md border bg-background p-3">
+                                                        <p className="font-semibold text-foreground">Specialist recorded</p>
+                                                        <div className="mt-2 space-y-2">
+                                                          {probe.recordedObservations.map((observation) => (
+                                                            <div key={observation.dimensionId} className="text-muted-foreground">
+                                                              <p className="font-medium text-foreground">{observation.dimensionLabel}</p>
+                                                              <p>{observation.behaviorLabel}</p>
+                                                            </div>
+                                                          ))}
+                                                          <div className="border-t pt-2">
+                                                            <p className="text-muted-foreground">Support event: {humanize(probe.recordedSupportEvent || "not recorded")}</p>
+                                                          </div>
+                                                        </div>
+                                                      </div>
+                                                      <div className="rounded-md border bg-background p-3">
+                                                        <p className="font-semibold text-foreground">RI expected</p>
+                                                        {probe.expectedObservations ? (
+                                                          <div className="mt-2 space-y-2">
+                                                            {probe.expectedObservations.map((observation) => (
+                                                              <div key={observation.dimensionId} className="text-muted-foreground">
+                                                                <p className="font-medium text-foreground">{observation.dimensionLabel}</p>
+                                                                <p>{observation.behaviorLabel}</p>
+                                                              </div>
+                                                            ))}
+                                                            <div className="flex items-center justify-between gap-2 border-t pt-2">
+                                                              <p className="text-muted-foreground">Support event: {humanize(probe.expectedSupportEvent || "not recorded")}</p>
+                                                              {probe.supportEventMatched == null ? null : <Badge variant={probe.supportEventMatched ? "default" : "destructive"}>{probe.supportEventMatched ? "Aligned" : "Diverged"}</Badge>}
+                                                            </div>
+                                                          </div>
+                                                        ) : <p className="mt-2 text-muted-foreground">Private canonical evidence is not available for this probe.</p>}
+                                                      </div>
+                                                    </div>
+                                                    {probe.truthPresent ? (
+                                                      <div className="space-y-2">
+                                                        <p className="font-semibold text-foreground">Observation comparison</p>
+                                                        {probe.comparisons.map((comparison) => (
+                                                          <div key={comparison.dimensionId} className="rounded-md border bg-background p-3">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                              <p className="font-medium text-foreground">{comparison.dimensionLabel}</p>
+                                                              <Badge variant={comparison.matched ? "default" : "destructive"}>{comparison.matched ? "Aligned" : "Diverged"}</Badge>
+                                                            </div>
+                                                            <div className="mt-2 grid gap-2 md:grid-cols-2">
+                                                              <p className="text-muted-foreground"><span className="font-medium text-foreground">Specialist:</span> {comparison.recorded?.behaviorLabel || "Not recorded"}</p>
+                                                              <p className="text-muted-foreground"><span className="font-medium text-foreground">RI expected:</span> {comparison.expected?.behaviorLabel || "Not recorded"}</p>
+                                                            </div>
+                                                          </div>
+                                                        ))}
+                                                        <p className="text-muted-foreground">Condition conformed: {probe.conditionConformed == null ? "Not recorded" : probe.conditionConformed ? "Yes" : "No"} · Observation exact: {probe.observationExact == null ? "Not recorded" : probe.observationExact ? "Yes" : "No"}</p>
+                                                      </div>
+                                                    ) : null}
+                                                  </div>
+                                                </details>
+                                              ))}
+                                              {!run.probes.length ? <p className="text-muted-foreground">No persisted probe history is available for this run.</p> : null}
                                             </div>
                                           </details>
-                                        );
-                                      })}
+                                        ))}
+                                      </div>
+                                    </details>
+                                  );
+                                }
+
+                                const session = entry.session;
+                                const sessionReps = dossier.reps
+                                  .filter((rep) => rep.studentId === session.studentId && rep.trajectoryId === session.trajectoryId && rep.sessionNumber === session.sessionNumber)
+                                  .sort((a, b) => a.repNumber - b.repNumber);
+                                const setIds = Array.from(new Set(sessionReps.map((rep) => rep.setId)));
+                                return (
+                                  <details key={entry.id} className="rounded-lg border bg-muted/10 p-3">
+                                    <summary className="cursor-pointer list-none text-sm font-medium">
+                                      <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <span>{`Session ${entry.sessionNumber} · ${humanize(session.topicKey || "Topic unavailable")} · ${humanize(session.phase)} · Training`}</span>
+                                        <Badge variant={session.authorityAligned && session.stateTrackAligned ? "default" : "destructive"}>{session.authorityAligned && session.stateTrackAligned ? "Evidence aligned" : "Review required"}</Badge>
+                                      </div>
+                                    </summary>
+                                    <div className="mt-3 space-y-3 border-t pt-3 text-xs">
+                                      <p className="text-muted-foreground">Completed {formatDossierTimestamp(session.completedAt)} · Decision: {session.authorityAligned ? "Aligned" : "Needs review"} · State: {session.stateTrackAligned ? "Aligned" : "Diverged"} · State change observed: {session.stateChangeObserved == null ? "Not recorded" : session.stateChangeObserved ? "Yes" : "No"}</p>
+                                      <div className="grid gap-3 md:grid-cols-2">
+                                        {[{ title: "Recorded decision", value: session.specialistAuthority }, { title: "Expected decision", value: session.canonicalAuthority }].map((decision) => (
+                                          <div key={decision.title} className="rounded-md border bg-muted/20 p-3">
+                                            <p className="font-semibold text-foreground">{decision.title}</p>
+                                            <dl className="mt-2 space-y-1.5">
+                                              {authorityParts(decision.value).map((part) => (
+                                                <div key={`${decision.title}-${part.label}`} className="grid grid-cols-[auto_1fr] gap-2 text-xs">
+                                                  <dt className="font-medium text-muted-foreground">{part.label}</dt>
+                                                  <dd className="text-foreground">{part.value}</dd>
+                                                </div>
+                                              ))}
+                                            </dl>
+                                          </div>
+                                        ))}
+                                      </div>
+                                      <div className="space-y-2">
+                                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Sets</p>
+                                        {setIds.map((setId, setIndex) => {
+                                          const setReps = sessionReps.filter((rep) => rep.setId === setId);
+                                          return (
+                                            <details key={setId} className="rounded-md border bg-background p-3">
+                                              <summary className="cursor-pointer list-none font-medium">Set {setIndex + 1} · {setReps.length} reps</summary>
+                                              <div className="mt-3 space-y-2">
+                                                {setReps.map((rep) => {
+                                                  const aligned = repEvidenceAligned(rep);
+                                                  return (
+                                                    <details key={rep.id} className="rounded-md border bg-muted/10 p-3">
+                                                      <summary className="cursor-pointer list-none">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                          <span>Rep {rep.repNumber}</span>
+                                                          <Badge variant={aligned ? "default" : "destructive"}>{aligned ? "Evidence aligned" : "Review required"}</Badge>
+                                                        </div>
+                                                      </summary>
+                                                      <div className="mt-3 space-y-3 border-t pt-3">
+                                                        <p><span className="font-semibold text-foreground">Student behaviour:</span> <span className="text-muted-foreground">{rep.studentBehavior}</span></p>
+                                                        <p className="text-muted-foreground">Condition preserved: {rep.conditionKept == null ? "Not recorded" : rep.conditionKept ? "Yes" : "No"} · Canonical evidence: {rep.truthPresent ? "Available" : "Unavailable"}</p>
+                                                        <div className="rounded-md border bg-muted/20 p-3">
+                                                          <div className="flex items-center justify-between gap-2">
+                                                            <p className="font-semibold text-foreground">Condition Integrity</p>
+                                                            <Badge variant={!rep.truthPresent ? "outline" : rep.conditionKept === true ? "default" : "destructive"}>{!rep.truthPresent ? "Review required" : rep.conditionKept === true ? "Aligned" : "Diverged"}</Badge>
+                                                          </div>
+                                                          <div className="mt-2 grid gap-2 md:grid-cols-2">
+                                                            <p className="text-muted-foreground"><span className="font-medium text-foreground">Recorded:</span> {formatIntervention(rep.intervention)}</p>
+                                                            <p className="text-muted-foreground"><span className="font-medium text-foreground">Expected:</span> {formatIntervention(rep.expectedIntervention)}</p>
+                                                          </div>
+                                                        </div>
+                                                        {rep.comparisons.map((comparison) => (
+                                                          <div key={comparison.fieldKey} className="rounded-md border bg-muted/20 p-3">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                              <p className="font-semibold text-foreground">{humanize(comparison.fieldKey)}</p>
+                                                              <Badge variant={comparison.matched ? "default" : "destructive"}>{comparison.matched ? "Aligned" : "Diverged"}</Badge>
+                                                            </div>
+                                                            <div className="mt-2 grid gap-2 md:grid-cols-2">
+                                                              <p className="text-muted-foreground"><span className="font-medium text-foreground">Recorded:</span> {formatEvidenceValue(comparison.recorded)}</p>
+                                                              <p className="text-muted-foreground"><span className="font-medium text-foreground">Expected:</span> {formatEvidenceValue(comparison.expected)}</p>
+                                                            </div>
+                                                          </div>
+                                                        ))}
+                                                      </div>
+                                                    </details>
+                                                  );
+                                                })}
+                                              </div>
+                                            </details>
+                                          );
+                                        })}
+                                      </div>
                                     </div>
-                                  </div>
-                                </details>
+                                  </details>
+                                );
+                              }) : (
+                                <p className="text-sm text-muted-foreground">No completed Sandbox sessions or diagnosis sessions recorded for this student.</p>
                               );
-                            })}
+                            })()}
+
+
                           </div>
                         </details>
                       );
                     })}
-                  {dossier.sessions.length === 0 ? <p className="text-sm text-muted-foreground">No completed Sandbox sessions recorded.</p> : null}
+                  {dossier.sessions.length === 0 && dossier.diagnosisRuns.length === 0 ? <p className="text-sm text-muted-foreground">No completed sessions recorded.</p> : null}
                 </section>
               </div>
             ) : null}

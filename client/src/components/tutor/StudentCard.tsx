@@ -545,12 +545,16 @@ export function StudentCard({
         : topicSymptomsSource
     );
     const rawTopicSymptomLabels = getRawTopicSymptomLabels(topicSymptomsSource);
+    const hasTopicSpecificSymptomEntry =
+      Array.isArray(topicSymptomIdsSource) || Array.isArray(topicSymptomsSource);
     const topicSymptoms =
       topicSymptomIds.length > 0
         ? getResponseSymptomLabels(topicSymptomIds)
         : rawTopicSymptomLabels.length > 0
           ? rawTopicSymptomLabels
-          : symptomSignals;
+          : hasTopicSpecificSymptomEntry
+            ? []
+            : symptomSignals;
     const recommendedTopicData = getTopicMapValue(topicRecommendedStartingPhasesRaw, topic);
     const topicScoresRaw = getTopicMapValue(topicResponseSignalScoresRaw, topic) || {};
     const computedRecommendation = recommendStartingPhaseFromSymptoms(topicSymptomIds);
@@ -688,6 +692,14 @@ export function StudentCard({
       const topicKey = normalizeTopicKey(entry?.topic);
       if (!topic || !topicKey) return;
 
+      // A proposal/persisted seed is not proof of Specialist activation.
+      // Keep the topic out of active conditioning until there is an explicit
+      // activation record or genuine observed session evidence.
+      const explicitlyActivated = Array.from(explicitlyActivatedTopicNames).some(
+        (activatedTopic) => normalizeTopicKey(activatedTopic) === topicKey,
+      );
+      if (!explicitlyActivated && !entry?.hasObservedState) return;
+
       const normalizedEntry = {
         topic,
         phase: entry?.hasObservedState
@@ -709,18 +721,9 @@ export function StudentCard({
       }
     });
 
-    const proposalTopics = Object.values(student.topicConditioning?.topics || {}) as Array<any>;
-    proposalTopics.forEach((entry) => {
-      const topic = normalizeTopicLabel(entry?.topic);
-      const topicKey = normalizeTopicKey(entry?.topic);
-      if (!topic || !topicKey) return;
-      if (byTopic.has(topicKey)) return;
-      byTopic.set(topicKey, {
-        topic,
-        phase: "Unknown",
-        stability: "Unknown",
-      });
-    });
+    // Parent-reported/proposal topics are context for Specialist review, not active
+    // conditioning. Only persisted topic states and explicit activation records
+    // may populate this map; diagnosis then supplies observed phase/stability.
 
     return Array.from(byTopic.values());
   }, [allTopics, student.topicConditioning]);
@@ -1635,114 +1638,67 @@ function IntroDiagnosticTopicSection({
 }) {
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [diagnosticTopic, setDiagnosticTopic] = useState("");
-  const topicOptions = (reportedTopics && reportedTopics.length > 0) ? reportedTopics : [suggestedTopic];
-  const [selectedDiagnosticChoice, setSelectedDiagnosticChoice] = useState(topicOptions[0] || "");
+  const topicOptions = Array.from(new Set((reportedTopics || []).map((topic) => String(topic || "").trim()).filter(Boolean)));
+  const [selectedDiagnosticTopics, setSelectedDiagnosticTopics] = useState<string[]>([]);
   const [activationError, setActivationError] = useState("");
-  const [activatedTopic, setActivatedTopic] = useState<string | null>(null);
   const directDrillLaunch = usesDirectDrillLaunch(operationalMode);
-
-  const storageKey = `intro-diagnostic-topic:${student.id}`;
+  const storageKey = `intro-diagnostic-topics:${student.id}`;
+  const legacyStorageKey = `intro-diagnostic-topic:${student.id}`;
 
   useEffect(() => {
-    const stored = window.sessionStorage.getItem(storageKey);
-    if (stored) {
-      setActivatedTopic(stored);
-      setSelectedDiagnosticChoice(stored);
+    const stored = window.sessionStorage.getItem(storageKey) || window.sessionStorage.getItem(legacyStorageKey);
+    if (!stored) return;
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        setSelectedDiagnosticTopics(Array.from(new Set(parsed.map((value) => String(value || "").trim()).filter(Boolean))).slice(0, 2));
+      } else if (typeof stored === "string" && stored.trim()) {
+        setSelectedDiagnosticTopics([stored.trim()]);
+      }
+    } catch {
+      if (stored.trim()) setSelectedDiagnosticTopics([stored.trim()]);
     }
-  }, [storageKey]);
+  }, [storageKey, legacyStorageKey]);
 
-  const findTopicIntelligence = (topic: string | null) => {
-    if (!topic) return null;
-    const normalized = normalizeTopicKey(topic);
-    if (!normalized) return null;
-    return topicIntelligence.find((entry) => normalizeTopicKey(entry.topic) === normalized) || null;
+  const getTopicPhase = (topic: string) => {
+    const intelligence = (topicIntelligence || []).find((entry) => normalizeTopicKey(entry.topic) === normalizeTopicKey(topic));
+    return intelligence?.recommendedStartingPhase || "Clarity";
   };
 
-  const selectedTopicIntelligence = useMemo(
-    () => findTopicIntelligence(selectedDiagnosticChoice === "__other__" ? null : selectedDiagnosticChoice),
-    [selectedDiagnosticChoice, topicIntelligence],
-  );
-
-  const activatedTopicIntelligence = useMemo(
-    () => findTopicIntelligence(activatedTopic),
-    [activatedTopic, topicIntelligence],
-  );
-
-  const launchPhase = activatedTopicIntelligence?.recommendedStartingPhase || selectedTopicIntelligence?.recommendedStartingPhase || recommendedStartingPhase;
-  const launchTopic = activatedTopic || (selectedDiagnosticChoice === "__other__" ? diagnosticTopic.trim() : selectedDiagnosticChoice);
-
-  const handleActivate = () => {
+  const toggleDiagnosticTopic = (topic: string, checked: boolean) => {
     setActivationError("");
-    const nextTopic = (selectedDiagnosticChoice === "__other__") ? diagnosticTopic.trim() : String(selectedDiagnosticChoice || "").trim();
-    if (!nextTopic) {
-      setActivationError("Please choose or enter a topic to continue.");
+    const alreadySelected = selectedDiagnosticTopics.some((entry) => normalizeTopicKey(entry) === normalizeTopicKey(topic));
+    if (checked && !alreadySelected && selectedDiagnosticTopics.length >= 2) {
+      setActivationError("An Intro Session can cover up to two topics.");
       return;
     }
-    window.sessionStorage.setItem(storageKey, nextTopic);
-    setActivatedTopic(nextTopic);
-    setDiagnosticTopic("");
-    setSelectedDiagnosticChoice(nextTopic);
+    setSelectedDiagnosticTopics((current) =>
+      checked
+        ? alreadySelected ? current : [...current, topic]
+        : current.filter((entry) => normalizeTopicKey(entry) !== normalizeTopicKey(topic)),
+    );
+  };
+
+  const handleSaveTopics = () => {
+    setActivationError("");
+    const nextTopics = [...selectedDiagnosticTopics];
+    if (nextTopics.length < 1 || nextTopics.length > 2) {
+      setActivationError("Choose one or two topics to diagnose in the scheduled Intro Session.");
+      return;
+    }
+    window.sessionStorage.setItem(storageKey, JSON.stringify(nextTopics));
+    setSelectedDiagnosticTopics(nextTopics);
     setDialogOpen(false);
   };
 
-  if (!activatedTopic) {
-    return (
-      <div className="pt-4 border-t border-border/60 space-y-2">
-        <DetailedPreSessionIntelligence
-          reportedTopics={reportedTopics}
-          topicIntelligence={topicIntelligence}
-        />
-
-        <Button
-          className="w-full"
-          variant="outline"
-          size="sm"
-          onClick={() => setDialogOpen(true)}
-        >
-          Add Diagnostic Topic
-        </Button>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Diagnostic Topic</DialogTitle>
-              <DialogDescription>
-                Choose a parent-reported topic or enter a custom topic to run the intro drill on. This is required before opening the intro session.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-2">
-              <Select value={selectedDiagnosticChoice} onValueChange={(v) => setSelectedDiagnosticChoice(v)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={topicOptions[0] || "Select topic"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {topicOptions.map((t) => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
-                  ))}
-                  <SelectItem key="__other__" value="__other__">Other (type manually)</SelectItem>
-                </SelectContent>
-              </Select>
-              {selectedDiagnosticChoice === "__other__" && (
-                <Input
-                  value={diagnosticTopic}
-                  onChange={(e) => setDiagnosticTopic(e.target.value)}
-                  placeholder="e.g. Linear equations"
-                />
-              )}
-              {activationError ? <p className="text-xs text-primary mt-1">{activationError}</p> : null}
-            </div>
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleActivate}>Use This Topic</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        <p className="text-xs text-muted-foreground text-center mt-2">
-          Intro drill topic selection is required and is only used for intro diagnosis.
-        </p>
-      </div>
+  const launchTopics = selectedDiagnosticTopics;
+  const launchPhases = launchTopics.map(getTopicPhase);
+  const launchSymptoms = launchTopics.map((topic) => {
+    const intelligence = (topicIntelligence || []).find(
+      (entry) => normalizeTopicKey(entry.topic) === normalizeTopicKey(topic),
     );
-  }
+    return Array.isArray(intelligence?.symptoms) ? intelligence.symptoms : [];
+  });
 
   return (
     <div className="pt-4 border-t border-border/60 space-y-2">
@@ -1750,93 +1706,111 @@ function IntroDiagnosticTopicSection({
         reportedTopics={reportedTopics}
         topicIntelligence={topicIntelligence}
       />
+
       {!directDrillLaunch && introSession?.scheduled_time ? (
         <div className="rounded-xl border border-primary/20 bg-muted/20 p-3 space-y-1">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Scheduled Intro Lesson</p>
-          <p className="text-sm text-foreground">
-            {new Date(introSession.scheduled_time).toLocaleString()}
-          </p>
+          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Scheduled Intro Session</p>
+          <p className="text-sm text-foreground">{new Date(introSession.scheduled_time).toLocaleString()}</p>
         </div>
       ) : null}
+
+      {launchTopics.length > 0 ? (
+        <div className="rounded-lg border border-primary/15 bg-muted/20 p-3 space-y-1">
+          <p className="text-xs font-medium text-foreground">Intro Session diagnostic scope</p>
+          {launchTopics.map((topic, index) => (
+            <p key={topic} className="text-sm text-muted-foreground">{index + 1}. {topic} · Starting hypothesis: {launchPhases[index]}</p>
+          ))}
+        </div>
+      ) : null}
+
+      <Button className="w-full" variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
+        {launchTopics.length ? "Change Diagnostic Topics" : "Add Diagnostic Topic"}
+      </Button>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Select Intro Session Topics</DialogTitle>
+            <DialogDescription>
+              Choose one or two topics for this learner’s scheduled first-time Intro Session. Parent reports guide the selection; the session itself establishes the diagnosis. No separate topic activation is required.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {topicOptions.length > 0 ? (
+              <div className="space-y-2">
+                {topicOptions.map((topic) => {
+                  const checked = selectedDiagnosticTopics.some((entry) => normalizeTopicKey(entry) === normalizeTopicKey(topic));
+                  const intelligence = (topicIntelligence || []).find((entry) => normalizeTopicKey(entry.topic) === normalizeTopicKey(topic));
+                  const phase = intelligence?.recommendedStartingPhase || "Clarity";
+                  const symptoms = Array.isArray(intelligence?.symptoms) ? intelligence.symptoms : [];
+                  return (
+                    <label key={topic} className="flex items-start gap-3 rounded-md border p-3 text-sm">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={checked}
+                        disabled={!checked && selectedDiagnosticTopics.length >= 2}
+                        onChange={(event) => toggleDiagnosticTopic(topic, event.target.checked)}
+                      />
+                      <span className="min-w-0">
+                        <span className="block font-medium">{topic}</span>
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          Symptoms: {symptoms.length > 0 ? symptoms.join(" · ") : "No symptoms recorded"}
+                        </span>
+                        <span className="mt-1 block text-xs text-muted-foreground">Recommended starting phase: {phase}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">There are no parent-reported topics available to select for this Intro Session.</p>
+            )}
+            {activationError ? <p role="alert" className="text-xs text-destructive">{activationError}</p> : null}
+            <p className="text-xs text-muted-foreground">{selectedDiagnosticTopics.length} of 2 topics selected.</p>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveTopics}>Save Topics</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Button
         className="w-full"
         variant="default"
         size="sm"
         onClick={() => {
-          const topicParam = encodeURIComponent(launchTopic || "");
-          const phaseParam = `&phase=${encodeURIComponent(launchPhase || recommendedStartingPhase)}`;
-          const sessionParam =
-            directDrillLaunch
-              ? ""
-              : introSession?.id
-                ? `&scheduledSessionId=${encodeURIComponent(introSession.id)}`
-                : "";
-          navigate(`/specialist/intro-session/${student.id}?topic=${topicParam}${phaseParam}${sessionParam}`);
+          const topicsParam = encodeURIComponent(JSON.stringify(launchTopics));
+          const phasesParam = encodeURIComponent(JSON.stringify(launchPhases));
+          const symptomsParam = encodeURIComponent(JSON.stringify(launchSymptoms));
+          const sessionParam = directDrillLaunch
+            ? ""
+            : introSession?.id
+              ? `&scheduledSessionId=${encodeURIComponent(introSession.id)}`
+              : "";
+          const firstTopic = encodeURIComponent(launchTopics[0] || "");
+          navigate(`/specialist/intro-session/${student.id}?topic=${firstTopic}&topics=${topicsParam}&topicPhases=${phasesParam}&topicSymptoms=${symptomsParam}&context=intro${sessionParam}`);
         }}
         disabled={
-          directDrillLaunch
-            ? false
-            : !introSession?.id || !["confirmed", "ready", "live", "scheduled"].includes(String(introSession?.status || ""))
+          launchTopics.length < 1 ||
+          (launchTopics.length === 2 && !introSession?.id) ||
+          (!directDrillLaunch && (!introSession?.id || !["confirmed", "ready", "live", "scheduled"].includes(String(introSession?.status || ""))))
         }
       >
-        Open Intro Drill
+        Open Intro Session
       </Button>
       <p className="text-xs text-muted-foreground text-center">
-        Intro Diagnostic Topic: <span className="font-semibold text-foreground">{activatedTopic}</span>
+        {launchTopics.length === 0
+          ? "Select up to two topics before opening the scheduled Intro Session."
+          : `Selected for first-time diagnosis: ${launchTopics.join(" and ")}.`}
       </p>
-      {!directDrillLaunch && (!introSession?.id || !["confirmed", "ready", "live", "scheduled"].includes(String(introSession?.status || ""))) ? (
-        <p className="text-xs text-primary text-center">
-          Confirm the intro lesson before entering the drill runner.
-        </p>
+      {launchTopics.length === 2 && !introSession?.id ? (
+        <p className="text-xs text-primary text-center">Diagnosing two topics requires one scheduled Intro Session so both results remain attached to the same booking.</p>
       ) : null}
-      <Button
-        className="w-full"
-        variant="outline"
-        size="sm"
-        onClick={() => setDialogOpen(true)}
-      >
-        Change Diagnostic Topic
-      </Button>
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Change Diagnostic Topic</DialogTitle>
-            <DialogDescription>
-              Update the intro-only diagnostic topic. This does not formally activate a training topic.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Select value={selectedDiagnosticChoice} onValueChange={(v) => setSelectedDiagnosticChoice(v)}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={topicOptions[0] || "Select topic"} />
-              </SelectTrigger>
-              <SelectContent>
-                {topicOptions.map((t) => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
-                ))}
-                <SelectItem key="__other__" value="__other__">Other (type manually)</SelectItem>
-              </SelectContent>
-            </Select>
-            {selectedDiagnosticChoice === "__other__" && (
-              <Input
-                value={diagnosticTopic}
-                onChange={(e) => setDiagnosticTopic(e.target.value)}
-                placeholder="e.g. Linear equations"
-              />
-            )}
-            {activationError ? <p className="text-xs text-primary mt-1">{activationError}</p> : null}
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleActivate}>Save Topic</Button>
-            </DialogFooter>
-          </div>
-        </DialogContent>
-      </Dialog>
-      <p className="text-xs text-muted-foreground text-center">
-        {directDrillLaunch
-          ? "Training mode is active. Launch the intro drill directly without waiting for a booked lesson window."
-          : `Launch the adaptive Intro Session diagnosis starting at ${recommendedStartingPhase}. Scoring and next actions remain system-driven.`}
-      </p>
+      {!directDrillLaunch && (!introSession?.id || !["confirmed", "ready", "live", "scheduled"].includes(String(introSession?.status || ""))) ? (
+        <p className="text-xs text-primary text-center">The proposed Intro Session must be confirmed before the diagnosis can begin.</p>
+      ) : null}
     </div>
   );
 }

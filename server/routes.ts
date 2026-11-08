@@ -8626,6 +8626,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             try {
               const tutorId = (req as any).dbUser.id;
               const { studentId, drill, introTopic, phase: rawPhase, startingPhase: rawStartingPhase, adaptiveBlocks: rawAdaptiveBlocks, scheduledSessionId } = req.body;
+              const multiTopicCount = Number(req.body.multiTopicCount ?? 1);
+              const multiTopicIndex = Number(req.body.multiTopicIndex ?? 0);
+              const multiTopicBatchId = String(req.body.multiTopicBatchId || "").trim();
               const drillSets = normalizeIntroDrillSets(drill);
               const adaptiveBlocks = normalizeAdaptiveDiagnosisBlocks(rawAdaptiveBlocks);
               const drillPhase = parseAuthoritativePhase(rawPhase);
@@ -8644,6 +8647,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
               if (!normalizedIntroTopic) {
                 return res.status(400).json({ message: "Diagnostic topic is required before intro drill submission" });
+              }
+              if (
+                !Number.isInteger(multiTopicCount) ||
+                ![1, 2].includes(multiTopicCount) ||
+                !Number.isInteger(multiTopicIndex) ||
+                multiTopicIndex < 0 ||
+                multiTopicIndex >= multiTopicCount ||
+                (multiTopicCount === 2 && !multiTopicBatchId)
+              ) {
+                return res.status(400).json({ message: "An Intro Session can diagnose one or two distinct topics only." });
               }
 
               const drillValidationError = isAdaptiveDiagnosis
@@ -8742,6 +8755,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }
               }
 
+              if (multiTopicCount === 2) {
+                if (diagnosisSessionKind !== "intro" || !scheduledSession) {
+                  return res.status(400).json({ message: "Two-topic diagnosis must run inside one confirmed Intro Session." });
+                }
+                let previousTopicDrills: Array<{ drill: unknown }> = [];
+                if (isEmergencyDbMode()) {
+                  const previousResult = await pool.query(
+                    `SELECT drill
+                       FROM public.intro_session_drills
+                      WHERE scheduled_session_id = $1
+                        AND student_id = $2
+                        AND tutor_id = $3
+                      ORDER BY submitted_at ASC`,
+                    [scheduledSession.id, studentId, tutorId],
+                  );
+                  previousTopicDrills = previousResult.rows;
+                } else {
+                  const { data: previousRows, error: previousRowsError } = await supabase
+                    .from("intro_session_drills")
+                    .select("drill")
+                    .eq("scheduled_session_id", scheduledSession.id)
+                    .eq("student_id", studentId)
+                    .eq("tutor_id", tutorId)
+                    .order("submitted_at", { ascending: true });
+                  if (previousRowsError) {
+                    return res.status(500).json({ message: "Failed to verify the first topic diagnosis." });
+                  }
+                  previousTopicDrills = previousRows || [];
+                }
+
+                if (multiTopicIndex === 0 && previousTopicDrills.length !== 0) {
+                  return res.status(409).json({ message: "This Intro Session already contains a diagnosis. Start a fresh Intro Session to begin another two-topic diagnosis." });
+                }
+                if (multiTopicIndex === 1) {
+                  if (previousTopicDrills.length !== 1) {
+                    return res.status(409).json({ message: "The first topic must be diagnosed successfully before the second topic." });
+                  }
+                  let previousDrill: any = previousTopicDrills[0].drill;
+                  if (typeof previousDrill === "string") {
+                    try { previousDrill = JSON.parse(previousDrill); } catch { previousDrill = null; }
+                  }
+                  if (
+                    String(previousDrill?.multiTopicBatchId || "") !== multiTopicBatchId ||
+                    String(previousDrill?.multiTopicCount || "") !== "2" ||
+                    String(previousDrill?.introTopic || "").trim().toLowerCase() === normalizedIntroTopic.toLowerCase()
+                  ) {
+                    return res.status(409).json({ message: "The second topic must be different and belong to the same two-topic Intro Session." });
+                  }
+                }
+              }
+
               if (scheduledSession) {
                 const diagnosisLaunch = getSessionLaunchState(scheduledSession, diagnosisSessionKind);
                 if (!diagnosisLaunch.canLaunch) {
@@ -8800,9 +8864,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 diagnosisMode: isAdaptiveDiagnosis ? "adaptive" : "legacy",
                 scheduledSessionId: diagnosisScheduledSessionId,
                 sessionContextKind: diagnosisSessionKind,
+                multiTopicCount,
+                multiTopicIndex,
+                multiTopicBatchId: multiTopicCount === 2 ? multiTopicBatchId : null,
                 sets: isAdaptiveDiagnosis ? adaptiveBlocks : drillSets,
                 summary: diagnosisSummary,
                 responseSnapshot,
+                multiTopicProgress: { count: multiTopicCount, completed: multiTopicIndex + 1, batchId: multiTopicCount === 2 ? multiTopicBatchId : null },
               });
               const submittedAt = new Date().toISOString();
               const inserted = isEmergencyDbMode()
@@ -8851,12 +8919,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 sets: (isAdaptiveDiagnosis ? adaptiveBlocks : drillSets) as any,
               });
 
-              // Mark intro completed on the first successful diagnosis submission.
+              // A two-topic Intro Session is complete only after its final topic is saved.
               // Sandbox/training-mode intros can run without a scheduled intro shell, so this
               // cannot depend on `diagnosisSessionKind === "intro"`.
               const existingProfile = (student.personalProfile as any) || {};
               const existingWorkflow = (existingProfile.workflow as any) || {};
-              if (!existingWorkflow.introCompletedAt) {
+              const isFinalTopicDiagnosis = multiTopicCount === 1 || multiTopicIndex === multiTopicCount - 1;
+              if (!existingWorkflow.introCompletedAt && isFinalTopicDiagnosis) {
                 await storage.updateStudent(studentId, {
                   personalProfile: {
                     ...existingProfile,
@@ -8973,13 +9042,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
               await storage.updateStudent(studentId, { conceptMastery });
 
-              try {
-                await maybeAutoSendDeterministicReports(studentId, tutorId);
-              } catch (autoReportError) {
-                console.error("Auto report generation failed after intro drill:", autoReportError);
+              if (isFinalTopicDiagnosis) {
+                try {
+                  await maybeAutoSendDeterministicReports(studentId, tutorId);
+                } catch (autoReportError) {
+                  console.error("Auto report generation failed after intro drill:", autoReportError);
+                }
               }
 
-              if (diagnosisSessionKind === "intro" && scheduledSession) {
+              if (
+                diagnosisSessionKind === "intro" &&
+                scheduledSession &&
+                (multiTopicCount === 1 || multiTopicIndex === multiTopicCount - 1)
+              ) {
                 if (isEmergencyDbMode()) {
                   await pool.query(
                     `UPDATE public.scheduled_sessions
@@ -33120,6 +33195,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching parent topic conditioning states:", error);
       res.status(500).json({ message: "Failed to fetch topic conditioning states" });
+    }
+  });
+
+
+  app.post("/api/parent/topic-focus-requests", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+    try {
+      const parentId = String((req as any).dbUser.id || "");
+      const topic = String(req.body?.topic || "").trim().replace(/\\s+/g, " ");
+      const description = String(req.body?.description || "").trim();
+
+      if (!topic || topic.length > 120) {
+        return res.status(400).json({ message: "Enter a topic name of 1 to 120 characters." });
+      }
+      if (description.length > 600 || (description.length > 0 && description.length < 10)) {
+        return res.status(400).json({ message: "If provided, additional context must be 10 to 600 characters." });
+      }
+
+      const { data: enrollment, error: enrollmentError } = await selectLatestParentEnrollment({
+        parentId,
+        primarySelect: "id, topic_response_symptoms, topic_response_symptom_ids, topic_response_signal_scores, topic_recommended_starting_phases, assigned_tutor_id, student_full_name",
+        fallbackSelect: "id, topic_response_symptoms, topic_response_symptom_ids, topic_response_signal_scores, topic_recommended_starting_phases, assigned_tutor_id, student_full_name",
+      });
+
+      if (enrollmentError || !enrollment?.id) {
+        return res.status(404).json({ message: "We could not find an active student enrollment for this account." });
+      }
+
+      const symptoms = enrollment.topic_response_symptoms && typeof enrollment.topic_response_symptoms === "object"
+        ? { ...(enrollment.topic_response_symptoms as Record<string, unknown>) }
+        : {};
+      const symptomIdsByTopic = enrollment.topic_response_symptom_ids && typeof enrollment.topic_response_symptom_ids === "object"
+        ? { ...(enrollment.topic_response_symptom_ids as Record<string, unknown>) }
+        : {};
+      const signalScoresByTopic = enrollment.topic_response_signal_scores && typeof enrollment.topic_response_signal_scores === "object"
+        ? { ...(enrollment.topic_response_signal_scores as Record<string, unknown>) }
+        : {};
+      const recommendations = enrollment.topic_recommended_starting_phases && typeof enrollment.topic_recommended_starting_phases === "object"
+        ? { ...(enrollment.topic_recommended_starting_phases as Record<string, unknown>) }
+        : {};
+      const existingTopic = [...new Set([...Object.keys(symptoms), ...Object.keys(recommendations)])]
+        .find((value) => value.trim().toLowerCase() === topic.toLowerCase());
+      if (existingTopic) {
+        return res.status(409).json({ message: existingTopic + " is already recorded as a parent-reported topic." });
+      }
+
+      const submittedSymptomIds = normalizeResponseSymptoms(req.body?.symptomIds);
+      const symptomRecommendation = recommendStartingPhaseFromSymptoms(submittedSymptomIds);
+      const hasWeightedSymptomSignal = Object.values(symptomRecommendation.scores).some((score) => Number(score) > 0);
+      const recommendedPhase: TopicPhase = hasWeightedSymptomSignal
+        ? symptomRecommendation.phase
+        : "Clarity";
+      const supportingSymptoms = hasWeightedSymptomSignal
+        ? symptomRecommendation.supportingSymptoms
+        : [];
+      const rationale = hasWeightedSymptomSignal
+        ? buildStartingPhaseRationale(recommendedPhase, supportingSymptoms)
+        : "No standardized symptoms were supplied. Clarity is used as a neutral starting baseline; the Specialist must validate the starting phase through diagnosis.";
+
+      // Parent descriptions are free text, not standardized symptom IDs.
+      // Keep them as contextual evidence while symptom IDs alone drive scoring.
+      symptoms[topic] = getResponseSymptomLabels(submittedSymptomIds);
+      symptomIdsByTopic[topic] = submittedSymptomIds;
+      signalScoresByTopic[topic] = symptomRecommendation.scores;
+      recommendations[topic] = {
+        phase: recommendedPhase,
+        supportingSymptoms,
+        rationale: description ? `${rationale} Parent context: ${description}` : rationale,
+        parentDescription: description,
+      };
+
+      if (isEmergencyDbMode() || process.env.VERCEL_ENV === "preview") {
+        const updateResult = await pool.query(
+          `UPDATE public.parent_enrollments
+              SET topic_response_symptoms = $2::jsonb,
+                  topic_response_symptom_ids = $3::jsonb,
+                  topic_response_signal_scores = $4::jsonb,
+                  topic_recommended_starting_phases = $5::jsonb,
+                  updated_at = NOW()
+            WHERE id = $1`,
+          [
+            String(enrollment.id),
+            JSON.stringify(symptoms),
+            JSON.stringify(symptomIdsByTopic),
+            JSON.stringify(signalScoresByTopic),
+            JSON.stringify(recommendations),
+          ],
+        );
+        if (updateResult.rowCount !== 1) {
+          return res.status(500).json({ message: "We could not save the topic request. Please try again." });
+        }
+      } else {
+        const { data: updatedEnrollment, error: updateError } = await supabase
+          .from("parent_enrollments")
+          .update({
+            topic_response_symptoms: symptoms,
+            topic_response_symptom_ids: symptomIdsByTopic,
+            topic_response_signal_scores: signalScoresByTopic,
+            topic_recommended_starting_phases: recommendations,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", enrollment.id)
+          .select("id")
+          .maybeSingle();
+        if (updateError || !updatedEnrollment?.id) {
+          console.error("Parent topic focus request update failed:", updateError);
+          return res.status(500).json({ message: "We could not save the topic request. Please try again." });
+        }
+      }
+
+      return res.status(201).json({
+        success: true,
+        topic,
+        message: "Your topic request has been sent to the Specialist for review.",
+      });
+    } catch (error) {
+      console.error("Error saving parent topic focus request:", error);
+      return res.status(500).json({ message: "Failed to submit the topic request." });
     }
   });
 
