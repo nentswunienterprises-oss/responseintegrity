@@ -1,6 +1,6 @@
 import type { EvidenceCompleteDiagnosisDecision } from "../shared/evidenceCompleteDiagnosis";
 
-export type DiagnosisSessionLineage = { scheduledSessionId: string | null; startProbeIndex: number; sessionKind?: "intro" | "training" | "handover" };
+export type DiagnosisSessionLineage = { scheduledSessionId: string | null; startProbeIndex: number; sessionKind?: "intro" | "training" | "handover" | "sandbox_entry_diagnosis" };
 export type DiagnosisContinuationContext = {
   legacyPrefixLength: number;
   sessions: DiagnosisSessionLineage[];
