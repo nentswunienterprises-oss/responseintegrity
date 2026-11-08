@@ -33214,8 +33214,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { data: enrollment, error: enrollmentError } = await selectLatestParentEnrollment({
         parentId,
-        primarySelect: "id, topic_response_symptoms, topic_recommended_starting_phases, assigned_tutor_id, student_full_name",
-        fallbackSelect: "id, topic_response_symptoms, topic_recommended_starting_phases, assigned_tutor_id, student_full_name",
+        primarySelect: "id, topic_response_symptoms, topic_response_symptom_ids, topic_response_signal_scores, topic_recommended_starting_phases, assigned_tutor_id, student_full_name",
+        fallbackSelect: "id, topic_response_symptoms, topic_response_symptom_ids, topic_response_signal_scores, topic_recommended_starting_phases, assigned_tutor_id, student_full_name",
       });
 
       if (enrollmentError || !enrollment?.id) {
@@ -33224,6 +33224,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const symptoms = enrollment.topic_response_symptoms && typeof enrollment.topic_response_symptoms === "object"
         ? { ...(enrollment.topic_response_symptoms as Record<string, unknown>) }
+        : {};
+      const symptomIdsByTopic = enrollment.topic_response_symptom_ids && typeof enrollment.topic_response_symptom_ids === "object"
+        ? { ...(enrollment.topic_response_symptom_ids as Record<string, unknown>) }
+        : {};
+      const signalScoresByTopic = enrollment.topic_response_signal_scores && typeof enrollment.topic_response_signal_scores === "object"
+        ? { ...(enrollment.topic_response_signal_scores as Record<string, unknown>) }
         : {};
       const recommendations = enrollment.topic_recommended_starting_phases && typeof enrollment.topic_recommended_starting_phases === "object"
         ? { ...(enrollment.topic_recommended_starting_phases as Record<string, unknown>) }
@@ -33234,24 +33240,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(409).json({ message: existingTopic + " is already recorded as a parent-reported topic." });
       }
 
-      // Parent descriptions are free text, not one of the standardized symptom IDs.
-      // Keep the topic in the recommendation map so buildReportedTopics retains it,
-      // and carry the original description as supporting evidence for the Specialist.
-      symptoms[topic] = [];
+      const submittedSymptomIds = normalizeResponseSymptoms(req.body?.symptomIds);
+      const symptomRecommendation = recommendStartingPhaseFromSymptoms(submittedSymptomIds);
+      const hasWeightedSymptomSignal = Object.values(symptomRecommendation.scores).some((score) => Number(score) > 0);
+      const recommendedPhase: TopicPhase = hasWeightedSymptomSignal
+        ? symptomRecommendation.phase
+        : "Clarity";
+      const supportingSymptoms = hasWeightedSymptomSignal
+        ? symptomRecommendation.supportingSymptoms
+        : [];
+      const rationale = hasWeightedSymptomSignal
+        ? buildStartingPhaseRationale(recommendedPhase, supportingSymptoms)
+        : "No standardized symptoms were supplied. Clarity is used as a neutral starting baseline; the Specialist must validate the starting phase through diagnosis.";
+
+      // Parent descriptions are free text, not standardized symptom IDs.
+      // Keep them as contextual evidence while symptom IDs alone drive scoring.
+      symptoms[topic] = getResponseSymptomLabels(submittedSymptomIds);
+      symptomIdsByTopic[topic] = submittedSymptomIds;
+      signalScoresByTopic[topic] = symptomRecommendation.scores;
       recommendations[topic] = {
-        phase: null,
-        supportingSymptoms: [description],
-        rationale: "Requested by the parent. The Specialist will assess the response and select the appropriate starting phase.",
+        phase: recommendedPhase,
+        supportingSymptoms,
+        rationale,
+        parentDescription: description,
       };
 
       if (isEmergencyDbMode() || process.env.VERCEL_ENV === "preview") {
         const updateResult = await pool.query(
           `UPDATE public.parent_enrollments
               SET topic_response_symptoms = $2::jsonb,
-                  topic_recommended_starting_phases = $3::jsonb,
+                  topic_response_symptom_ids = $3::jsonb,
+                  topic_response_signal_scores = $4::jsonb,
+                  topic_recommended_starting_phases = $5::jsonb,
                   updated_at = NOW()
             WHERE id = $1`,
-          [String(enrollment.id), JSON.stringify(symptoms), JSON.stringify(recommendations)],
+          [
+            String(enrollment.id),
+            JSON.stringify(symptoms),
+            JSON.stringify(symptomIdsByTopic),
+            JSON.stringify(signalScoresByTopic),
+            JSON.stringify(recommendations),
+          ],
         );
         if (updateResult.rowCount !== 1) {
           return res.status(500).json({ message: "We could not save the topic request. Please try again." });
@@ -33261,6 +33290,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .from("parent_enrollments")
           .update({
             topic_response_symptoms: symptoms,
+            topic_response_symptom_ids: symptomIdsByTopic,
+            topic_response_signal_scores: signalScoresByTopic,
             topic_recommended_starting_phases: recommendations,
             updated_at: new Date().toISOString(),
           })

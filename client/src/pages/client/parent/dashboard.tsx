@@ -16,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 import { getAuthMode } from "@/lib/authMode";
 import { getParentDashboardCopyByState } from "@shared/topicConditioningEngine";
 import { displayTopicStability, topicStabilityConfirmationLabel } from "@shared/topicStabilityPresentation";
+import { RESPONSE_SYMPTOM_GROUPS } from "@shared/responseSymptomMapping";
 
 interface StudentStats {
   introDiagnosisCompleted?: number;
@@ -435,6 +436,7 @@ export default function ParentDashboard() {
   const [topicRequestOpen, setTopicRequestOpen] = useState(false);
   const [topicRequestName, setTopicRequestName] = useState("");
   const [topicRequestDescription, setTopicRequestDescription] = useState("");
+  const [topicRequestSymptomIds, setTopicRequestSymptomIds] = useState<string[]>([]);
   const [topicRequestSubmitting, setTopicRequestSubmitting] = useState(false);
   const [topicRequestError, setTopicRequestError] = useState<string | null>(null);
   const [topicRequestNotice, setTopicRequestNotice] = useState<string | null>(null);
@@ -1075,11 +1077,13 @@ export default function ParentDashboard() {
                 const response = await apiRequest("POST", "/api/parent/topic-focus-requests", {
                   topic: topicRequestName,
                   description: topicRequestDescription,
+                  symptomIds: topicRequestSymptomIds,
                 });
                 const result = await response.json();
                 setTopicRequestNotice(result.message || "Your topic request has been sent to the Specialist.");
                 setTopicRequestName("");
                 setTopicRequestDescription("");
+                setTopicRequestSymptomIds([]);
                 setTopicRequestOpen(false);
                 await Promise.all([
                   queryClient.invalidateQueries({ queryKey: ["/api/parent/topic-conditioning-states"] }),
@@ -1104,6 +1108,49 @@ export default function ParentDashboard() {
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
+            <section className="space-y-3 rounded-lg border p-3">
+              <div>
+                <p className="text-sm font-medium">What patterns have you noticed?</p>
+                <p className="mt-1 text-xs text-muted-foreground">Optional. Select any patterns that fit. These help suggest a starting phase; the Specialist will still validate it through diagnosis.</p>
+              </div>
+              {RESPONSE_SYMPTOM_GROUPS.map((group) => (
+                <fieldset key={group.id} className="space-y-2">
+                  <legend className="text-sm font-medium">{group.title}</legend>
+                  <p className="text-xs text-muted-foreground">{group.prompt}</p>
+                  <div className="space-y-2">
+                    {group.options.map((option) => {
+                      const checked = topicRequestSymptomIds.includes(option.id);
+                      return (
+                        <label key={option.id} className="flex cursor-pointer items-start gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            className="mt-1"
+                            checked={checked}
+                            onChange={(event) => {
+                              const isFallback = option.id.endsWith("_none_of_above") || option.id.endsWith("_not_sure");
+                              setTopicRequestSymptomIds((current) => {
+                                if (!event.target.checked) return current.filter((id) => id !== option.id);
+                                const groupIds = new Set(group.options.map((item) => item.id));
+                                const withoutGroup = current.filter((id) => !groupIds.has(id));
+                                if (isFallback) return [...withoutGroup, option.id];
+                                const fallbackIds = new Set(group.options
+                                  .filter((item) => item.id.endsWith("_none_of_above") || item.id.endsWith("_not_sure"))
+                                  .map((item) => item.id));
+                                return [...current.filter((id) => !fallbackIds.has(id)), option.id];
+                              });
+                            }}
+                          />
+                          <span>
+                            <span className="block">{option.label}</span>
+                            <span className="block text-xs text-muted-foreground">{option.description}</span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              ))}
+            </section>
             <div className="space-y-2">
               <label htmlFor="parent-topic-request-description" className="text-sm font-medium">What does your child experience in this topic?</label>
               <textarea
