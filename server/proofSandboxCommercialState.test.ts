@@ -35,8 +35,12 @@ test("Proof reconciliation preserves seeded quota state with renewal lineage", (
   assert.match(commercialStateSource, /distinctUsageCount > intendedUsed/);
   assert.match(commercialStateSource, /intendedUsed < quota/);
   assert.match(commercialStateSource, /raw_payload\?\.renewal === true/);
-  assert.match(commercialStateSource, /sessions_used: inferredUsed/);
-  assert.match(commercialStateSource, /sessions_remaining: Math\.max/);
+  assert.match(commercialStateSource, /cycleStartIso/);
+  assert.match(commercialStateSource, /loadUsageEvents\(parentId, studentId, cycleStartIso, evidenceUpperBoundIso\)/);
+  assert.match(commercialStateSource, /currentCycleRenewal/);
+  assert.match(commercialStateSource, /\.eq\("enrollment_id", enrollmentId\)/);
+  assert.match(commercialStateSource, /\.eq\("student_id", studentId\)/);
+  assert.doesNotMatch(commercialStateSource, /sessions_used: inferredUsed/);
 });
 
 test("parent access and Specialist pod reconcile before quota/payment projection", () => {

@@ -22,6 +22,17 @@ test("Sandbox package read chooses stored cycle, not current UTC month", () => {
   assert.doesNotMatch(proofRead, /\.insert\(|\.update\(|upsertMembershipMonth|recalculateMembershipMonthUsage/);
 });
 
+test("Preview Sandbox package authority uses the direct Proof DB session path", () => {
+  const src = source("async function getMonthlySessionQuotaSnapshot(", "type TrainingPackageQuotaAuthority =");
+  assert.match(
+    src,
+    /if \(isEmergencyDbMode\(\) \|\| \(options\.isSandboxContext === true && usesDirectProofSessionDatabase\(\)\)\)/,
+  );
+  assert.match(src, /if \(isSandboxContext === true\) \{/);
+  assert.match(src, /selectAuthoritativeSandboxCycle\(result\.rows, options\.parentId, options\.studentId\)/);
+  assert.ok(src.includes("if (isSandbox && !verifySandboxCycleConsumption(row, actualConsumed)) return null;"));
+});
+
 test("real family retains calendar-month quota, payment logic, and reconciler", () => {
   const src = source("async function getMonthlySessionQuotaSnapshot(", "type TrainingPackageQuotaAuthority =");
   assert.ok(src.includes("AND month_key = $3 AND is_sandbox = FALSE"));
@@ -41,14 +52,26 @@ test("Specialist quota and launch authority resolve through shared package gette
   assert.match(tutor, /applyTrainingPackageQuotaToLaunch/);
 });
 
-test("parent booking blocks missing Sandbox authority and exhaustion", () => {
-  const snippet = source(
-    "Sandbox package-cycle authority cannot be verified. Booking remains blocked.",
-    "const parsedSlots = rawSlots",
+test("Sandbox cycle identifiers are canonicalized without using them as expiry dates", () => {
+  const upsert = source("async function upsertMembershipMonth(", "async function recalculateMembershipMonthUsage(");
+  assert.match(upsert, /getMonthStartIso\(options\.monthStartIso\)/);
+  assert.match(upsert, /const monthKey = toMonthKey\(normalizedMonthStartIso\)/);
+  assert.match(upsert, /sequence key, not an expiry boundary tied to the real calendar/);
+});
+
+test("Sandbox booking uses simulated package cadence and Commercial remains two slots", () => {
+  const booking = source(
+    'app.post("/api/parent/training-sessions/schedule-week"',
+    'app.post("/api/parent/training-sessions/respond"',
   );
-  assert.match(snippet, /if \(monthlyQuota && Number\(monthlyQuota\.sessions_remaining \|\| 0\) <= 0\)/);
-  assert.match(snippet, /Simulated package exhausted/);
-  assert.match(snippet, /const currentMonthKey = toMonthKey/);
+  assert.match(booking, /const packageWeeklyTarget = isSandboxContext/);
+  assert.match(booking, /packageSessionQuota === 16[\s\S]*?packageSessionQuota === 12[\s\S]*?monthlyQuota\?\.planned_sessions_per_week/);
+  assert.match(booking, /parsedSlots\.length !== expectedWeeklySessions/);
+  assert.doesNotMatch(booking, /if \(rawSlots\.length !== 2\)/);
+  assert.match(booking, /if \(!isSandboxContext\) \{[\s\S]*?const nowMs = Date\.now\(\)/);
+  assert.match(booking, /AND \(\$5::boolean = TRUE OR scheduled_time >= \$6::timestamptz\)/);
+  assert.match(booking, /if \(!isSandboxContext\) \{[\s\S]*?existingQuery = existingQuery\.gte\("scheduled_time"/);
+  assert.match(booking, /Simulated package exhausted/);
 });
 
 test("parent renewal is explicit, not triggered by calendar rollover", () => {
@@ -92,15 +115,18 @@ test("Preview fixture retains the simulated cycle and does not grant another mon
   assert.ok(lookup.includes("selectAuthoritativeSandboxCycle(existingCycles, parentId, studentId)"));
   assert.ok(lookup.includes('.eq("is_sandbox", true)'));
   assert.ok(lookup.includes('.order("month_key", { ascending: false })'));
-  assert.ok(lookup.includes("existingCycles.length > 0 && !membership"));
+  assert.ok(lookup.includes("if (!membership)"));
   assert.ok(lookup.includes('reason: "membership_unavailable"'));
   assert.ok(lookup.includes('String(membership.month_key) + "T00:00:00.000Z"'));
   assert.doesNotMatch(lookup, /\.eq\("month_key",\s*monthKey\)/);
   assert.doesNotMatch(lookup, /\.insert\(|\.update\(/);
   assert.ok(preview.includes('normalize(process.env.VERCEL_ENV) !== "preview"'));
   assert.ok(preview.includes('const evidenceUpperBoundIso = "9999-12-31T23:59:59.999Z"'));
-  assert.ok(preview.includes("loadUsageEvents(parentId, studentId, startIso, evidenceUpperBoundIso)"));
+  assert.ok(preview.includes("loadUsageEvents(parentId, studentId, cycleStartIso, evidenceUpperBoundIso)"));
   assert.ok(preview.includes("deriveSyntheticRenewalBoundary(usageEvents, intendedUsed, nowIso)"));
+  assert.ok(preview.includes("currentCycleRenewal"));
+  assert.ok(preview.includes('.eq("enrollment_id", enrollmentId)'));
+  assert.ok(preview.includes('.eq("student_id", studentId)'));
   const usageLoader = preview.slice(
     preview.indexOf("async function loadUsageEvents("),
     preview.indexOf("async function upsertSyntheticPaidPayment("),
