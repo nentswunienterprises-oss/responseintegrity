@@ -257,6 +257,12 @@ export default function ResponseConditioningSystem() {
   );
   const sandboxDevelopmentBlocked =
     sandboxMode && stageGate?.developmentCoverageReady !== true;
+  const operatingSystemRetention = cumulativeAssessments.find(
+    (assessment) => assessment.assessmentKey.startsWith("operating_system_") && assessment.evidenceKind === "retrieval",
+  );
+  const operatingSystemApplication = cumulativeAssessments.find(
+    (assessment) => assessment.assessmentKey.startsWith("operating_system_") && assessment.evidenceKind === "transfer",
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -287,6 +293,25 @@ export default function ResponseConditioningSystem() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-12 space-y-8">
+        {sandboxMode ? (
+          <Card className="ri-focus-card border border-primary/15 bg-card shadow-sm">
+            <div className="p-6 space-y-4">
+              <div><Badge>Sandbox development pathway</Badge><h2 className="mt-2 text-xl font-bold">Your remaining progression</h2>
+                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">Development coverage unlocks the remaining Deep Dives. RI-OS Retention and Application follow those checks. The eight-session Sandbox graduation qualification is the final gate, not part of development coverage.</p>
+              </div>
+              <ol className="grid gap-3 md:grid-cols-2">
+                <li className="rounded-lg border bg-muted/20 p-4"><div className="flex items-center justify-between gap-2"><h3 className="font-semibold">1. Transformation qualification</h3><Badge>Sandbox entry complete</Badge></div><p className="mt-1 text-xs text-muted-foreground">Transformation Mastery, Retention and Application qualify a Specialist for Sandbox entry.</p></li>
+                <li className="rounded-lg border bg-muted/20 p-4"><div className="flex items-center justify-between gap-2"><h3 className="font-semibold">2. Sandbox development coverage</h3><Badge variant={stageGate?.developmentCoverageReady ? "default" : "outline"}>{stageGate?.developmentCoverageReady ? "Complete" : "In progress"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">Establish required operating-mode, behaviour-signature and response-situation evidence.</p></li>
+                <li className="rounded-lg border bg-muted/20 p-4"><div className="flex items-center justify-between gap-2"><h3 className="font-semibold">3. Remaining Deep Dives</h3><Badge variant={developmentPathwayBlocked ? "outline" : "default"}>{developmentPathwayBlocked ? "Locked until coverage" : "Unlocked"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">Complete outstanding post-Sandbox Deep Dives and capability checks.</p></li>
+                <li className="rounded-lg border bg-muted/20 p-4"><div className="flex items-center justify-between gap-2"><h3 className="font-semibold">4. RI-OS Retention</h3><Badge variant={operatingSystemRetention?.status === "complete" ? "default" : "outline"}>{operatingSystemRetention?.status === "complete" ? "Complete" : operatingSystemRetention?.status === "available" ? "Available" : "After Deep Dives"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">Demonstrate delayed retrieval of the operating system after the post-Sandbox Deep Dives.</p></li>
+                <li className="rounded-lg border bg-muted/20 p-4"><div className="flex items-center justify-between gap-2"><h3 className="font-semibold">5. RI-OS Application</h3><Badge variant={operatingSystemApplication?.status === "complete" ? "default" : "outline"}>{operatingSystemApplication?.status === "complete" ? "Complete" : operatingSystemApplication?.status === "available" ? "Available" : "After RI-OS Retention"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">Demonstrate correct application across mixed situations.</p></li>
+                <li className="rounded-lg border bg-muted/20 p-4"><div className="flex items-center justify-between gap-2"><h3 className="font-semibold">6. Final Sandbox graduation</h3><Badge variant={stageGate?.sandboxQualificationReady ? "default" : "outline"}>{stageGate?.sandboxQualificationReady ? "Evidence complete" : "Final gate"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">Eight consecutive qualifying clean sessions, at least two in each RI-OS phase, followed by TD review.</p></li>
+              </ol>
+              <p className="text-xs text-muted-foreground">Development coverage is evidence/opportunity coverage. The eight clean sessions belong exclusively to final graduation and cannot substitute for development coverage.</p>
+            </div>
+          </Card>
+        ) : null}
+
         <Card className="ri-module-card group border border-primary/15 bg-card shadow-sm hover:border-primary/40 transition-colors">
           <Link
             to="/responseconditioningsystem/introduction"
@@ -382,7 +407,9 @@ export default function ResponseConditioningSystem() {
                     });
                   const detail =
                     assessmentBlocked
-                      ? "Sandbox development coverage is required before this gate unlocks. The zero-divergence graduation run comes afterward."
+                      ? isOperatingSystem
+                        ? "Complete Sandbox development coverage and the remaining post-Sandbox Deep Dives before this gate. Final Sandbox graduation follows RI-OS Retention and Application."
+                        : "Sandbox development coverage is required before this gate unlocks. Remaining Deep Dives and RI-OS gates precede final Sandbox graduation."
                       : assessment.status === "complete"
                       ? isRetrieval
                         ? "Retention is complete."
@@ -462,10 +489,10 @@ export default function ResponseConditioningSystem() {
               <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
                 <p className="font-medium">Sandbox development gate active</p>
                 <p className="mt-1 text-muted-foreground">
-                  Remaining Training Capability Checks are locked until Sandbox development coverage is complete. Once coverage is complete, these checks unlock before the final zero-divergence graduation run.
+                  Complete Sandbox development coverage to unlock the remaining Deep Dives. After those checks, complete RI-OS Retention and Application. Only then does the separate final Sandbox graduation qualification apply.
                 </p>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Coverage: {stageGate?.developmentCoverageReady ? "Established" : "Developing"} · Clean sessions: {stageGate?.qualifyingSessions ?? 0}/{stageGate?.requiredSessions ?? "—"}
+                  Development coverage: {stageGate?.developmentCoverageReady ? "Established" : "In progress"} · The eight-session graduation requirement is a separate later gate.
                 </p>
               </div>
             ) : null}
