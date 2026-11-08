@@ -166,6 +166,11 @@
       "path": "migrations/2026-11-06_supersede_stale_parent_report_diagnoses.sql",
       "description": "Allow unfinished parent-report diagnosis runs to be superseded while preserving immutable audit history. Pending Production promotion; not present in The Hub migration ledger.",
       "risk": "additive"
+    },
+    {
+      "path": "migrations/20261108_sandbox_entry_diagnosis_context.sql",
+      "description": "Distinguish entry diagnosis performed inside a confirmed Sandbox Training booking from targeted Training re-diagnosis in run and evidence-ledger semantics. Pending Preview verification and Production promotion.",
+      "risk": "destructive"
     }
   ]
 }
