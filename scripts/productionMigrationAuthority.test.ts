@@ -25,18 +25,18 @@ test("production DB authority locks the verified The Hub baseline", () => {
         "migrations/2026-10-03_guard_capability_critical_boundary_requires_fail.sql",
         "migrations/20261004_specialist_development_pathway_authority.sql",
         "migrations/20261009_practicals_evidence_stage_v1.sql",
-        "migrations/20261010_neutral_issue_reporting_v1.sql",
         "migrations/20261010_neutral_issue_reporting_service_grants.sql",
+        "migrations/20261010_neutral_issue_reporting_v1.sql",
         "migrations/20261010_revoke_anon_sensitive_tables.sql",
         "migrations/20261010_trial_35_day_first_session.sql",
+        "migrations/20261013_p0_anon_containment.sql",
+        "migrations/20261013_p0_confidential_storage_private.sql",
         "migrations/20261014013817_sandbox_topic_state_lanes.sql",
         "migrations/20261014013826_sandbox_progression_authority.sql",
         "migrations/20261014013834_sandbox_behavior_model_v2.sql",
-        "migrations/2026-11-06_supersede_stale_parent_report_diagnoses.sql",
-        "migrations/20261013_p0_anon_containment.sql",
-        "migrations/20261013_p0_confidential_storage_private.sql",
         "migrations/20261025_fix_legacy_battle_test_mode_enum.sql",
-        "migrations/20261027_parent_subscription_management.sql"
+        "migrations/20261027_parent_subscription_management.sql",
+        "migrations/2026-11-06_supersede_stale_parent_report_diagnoses.sql"
     ],
   );
 });
