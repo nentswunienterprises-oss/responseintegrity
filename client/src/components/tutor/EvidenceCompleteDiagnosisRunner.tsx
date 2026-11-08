@@ -224,7 +224,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
   // The authenticated server resolves the authoritative topic report from the parent enrollment.
   const startingSignalPhase =
     tryParsePhase(searchParams.get("phase")) ||
-    (requestedContext === "intro" || !requestedContext
+    (requestedContext === "intro" ||
+    requestedContext === "sandbox_entry_diagnosis" ||
+    !requestedContext
       ? topicStartingPhases[requestedTopicIndex] || null
       : null);
   const topicReportedSymptoms = (() => {
