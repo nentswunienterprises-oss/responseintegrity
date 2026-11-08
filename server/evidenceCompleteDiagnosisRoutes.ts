@@ -50,6 +50,7 @@ type DiagnosisSessionContainer =
   | "scheduled_training_session"
   | "handover_session";
 type DiagnosisActivityKind = "intro_diagnosis" | "targeted_rediagnosis";
+type DiagnosisSessionKind = "intro" | "training" | "handover" | "sandbox_entry_diagnosis";
 
 type DiagnosisRunRow = {
   id: string;
@@ -59,7 +60,7 @@ type DiagnosisRunRow = {
   starting_phase: TopicPhase;
   scheduled_session_id?: string | null;
   // Legacy compatibility lineage. Do not interpret this field as the activity performed.
-  session_context: "intro" | "active_training" | "handover_verification";
+  session_context: "intro" | "active_training" | "handover_verification" | "sandbox_entry_diagnosis";
   session_container?: DiagnosisSessionContainer | null;
   activity_kind?: DiagnosisActivityKind | null;
   status: "in_progress" | "blocked" | "completed" | "superseded";
@@ -87,7 +88,7 @@ const RUN_TABLE = "response_integrity_diagnosis_runs";
 const LAUNCHABLE_SESSION_STATUSES = new Set(["confirmed", "scheduled", "ready", "live"]);
 const isLaunchableDiagnosisSessionStatus = (
   status: unknown,
-  requestedKind: "intro" | "training" | "handover",
+  requestedKind: "intro" | "training" | "handover" | "sandbox_entry_diagnosis",
 ) =>
   LAUNCHABLE_SESSION_STATUSES.has(String(status || "")) ||
   (requestedKind === "handover" && String(status || "") === "completed");
@@ -106,20 +107,25 @@ const diagnosisSemanticsForSessionKind = (
   sessionContainer: DiagnosisSessionContainer;
   activityKind: DiagnosisActivityKind;
 } =>
-  kind === "training"
+  kind === "sandbox_entry_diagnosis"
     ? {
         sessionContainer: "scheduled_training_session",
-        activityKind: "targeted_rediagnosis",
+        activityKind: "intro_diagnosis",
       }
-    : kind === "handover"
+    : kind === "training"
       ? {
-          sessionContainer: "handover_session",
+          sessionContainer: "scheduled_training_session",
           activityKind: "targeted_rediagnosis",
         }
-      : {
-          sessionContainer: "intro_session",
-          activityKind: "intro_diagnosis",
-        };
+      : kind === "handover"
+        ? {
+            sessionContainer: "handover_session",
+            activityKind: "targeted_rediagnosis",
+          }
+        : {
+            sessionContainer: "intro_session",
+            activityKind: "intro_diagnosis",
+          };
 
 const isScheduledTrainingRediagnosisRun = (run: DiagnosisRunRow) =>
   (run.session_container === "scheduled_training_session" &&
@@ -288,7 +294,7 @@ async function saveDiagnosisRun(input: {
   topic: string;
   startingPhase: TopicPhase;
   scheduledSessionId: string | null;
-  sessionContext: "intro" | "active_training" | "handover_verification";
+  sessionContext: "intro" | "active_training" | "handover_verification" | "sandbox_entry_diagnosis";
   status: "in_progress" | "blocked" | "completed";
   probeHistory: DiagnosisProbeResult[];
   decision: Record<string, unknown>;
@@ -519,7 +525,7 @@ async function loadScheduledSession(input: {
   tutorId: string;
   studentId: string;
   scheduledSessionId?: string | null;
-  requestedKind: "intro" | "training" | "handover";
+  requestedKind: "intro" | "training" | "handover" | "sandbox_entry_diagnosis";
 }): Promise<ScheduledSession | null> {
   const { scheduledSessionId, requestedKind } = input;
   const query = diagnosisScheduledSessionQuery(input);
@@ -534,7 +540,7 @@ async function resolveSessionContext(input: {
   tutorId: string;
   studentId: string;
   scheduledSessionId?: string | null;
-  requestedKind: "intro" | "training" | "handover";
+  requestedKind: "intro" | "training" | "handover" | "sandbox_entry_diagnosis";
 }) {
   const normalizedScheduledSessionId = String(input.scheduledSessionId || "").trim() || null;
   const operationalMode = await getTutorOperationalMode(input.tutorId);
@@ -564,6 +570,23 @@ async function resolveSessionContext(input: {
     }
   }
 
+  if (input.requestedKind === "sandbox_entry_diagnosis") {
+    if (!normalizedScheduledSessionId || operationalMode !== "sandbox" || scheduledSession?.type !== "training") {
+      return { error: "Sandbox entry diagnosis requires this Specialist's confirmed Sandbox Training booking." } as const;
+    }
+    const sandboxAccount = await pool.query(
+      `SELECT pe.is_sandbox_account
+         FROM public.students s
+         JOIN public.parent_enrollments pe ON pe.id = s.parent_enrollment_id
+        WHERE s.id::text = $1::text AND s.tutor_id::text = $2::text
+        LIMIT 1`,
+      [input.studentId, input.tutorId],
+    );
+    if (sandboxAccount.rows[0]?.is_sandbox_account !== true) {
+      return { error: "Entry diagnosis in a Training booking is only permitted for a Sandbox student." } as const;
+    }
+  }
+
   if (scheduledSession && !isLaunchableDiagnosisSessionStatus(scheduledSession.status, input.requestedKind)) {
     return {
       error:
@@ -575,12 +598,14 @@ async function resolveSessionContext(input: {
     } as const;
   }
 
-  const kind: "intro" | "training" | "handover" =
-    scheduledSession?.type === "handover" || input.requestedKind === "handover"
-      ? "handover"
-      : scheduledSession?.type === "training" || input.requestedKind === "training"
-        ? "training"
-        : "intro";
+  const kind: DiagnosisSessionKind =
+    input.requestedKind === "sandbox_entry_diagnosis"
+      ? "sandbox_entry_diagnosis"
+      : scheduledSession?.type === "handover" || input.requestedKind === "handover"
+        ? "handover"
+        : scheduledSession?.type === "training" || input.requestedKind === "training"
+          ? "training"
+          : "intro";
 
   const semantics = diagnosisSemanticsForSessionKind(kind);
 
@@ -590,11 +615,13 @@ async function resolveSessionContext(input: {
     scheduledSessionId: scheduledSession ? String(scheduledSession.id) : null,
     // Legacy compatibility field. Semantic authority is sessionContainer + activityKind.
     sessionContext:
-      kind === "handover"
-        ? "handover_verification" as const
-        : kind === "training"
-          ? "active_training" as const
-          : "intro" as const,
+      kind === "sandbox_entry_diagnosis"
+        ? "sandbox_entry_diagnosis" as const
+        : kind === "handover"
+          ? "handover_verification" as const
+          : kind === "training"
+            ? "active_training" as const
+            : "intro" as const,
     sessionContainer: semantics.sessionContainer,
     activityKind: semantics.activityKind,
     sessionKind: kind,
@@ -906,7 +933,7 @@ async function ensureIntroDrill(input: {
   topic: string;
   startingPhase: TopicPhase;
   scheduledSessionId: string | null;
-  sessionKind: "intro" | "training" | "handover";
+  sessionKind: DiagnosisSessionKind;
   replay: Extract<ReturnType<typeof replayEvidenceCompleteDiagnosis>, { ok: true }>;
   timingAuthorityContract?: PersistedTpsTimerContract | null;
 }) {
@@ -1411,12 +1438,14 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
         const startingPhase = tryParsePhase(req.body?.startingPhase);
         const scheduledSessionId = String(req.body?.scheduledSessionId || "").trim() || null;
         const requestedContext = String(req.body?.sessionContextKind || "").trim().toLowerCase();
-        const requestedKind =
-          requestedContext === "handover"
-            ? "handover" as const
-            : requestedContext === "training"
-              ? "training" as const
-              : "intro" as const;
+        const requestedKind: DiagnosisSessionKind =
+          requestedContext === "sandbox_entry_diagnosis"
+            ? "sandbox_entry_diagnosis"
+            : requestedContext === "handover"
+              ? "handover"
+              : requestedContext === "training"
+                ? "training"
+                : "intro";
 
         if (!isUuid(runId)) return res.status(400).json({ message: "A valid diagnosisRunId is required" });
         if (!studentId) return res.status(400).json({ message: "studentId is required" });
@@ -1483,7 +1512,9 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           }
           const submittedContext = String(req.body?.sessionContextKind || "").trim().toLowerCase();
           const expectedContext = continuationContext.sessions.at(-1)?.sessionKind ||
-            (existingRun.session_context === "active_training" ? "training" : existingRun.session_context === "handover_verification" ? "handover" : "intro");
+            (existingRun.session_context === "sandbox_entry_diagnosis" ? "sandbox_entry_diagnosis" :
+              existingRun.session_context === "active_training" ? "training" :
+              existingRun.session_context === "handover_verification" ? "handover" : "intro");
           if (submittedContext && !continuingInNewSession && submittedContext !== expectedContext) {
             return res.status(409).json({ message: "Diagnosis session context cannot be reassigned." });
           }
@@ -1638,16 +1669,19 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
         const effectiveScheduledSessionId =
           String(continuationContext.sessions.at(-1)?.scheduledSessionId || existingRun?.scheduled_session_id || scheduledSessionId || "").trim() || null;
         const effectiveRequestedKind =
-          continuationContext.sessions.length > 1 ? (continuationContext.sessions.at(-1)?.sessionKind || requestedKind) : existingRun?.session_container === "handover_session" ||
-          existingRun?.session_context === "handover_verification"
-            ? "handover" as const
-            : existingRun?.session_container === "scheduled_training_session" ||
-                existingRun?.session_context === "active_training"
-              ? "training" as const
-              : existingRun?.session_container === "intro_session" ||
-                  existingRun?.session_context === "intro"
-                ? "intro" as const
-                : requestedKind;
+          continuationContext.sessions.length > 1 ? (continuationContext.sessions.at(-1)?.sessionKind || requestedKind) :
+          existingRun?.session_context === "sandbox_entry_diagnosis"
+            ? "sandbox_entry_diagnosis" as const
+            : existingRun?.session_container === "handover_session" ||
+              existingRun?.session_context === "handover_verification"
+              ? "handover" as const
+              : existingRun?.session_container === "scheduled_training_session" ||
+                  existingRun?.session_context === "active_training"
+                ? "training" as const
+                : existingRun?.session_container === "intro_session" ||
+                    existingRun?.session_context === "intro"
+                  ? "intro" as const
+                  : requestedKind;
 
         const sessionResult = await resolveSessionContext({
           tutorId,
