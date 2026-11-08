@@ -25,10 +25,30 @@ function MissingEvidenceDiagnosisContext() {
 export default function IntroSessionRoute() {
   const [searchParams] = useSearchParams();
   const mode = String(searchParams.get("mode") || "diagnosis").trim().toLowerCase();
-  const topic = String(searchParams.get("topic") || "").trim();
+  const requestedTopic = String(searchParams.get("topic") || "").trim();
+  const requestedTopicIndex = Number(searchParams.get("topicIndex") || 0);
+  const selectedTopics = (() => {
+    const raw = String(searchParams.get("topics") || "").trim();
+    if (!raw) return requestedTopic ? [requestedTopic] : [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return Array.from(
+          new Set(parsed.map((value) => String(value || "").trim()).filter(Boolean)),
+        ).slice(0, 2);
+      }
+    } catch {
+      // Older launch links may encode selected topics as a comma-separated list.
+    }
+    return Array.from(new Set(raw.split(",").map((value) => value.trim()).filter(Boolean))).slice(0, 2);
+  })();
+  const activeDiagnosisTopic =
+    selectedTopics[Number.isInteger(requestedTopicIndex) && requestedTopicIndex >= 0
+      ? requestedTopicIndex
+      : 0] || requestedTopic;
 
   if (mode === "diagnosis") {
-    if (!topic) {
+    if (!activeDiagnosisTopic) {
       return <MissingEvidenceDiagnosisContext />;
     }
     return <EvidenceCompleteDiagnosisRunner />;
