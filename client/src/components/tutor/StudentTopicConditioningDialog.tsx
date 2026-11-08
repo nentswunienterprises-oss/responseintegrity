@@ -32,6 +32,7 @@ import {
 import { getQueryFn } from "@/lib/queryClient";
 import { Target, AlertCircle, Info, ChevronDown, MoreHorizontal } from "lucide-react";
 import { useStudentWorkflowState } from "@/hooks/useStudentWorkflowState";
+import { getTrainingSessionWeekKey } from "@/lib/trainingSessionWeek";
 // Removed TutorSessionLogForm import (manual session logging is deprecated)
 import {
   PHASES,
@@ -1794,23 +1795,6 @@ export default function StudentTopicConditioningDialog({
       monthlyQuota: trainingSessionsData?.monthlyQuota || null,
       actionableSessionCount: actionableTrainingSessions.length,
     });
-  const confirmedTrainingSessions = actionableTrainingSessions.filter(
-    (session: any) => ["confirmed", "ready", "live"].includes(String(session.status || "")),
-  );
-  const pendingConfirmedMeetSyncSessions = confirmedTrainingSessions.filter(
-    (session: any) => !session.google_meet_url,
-  );
-  const latestCompletedTrainingSession = [...(trainingSessionsData?.sessions || [])]
-    .filter((session: any) => String(session.status || "") === "completed")
-    .sort(
-      (a: any, b: any) =>
-        new Date(b.scheduled_time || b.updated_at || 0).getTime() -
-        new Date(a.scheduled_time || a.updated_at || 0).getTime()
-    )[0] || null;
-  const pendingTutorConfirmationSessions = actionableTrainingSessions.filter((session: any) => session.status === "pending_tutor_confirmation");
-  const isConfirmingTrainingSession = (sessionId: string) =>
-    confirmTrainingSession.isPending && confirmTrainingSession.variables?.sessionId === sessionId;
-  const pendingTrainingConfirmationSession = actionableTrainingSessions.find((session: any) => session.status === "pending_parent_confirmation") || null;
   const packageSessionQuota = Number(trainingSessionsData?.monthlyQuota?.session_quota);
   // The purchased package size is authoritative. Older package records may
   // still carry the legacy two-lessons-per-week planning field.
@@ -1826,17 +1810,60 @@ export default function StudentTopicConditioningDialog({
     ),
   );
   const weeklySessionTargetLabel = `${packageWeeklySessionTarget} ${packageWeeklySessionTarget === 1 ? "lesson" : "lessons"}`;
-  const futureCancelledTrainingSessions = (trainingSessionsData?.sessions || []).filter((session: any) => {
-    if (String(session.status || "") !== "cancelled") return false;
-    const scheduledTime = new Date(session.scheduled_time || 0).getTime();
-    return Number.isFinite(scheduledTime) && scheduledTime >= Date.now();
-  });
-  const replacementRequiredCancelledTrainingSessions = futureCancelledTrainingSessions.filter(
-    (session: any) => session.cancellation?.disposition === "replacement_required",
+  const earliestActionableTrainingSession = [...actionableTrainingSessions].sort(
+    (a: any, b: any) => new Date(a.scheduled_time || 0).getTime() - new Date(b.scheduled_time || 0).getTime(),
+  )[0] || null;
+  const activeTrainingWeekKey = earliestActionableTrainingSession
+    ? getTrainingSessionWeekKey(earliestActionableTrainingSession.scheduled_time, earliestActionableTrainingSession.timezone)
+    : null;
+  const weeklyTrainingSessions = (trainingSessionsData?.sessions || []).filter(
+    (session: any) =>
+      !!activeTrainingWeekKey &&
+      getTrainingSessionWeekKey(session.scheduled_time, session.timezone) === activeTrainingWeekKey,
   );
+  const weeklyActionableTrainingSessions = weeklyTrainingSessions.filter(
+    (session: any) => !["completed", "cancelled", "flagged"].includes(String(session.status || "")),
+  );
+  const confirmedTrainingSessions = weeklyActionableTrainingSessions.filter(
+    (session: any) => ["confirmed", "ready", "live"].includes(String(session.status || "")),
+  );
+  const pendingConfirmedMeetSyncSessions = confirmedTrainingSessions.filter(
+    (session: any) => !session.google_meet_url,
+  );
+  const latestCompletedTrainingSession = [...(trainingSessionsData?.sessions || [])]
+    .filter((session: any) => String(session.status || "") === "completed")
+    .sort(
+      (a: any, b: any) =>
+        new Date(b.scheduled_time || b.updated_at || 0).getTime() -
+        new Date(a.scheduled_time || a.updated_at || 0).getTime()
+    )[0] || null;
+  const pendingTutorConfirmationSessions = weeklyActionableTrainingSessions.filter(
+    (session: any) => session.status === "pending_tutor_confirmation",
+  );
+  const isConfirmingTrainingSession = (sessionId: string) =>
+    confirmTrainingSession.isPending && confirmTrainingSession.variables?.sessionId === sessionId;
+  const pendingTrainingConfirmationSession = weeklyActionableTrainingSessions.find(
+    (session: any) => session.status === "pending_parent_confirmation",
+  ) || null;
+  const replacementRequiredCancelledTrainingSessions = weeklyTrainingSessions.filter(
+    (session: any) =>
+      String(session.status || "") === "cancelled" &&
+      session.cancellation?.disposition === "replacement_required",
+  );
+  const weeklyReadySessionCount = weeklyTrainingSessions.filter((session: any) => {
+    const status = String(session.status || "");
+    return ["confirmed", "ready", "live", "completed"].includes(status) ||
+      (status === "cancelled" && session.cancellation?.disposition === "closed_consumed");
+  }).length;
+  const weeklyScheduleHasBlockedSession = weeklyTrainingSessions.some((session: any) => {
+    const status = String(session.status || "");
+    return status === "flagged" ||
+      (status === "cancelled" && session.cancellation?.disposition !== "closed_consumed");
+  });
   const weeklyScheduleReady =
     !packageQuotaBlocked &&
-    confirmedTrainingSessions.length >= packageWeeklySessionTarget &&
+    weeklyReadySessionCount >= packageWeeklySessionTarget &&
+    !weeklyScheduleHasBlockedSession &&
     pendingTutorConfirmationSessions.length === 0 &&
     !pendingTrainingConfirmationSession &&
     replacementRequiredCancelledTrainingSessions.length === 0;
@@ -1847,7 +1874,7 @@ export default function StudentTopicConditioningDialog({
     : pendingTrainingConfirmationSession
       ? null
       : actionableTrainingSessions.find((session: any) => session.launch?.canLaunch) || null;
-  const nextTrainingSession = actionableTrainingSessions.find(
+  const nextTrainingSession = (isTrainingMode ? weeklyActionableTrainingSessions : actionableTrainingSessions).find(
     (session: any) =>
       isTrainingMode
         ? ["confirmed", "ready", "live"].includes(String(session.status || "")) && session.id !== activeTrainingSession?.id
@@ -1891,16 +1918,26 @@ export default function StudentTopicConditioningDialog({
     ? studentName || "-"
     : `${studentName || "-"} • Grade ${normalizedGradeValue}`;
 
-  const formatLessonTime = (value?: string | null) =>
-    value
-      ? new Intl.DateTimeFormat(undefined, {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          hour: "numeric",
-          minute: "2-digit",
-        }).format(new Date(value))
-      : "-";
+  const formatLessonTime = (value?: string | null, timezone?: string | null) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    let safeTimezone = timezone || "Africa/Johannesburg";
+    try {
+      new Intl.DateTimeFormat("en-ZA", { timeZone: safeTimezone }).format(date);
+    } catch {
+      safeTimezone = "Africa/Johannesburg";
+    }
+    return new Intl.DateTimeFormat("en-ZA", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+      timeZone: safeTimezone,
+    }).format(date);
+  };
   const handleCancelConfirmedTrainingSession = async (
     sessionId: string,
     reasonCodes: string[],
@@ -2622,7 +2659,7 @@ export default function StudentTopicConditioningDialog({
                         </p>
                         {replacementRequiredCancelledTrainingSessions.map((session: any) => (
                           <p key={session.id} className="text-amber-800">
-                            Cancelled: {formatLessonTime(session.scheduled_time)}
+                            Cancelled: {formatLessonTime(session.scheduled_time, session.timezone)}
                           </p>
                         ))}
                       </div>
@@ -2635,7 +2672,7 @@ export default function StudentTopicConditioningDialog({
                             <div key={session.id} className="rounded border border-primary/20 bg-muted/10 px-3 py-2 space-y-2">
                               <div className="flex items-center justify-between gap-3">
                                 <div>
-                                  <p className="font-medium text-foreground">{formatLessonTime(session.scheduled_time)}</p>
+                                  <p className="font-medium text-foreground">{formatLessonTime(session.scheduled_time, session.timezone)}</p>
                                   <p className="text-muted-foreground">Status: {String(session.status || "").replaceAll("_", " ")}</p>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
@@ -2671,7 +2708,7 @@ export default function StudentTopicConditioningDialog({
                                     onClick={() => {
                                       setCancelTrainingSessionTarget({
                                         id: session.id,
-                                        scheduledTimeLabel: formatLessonTime(session.scheduled_time),
+                                        scheduledTimeLabel: formatLessonTime(session.scheduled_time, session.timezone),
                                       });
                                     }}
                                     disabled={respondTrainingSession.isPending || confirmTrainingSession.isPending || !assignmentAccepted}
@@ -2728,7 +2765,7 @@ export default function StudentTopicConditioningDialog({
                             <div key={session.id} className="rounded border border-blue-200 bg-background px-3 py-2 space-y-2">
                               <div className="flex items-center justify-between gap-3">
                                 <div>
-                                  <p className="font-medium text-foreground">{formatLessonTime(session.scheduled_time)}</p>
+                                  <p className="font-medium text-foreground">{formatLessonTime(session.scheduled_time, session.timezone)}</p>
                                   <p className="text-muted-foreground">Status: waiting for Specialist confirmation</p>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
@@ -2836,7 +2873,7 @@ export default function StudentTopicConditioningDialog({
                       <div>
                         <div>
                           <p className="font-medium text-foreground">Latest Completed Lesson</p>
-                          <p className="text-muted-foreground">{formatLessonTime(latestCompletedTrainingSession.scheduled_time)}</p>
+                          <p className="text-muted-foreground">{formatLessonTime(latestCompletedTrainingSession.scheduled_time, latestCompletedTrainingSession.timezone)}</p>
                         </div>
                       </div>
                     </div>
@@ -2944,7 +2981,7 @@ export default function StudentTopicConditioningDialog({
                             <div key={session.id} className="rounded border border-blue-200 bg-background px-3 py-2 space-y-2">
                               <div className="flex items-center justify-between gap-3">
                                 <div>
-                                  <p className="font-medium text-foreground">{formatLessonTime(session.scheduled_time)}</p>
+                                  <p className="font-medium text-foreground">{formatLessonTime(session.scheduled_time, session.timezone)}</p>
                                   <p className="text-muted-foreground">Status: waiting for Specialist confirmation</p>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
@@ -3081,7 +3118,7 @@ export default function StudentTopicConditioningDialog({
                       <div>
                         <div>
                           <p className="font-medium text-foreground">Latest Completed Lesson</p>
-                          <p className="text-muted-foreground">{formatLessonTime(latestCompletedTrainingSession.scheduled_time)}</p>
+                          <p className="text-muted-foreground">{formatLessonTime(latestCompletedTrainingSession.scheduled_time, latestCompletedTrainingSession.timezone)}</p>
                         </div>
                       </div>
                     </div>

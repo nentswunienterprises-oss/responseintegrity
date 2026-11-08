@@ -106,6 +106,18 @@ test("Sandbox billing reconciler includes completed future-dated simulated event
   assert.match(src, /\.lt\("effective_at", evidenceUpperBoundIso\)/);
 });
 
+test("Sandbox Specialist feed includes simulated past sessions and completed lessons in the active week", () => {
+  const tutor = source(
+    '"/api/tutor/students/:studentId/training-sessions"',
+    '"/api/tutor/students/:studentId/training-sessions",',
+  );
+  assert.match(tutor, /const isSandboxTraining = String\(operationalMode \|\| ""\)\.trim\(\)\.toLowerCase\(\) === "sandbox"/);
+  assert.match(tutor, /\(\$3::boolean = TRUE OR scheduled_time >= NOW\(\) - INTERVAL '2 hours'\)/);
+  assert.match(tutor, /LIMIT \$3/);
+  assert.match(tutor, /if \(!isSandboxTraining\) \{[\s\S]*?currentSessionsQuery = currentSessionsQuery\.gte\("scheduled_time"/);
+  assert.match(tutor, /\.limit\(isSandboxTraining \? 100 : 1\)/);
+});
+
 test("Preview fixture retains the simulated cycle and does not grant another month", () => {
   const preview = readFileSync("server/proofSandboxCommercialState.ts", "utf8");
   const lookup = preview.slice(
