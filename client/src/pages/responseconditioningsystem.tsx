@@ -301,15 +301,7 @@ export default function ResponseConditioningSystem() {
     }
   }, [sandboxMode]);
 
-  useEffect(() => {
-    if (!sandboxMode || window.location.hash !== "#inspect-coverage") return;
-    window.requestAnimationFrame(() => {
-      document.getElementById("inspect-coverage")?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    });
-  }, [sandboxMode]);
+
   const coverageGroups = [
     "Operating modes",
     "Preparation contexts",
