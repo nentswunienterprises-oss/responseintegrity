@@ -387,6 +387,15 @@ try{
    const denied=diagnosisScheduledSessionQuery({...identities,scheduledSessionId,tutorId:"44444444-4444-4444-8444-444444444444"});
    assert.equal((await db.query(denied.text,denied.values)).rows.length,0);
   }
+  const entryDiagnosisQuery=diagnosisScheduledSessionQuery({
+   ...identities,requestedKind:"sandbox_entry_diagnosis",scheduledSessionId:identities.scheduledSessionId,
+  });
+  assert.equal(entryDiagnosisQuery.values[2],identities.scheduledSessionId);
+  assert.equal((await db.query(entryDiagnosisQuery.text,entryDiagnosisQuery.values)).rows[0]?.type,"training");
+  const entryDiagnosisDiscovery=diagnosisScheduledSessionQuery({
+   ...identities,requestedKind:"sandbox_entry_diagnosis",scheduledSessionId:null,
+  });
+  assert.equal(entryDiagnosisDiscovery.values[2],"training");
   const nextId="55555555-5555-4555-8555-555555555555";
   await db.query("INSERT INTO public.scheduled_sessions VALUES ($1,$2,$3,'training','confirmed',now()+interval '1 day',now())",[nextId,identities.tutorId,identities.studentId]);
   const paused={...evaluateEvidenceCompleteDiagnosis(createEvidenceCompleteDiagnosisState("Clarity")),nextProbeId:null,
