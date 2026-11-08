@@ -8,7 +8,7 @@ test("Sandbox lifecycle promotion invokes the existing six-family provisioning r
   assert.match(route, /ensureVisibleSandboxStudentsForTutor/);
   assert.match(route, /progression\?\.mode === "sandbox"/);
   assert.match(route, /sandboxProvisioning/);
-  assert.match(route, /state\\.stageGate\\.mode === "sandbox"/);
+  assert.ok(route.includes('state.stageGate.mode === "sandbox"'));
 });
 
 test("Sandbox account reconciliation is serialized per Specialist", () => {
