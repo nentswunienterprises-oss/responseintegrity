@@ -41,6 +41,18 @@ ALTER TABLE public.response_integrity_diagnosis_runs
   ) STORED;
 
 ALTER TABLE public.response_integrity_evidence_ledger
+  DROP CONSTRAINT IF EXISTS response_integrity_evidence_ledger_session_context_check;
+
+ALTER TABLE public.response_integrity_evidence_ledger
+  ADD CONSTRAINT response_integrity_evidence_ledger_session_context_check
+  CHECK (session_context IN (
+    'intro',
+    'active_training',
+    'handover_verification',
+    'sandbox_entry_diagnosis'
+  ));
+
+ALTER TABLE public.response_integrity_evidence_ledger
   DROP COLUMN IF EXISTS session_container,
   DROP COLUMN IF EXISTS activity_kind;
 
