@@ -14,6 +14,7 @@ test("Sandbox lifecycle promotion invokes the existing six-family provisioning r
 test("Sandbox account reconciliation is serialized per Specialist", () => {
   const source = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
   assert.match(source, /withSandboxProvisionLock\s*\(/);
+  assert.ok(source.includes("{ transactionScoped: true }"));
   assert.match(source, /autoProvisionSandboxAccountsForTutorUnlocked/);
   assert.match(source, /export async function ensureVisibleSandboxStudentsForTutor/);
 });
