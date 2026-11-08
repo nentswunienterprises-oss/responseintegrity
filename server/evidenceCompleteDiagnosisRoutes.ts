@@ -1063,11 +1063,13 @@ async function ensureIntroDrill(input: {
     scheduledSessionId: input.scheduledSessionId,
     sessionGroupId: input.scheduledSessionId || input.runId,
     sessionContext:
-      input.sessionKind === "handover"
-        ? "handover_verification"
-        : input.sessionKind === "training"
-          ? "active_training"
-          : "intro",
+      input.sessionKind === "sandbox_entry_diagnosis"
+        ? "sandbox_entry_diagnosis"
+        : input.sessionKind === "handover"
+          ? "handover_verification"
+          : input.sessionKind === "training"
+            ? "active_training"
+            : "intro",
     observedAt,
     state,
     decision,
