@@ -1449,7 +1449,11 @@ export default function StudentTopicConditioningDialog({
       row.hasObservedState || explicitlyActivatedKeys.has(normalizeTopicKey(row.topic) || ""),
     );
   }, [topics, activationTopics]);
-  const parentReportedTopics = topics.filter((row) => row.parentReported);
+  const parentReportedTopics = topics.filter((row) =>
+    row.parentReported &&
+    !row.hasObservedState &&
+    !activationTopics.some(({ topic }) => normalizeTopicKey(topic) === normalizeTopicKey(row.topic)),
+  );
   const [showParentReportedTopics, setShowParentReportedTopics] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<string>(activeMapTopics[0]?.topic || "");
 
