@@ -929,17 +929,30 @@ function buildTopics(
     });
   });
 
-  // Parent reports remain visible until a diagnosis or activation record exists.
+  // Parent reports remain separate from the active Map until a diagnosis or
+  // explicit Specialist activation exists. Overlay the report on an existing
+  // persisted seed as well, rather than losing it merely because a seed exists.
   splitTopics(parentTopics).forEach((rawTopic) => {
     const topic = sanitizeTopic(rawTopic);
     const topicKey = normalizeTopicKey(topic);
-    if (!topic || !topicKey || [...byTopic.keys()].some((existingTopic) => normalizeTopicKey(existingTopic) === topicKey)) return;
+    if (!topic || !topicKey) return;
     const symptomEntry = Object.entries(parentTopicSymptoms || {}).find(([key]) => normalizeTopicKey(key) === topicKey);
     const recommendationEntry = Object.entries(parentTopicRecommendations || {}).find(([key]) => normalizeTopicKey(key) === topicKey);
     const recommendation = recommendationEntry?.[1];
     const symptoms = Array.isArray(symptomEntry?.[1]) ? symptomEntry[1].map((item) => String(item).trim()).filter(Boolean)
       : Array.isArray(recommendation?.supportingSymptoms) ? recommendation.supportingSymptoms.map((item) => String(item).trim()).filter(Boolean) : [];
     const recommendedPhase = String(recommendation?.phase || "").trim() || null;
+    const existingTopic = [...byTopic.keys()].find((existing) => normalizeTopicKey(existing) === topicKey);
+    if (existingTopic) {
+      const existing = byTopic.get(existingTopic)!;
+      byTopic.set(existingTopic, {
+        ...existing,
+        parentReported: true,
+        parentReportedSymptoms: symptoms,
+        parentRecommendedPhase: recommendedPhase,
+      });
+      return;
+    }
     byTopic.set(topic, { history: [], seeded: { phase: normalizePhase(recommendedPhase), stability: "Low" }, parentReported: true, parentReportedSymptoms: symptoms, parentRecommendedPhase: recommendedPhase });
   });
 
@@ -1425,9 +1438,20 @@ export default function StudentTopicConditioningDialog({
     },
     [parentTopics, parentTopicSymptoms, parentTopicRecommendations, topicConditioning, effectivePersistedTopicStates, studentSessions, activationTopics],
   );
+  // The Map is an activation/evidence view, not a catalogue of every known
+  // topic. Persisted proposal/enrollment seeds and parent requests stay out
+  // until a Specialist activation or genuine observed session evidence exists.
+  const activeMapTopics = useMemo(() => {
+    const explicitlyActivatedKeys = new Set(
+      activationTopics.map(({ topic }) => normalizeTopicKey(topic)).filter((key): key is string => !!key),
+    );
+    return topics.filter((row) =>
+      row.hasObservedState || explicitlyActivatedKeys.has(normalizeTopicKey(row.topic) || ""),
+    );
+  }, [topics, activationTopics]);
   const parentReportedTopics = topics.filter((row) => row.parentReported);
   const [showParentReportedTopics, setShowParentReportedTopics] = useState(false);
-  const [selectedTopic, setSelectedTopic] = useState<string>(topics[0]?.topic || "");
+  const [selectedTopic, setSelectedTopic] = useState<string>(activeMapTopics[0]?.topic || "");
 
   const [activeTopicField, setActiveTopicField] = useState("");
   const [manualTopicField, setManualTopicField] = useState("");
@@ -1451,11 +1475,11 @@ export default function StudentTopicConditioningDialog({
 
   // Initialize topic selection when dialog opens
   useEffect(() => {
-    if (!open || topics.length === 0) return;
-    if (!selectedTopic || !topics.some((t) => t.topic === selectedTopic)) {
-      setSelectedTopic(topics[0].topic);
+    if (!open || activeMapTopics.length === 0) return;
+    if (!selectedTopic || !activeMapTopics.some((t) => t.topic === selectedTopic)) {
+      setSelectedTopic(activeMapTopics[0].topic);
     }
-  }, [open, topics.length, topics[0]?.topic, selectedTopic]);
+  }, [open, activeMapTopics, selectedTopic]);
 
   // Reset form state when dialog opens
   useEffect(() => {
@@ -1524,8 +1548,8 @@ export default function StudentTopicConditioningDialog({
     return Array.from(new Set([...fromCards, ...fromParent]));
   }, [topics, parentTopics]);
   const prioritizedTopics = useMemo(
-    () => [...topics].sort((a, b) => topicPriorityScore(b) - topicPriorityScore(a) || a.topic.localeCompare(b.topic)),
-    [topics],
+    () => [...activeMapTopics].sort((a, b) => topicPriorityScore(b) - topicPriorityScore(a) || a.topic.localeCompare(b.topic)),
+    [activeMapTopics],
   );
 
   const attentionQueue = useMemo(() => {
@@ -1540,7 +1564,7 @@ export default function StudentTopicConditioningDialog({
     (row) => !!getNextActionData(row.phase, nextActionStabilityFor(row)).advanceTo,
   ).length;
 
-  const selectedRow = topics.find((row) => row.topic === selectedTopic) || prioritizedTopics[0];
+  const selectedRow = activeMapTopics.find((row) => row.topic === selectedTopic) || prioritizedTopics[0];
   const hasObservedSelection = !!selectedRow?.hasObservedState;
   const selectedRediagnosisCopy = selectedRow?.requiresTargetedRediagnosis
     ? sandboxTargetedRediagnosisCopy({ topic: selectedRow.topic, authority: {
@@ -1931,7 +1955,7 @@ export default function StudentTopicConditioningDialog({
                 </div>
               ) : null}
 
-              {topics.length === 0 ? (
+              {activeMapTopics.length === 0 ? (
                 <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
                   No active topics yet. Activate a topic, then run intro/training drills to update phase and stability.
                 </div>
