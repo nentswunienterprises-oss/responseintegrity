@@ -25,6 +25,7 @@ import {
   provisionEmergencyCredentialForExistingUser,
   setEmergencyCredentialForExistingUser,
 } from "./emergencyAuth";
+import { withSandboxProvisionLock } from "./sandboxProvisionLock";
 import { fileURLToPath } from "url";
 import {
   insertPodSchema,
@@ -1478,7 +1479,7 @@ async function reactivateDetachedSandboxEnrollment(enrollment: any, tutorId: str
   return data;
 }
 
-async function autoProvisionSandboxAccountsForTutor(
+async function autoProvisionSandboxAccountsForTutorUnlocked(
   tutorId: string,
   minimumCount = SANDBOX_REQUIRED_ACCOUNT_COUNT,
 ) {
@@ -1811,7 +1812,19 @@ async function autoProvisionSandboxAccountsForTutor(
   return { certificationMode, createdAccounts };
 }
 
-async function ensureVisibleSandboxStudentsForTutor(
+async function autoProvisionSandboxAccountsForTutor(
+  tutorId: string,
+  minimumCount = SANDBOX_REQUIRED_ACCOUNT_COUNT,
+) {
+  return withSandboxProvisionLock(
+    pool,
+    tutorId,
+    () => autoProvisionSandboxAccountsForTutorUnlocked(tutorId, minimumCount),
+    { transactionScoped: true },
+  );
+}
+
+export async function ensureVisibleSandboxStudentsForTutor(
   tutorId: string,
   minimumCount = SANDBOX_REQUIRED_ACCOUNT_COUNT,
 ) {
