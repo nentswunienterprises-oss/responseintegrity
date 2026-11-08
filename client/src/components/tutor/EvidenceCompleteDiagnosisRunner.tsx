@@ -259,6 +259,8 @@ export default function EvidenceCompleteDiagnosisRunner() {
           ? "training"
           : "intro";
   const isTargetedHandoverRediagnosis = sessionContextKind === "handover";
+  const isEntryDiagnosisActivity =
+    sessionContextKind === "intro" || sessionContextKind === "sandbox_entry_diagnosis";
 
   const storageKey = useMemo(
     () => buildStorageKey(studentId, topic, scheduledSessionId),
@@ -1554,7 +1556,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
               onClick={() => {
                 const nextTopicIndex = requestedTopicIndex + 1;
                 if (
-                  sessionContextKind === "intro" &&
+                  isEntryDiagnosisActivity &&
                   diagnosisTopics.length === 2 &&
                   nextTopicIndex < diagnosisTopics.length
                 ) {
@@ -1569,7 +1571,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 navigate("/specialist/pod");
               }}
             >
-              {sessionContextKind === "intro" &&
+              {isEntryDiagnosisActivity &&
               diagnosisTopics.length === 2 &&
               requestedTopicIndex === 0
                 ? "Continue to second topic"
