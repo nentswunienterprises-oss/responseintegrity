@@ -48,6 +48,7 @@ type CapabilityReadiness = {
   qualification?: {
     developmentCoverageReady: boolean;
     qualificationReady: boolean;
+    sourceStatus?: "available" | "unavailable";
     qualifyingSessions: number;
     requiredSessions: number | null;
     phaseCounts: Record<string, number>;
@@ -423,16 +424,16 @@ export function SandboxReadinessAssessmentCard({
                 <div>
                   <p className="text-sm font-semibold">Sandbox graduation gate</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Coverage must be established before the protected zero-divergence run can qualify.
+                    Development coverage unlocks the remaining Deep Dives. After those and RI-OS Retention/Application, the separate protected eight-session graduation run is the final gate.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant={qualification.qualificationReady ? "default" : "outline"}>
+                  <Badge variant={qualification.qualificationReady ? "default" : qualification.sourceStatus === "unavailable" ? "destructive" : "outline"}>
                     {qualification.qualificationReady
                       ? "Ready for TD review"
-                      : qualification.developmentCoverageReady
-                      ? "In progress"
-                      : "Locked"}
+                      : qualification.sourceStatus === "unavailable"
+                      ? "Evidence unavailable"
+                      : "Final stage follows post-Sandbox gates"}
                   </Badge>
                 </div>
               </div>
@@ -446,9 +447,11 @@ export function SandboxReadinessAssessmentCard({
                 <div className="rounded-md border bg-background px-3 py-2 text-sm">
                   <p className="text-xs text-muted-foreground">Zero-divergence graduation run</p>
                   <p className="mt-1 font-medium">
-                    {qualification.developmentCoverageReady
-                      ? `${qualification.qualifyingSessions}/${qualification.requiredSessions ?? "—"} clean sessions`
-                      : "Locked until development coverage is established"}
+                    {qualification.qualificationReady
+                      ? `${qualification.qualifyingSessions}/${qualification.requiredSessions ?? "—"} clean sessions complete`
+                      : qualification.sourceStatus === "unavailable"
+                        ? "Evidence unavailable; do not treat missing counters as Specialist failure"
+                        : "Final gate follows remaining Deep Dives and RI-OS Retention/Application"}
                   </p>
                 </div>
               </div>
@@ -457,7 +460,7 @@ export function SandboxReadinessAssessmentCard({
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Development coverage</p>
                     <Badge variant={qualification.developmentCoverageReady ? "default" : "outline"}>
-                      {qualification.developmentCoverageReady ? "Established" : "Required before final run"}
+                      {qualification.sourceStatus === "unavailable" ? "Evidence unavailable" : qualification.developmentCoverageReady ? "Established" : "Required to unlock Deep Dives"}
                     </Badge>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-3">
@@ -483,7 +486,7 @@ export function SandboxReadinessAssessmentCard({
                     <div key={phase} className="rounded-md border bg-background px-3 py-2 text-xs">
                       <p className="font-medium">{phase}</p>
                       <p className="mt-1 text-muted-foreground">
-                        {qualification.developmentCoverageReady ? `${count}/${minimum} clean sessions` : "Locked until coverage is complete"}
+                        {qualification.qualificationReady ? `${count}/${minimum} complete` : `${minimum} required at final gate`}
                       </p>
                     </div>
                   );
@@ -500,7 +503,7 @@ export function SandboxReadinessAssessmentCard({
               <DialogHeader>
                 <DialogTitle>Development coverage</DialogTitle>
                 <DialogDescription>
-                  These named opportunities must be established before sessions can count toward the protected eight-session graduation run.
+                  These named opportunities establish Sandbox development coverage and unlock the remaining Deep Dives. They are separate from the protected eight-session final graduation run.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
