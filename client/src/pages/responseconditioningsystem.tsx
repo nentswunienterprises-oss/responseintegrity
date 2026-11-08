@@ -169,6 +169,39 @@ type PodData = {
   assignment?: { id?: string | null; operationalMode?: string } | null;
 };
 
+type SandboxCoverageRequirement = {
+  key: string;
+  category: string;
+  label: string;
+  required: number;
+  distinctCorrect: number;
+  encountered: number;
+  met: boolean;
+};
+
+type SpecialistDevelopmentPathway = {
+  sandbox?: {
+    readiness?: {
+      qualification?: {
+        developmentCoverageReady?: boolean;
+        qualificationReady?: boolean;
+        sourceStatus?: "available" | "unavailable";
+        sourceGaps?: string[];
+        coverageRequirements?: SandboxCoverageRequirement[];
+        coverageCategories?: Array<{
+          key: string;
+          label: string;
+          met: number;
+          required: number;
+          completedOpportunities: number;
+          requiredOpportunities: number;
+        }>;
+        reason?: string;
+      };
+    };
+  };
+};
+
 type CapabilityStageGate = {
   mode: string;
   capabilityTrainingAllowed: boolean;
@@ -188,6 +221,12 @@ export default function ResponseConditioningSystem() {
     retry: false,
   });
   const tutorAssignmentId = String(podQuery.data?.assignment?.id || "");
+
+  const developmentPathwayQuery = useQuery<SpecialistDevelopmentPathway>({
+    queryKey: ["/api/tutor/development-pathway"],
+    enabled: Boolean(podQuery.data?.assignment),
+    retry: false,
+  });
 
   const capabilityPlanQuery = useQuery<{
     assessments: MasteryAvailability[];
@@ -251,6 +290,13 @@ export default function ResponseConditioningSystem() {
   // Training-mode Transformation Retention and Application are governed by their own
   // assessment prerequisites and spacing intervals, not the Sandbox coverage gate.
   const sandboxMode = stageGate?.mode === "sandbox";
+  const sandboxQualification = developmentPathwayQuery.data?.sandbox?.readiness?.qualification;
+  const coverageGroups = [
+    "Operating modes",
+    "Preparation contexts",
+    "Behaviour signatures",
+    "Response situations",
+  ];
   const developmentPathwayBlocked = isDeepDiveModuleBlocked(
     stageGate?.mode,
     stageGate?.developmentCoverageReady,
@@ -293,6 +339,114 @@ export default function ResponseConditioningSystem() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-12 space-y-8">
+        {sandboxMode ? (
+          <Card id="inspect-coverage" className="ri-focus-card scroll-mt-6 border border-primary/20 bg-card shadow-sm">
+            <div className="p-6 space-y-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <Badge>Sandbox development evidence</Badge>
+                  <h2 className="mt-2 text-xl font-bold">Inspect Coverage</h2>
+                  <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                    Review each required operating mode, preparation context, behaviour signature and response situation. Only valid, distinct opportunities count toward development coverage.
+                  </p>
+                </div>
+                <Badge variant={
+                  sandboxQualification?.sourceStatus === "unavailable"
+                    ? "destructive"
+                    : sandboxQualification?.developmentCoverageReady
+                      ? "default"
+                      : "outline"
+                }>
+                  {developmentPathwayQuery.isPending
+                    ? "Loading evidence"
+                    : sandboxQualification?.sourceStatus === "unavailable"
+                      ? "Evidence unavailable"
+                      : sandboxQualification?.developmentCoverageReady
+                        ? "Coverage established"
+                        : sandboxQualification
+                          ? "Coverage in progress"
+                          : "Status unavailable"}
+                </Badge>
+              </div>
+
+              {sandboxQualification?.sourceStatus === "unavailable" ? (
+                <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm">
+                  <p className="font-semibold">Coverage evidence source unavailable</p>
+                  <p className="mt-1 text-muted-foreground">
+                    Missing or inaccessible evidence is not a failed Specialist requirement. Restore the persisted evidence source before making a progression decision.
+                  </p>
+                  {sandboxQualification.sourceGaps?.length ? (
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                      {sandboxQualification.sourceGaps.map((gap) => <li key={gap}>{gap}</li>)}
+                    </ul>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {developmentPathwayQuery.isError ? (
+                <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm">
+                  The Specialist development evidence could not be loaded. This is an access or source issue, not evidence of failed coverage.
+                </div>
+              ) : null}
+
+              {coverageGroups.map((group) => {
+                const requirements = (sandboxQualification?.coverageRequirements || [])
+                  .filter((requirement) => requirement.category === group);
+                const completed = requirements.filter((requirement) => requirement.met).length;
+                return (
+                  <section key={group} className="rounded-xl border border-primary/15 bg-muted/10 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <h3 className="font-semibold">{group}</h3>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {requirements.length
+                            ? `${completed}/${requirements.length} requirements established`
+                            : "Requirement detail not available"}
+                        </p>
+                      </div>
+                      {requirements.length ? (
+                        <Badge variant={completed === requirements.length ? "default" : "outline"}>
+                          {completed === requirements.length ? "Complete" : "In progress"}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    {requirements.length ? (
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {requirements.map((requirement) => (
+                          <div key={requirement.key} className="rounded-lg border bg-background p-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-sm font-medium">{requirement.label}</p>
+                              <Badge variant={requirement.met ? "default" : "outline"}>
+                                {requirement.met ? "Met" : "Needed"}
+                              </Badge>
+                            </div>
+                            <p className="mt-2 text-sm font-semibold tabular-nums">
+                              {requirement.distinctCorrect}/{requirement.required} valid opportunities
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {requirement.encountered} encountered · {requirement.distinctCorrect} valid and distinct
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </section>
+                );
+              })}
+
+              {!developmentPathwayQuery.isPending && !developmentPathwayQuery.isError && !sandboxQualification?.coverageRequirements?.length ? (
+                <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                  Detailed coverage requirements are not currently available. Check again once the Specialist evidence record has loaded.
+                </p>
+              ) : null}
+
+              <p className="border-t pt-4 text-xs text-muted-foreground">
+                Development coverage unlocks the remaining Deep Dives. It is separate from the eight consecutive clean sessions required at the later final Sandbox graduation gate.
+              </p>
+            </div>
+          </Card>
+        ) : null}
+
         {sandboxMode ? (
           <Card className="ri-focus-card border border-primary/15 bg-card shadow-sm">
             <div className="p-6 space-y-4">
