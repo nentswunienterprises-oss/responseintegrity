@@ -571,7 +571,12 @@ async function resolveSessionContext(input: {
   }
 
   if (input.requestedKind === "sandbox_entry_diagnosis") {
-    if (!normalizedScheduledSessionId || operationalMode !== "sandbox" || scheduledSession?.type !== "training") {
+    if (
+      !normalizedScheduledSessionId ||
+      operationalMode !== "sandbox" ||
+      scheduledSession?.type !== "training" ||
+      !["confirmed", "ready", "live"].includes(String(scheduledSession.status || ""))
+    ) {
       return { error: "Sandbox entry diagnosis requires this Specialist's confirmed Sandbox Training booking." } as const;
     }
     const sandboxAccount = await pool.query(
