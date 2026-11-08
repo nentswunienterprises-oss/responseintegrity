@@ -1396,6 +1396,10 @@ test("diagnosis semantics separate the booked session container from the activit
     resolve(process.cwd(), "server/evidenceCompleteDiagnosisRoutes.ts"),
     "utf8",
   );
+  const runnerSource = readFileSync(
+    resolve(process.cwd(), "client/src/components/tutor/EvidenceCompleteDiagnosisRunner.tsx"),
+    "utf8",
+  );
   const migrationSource = readFileSync(
     resolve(process.cwd(), "migrations/20260927_diagnosis_activity_context_separation.sql"),
     "utf8",
@@ -1440,6 +1444,10 @@ test("diagnosis semantics separate the booked session container from the activit
   assert.match(
     diagnosisSource,
     /canUpgradeEmptySandboxEntryRun[\s\S]*storedHistoryForReplay\.length === 0/,
+  );
+  assert.match(
+    runnerSource,
+    /isEntryDiagnosisActivity[\s\S]*diagnosisTopics\.length === 2[\s\S]*Continue to second topic/,
   );
   assert.match(
     sandboxEntryMigration,
