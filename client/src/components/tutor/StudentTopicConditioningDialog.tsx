@@ -1799,7 +1799,7 @@ export default function StudentTopicConditioningDialog({
   // The purchased package size is authoritative. Older package records may
   // still carry the legacy two-lessons-per-week planning field.
   const packageWeeklySessionTarget = Math.max(
-    1,
+    2,
     Math.min(
       4,
       packageSessionQuota === 16
