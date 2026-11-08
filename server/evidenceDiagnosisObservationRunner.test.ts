@@ -72,7 +72,7 @@ test("Intro evidence diagnosis consumes the selected topic's parent-recommended 
 });
 
 test("explicit phase remains authoritative outside the Intro Session recommendation handoff", () => {
-  assert.match(runnerSource, /requestedContext === "intro" \|\| requestedContext === "sandbox_entry_diagnosis" \|\| !requestedContext/);
+  assert.match(runnerSource, /requestedContext === "intro"\s*\|\|\s*requestedContext === "sandbox_entry_diagnosis"\s*\|\|\s*!requestedContext/);
   assert.match(runnerSource, /tryParsePhase\(searchParams\.get\("phase"\)\)/);
 });
 
