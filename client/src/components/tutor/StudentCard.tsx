@@ -713,18 +713,9 @@ export function StudentCard({
       }
     });
 
-    const proposalTopics = Object.values(student.topicConditioning?.topics || {}) as Array<any>;
-    proposalTopics.forEach((entry) => {
-      const topic = normalizeTopicLabel(entry?.topic);
-      const topicKey = normalizeTopicKey(entry?.topic);
-      if (!topic || !topicKey) return;
-      if (byTopic.has(topicKey)) return;
-      byTopic.set(topicKey, {
-        topic,
-        phase: "Unknown",
-        stability: "Unknown",
-      });
-    });
+    // Parent-reported/proposal topics are context for Specialist review, not active
+    // conditioning. Only persisted topic states and explicit activation records
+    // may populate this map; diagnosis then supplies observed phase/stability.
 
     return Array.from(byTopic.values());
   }, [allTopics, student.topicConditioning]);
