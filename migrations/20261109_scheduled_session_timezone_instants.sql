@@ -24,8 +24,7 @@ LANGUAGE plpgsql
 SET search_path TO 'pg_catalog'
 AS $function$
 DECLARE
-  first_delivered_at timestamptz;
-BEGIN
+  first_delivered_at timestamptz; BEGIN
   IF NEW.status IS DISTINCT FROM 'completed'
      OR NEW.type IS DISTINCT FROM 'training'
      OR NEW.scheduled_time IS NULL
@@ -68,8 +67,7 @@ DECLARE
   lesson_label text;
   parent_link text := '/client/parent/updates';
   tutor_link text := '/tutor/updates';
-  student_link text := '/client/student/updates';
-BEGIN
+  student_link text := '/client/student/updates'; BEGIN
   lesson_label := upper(coalesce(NEW.type, 'session')) || ' lesson on ' ||
     to_char(
       NEW.scheduled_time AT TIME ZONE COALESCE(NULLIF(NEW.timezone, ''), 'Africa/Johannesburg'),
