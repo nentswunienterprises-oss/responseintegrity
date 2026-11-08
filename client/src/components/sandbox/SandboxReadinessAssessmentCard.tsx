@@ -48,6 +48,7 @@ type CapabilityReadiness = {
   qualification?: {
     developmentCoverageReady: boolean;
     qualificationReady: boolean;
+    sourceStatus?: "available" | "unavailable";
     qualifyingSessions: number;
     requiredSessions: number | null;
     phaseCounts: Record<string, number>;
@@ -427,12 +428,12 @@ export function SandboxReadinessAssessmentCard({
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant={qualification.qualificationReady ? "default" : "outline"}>
+                  <Badge variant={qualification.qualificationReady ? "default" : qualification.sourceStatus === "unavailable" ? "destructive" : "outline"}>
                     {qualification.qualificationReady
                       ? "Ready for TD review"
-                      : qualification.developmentCoverageReady
-                      ? "In progress"
-                      : "Locked"}
+                      : qualification.sourceStatus === "unavailable"
+                      ? "Evidence unavailable"
+                      : "Final stage follows post-Sandbox gates"}
                   </Badge>
                 </div>
               </div>
@@ -448,7 +449,9 @@ export function SandboxReadinessAssessmentCard({
                   <p className="mt-1 font-medium">
                     {qualification.qualificationReady
                       ? `${qualification.qualifyingSessions}/${qualification.requiredSessions ?? "—"} clean sessions complete`
-                      : "Final gate follows remaining Deep Dives and RI-OS Retention/Application"}
+                      : qualification.sourceStatus === "unavailable"
+                        ? "Evidence unavailable; do not treat missing counters as Specialist failure"
+                        : "Final gate follows remaining Deep Dives and RI-OS Retention/Application"}
                   </p>
                 </div>
               </div>
@@ -457,7 +460,7 @@ export function SandboxReadinessAssessmentCard({
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Development coverage</p>
                     <Badge variant={qualification.developmentCoverageReady ? "default" : "outline"}>
-                      {qualification.developmentCoverageReady ? "Established" : "Required to unlock Deep Dives"}
+                      {qualification.sourceStatus === "unavailable" ? "Evidence unavailable" : qualification.developmentCoverageReady ? "Established" : "Required to unlock Deep Dives"}
                     </Badge>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-3">
