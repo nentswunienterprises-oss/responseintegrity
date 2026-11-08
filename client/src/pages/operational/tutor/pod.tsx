@@ -206,7 +206,6 @@ export default function TutorPod() {
   const [communicationDialogOpen, setCommunicationDialogOpen] = useState(false);
   const [reportsDialogOpen, setReportsDialogOpen] = useState(false);
   const [teamDialogOpen, setTeamDialogOpen] = useState(false);
-  const [coverageDialogOpen, setCoverageDialogOpen] = useState(false);
   const [studentIdentitySheets, setStudentIdentitySheets] = useState<Record<string, any>>({});
   // Force refresh - identity sheet integration
 
@@ -756,8 +755,8 @@ export default function TutorPod() {
                           ? "Later stage"
                           : "Locked"}
                     </Badge>
-                    <Button type="button" variant="outline" size="sm" onClick={() => setCoverageDialogOpen(true)}>
-                      Inspect coverage
+                    <Button asChild variant="outline" size="sm">
+                      <Link to="/responseconditioningsystem#inspect-coverage">Inspect coverage</Link>
                     </Button>
                   </div>
                 </div>
@@ -1085,41 +1084,6 @@ export default function TutorPod() {
           studentName={selectedStudentName}
         />
 
-        <Dialog open={coverageDialogOpen} onOpenChange={setCoverageDialogOpen}>
-          <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Development coverage</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                This shows the governed development evidence that unlocks the remaining Deep Dives. It is separate from the final eight-session Sandbox graduation qualification.
-              </p>
-              {effectiveSandboxProgress?.qualification?.sourceStatus === "unavailable" ? (
-                <Alert>
-                  <AlertDescription>
-                    Coverage source unavailable. These counters are not evidence of failure and will not be credited until the persisted source is readable.
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-              <div className="grid gap-3 md:grid-cols-3">
-                {(effectiveSandboxProgress?.qualification?.coverageCategories || []).map((category) => (
-                  <div key={category.key} className="rounded-xl border border-primary/15 bg-muted/20 p-4">
-                    <p className="text-xs font-medium text-foreground">{category.label}</p>
-                    <p className="mt-2 text-lg font-semibold text-foreground">
-                      {category.completedOpportunities}/{category.requiredOpportunities}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {category.met}/{category.required} requirements complete
-                    </p>
-                  </div>
-                ))}
-              </div>
-              {!(effectiveSandboxProgress?.qualification?.coverageCategories?.length) ? (
-                <p className="text-sm text-muted-foreground">Coverage detail is not available yet.</p>
-              ) : null}
-            </div>
-          </DialogContent>
-        </Dialog>
 
         <Dialog open={teamDialogOpen} onOpenChange={setTeamDialogOpen}>
           <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto">
