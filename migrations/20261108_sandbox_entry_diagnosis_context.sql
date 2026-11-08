@@ -82,3 +82,18 @@ ALTER TABLE public.response_integrity_evidence_ledger
 
 COMMENT ON COLUMN public.response_integrity_diagnosis_runs.session_context IS
   'Legacy lineage discriminator. sandbox_entry_diagnosis means a scheduled Training container hosting an intro-diagnosis activity.';
+
+COMMENT ON COLUMN public.response_integrity_diagnosis_runs.session_container IS
+  'Session container used by the diagnosis: intro_session, scheduled_training_session, or handover_session.';
+
+COMMENT ON COLUMN public.response_integrity_diagnosis_runs.activity_kind IS
+  'Activity actually performed: intro_diagnosis or targeted_rediagnosis.';
+
+COMMENT ON COLUMN public.response_integrity_evidence_ledger.session_context IS
+  'Legacy compatibility lineage only. Use session_container + activity_kind for independent semantic axes.';
+
+COMMENT ON COLUMN public.response_integrity_evidence_ledger.session_container IS
+  'Session container for the evidence row: intro_session, scheduled_training_session, or handover_session.';
+
+COMMENT ON COLUMN public.response_integrity_evidence_ledger.activity_kind IS
+  'Activity represented by the evidence row: intro_diagnosis, training, targeted_rediagnosis, or handover_verification.';
