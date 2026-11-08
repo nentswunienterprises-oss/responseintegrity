@@ -423,7 +423,7 @@ export function SandboxReadinessAssessmentCard({
                 <div>
                   <p className="text-sm font-semibold">Sandbox graduation gate</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Coverage must be established before the protected zero-divergence run can qualify.
+                    Development coverage unlocks the remaining Deep Dives. After those and RI-OS Retention/Application, the separate protected eight-session graduation run is the final gate.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -448,7 +448,7 @@ export function SandboxReadinessAssessmentCard({
                   <p className="mt-1 font-medium">
                     {qualification.developmentCoverageReady
                       ? `${qualification.qualifyingSessions}/${qualification.requiredSessions ?? "—"} clean sessions`
-                      : "Locked until development coverage is established"}
+                      : "Not open yet; remaining Deep Dives and RI-OS gates come first"}
                   </p>
                 </div>
               </div>
@@ -457,7 +457,7 @@ export function SandboxReadinessAssessmentCard({
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Development coverage</p>
                     <Badge variant={qualification.developmentCoverageReady ? "default" : "outline"}>
-                      {qualification.developmentCoverageReady ? "Established" : "Required before final run"}
+                      {qualification.developmentCoverageReady ? "Established" : "Required to unlock Deep Dives"}
                     </Badge>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-3">
@@ -500,7 +500,7 @@ export function SandboxReadinessAssessmentCard({
               <DialogHeader>
                 <DialogTitle>Development coverage</DialogTitle>
                 <DialogDescription>
-                  These named opportunities must be established before sessions can count toward the protected eight-session graduation run.
+                  These named opportunities establish Sandbox development coverage and unlock the remaining Deep Dives. They are separate from the protected eight-session final graduation run.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
