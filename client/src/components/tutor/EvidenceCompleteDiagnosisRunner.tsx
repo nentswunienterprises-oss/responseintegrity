@@ -249,11 +249,13 @@ export default function EvidenceCompleteDiagnosisRunner() {
     .trim()
     .toLowerCase();
   const sessionContextKind =
-    requestedSessionContext === "handover"
-      ? "handover"
-      : requestedSessionContext === "training"
-        ? "training"
-        : "intro";
+    requestedSessionContext === "sandbox_entry_diagnosis"
+      ? "sandbox_entry_diagnosis"
+      : requestedSessionContext === "handover"
+        ? "handover"
+        : requestedSessionContext === "training"
+          ? "training"
+          : "intro";
   const isTargetedHandoverRediagnosis = sessionContextKind === "handover";
 
   const storageKey = useMemo(
