@@ -1820,6 +1820,7 @@ async function autoProvisionSandboxAccountsForTutor(
     pool,
     tutorId,
     () => autoProvisionSandboxAccountsForTutorUnlocked(tutorId, minimumCount),
+    { transactionScoped: true },
   );
 }
 

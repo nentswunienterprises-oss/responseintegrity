@@ -15,11 +15,10 @@ export async function withSandboxProvisionLock<T>(
 
   const client = await db.connect();
   if (options.transactionScoped) {
-    // Transaction pooling pins the backend only inside BEGIN/COMMIT. A
-    // session-level lock/unlock pair can otherwise run on different backends.
-    // This versioned namespace is limited by the caller to the isolated proof
-    // rollout, whose earlier request failed before entering provision work.
-    const key = `${SANDBOX_PROVISION_LOCK_PREFIX}:transaction-v2:${normalizedTutorId}`;
+    // Transaction pooling pins the backend only inside BEGIN/COMMIT. Keep
+    // the same key as the session-scoped path so old and new instances still
+    // coordinate while a rolling deployment is in progress.
+    const key = `${SANDBOX_PROVISION_LOCK_PREFIX}:${normalizedTutorId}`;
     let destroy = false;
     try {
       await client.query("BEGIN");
