@@ -17,6 +17,7 @@ import { getAuthMode } from "@/lib/authMode";
 import { getParentDashboardCopyByState } from "@shared/topicConditioningEngine";
 import { displayTopicStability, topicStabilityConfirmationLabel } from "@shared/topicStabilityPresentation";
 import { RESPONSE_SYMPTOM_GROUPS } from "@shared/responseSymptomMapping";
+import { formatScheduledSessionTime } from "@/lib/scheduledSessionTime";
 
 interface StudentStats {
   introDiagnosisCompleted?: number;
@@ -44,6 +45,7 @@ interface IntroSessionInfo {
     | "pending_parent_confirmation"
     | "confirmed";
   scheduled_time?: string;
+  timezone?: string;
   introCompleted?: boolean;
 }
 
@@ -561,7 +563,7 @@ export default function ParentDashboard() {
   const currentStep = getCurrentStepCopy(introSession || null, !!proposal, hasAccessCode);
   const isDiagnosisOnlyView = (stats?.trainingSessionsCompleted || 0) === 0;
   const nextSessionTime = introSession?.scheduled_time
-    ? new Date(introSession.scheduled_time).toLocaleString()
+    ? formatScheduledSessionTime(introSession.scheduled_time, introSession.timezone)
     : null;
   const introStatusesWithSchedule = new Set([
     "pending_tutor_confirmation",

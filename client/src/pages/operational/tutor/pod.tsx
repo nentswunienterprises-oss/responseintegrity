@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { FileText } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { formatScheduledSessionTime } from "@/lib/scheduledSessionTime";
 import { ApplicationForm } from "@/components/tutor/application-form";
 import StudentIdentitySheet from "@/components/tutor/StudentIdentitySheet";
 import ParentOnboardingProposal from "@/components/tutor/ParentOnboardingProposal";
@@ -180,11 +181,8 @@ function formatSessionType(type?: string | null) {
   return String(type || "").trim().toLowerCase() === "intro" ? "Intro Session" : "Training Session";
 }
 
-function formatSessionTime(value?: string | null) {
-  if (!value) return "--";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "--";
-  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+function formatSessionTime(value?: string | null, timezone?: string | null) {
+  return value ? formatScheduledSessionTime(value, timezone) : "--";
 }
 
 export default function TutorPod() {
@@ -868,7 +866,7 @@ export default function TutorPod() {
                           {session.student?.name || "Unlinked student"} • {formatSessionType(session.type)}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {formatSessionTime(session.scheduled_time)}
+                          {formatSessionTime(session.scheduled_time, session.timezone)}
                           {session.student?.grade ? ` • ${formatTutorGradeLabel(session.student.grade)}` : ""}
                           {session.timezone ? ` • ${session.timezone}` : ""}
                         </p>
@@ -903,7 +901,7 @@ export default function TutorPod() {
                         {session.student?.name || "Unlinked student"} - {formatSessionType(session.type)}
                       </p>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {formatSessionTime(session.scheduled_time)}
+                        {formatSessionTime(session.scheduled_time, session.timezone)}
                         {session.student?.grade ? ` - ${formatTutorGradeLabel(session.student.grade)}` : ""}
                       </p>
                     </div>

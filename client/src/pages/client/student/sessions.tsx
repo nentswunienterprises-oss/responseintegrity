@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
 import { CalendarDays, Clock, Video } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { formatScheduledSessionTime } from "@/lib/scheduledSessionTime";
 
 type StudentSession = {
   id: string;
@@ -53,17 +54,8 @@ function isSameDay(left: Date, right: Date) {
   );
 }
 
-function formatSessionDateTime(value?: string | null) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return new Intl.DateTimeFormat(undefined, {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
+function formatSessionDateTime(value?: string | null, timezone?: string | null) {
+  return value ? formatScheduledSessionTime(value, timezone) : "-";
 }
 
 function formatWeekLabel(start: Date, end: Date) {
@@ -201,7 +193,7 @@ export default function StudentSessions() {
                             <p className="text-sm font-semibold text-foreground">
                               {session.type === "intro" ? "Intro Session" : "Training Session"}
                             </p>
-                            <p className="text-sm text-muted-foreground">{formatSessionDateTime(session.scheduled_time)}</p>
+                            <p className="text-sm text-muted-foreground">{formatSessionDateTime(session.scheduled_time, session.timezone)}</p>
                           </div>
                           <Badge variant="outline" className="border-primary/30 bg-background/80">
                             {statusLabel(session)}
@@ -254,7 +246,7 @@ export default function StudentSessions() {
                   <p className="text-sm font-semibold text-foreground">
                     {nextSession.type === "intro" ? "Intro Session" : "Training Session"}
                   </p>
-                  <p className="text-sm text-muted-foreground">{formatSessionDateTime(nextSession.scheduled_time)}</p>
+                  <p className="text-sm text-muted-foreground">{formatSessionDateTime(nextSession.scheduled_time, nextSession.timezone)}</p>
                 </div>
                 <Badge variant="outline" className="border-primary/30 bg-background/80">
                   {statusLabel(nextSession)}
