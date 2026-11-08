@@ -6,6 +6,11 @@
 -- the one already-correct local instant and all non-matching historical data.
 LOCK TABLE public.scheduled_sessions IN ACCESS EXCLUSIVE MODE;
 
+-- This view projects scheduled_time directly, so PostgreSQL will not permit
+-- changing the underlying column type while the view exists. Recreate it
+-- with the same projection and joins after the type conversion.
+DROP VIEW public.scheduled_sessions_with_names;
+
 UPDATE public.scheduled_sessions
    SET scheduled_end =
      (scheduled_end AT TIME ZONE 'UTC')
@@ -17,6 +22,30 @@ UPDATE public.scheduled_sessions
 ALTER TABLE public.scheduled_sessions
   ALTER COLUMN scheduled_time TYPE timestamptz
   USING scheduled_time AT TIME ZONE COALESCE(NULLIF(timezone, ''), 'Africa/Johannesburg');
+
+CREATE VIEW public.scheduled_sessions_with_names AS
+ SELECT ss.id,
+    ss.parent_id,
+    ss.tutor_id,
+    ss.scheduled_time,
+    ss.type,
+    ss.status,
+    ss.parent_confirmed,
+    ss.tutor_confirmed,
+    ss.created_at,
+    ss.updated_at,
+    ss.student_id,
+    p.full_name AS parent_full_name,
+    pu.email AS parent_email,
+    t.full_name AS tutor_full_name,
+    t.email AS tutor_email
+   FROM public.scheduled_sessions ss
+     LEFT JOIN public.parents p ON ss.parent_id::text = p.id::text
+     LEFT JOIN public.users pu ON p.user_id::text = pu.id::text
+     LEFT JOIN public.tutor_applications t ON ss.tutor_id::text = t.id::text;
+
+GRANT ALL PRIVILEGES ON TABLE public.scheduled_sessions_with_names
+  TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.capture_tutor_trial_first_session_v2()
 RETURNS trigger
