@@ -1370,8 +1370,11 @@ export default function StudentTopicConditioningDialog({
       const topicPhasesParam = encodeURIComponent(JSON.stringify(
         selectedTopicStates.map((topic) => topic.phase),
       ));
+      const entryActivityParam = isSandboxEntryDiagnosisBatch
+        ? "&sessionContextKind=sandbox_entry_diagnosis"
+        : "";
       navigate(
-        `/specialist/intro-session/${studentId}?topics=${topicsParam}&topicPhases=${topicPhasesParam}${sessionParam}`,
+        `/specialist/intro-session/${studentId}?topics=${topicsParam}&topicPhases=${topicPhasesParam}${entryActivityParam}${sessionParam}`,
       );
       return;
     }
