@@ -446,9 +446,9 @@ export function SandboxReadinessAssessmentCard({
                 <div className="rounded-md border bg-background px-3 py-2 text-sm">
                   <p className="text-xs text-muted-foreground">Zero-divergence graduation run</p>
                   <p className="mt-1 font-medium">
-                    {qualification.developmentCoverageReady
-                      ? `${qualification.qualifyingSessions}/${qualification.requiredSessions ?? "—"} clean sessions`
-                      : "Not open yet; remaining Deep Dives and RI-OS gates come first"}
+                    {qualification.qualificationReady
+                      ? `${qualification.qualifyingSessions}/${qualification.requiredSessions ?? "—"} clean sessions complete`
+                      : "Final gate follows remaining Deep Dives and RI-OS Retention/Application"}
                   </p>
                 </div>
               </div>
@@ -483,7 +483,7 @@ export function SandboxReadinessAssessmentCard({
                     <div key={phase} className="rounded-md border bg-background px-3 py-2 text-xs">
                       <p className="font-medium">{phase}</p>
                       <p className="mt-1 text-muted-foreground">
-                        {qualification.developmentCoverageReady ? `${count}/${minimum} clean sessions` : "Locked until coverage is complete"}
+                        {qualification.qualificationReady ? `${count}/${minimum} complete` : `${minimum} required at final gate`}
                       </p>
                     </div>
                   );
