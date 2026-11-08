@@ -7,6 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import { trainingMilestone } from "@/lib/training-milestone";
+import {
+  isCapabilityAssessmentBlocked,
+  isDeepDiveModuleBlocked,
+} from "@/lib/responseConditioningAccess";
 
 const modules = [
   {
@@ -243,9 +247,16 @@ export default function ResponseConditioningSystem() {
       ? "Loading your next development milestone…"
       : trainingMilestone(capabilityAssessments, mode, practicalsQuery.data);
   const stageGate = capabilityPlanQuery.data?.stageGate;
-  // Remaining deep dives stay locked in every operational mode until Sandbox development coverage is complete.
-  // Transformation mastery, retention and application qualify a specialist for Sandbox; they do not unlock these modules.
-  const developmentPathwayBlocked = stageGate?.developmentCoverageReady !== true;
+  // Post-Sandbox Deep Dives remain locked until Sandbox development coverage is complete.
+  // Training-mode Transformation Retention and Application are governed by their own
+  // assessment prerequisites and spacing intervals, not the Sandbox coverage gate.
+  const sandboxMode = stageGate?.mode === "sandbox";
+  const developmentPathwayBlocked = isDeepDiveModuleBlocked(
+    stageGate?.mode,
+    stageGate?.developmentCoverageReady,
+  );
+  const sandboxDevelopmentBlocked =
+    sandboxMode && stageGate?.developmentCoverageReady !== true;
 
   return (
     <div className="min-h-screen bg-background">
@@ -362,8 +373,15 @@ export default function ResponseConditioningSystem() {
                   const gateScope = isOperatingSystem ? "Operating System" : "Transformation";
                   const title = `${gateScope} ${isRetrieval ? "Retention" : "Application"}`;
 
+                  const assessmentBlocked =
+                    assessment.status !== "complete" &&
+                    isCapabilityAssessmentBlocked({
+                      assessmentKey: assessment.assessmentKey,
+                      mode: stageGate?.mode,
+                      developmentCoverageReady: stageGate?.developmentCoverageReady,
+                    });
                   const detail =
-                    developmentPathwayBlocked && assessment.status !== "complete"
+                    assessmentBlocked
                       ? "Sandbox development coverage is required before this gate unlocks. The zero-divergence graduation run comes afterward."
                       : assessment.status === "complete"
                       ? isRetrieval
@@ -399,7 +417,7 @@ export default function ResponseConditioningSystem() {
                         </p>
                       </div>
 
-                      {assessment.status === "available" && !developmentPathwayBlocked ? (
+                      {assessment.status === "available" && !assessmentBlocked ? (
                         <Button asChild>
                           <Link
                             to={`/operational/specialist/capability/${assessment.assessmentKey}`}
@@ -438,9 +456,9 @@ export default function ResponseConditioningSystem() {
               {completedCapabilityChecks} of {totalCapabilityChecks} Deep Dive Capability Checks completed.
             </p>
             <p className="border-t border-border pt-4 text-sm" aria-live="polite">
-              {developmentPathwayBlocked ? (stageGate?.reason || milestoneMessage) : milestoneMessage}
+              {sandboxDevelopmentBlocked ? (stageGate?.reason || milestoneMessage) : milestoneMessage}
             </p>
-            {developmentPathwayBlocked ? (
+            {sandboxDevelopmentBlocked ? (
               <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
                 <p className="font-medium">Sandbox development gate active</p>
                 <p className="mt-1 text-muted-foreground">
