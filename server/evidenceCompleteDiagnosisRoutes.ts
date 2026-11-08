@@ -1494,6 +1494,16 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
         let continuationContext = diagnosisContinuationContext(previousDecision, storedHistoryForReplay.length, existingRun?.scheduled_session_id || scheduledSessionId);
         const currentSessionId = continuationContext.sessions.at(-1)?.scheduledSessionId || null;
         const continuingInNewSession = !!existingRun && !!scheduledSessionId && scheduledSessionId !== currentSessionId;
+        // A run created by the earlier broken Sandbox entry flow may already be
+        // bound to the Training container but have no submitted evidence. Permit
+        // only that empty, same-booking run to adopt the explicit entry activity.
+        const canUpgradeEmptySandboxEntryRun = !!existingRun &&
+          existingRun.status !== "completed" &&
+          existingRun.session_context === "active_training" &&
+          storedHistoryForReplay.length === 0 &&
+          requestedKind === "sandbox_entry_diagnosis" &&
+          !!scheduledSessionId &&
+          String(existingRun.scheduled_session_id || "") === scheduledSessionId;
         if (existingRun && existingRun.status !== "completed" &&
             !sameParentDiagnosisAuthority(existingRun.decision, parentAuthority)) {
           await pool.query(`UPDATE ${RUN_TABLE} SET status='superseded', updated_at=NOW()
@@ -1513,10 +1523,12 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
             return res.status(409).json({ message: "A completed diagnosis cannot be reassigned to another lesson." });
           }
           const submittedContext = String(req.body?.sessionContextKind || "").trim().toLowerCase();
-          const expectedContext = continuationContext.sessions.at(-1)?.sessionKind ||
-            (existingRun.session_context === "sandbox_entry_diagnosis" ? "sandbox_entry_diagnosis" :
-              existingRun.session_context === "active_training" ? "training" :
-              existingRun.session_context === "handover_verification" ? "handover" : "intro");
+          const expectedContext = canUpgradeEmptySandboxEntryRun
+            ? "sandbox_entry_diagnosis"
+            : continuationContext.sessions.at(-1)?.sessionKind ||
+              (existingRun.session_context === "sandbox_entry_diagnosis" ? "sandbox_entry_diagnosis" :
+                existingRun.session_context === "active_training" ? "training" :
+                existingRun.session_context === "handover_verification" ? "handover" : "intro");
           if (submittedContext && !continuingInNewSession && submittedContext !== expectedContext) {
             return res.status(409).json({ message: "Diagnosis session context cannot be reassigned." });
           }
@@ -1672,7 +1684,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           String(continuationContext.sessions.at(-1)?.scheduledSessionId || existingRun?.scheduled_session_id || scheduledSessionId || "").trim() || null;
         const effectiveRequestedKind =
           continuationContext.sessions.length > 1 ? (continuationContext.sessions.at(-1)?.sessionKind || requestedKind) :
-          existingRun?.session_context === "sandbox_entry_diagnosis"
+          canUpgradeEmptySandboxEntryRun || existingRun?.session_context === "sandbox_entry_diagnosis"
             ? "sandbox_entry_diagnosis" as const
             : existingRun?.session_container === "handover_session" ||
               existingRun?.session_context === "handover_verification"
@@ -1708,7 +1720,9 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           topic,
           startingPhase,
           scheduledSessionId: existingRun?.scheduled_session_id || sessionResult.scheduledSessionId,
-          sessionContext: existingRun?.session_context || sessionResult.sessionContext,
+          sessionContext: canUpgradeEmptySandboxEntryRun
+            ? "sandbox_entry_diagnosis"
+            : existingRun?.session_context || sessionResult.sessionContext,
           status: runStatus,
           probeHistory: replay.state.probeHistory,
           decision: attachParentDiagnosisAuthority(diagnosisDecisionWithContext(replay.decision, continuationContext, previousDecision), parentAuthority),
@@ -1748,7 +1762,9 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           topic,
           startingPhase,
           scheduledSessionId: existingRun?.scheduled_session_id || sessionResult.scheduledSessionId,
-          sessionContext: existingRun?.session_context || sessionResult.sessionContext,
+          sessionContext: canUpgradeEmptySandboxEntryRun
+            ? "sandbox_entry_diagnosis"
+            : existingRun?.session_context || sessionResult.sessionContext,
           status: "completed",
           probeHistory: replay.state.probeHistory,
           decision: attachParentDiagnosisAuthority(diagnosisDecisionWithContext(replay.decision, continuationContext, previousDecision), parentAuthority),
