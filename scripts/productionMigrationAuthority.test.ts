@@ -14,7 +14,7 @@ test("production DB authority locks the verified The Hub baseline", () => {
   assert.equal(result.authority.productionProjectRef, "yzcnavucvwgmulcxgxvw");
   assert.equal(result.authority.baseline.commit, "a8c1aab29b230ce523c0353cfcc4eb4b1ae07627");
   assert.equal(result.baselineCount, 15);
-  assert.equal(result.managedCount, 20);
+  assert.equal(result.managedCount, 21);
   assert.deepEqual(
     result.authority.managedMigrations.map((migration) => migration.path),
     [
