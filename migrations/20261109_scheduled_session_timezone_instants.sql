@@ -4,8 +4,6 @@
 -- scheduled_end values were written as UTC wall-clock values in 213/214
 -- Production rows. Correct only rows matching that legacy pattern; preserve
 -- the one already-correct local instant and all non-matching historical data.
-BEGIN;
-
 LOCK TABLE public.scheduled_sessions IN ACCESS EXCLUSIVE MODE;
 
 UPDATE public.scheduled_sessions
@@ -159,5 +157,3 @@ BEGIN
   RETURN NEW;
 END;
 $function$;
-
-COMMIT;
