@@ -33208,8 +33208,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!topic || topic.length > 120) {
         return res.status(400).json({ message: "Enter a topic name of 1 to 120 characters." });
       }
-      if (description.length < 10 || description.length > 600) {
-        return res.status(400).json({ message: "Describe what your child experiences in 10 to 600 characters." });
+      if (description.length > 600 || (description.length > 0 && description.length < 10)) {
+        return res.status(400).json({ message: "If provided, additional context must be 10 to 600 characters." });
       }
 
       const { data: enrollment, error: enrollmentError } = await selectLatestParentEnrollment({
@@ -33261,7 +33261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       recommendations[topic] = {
         phase: recommendedPhase,
         supportingSymptoms,
-        rationale: `${rationale} Parent context: ${description}`,
+        rationale: description ? `${rationale} Parent context: ${description}` : rationale,
         parentDescription: description,
       };
 
