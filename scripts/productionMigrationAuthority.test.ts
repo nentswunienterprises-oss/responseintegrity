@@ -37,7 +37,8 @@ test("production DB authority locks the verified The Hub baseline", () => {
         "migrations/20261025_fix_legacy_battle_test_mode_enum.sql",
         "migrations/20261027_parent_subscription_management.sql",
         "migrations/2026-11-06_supersede_stale_parent_report_diagnoses.sql",
-        "migrations/20261108_sandbox_entry_diagnosis_context.sql"
+        "migrations/20261108_sandbox_entry_diagnosis_context.sql",
+        "migrations/20261108_parent_enrollment_topic_response_symptom_ids.sql"
     ],
   );
 });
