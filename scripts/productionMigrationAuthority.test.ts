@@ -14,90 +14,31 @@ test("production DB authority locks the verified The Hub baseline", () => {
   assert.equal(result.authority.productionProjectRef, "yzcnavucvwgmulcxgxvw");
   assert.equal(result.authority.baseline.commit, "a8c1aab29b230ce523c0353cfcc4eb4b1ae07627");
   assert.equal(result.baselineCount, 15);
-  assert.equal(result.managedCount, 14);
-  assert.deepEqual(result.authority.managedMigrations, [
-    {
-      path: "migrations/20260927_diagnosis_activity_context_separation.sql",
-      description:
-        "Add generated session-container and activity-kind semantics for diagnosis and evidence lineage without changing legacy context storage.",
-      risk: "additive",
-    },
-    {
-      path: "migrations/2026-09-28_capability_interactive_feedback.sql",
-      description:
-        "Add persisted per-question confirmations and assessment reflection fields for interactive Specialist Capability checks.",
-      risk: "additive",
-    },
-    {
-      path: "migrations/20261001_tps_handover_timing_lineage.sql",
-      description:
-        "Allow the dedicated Time Pressure Stability Handover continuity set ID while preserving the existing timed-attempt lineage table.",
-      risk: "additive",
-    },
-    {
-      path: "migrations/2026-10-02_add_capability_review_mode.sql",
-      description:
-        "Add the optional Capability review-mode flag used by Specialist Capability sequencing and isolated Proof review controls.",
-      risk: "additive",
-    },
-    {
-      path: "migrations/2026-10-03_guard_capability_critical_boundary_requires_fail.sql",
-      description:
-        "Add a fail-closed database guard requiring any Capability item tagged with a critical boundary to include at least one critical-fail option.",
-      risk: "additive",
-    },
-    {
-      path: "migrations/20261004_specialist_development_pathway_authority.sql",
-      description:
-        "Restore the public Specialist Development Pathway table required by the longitudinal development record and existing Trial governance, with server-only Data API access and non-retroactive backfill inside the current 90-day maximum window.",
-      risk: "additive",
-    },
-    {
-      path: "migrations/20261009_practicals_evidence_stage_v1.sql",
-      description:
-        "Create governed post-Sandbox Practicals submission and TD review evidence, server-only stateful Execute challenge truth and append-only live response transcript without changing Trial or live permission.",
-      risk: "additive",
-    },
-    {
-      path: "migrations/20261010_neutral_issue_reporting_v1.sql",
-      description:
-        "Add role-scoped neutral issue reporting for Technology, Operations, and People with protected intake, status ledger and no browser table access.",
-      risk: "additive",
-    },
-    {
-      path: "migrations/20261010_neutral_issue_reporting_service_grants.sql",
-      description:
-        "Restrict default Supabase service_role grants to required intake and append-only issue history permissions.",
-      risk: "additive",
-    },
-    {
-      path: "migrations/20261010_revoke_anon_sensitive_tables.sql",
-      description:
-        "Revoke PUBLIC and anon privileges from eight high-sensitivity legacy public relations after verified server-side credential readiness, reducing unauthenticated Data API exposure without changing authenticated or service-role access.",
-      risk: "destructive",
-    },
-    {
-      path: "migrations/20261010_trial_35_day_first_session.sql",
-      description:
-        "Restore the missing governed Trial window and COO-extension columns, freeze a 35-day window from the first completed Trial session rather than family placement, and require explicit documented extensions without qualifying any Specialist.",
-      risk: "additive",
-    },
-    {
-      "path": "migrations/20261014013817_sandbox_topic_state_lanes.sql",
-      "description": "Topic-scoped Sandbox evidence lanes, with historical topic attribution only from immutable session lineage.",
-      "risk": "additive"
-    },
-    {
-      "path": "migrations/20261014013826_sandbox_progression_authority.sql",
-      "description": "Preserve earned Sandbox exit eligibility separately from stability; leave historical evaluations unchanged.",
-      "risk": "additive"
-    },
-    {
-      "path": "migrations/20261014013834_sandbox_behavior_model_v2.sql",
-      "description": "Add versioned Sandbox behaviour authority; existing trajectories remain V1 and new trajectories can elect V2.",
-      "risk": "additive"
-    },
-  ]);
+  assert.equal(result.managedCount, 19);
+  assert.deepEqual(
+    result.authority.managedMigrations.map((migration) => migration.path),
+    [
+        "migrations/20260927_diagnosis_activity_context_separation.sql",
+        "migrations/2026-09-28_capability_interactive_feedback.sql",
+        "migrations/20261001_tps_handover_timing_lineage.sql",
+        "migrations/2026-10-02_add_capability_review_mode.sql",
+        "migrations/2026-10-03_guard_capability_critical_boundary_requires_fail.sql",
+        "migrations/20261004_specialist_development_pathway_authority.sql",
+        "migrations/20261009_practicals_evidence_stage_v1.sql",
+        "migrations/20261010_neutral_issue_reporting_v1.sql",
+        "migrations/20261010_neutral_issue_reporting_service_grants.sql",
+        "migrations/20261010_revoke_anon_sensitive_tables.sql",
+        "migrations/20261010_trial_35_day_first_session.sql",
+        "migrations/20261014013817_sandbox_topic_state_lanes.sql",
+        "migrations/20261014013826_sandbox_progression_authority.sql",
+        "migrations/20261014013834_sandbox_behavior_model_v2.sql",
+        "migrations/2026-11-06_supersede_stale_parent_report_diagnoses.sql",
+        "migrations/20261013_p0_anon_containment.sql",
+        "migrations/20261013_p0_confidential_storage_private.sql",
+        "migrations/20261025_fix_legacy_battle_test_mode_enum.sql",
+        "migrations/20261027_parent_subscription_management.sql"
+    ],
+  );
 });
 
 test("production target guard accepts only a URL carrying The Hub project ref", () => {
