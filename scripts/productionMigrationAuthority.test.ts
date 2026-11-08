@@ -14,7 +14,7 @@ test("production DB authority locks the verified The Hub baseline", () => {
   assert.equal(result.authority.productionProjectRef, "yzcnavucvwgmulcxgxvw");
   assert.equal(result.authority.baseline.commit, "a8c1aab29b230ce523c0353cfcc4eb4b1ae07627");
   assert.equal(result.baselineCount, 15);
-  assert.equal(result.managedCount, 19);
+  assert.equal(result.managedCount, 20);
   assert.deepEqual(
     result.authority.managedMigrations.map((migration) => migration.path),
     [
@@ -36,7 +36,8 @@ test("production DB authority locks the verified The Hub baseline", () => {
         "migrations/20261014013834_sandbox_behavior_model_v2.sql",
         "migrations/20261025_fix_legacy_battle_test_mode_enum.sql",
         "migrations/20261027_parent_subscription_management.sql",
-        "migrations/2026-11-06_supersede_stale_parent_report_diagnoses.sql"
+        "migrations/2026-11-06_supersede_stale_parent_report_diagnoses.sql",
+        "migrations/20261108_sandbox_entry_diagnosis_context.sql"
     ],
   );
 });
