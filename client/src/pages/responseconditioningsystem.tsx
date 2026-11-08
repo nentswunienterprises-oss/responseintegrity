@@ -314,12 +314,7 @@ export default function ResponseConditioningSystem() {
   );
   const sandboxDevelopmentBlocked =
     sandboxMode && stageGate?.developmentCoverageReady !== true;
-  const operatingSystemRetention = cumulativeAssessments.find(
-    (assessment) => assessment.assessmentKey.startsWith("operating_system_") && assessment.evidenceKind === "retrieval",
-  );
-  const operatingSystemApplication = cumulativeAssessments.find(
-    (assessment) => assessment.assessmentKey.startsWith("operating_system_") && assessment.evidenceKind === "transfer",
-  );
+
 
   return (
     <div className="min-h-screen bg-background">
