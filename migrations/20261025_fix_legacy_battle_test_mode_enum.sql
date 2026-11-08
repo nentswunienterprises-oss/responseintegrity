@@ -3,8 +3,7 @@
 -- tutor_certification_mode_old when the table alteration was run before the
 -- enum was recreated. That makes COALESCE(mode, operational_mode) fail with
 -- an enum-type mismatch in Specialist Development Record reads.
-DO $$
-BEGIN
+DO $ BEGIN
   IF EXISTS (
     SELECT 1
     FROM information_schema.columns
@@ -25,8 +24,7 @@ BEGIN
   END IF;
 END $$;
 
-DO $$
-BEGIN
+DO $ BEGIN
   IF NOT EXISTS (
     SELECT 1
     FROM pg_attribute a
