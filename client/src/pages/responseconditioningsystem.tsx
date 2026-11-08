@@ -7,6 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import { trainingMilestone } from "@/lib/training-milestone";
+import {
+  isCapabilityAssessmentBlocked,
+  isDeepDiveModuleBlocked,
+} from "@/lib/responseConditioningAccess";
 
 const modules = [
   {
@@ -247,8 +251,10 @@ export default function ResponseConditioningSystem() {
   // Training-mode Transformation Retention and Application are governed by their own
   // assessment prerequisites and spacing intervals, not the Sandbox coverage gate.
   const sandboxMode = stageGate?.mode === "sandbox";
-  const developmentPathwayBlocked =
-    !sandboxMode || stageGate?.developmentCoverageReady !== true;
+  const developmentPathwayBlocked = isDeepDiveModuleBlocked(
+    stageGate?.mode,
+    stageGate?.developmentCoverageReady,
+  );
   const sandboxDevelopmentBlocked =
     sandboxMode && stageGate?.developmentCoverageReady !== true;
 
@@ -368,9 +374,12 @@ export default function ResponseConditioningSystem() {
                   const title = `${gateScope} ${isRetrieval ? "Retention" : "Application"}`;
 
                   const assessmentBlocked =
-                    isOperatingSystem &&
-                    sandboxDevelopmentBlocked &&
-                    assessment.status !== "complete";
+                    assessment.status !== "complete" &&
+                    isCapabilityAssessmentBlocked({
+                      assessmentKey: assessment.assessmentKey,
+                      mode: stageGate?.mode,
+                      developmentCoverageReady: stageGate?.developmentCoverageReady,
+                    });
                   const detail =
                     assessmentBlocked
                       ? "Sandbox development coverage is required before this gate unlocks. The zero-divergence graduation run comes afterward."
