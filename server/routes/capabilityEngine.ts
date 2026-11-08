@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { isAuthenticated } from "../supabaseAuth";
+import { ensureVisibleSandboxStudentsForTutor } from "../routes";
 import {
   confirmCapabilityQuestionStateless,
   getCapabilityAssessmentHistory,
@@ -206,11 +207,32 @@ export function registerCapabilityEngineRoutes(app: Express) {
             })
           : null;
 
+        let sandboxProvisioning: { status: "not_applicable" | "ready" | "retry_required"; studentCount?: number } = {
+          status: "not_applicable",
+        };
+        if (progression?.mode === "sandbox") {
+          try {
+            const provisioned = await ensureVisibleSandboxStudentsForTutor(String(dbUser.id));
+            sandboxProvisioning = {
+              status: "ready",
+              studentCount: provisioned.studentCount,
+            };
+          } catch (provisioningError) {
+            console.error("[SANDBOX LIFECYCLE] Provisioning after Sandbox promotion failed", {
+              tutorId: String(dbUser.id),
+              tutorAssignmentId: payload.tutorAssignmentId,
+              message: provisioningError instanceof Error ? provisioningError.message : String(provisioningError),
+            });
+            sandboxProvisioning = { status: "retry_required" };
+          }
+        }
+
         return res.status(201).json({
           ...result,
           sandboxReady: progression?.sandboxReady ?? false,
           operationalMode: progression?.mode ?? null,
           sandboxUnlocked: Boolean(progression?.promoted),
+          sandboxProvisioning,
         });
       } catch (error) {
         return respondError(res, error, "Failed to save capability assessment attempt.");
