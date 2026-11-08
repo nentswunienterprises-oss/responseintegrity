@@ -1265,11 +1265,23 @@ export default function StudentTopicConditioningDialog({
       return;
     }
 
-    if (isSandboxMode && selectedTopics.length !== 1) {
-      // The stateful Sandbox currently maintains one active topic per
-      // confirmed lesson, with a separate evidence track for each topic.
+    const isTwoTopicEntryDiagnosis =
+      !isSandboxMode &&
+      unobservedTopics.length === selectedTopicStates.length &&
+      selectedTopicStates.length === 2;
+
+    const isSandboxEntryDiagnosisBatch =
+      isSandboxMode &&
+      unobservedTopics.length === selectedTopicStates.length &&
+      selectedTopicStates.length === 2 &&
+      rediagnosisTopics.length === 0;
+
+    if (isSandboxMode && selectedTopics.length !== 1 && !isSandboxEntryDiagnosisBatch) {
+      // Sandbox Training and targeted re-diagnosis retain one active topic.
+      // The two-topic exception is only for sequential entry placement; it
+      // does not create a multi-topic Sandbox Training evidence track.
       setSandboxPreparationError(
-        "Select one topic for this Sandbox lesson. Its preparation and observed evidence must remain traceable.",
+        "Sandbox Training and targeted re-diagnosis require one topic. Two unobserved entry topics may be diagnosed sequentially before Training.",
       );
       return;
     }
@@ -1348,7 +1360,9 @@ export default function StudentTopicConditioningDialog({
     const sessionParam = sessionId ? `&scheduledSessionId=${encodeURIComponent(sessionId)}` : "";
     setSessionTopicsModalOpen(false);
 
-    if (unobservedTopics.length === selectedTopicStates.length && !isSandboxMode) {
+    if (unobservedTopics.length === selectedTopicStates.length &&
+        selectedTopicStates.length === 2 &&
+        (isTwoTopicEntryDiagnosis || isSandboxEntryDiagnosisBatch)) {
       // Omit mode=session: the Intro Session runner's default mode is adaptive
       // diagnosis. Passing the topic batch here makes it diagnose the selected
       // entry topics sequentially rather than opening ordinary Training.
