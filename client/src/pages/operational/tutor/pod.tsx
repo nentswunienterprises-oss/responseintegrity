@@ -88,7 +88,7 @@ interface TutorAlignmentSummaryData {
     currentStage: string;
     pathway: { status: string; timeline?: { label?: string; daysRemaining?: number | null } | null } | null;
     training?: { sandboxReady: boolean; summary?: Record<string, { complete: number; total: number }> };
-    sandbox?: { readiness?: { practicalsReady?: boolean; qualification?: { qualificationReady?: boolean; qualifyingSessions?: number; requiredSessions?: number; phaseCounts?: Record<string, number>; phaseMinimums?: Record<string, number>; reason?: string } }; latestAssessment?: { decision?: string } | null };
+    sandbox?: { readiness?: { practicalsReady?: boolean; qualification?: { developmentCoverageReady?: boolean; qualificationReady?: boolean; qualifyingSessions?: number; requiredSessions?: number; phaseCounts?: Record<string, number>; phaseMinimums?: Record<string, number>; reason?: string; sourceStatus?: "available" | "unavailable" } }; latestAssessment?: { decision?: string } | null };
     trial?: { status?: string; gate?: { reviewable?: boolean } } | null;
   } | null;
 }
