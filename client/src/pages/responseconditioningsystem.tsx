@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
@@ -291,6 +292,16 @@ export default function ResponseConditioningSystem() {
   // assessment prerequisites and spacing intervals, not the Sandbox coverage gate.
   const sandboxMode = stageGate?.mode === "sandbox";
   const sandboxQualification = developmentPathwayQuery.data?.sandbox?.readiness?.qualification;
+
+  useEffect(() => {
+    if (!sandboxMode || window.location.hash !== "#inspect-coverage") return;
+    window.requestAnimationFrame(() => {
+      document.getElementById("inspect-coverage")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }, [sandboxMode]);
   const coverageGroups = [
     "Operating modes",
     "Preparation contexts",
