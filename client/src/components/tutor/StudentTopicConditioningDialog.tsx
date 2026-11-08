@@ -1245,8 +1245,18 @@ export default function StudentTopicConditioningDialog({
       return;
     }
 
-    if (unobservedTopics.length > 1) {
-      setTrainingSessionMeetMessage("Newly activated topics must be placed one at a time. Select a single unobserved topic and run diagnosis first.");
+    // Entry placement supports a two-topic Intro diagnosis batch. The runner
+    // processes each topic sequentially and persists each result before moving
+    // to the next. Do not mix unobserved topics with ordinary Training topics.
+    if (unobservedTopics.length > 1 && unobservedTopics.length !== selectedTopicStates.length) {
+      setTrainingSessionMeetMessage(
+        "Unobserved topics must complete entry diagnosis before they can be combined with observed Training topics.",
+      );
+      return;
+    }
+
+    if (unobservedTopics.length === selectedTopicStates.length && unobservedTopics.length > 2) {
+      setTrainingSessionMeetMessage("Intro diagnosis supports up to two topics in one session. Select two or fewer unobserved topics.");
       return;
     }
 
@@ -1335,9 +1345,24 @@ export default function StudentTopicConditioningDialog({
       return;
     }
 
-    const topicsParam = selectedTopics.map((t) => encodeURIComponent(t)).join(',');
     const sessionParam = sessionId ? `&scheduledSessionId=${encodeURIComponent(sessionId)}` : "";
     setSessionTopicsModalOpen(false);
+
+    if (unobservedTopics.length === selectedTopicStates.length && !isSandboxMode) {
+      // Omit mode=session: the Intro Session runner's default mode is adaptive
+      // diagnosis. Passing the topic batch here makes it diagnose the selected
+      // entry topics sequentially rather than opening ordinary Training.
+      const topicsParam = encodeURIComponent(JSON.stringify(selectedTopics));
+      const topicPhasesParam = encodeURIComponent(JSON.stringify(
+        selectedTopicStates.map((topic) => topic.phase),
+      ));
+      navigate(
+        `/specialist/intro-session/${studentId}?topics=${topicsParam}&topicPhases=${topicPhasesParam}${sessionParam}`,
+      );
+      return;
+    }
+
+    const topicsParam = selectedTopics.map((t) => encodeURIComponent(t)).join(',');
     navigate(`/specialist/intro-session/${studentId}?mode=session&topics=${topicsParam}${sessionParam}`);
   };
 
@@ -1732,9 +1757,12 @@ export default function StudentTopicConditioningDialog({
   const selectedSessionStartLabel =
     selectedSessionRediagnosisTopics.length === 1 && selectedSessionPrepPlans.length === 1
       ? "Start Re-Diagnosis"
-      : selectedSessionUnknownTopics.length === 1 && selectedSessionPrepPlans.length === 1
-        ? "Start Diagnosis"
-        : "Start Session";
+      : selectedSessionUnknownTopics.length === selectedSessionPrepPlans.length &&
+          selectedSessionUnknownTopics.length > 1 && selectedSessionUnknownTopics.length <= 2
+        ? "Start 2-Topic Diagnosis"
+        : selectedSessionUnknownTopics.length === 1 && selectedSessionPrepPlans.length === 1
+          ? "Start Diagnosis"
+          : "Start Session";
   const sessionPrepChecklistComplete =
     selectedSessionPrepPlans.length > 0 &&
     selectedSessionPrepPlans.every((entry) => !!sessionPrepChecks[`session-prep-${entry.topic}`]);
@@ -3057,13 +3085,13 @@ export default function StudentTopicConditioningDialog({
                 <DialogHeader>
                   <DialogTitle>Start Session</DialogTitle>
                   <DialogDescription>
-                    Select one or more topics for this lesson. Unobserved topics are diagnosis-first. Topics with a prerequisite contradiction are re-diagnosis-first and cannot return to ordinary Training until placement is re-established.
+                    Select the topics for this lesson. Up to two unobserved topics can complete entry diagnosis sequentially in one Intro Session. Topics with a prerequisite contradiction require targeted re-diagnosis on their own before returning to ordinary Training.
                   </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    Choose the topics you want to cover in this lesson. A single unobserved topic launches diagnosis. A topic flagged by a prerequisite sentinel launches targeted re-diagnosis. Ordinary observed topics launch Training. Diagnosis and re-diagnosis topics must be handled one at a time.
+                    Choose the topics you want to cover. One or two unobserved topics launch sequential entry diagnosis. A topic flagged by a prerequisite sentinel launches targeted re-diagnosis on its own. Ordinary observed topics launch Training.
                   </p>
                   <div className="grid gap-2 max-h-60 overflow-y-auto">
                     {topics.map((topic) => (
@@ -3104,9 +3132,17 @@ export default function StudentTopicConditioningDialog({
                   </div>
                 ) : null}
 
-                {selectedSessionUnknownTopics.length > 1 ? (
+                {selectedSessionUnknownTopics.length > 1 &&
+                selectedSessionUnknownTopics.length === selectedSessionPrepPlans.length &&
+                selectedSessionUnknownTopics.length <= 2 ? (
+                  <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm">
+                    These topics will complete entry diagnosis sequentially in the same Intro Session. Each topic is saved before the next begins.
+                  </div>
+                ) : null}
+                {selectedSessionUnknownTopics.length > 2 &&
+                selectedSessionUnknownTopics.length === selectedSessionPrepPlans.length ? (
                   <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                    More than one unobserved topic is selected. Entry placement must run one topic at a time.
+                    Intro diagnosis supports up to two unobserved topics per session. Select two or fewer.
                   </div>
                 ) : null}
 
