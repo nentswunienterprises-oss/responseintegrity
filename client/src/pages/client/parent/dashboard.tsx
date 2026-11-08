@@ -1152,24 +1152,22 @@ export default function ParentDashboard() {
               ))}
             </section>
             <div className="space-y-2">
-              <label htmlFor="parent-topic-request-description" className="text-sm font-medium">What does your child experience in this topic?</label>
+              <label htmlFor="parent-topic-request-description" className="text-sm font-medium">Additional context <span className="text-muted-foreground font-normal">(optional)</span></label>
               <textarea
                 id="parent-topic-request-description"
                 value={topicRequestDescription}
                 onChange={(event) => setTopicRequestDescription(event.target.value)}
-                minLength={10}
                 maxLength={600}
-                required
                 rows={4}
                 placeholder="Describe what you have noticed, such as where they get stuck or what happens when the work becomes difficult."
                 className="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
-              <p className="text-xs text-muted-foreground">The Specialist will review the request and assess the appropriate starting phase during diagnosis.</p>
+              <p className="text-xs text-muted-foreground">Use this note only if there is something important that the symptom selections do not capture. The Specialist will validate the starting phase through diagnosis.</p>
             </div>
             {topicRequestError ? <p role="alert" className="text-sm text-destructive">{topicRequestError}</p> : null}
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setTopicRequestOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={topicRequestSubmitting || topicRequestName.trim().length === 0 || topicRequestDescription.trim().length < 10}>
+              <Button type="submit" disabled={topicRequestSubmitting || topicRequestName.trim().length === 0}>
                 {topicRequestSubmitting ? "Sending..." : "Send Request"}
               </Button>
             </div>
