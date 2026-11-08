@@ -692,6 +692,14 @@ export function StudentCard({
       const topicKey = normalizeTopicKey(entry?.topic);
       if (!topic || !topicKey) return;
 
+      // A proposal/persisted seed is not proof of Specialist activation.
+      // Keep the topic out of active conditioning until there is an explicit
+      // activation record or genuine observed session evidence.
+      const explicitlyActivated = Array.from(explicitlyActivatedTopicNames).some(
+        (activatedTopic) => normalizeTopicKey(activatedTopic) === topicKey,
+      );
+      if (!explicitlyActivated && !entry?.hasObservedState) return;
+
       const normalizedEntry = {
         topic,
         phase: entry?.hasObservedState
