@@ -84,6 +84,28 @@ export function registerCapabilityEngineRoutes(app: Express) {
           tutorAssignmentId,
           tutorId: String(dbUser.id),
         });
+        if (state.stageGate.mode === "sandbox") {
+          try {
+            const provisioned = await ensureVisibleSandboxStudentsForTutor(String(dbUser.id));
+            return res.json({
+              ...state,
+              sandboxProvisioning: {
+                status: "ready",
+                studentCount: provisioned.studentCount,
+              },
+            });
+          } catch (provisioningError) {
+            console.error("[SANDBOX LIFECYCLE] Reconciliation while loading Capability plan failed", {
+              tutorId: String(dbUser.id),
+              tutorAssignmentId,
+              message: provisioningError instanceof Error ? provisioningError.message : String(provisioningError),
+            });
+            return res.json({
+              ...state,
+              sandboxProvisioning: { status: "retry_required" },
+            });
+          }
+        }
         return res.json(state);
       } catch (error) {
         return respondError(res, error, "Failed to load capability assessment plan.");
