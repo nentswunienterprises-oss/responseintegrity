@@ -36,6 +36,7 @@ import {
   RESPONSE_SYMPTOM_GROUPS,
 } from "@shared/responseSymptomMapping";
 import type { MonthlyPackageKey } from "@shared/servicePackages";
+import { formatScheduledSessionTime, getLocalTimeZone, localDateTimeToIso } from "@/lib/scheduledSessionTime";
 
 interface EnrollmentStatus {
   status: "not_enrolled" | "awaiting_assignment" | "awaiting_tutor_acceptance" | "assigned" | "proposal_sent" | "session_booked" | "report_received" | "confirmed";
@@ -52,6 +53,7 @@ interface IntroSessionConfirmation {
   status?: string;
   operationalMode?: "training" | "sandbox" | "trial" | "certified_live";
   scheduled_time?: string;
+  timezone?: string;
   id?: string;
   introCompleted?: boolean;
   type?: "intro" | "handover";
@@ -1111,15 +1113,16 @@ export default function ParentGateway() {
       if (session?.access_token) {
         headers["Authorization"] = `Bearer ${session.access_token}`;
       }
+      const timezone = getLocalTimeZone();
+      const scheduledStart = localDateTimeToIso(format(proposedDate, "yyyy-MM-dd"), proposedTime);
+      if (!scheduledStart) {
+        throw new Error("The selected session date and time are invalid.");
+      }
       const response = await fetch(`${API_URL}/api/parent/intro-session/propose`, {
         method: "POST",
         headers,
         credentials: "include",
-        body: JSON.stringify({
-          proposedDate: format(proposedDate, "yyyy-MM-dd"),
-          proposedTime,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Johannesburg",
-        }),
+        body: JSON.stringify({ scheduledStart, timezone }),
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -1144,7 +1147,8 @@ export default function ParentGateway() {
         status: sessionData?.status || "pending_tutor_confirmation",
         scheduled_time:
           sessionData?.scheduled_time ||
-          `${format(proposedDate, "yyyy-MM-dd")}T${proposedTime}`,
+          scheduledStart,
+        timezone: sessionData?.timezone || timezone,
         parent_confirmed: sessionData?.parent_confirmed ?? true,
         tutor_confirmed: sessionData?.tutor_confirmed ?? false,
         introCompleted: false,
@@ -1156,7 +1160,8 @@ export default function ParentGateway() {
         status: sessionData?.status || "pending_tutor_confirmation",
         scheduled_time:
           sessionData?.scheduled_time ||
-          `${format(proposedDate, "yyyy-MM-dd")}T${proposedTime}`,
+          scheduledStart,
+        timezone: sessionData?.timezone || timezone,
         parent_confirmed: sessionData?.parent_confirmed ?? true,
         tutor_confirmed: sessionData?.tutor_confirmed ?? false,
         introCompleted: false,
@@ -1981,7 +1986,7 @@ export default function ParentGateway() {
                           <p className="font-medium text-red-900">Waiting for tutor confirmation</p>
                           {effectiveIntroSessionConfirmation.scheduled_time && (
                             <p className="text-xs text-red-700 mt-1">
-                              Proposed {sessionLabel}: {new Date(effectiveIntroSessionConfirmation.scheduled_time).toLocaleString()}
+                              Proposed {sessionLabel}: {formatScheduledSessionTime(effectiveIntroSessionConfirmation.scheduled_time, effectiveIntroSessionConfirmation.timezone)}
                             </p>
                           )}
                         </div>
@@ -1998,7 +2003,7 @@ export default function ParentGateway() {
                           </p>
                           {effectiveIntroSessionConfirmation.scheduled_time && (
                             <p className="text-xs text-yellow-700 mt-1">
-                              Proposed schedule: {new Date(effectiveIntroSessionConfirmation.scheduled_time).toLocaleString()}
+                              Proposed schedule: {formatScheduledSessionTime(effectiveIntroSessionConfirmation.scheduled_time, effectiveIntroSessionConfirmation.timezone)}
                             </p>
                           )}
                         </div>
@@ -2060,7 +2065,7 @@ export default function ParentGateway() {
                           <p className="font-medium text-green-900">Your {sessionLabel} has been confirmed</p>
                           {effectiveIntroSessionConfirmation.scheduled_time && (
                             <p className="text-sm text-green-700 mt-2">
-                              Scheduled for: {new Date(effectiveIntroSessionConfirmation.scheduled_time).toLocaleString()}
+                              Scheduled for: {formatScheduledSessionTime(effectiveIntroSessionConfirmation.scheduled_time, effectiveIntroSessionConfirmation.timezone)}
                             </p>
                           )}
                           <p className="text-sm text-green-700 mt-2">

@@ -176,6 +176,11 @@
       "path": "migrations/20261108_parent_enrollment_topic_response_symptom_ids.sql",
       "description": "Add the optional per-topic parent response symptom identifier map to parent enrollments. Applied to The Hub Production on 2026-11-08; Supabase migration version 20261108114942; column type, NOT NULL constraint, and '{}'::jsonb default read-back verified.",
       "risk": "additive"
+    },
+    {
+      "path": "migrations/20261109_scheduled_session_timezone_instants.sql",
+      "description": "Convert scheduled session starts from timezone-naive wall-clock values to timestamptz using each row's recorded IANA timezone; repair only legacy UTC-wall-clock scheduled_end values, and update dependent trigger semantics.",
+      "risk": "destructive"
     }
   ]
 }
