@@ -1484,7 +1484,7 @@ export default function StudentTopicConditioningDialog({
   // Reset form state when dialog opens
   useEffect(() => {
     if (!open) return;
-    const firstTopic = topics[0]?.topic || sanitizeTopic(splitTopics(parentTopics)[0]) || "";
+    const firstTopic = activeMapTopics[0]?.topic || "";
     setActiveTab("dashboard");
     setActiveTopicField(firstTopic);
     setManualTopicField("");
