@@ -545,12 +545,16 @@ export function StudentCard({
         : topicSymptomsSource
     );
     const rawTopicSymptomLabels = getRawTopicSymptomLabels(topicSymptomsSource);
+    const hasTopicSpecificSymptomEntry =
+      Array.isArray(topicSymptomIdsSource) || Array.isArray(topicSymptomsSource);
     const topicSymptoms =
       topicSymptomIds.length > 0
         ? getResponseSymptomLabels(topicSymptomIds)
         : rawTopicSymptomLabels.length > 0
           ? rawTopicSymptomLabels
-          : symptomSignals;
+          : hasTopicSpecificSymptomEntry
+            ? []
+            : symptomSignals;
     const recommendedTopicData = getTopicMapValue(topicRecommendedStartingPhasesRaw, topic);
     const topicScoresRaw = getTopicMapValue(topicResponseSignalScoresRaw, topic) || {};
     const computedRecommendation = recommendStartingPhaseFromSymptoms(topicSymptomIds);

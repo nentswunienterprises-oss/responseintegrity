@@ -33261,7 +33261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       recommendations[topic] = {
         phase: recommendedPhase,
         supportingSymptoms,
-        rationale,
+        rationale: `${rationale} Parent context: `${description}`,
         parentDescription: description,
       };
 
