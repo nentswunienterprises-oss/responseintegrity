@@ -108,13 +108,13 @@
       "risk": "additive"
     },
     {
-      "path": "migrations/20261010_neutral_issue_reporting_v1.sql",
-      "description": "Add role-scoped neutral issue reporting for Technology, Operations, and People with protected intake, status ledger and no browser table access.",
+      "path": "migrations/20261010_neutral_issue_reporting_service_grants.sql",
+      "description": "Restrict default Supabase service_role grants to required intake and append-only issue history permissions.",
       "risk": "additive"
     },
     {
-      "path": "migrations/20261010_neutral_issue_reporting_service_grants.sql",
-      "description": "Restrict default Supabase service_role grants to required intake and append-only issue history permissions.",
+      "path": "migrations/20261010_neutral_issue_reporting_v1.sql",
+      "description": "Add role-scoped neutral issue reporting for Technology, Operations, and People with protected intake, status ledger and no browser table access.",
       "risk": "additive"
     },
     {
@@ -126,6 +126,16 @@
       "path": "migrations/20261010_trial_35_day_first_session.sql",
       "description": "Restore the missing governed Trial window and COO-extension columns, freeze a 35-day window from the first completed Trial session rather than family placement, and require explicit documented extensions without qualifying any Specialist.",
       "risk": "additive"
+    },
+    {
+      "path": "migrations/20261013_p0_anon_containment.sql",
+      "description": "P0 containment migration verified in The Hub application migration ledger; exact source commit and file content match the recorded applied migration.",
+      "risk": "destructive"
+    },
+    {
+      "path": "migrations/20261013_p0_confidential_storage_private.sql",
+      "description": "P0 confidential Storage privacy migration verified in The Hub application migration ledger; exact source commit and file content match the recorded applied migration.",
+      "risk": "destructive"
     },
     {
       "path": "migrations/20261014013817_sandbox_topic_state_lanes.sql",
@@ -143,21 +153,6 @@
       "risk": "additive"
     },
     {
-      "path": "migrations/2026-11-06_supersede_stale_parent_report_diagnoses.sql",
-      "description": "Allow unfinished parent-report diagnosis runs to be superseded while preserving immutable audit history. Pending Production promotion; not present in The Hub migration ledger.",
-      "risk": "additive"
-    },
-    {
-      "path": "migrations/20261013_p0_anon_containment.sql",
-      "description": "P0 containment migration verified in The Hub application migration ledger; exact source commit and file content match the recorded applied migration.",
-      "risk": "destructive"
-    },
-    {
-      "path": "migrations/20261013_p0_confidential_storage_private.sql",
-      "description": "P0 confidential Storage privacy migration verified in The Hub application migration ledger; exact source commit and file content match the recorded applied migration.",
-      "risk": "destructive"
-    },
-    {
       "path": "migrations/20261025_fix_legacy_battle_test_mode_enum.sql",
       "description": "Correct the legacy battle-test mode enum type and remove the obsolete enum when unused. Pending Production promotion; not present in The Hub migration ledger.",
       "risk": "destructive"
@@ -165,6 +160,11 @@
     {
       "path": "migrations/20261027_parent_subscription_management.sql",
       "description": "Add the staged next-package selection contract to parent enrollments. The schema effect exists in The Hub but this migration is not present in its application migration ledger; retain as pending until provenance is resolved.",
+      "risk": "additive"
+    },
+    {
+      "path": "migrations/2026-11-06_supersede_stale_parent_report_diagnoses.sql",
+      "description": "Allow unfinished parent-report diagnosis runs to be superseded while preserving immutable audit history. Pending Production promotion; not present in The Hub migration ledger.",
       "risk": "additive"
     }
   ]
