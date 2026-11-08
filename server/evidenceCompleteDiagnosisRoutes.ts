@@ -102,7 +102,7 @@ const ACCEPTED_ASSIGNMENT_STATUSES = new Set([
 ]);
 
 const diagnosisSemanticsForSessionKind = (
-  kind: "intro" | "training" | "handover",
+  kind: DiagnosisSessionKind,
 ): {
   sessionContainer: DiagnosisSessionContainer;
   activityKind: DiagnosisActivityKind;
