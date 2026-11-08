@@ -136,7 +136,13 @@ function formatDevelopmentNextAction(stage: string | null | undefined, pathway: 
   const value = String(stage || "").toLowerCase();
   if (value === "application") return "Complete application and onboarding requirements before Training begins.";
   if (value === "training") return pathway?.training?.sandboxReady ? "Training gate complete; Sandbox is the next governed stage." : "Complete the assigned Deep Dives and Mastery Checks to establish the Training gate.";
-  if (value === "sandbox") return pathway?.sandbox?.readiness?.qualification?.qualificationReady ? "Sandbox evidence is complete; assigned TD review is the next gate." : "Complete the prescribed phase-balanced Sandbox evidence run."; 
+  if (value === "sandbox") {
+    const qualification = pathway?.sandbox?.readiness?.qualification;
+    if (qualification?.sourceStatus === "unavailable") return "Sandbox development evidence is unavailable. This is a system evidence-access issue, not a failed Specialist requirement; ask your TD to investigate.";
+    if (qualification?.qualificationReady) return "Final Sandbox graduation evidence is complete; assigned TD review is the next gate.";
+    if (qualification?.developmentCoverageReady) return "Development coverage is established. Complete the remaining Deep Dives, then RI-OS Retention and Application, before final Sandbox graduation.";
+    return "Establish Sandbox development coverage. This unlocks the remaining Deep Dives; RI-OS Retention and Application and final graduation come afterward.";
+  }
   if (value === "practicals") return "Complete Prepare, Execute and Evidence for the assigned Practicals."; 
   if (value === "trial") return "Complete the two-family Trial evidence window and outcome reviews."; 
   if (value === "certification") return "Complete the remaining certification review decisions."; 
@@ -587,6 +593,7 @@ export default function TutorPod() {
     specialistOperationalMode,
   );
   const sandboxTrainingActive = specialistOperationalMode === "sandbox";
+  const sandboxQualification = effectiveSandboxProgress?.qualification || null;
 
   return (
     <DashboardLayout>
@@ -635,15 +642,15 @@ export default function TutorPod() {
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
                   {sandboxTrainingActive
-                    ? "The final Sandbox qualification run is locked until the required development coverage is established. Complete the prescribed Sandbox opportunities before returning to remaining Deep Dives."
-                    : "Work through each Deep Dive and complete its Mastery Check. Transformation Mastery, Retention and Application unlock Sandbox."}
+                    ? "Sandbox development coverage is the current stage. Completing it unlocks the remaining Deep Dives; then complete RI-OS Retention and Application before the separate final Sandbox graduation qualification."
+                    : "Work through each Deep Dive and complete its Mastery Check. Transformation Mastery, Retention and Application qualify you for Sandbox entry."}
                 </p>
               </div>
-              {!sandboxTrainingActive ? (
-                <Button asChild className="shrink-0">
-                  <Link to="/responseconditioningsystem">Open Deep Dives</Link>
-                </Button>
-              ) : null}
+              <Button asChild className="shrink-0">
+                <Link to="/responseconditioningsystem">
+                  {sandboxTrainingActive ? "View Development Path" : "Open Deep Dives"}
+                </Link>
+              </Button>
             </div>
           </Card>
         ) : null}
@@ -690,10 +697,12 @@ export default function TutorPod() {
                 <p className="mt-2 text-sm font-medium text-foreground">
                   {effectiveSandboxProgress?.qualification
                     ? effectiveSandboxProgress.qualification.qualificationReady
-                      ? "Qualified pending TD review. Practicals do not open automatically."
-                      : effectiveSandboxProgress.qualification.developmentCoverageReady
-                        ? "Final qualification run in progress."
-                         : "Sandbox development coverage is incomplete; the final qualification run is locked."
+                      ? "Final Sandbox graduation evidence is complete; TD review is next. Practicals do not open automatically."
+                      : effectiveSandboxProgress.qualification.sourceStatus === "unavailable"
+                        ? "Sandbox development evidence is unavailable. This is a system issue, not a failed Specialist requirement."
+                        : effectiveSandboxProgress.qualification.developmentCoverageReady
+                          ? "Development coverage is complete. Remaining Deep Dives and RI-OS Retention/Application come before final graduation."
+                          : "Sandbox development coverage is in progress; remaining Deep Dives are locked until it is established."
                     : "Pathway standing is available above. Follow the next governed requirement."}
                 </p>
               </div>
@@ -706,23 +715,44 @@ export default function TutorPod() {
               </p>
             </div>
 
+            {sandboxTrainingActive ? (
+              <section className="rounded-xl border border-primary/20 bg-background p-4 sm:p-5" aria-label="Sandbox development sequence">
+                <div className="mb-4">
+                  <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Your development sequence</p>
+                  <h3 className="mt-1 text-base font-semibold">What happens next</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">Coverage unlocks the remaining Deep Dives. RI-OS Retention and Application follow; final graduation is a separate later gate.</p>
+                </div>
+                <ol className="grid gap-2 sm:grid-cols-2">
+                  <li className="rounded-lg border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">1. Transformation qualification</span><Badge>Complete</Badge></div><p className="mt-1 text-xs text-muted-foreground">Mastery, Retention and Application — prerequisites for Sandbox entry.</p></li>
+                  <li className="rounded-lg border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">2. Sandbox development coverage</span><Badge variant={sandboxQualification?.sourceStatus === "unavailable" ? "destructive" : sandboxQualification?.developmentCoverageReady ? "default" : "outline"}>{sandboxQualification?.sourceStatus === "unavailable" ? "Evidence unavailable" : sandboxQualification?.developmentCoverageReady ? "Complete" : "In progress"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">Establish required operating-mode, behaviour and response-situation evidence.</p></li>
+                  <li className="rounded-lg border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">3. Remaining Deep Dives</span><Badge variant={sandboxQualification?.developmentCoverageReady ? "default" : "outline"}>{sandboxQualification?.developmentCoverageReady ? "Unlocked" : "Locked until coverage"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">Complete outstanding post-Sandbox capability checks.</p></li>
+                  <li className="rounded-lg border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">4. RI-OS Retention</span><Badge variant="outline">After Deep Dives</Badge></div><p className="mt-1 text-xs text-muted-foreground">Demonstrate delayed retrieval of the operating system.</p></li>
+                  <li className="rounded-lg border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">5. RI-OS Application</span><Badge variant="outline">After Retention</Badge></div><p className="mt-1 text-xs text-muted-foreground">Demonstrate correct application across mixed situations.</p></li>
+                  <li className="rounded-lg border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">6. Final Sandbox graduation</span><Badge variant={sandboxQualification?.qualificationReady ? "default" : "outline"}>{sandboxQualification?.qualificationReady ? "Ready for TD review" : "Final stage"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">Eight consecutive qualifying clean sessions: at least two in each RI-OS phase.</p></li>
+                </ol>
+                {sandboxQualification?.sourceStatus === "unavailable" ? <Alert className="mt-3"><AlertDescription>The development-coverage evidence source is unavailable. Do not treat missing counters or unprovisioned Sandbox resources as Specialist failure; restore the evidence source and environment first.</AlertDescription></Alert> : null}
+              </section>
+            ) : null}
+
             {effectiveSandboxProgress?.qualification ? (
               <div className="ri-alignment-section rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Sandbox Qualification</p>
+                    <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Final Sandbox Graduation Qualification</p>
                     <p className="mt-2 text-sm font-semibold text-foreground">
                       {effectiveSandboxProgress.qualification.qualifyingSessions}/
                       {effectiveSandboxProgress.qualification.requiredSessions} clean sessions credited
                     </p>
-                    <p className="mt-1 text-xs text-muted-foreground">Two clean sessions are required in each RI-OS phase.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">This is the final gate after remaining Deep Dives, RI-OS Retention and RI-OS Application. Two clean sessions are required in each RI-OS phase.</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant={effectiveSandboxProgress.qualification.qualificationReady ? "default" : "outline"}>
                       {effectiveSandboxProgress.qualification.qualificationReady
                         ? "Ready for TD review"
+                        : effectiveSandboxProgress.qualification.sourceStatus === "unavailable"
+                        ? "Evidence unavailable"
                         : effectiveSandboxProgress.qualification.developmentCoverageReady
-                          ? "Final run in progress"
+                          ? "Later stage"
                           : "Locked"}
                     </Badge>
                     <Button type="button" variant="outline" size="sm" onClick={() => setCoverageDialogOpen(true)}>
@@ -746,16 +776,10 @@ export default function TutorPod() {
                 </div>
                 <p className="mt-3 text-xs text-muted-foreground">
                   {effectiveSandboxProgress.qualification.qualificationReady
-                    ? "All numeric requirements are complete. TD approval is still required before Practicals."
-                    : (() => {
-                        const next = SANDBOX_PHASES.find((phase) =>
-                          (effectiveSandboxProgress?.qualification?.phaseCounts?.[phase] || 0) <
-                          (effectiveSandboxProgress?.qualification?.phaseMinimums?.[phase] || 2),
-                        );
-                        return effectiveSandboxProgress?.qualification?.developmentCoverageReady
-                          ? (next ? "Next requirement: one clean " + next + " session." : effectiveSandboxProgress?.qualification?.reason)
-                          : "Next requirement: complete development coverage before the final qualification run opens.";
-                      })()}
+                    ? "All final graduation evidence requirements are complete. TD approval is still required before Practicals."
+                    : effectiveSandboxProgress.qualification.sourceStatus === "unavailable"
+                      ? "Final graduation progress cannot be assessed while the evidence source is unavailable."
+                      : "These phase counters belong to final graduation, not development coverage. Complete the remaining Deep Dives and both RI-OS gates before final graduation."}
                 </p>
               </div>
             ) : null}
@@ -1067,7 +1091,7 @@ export default function TutorPod() {
             </DialogHeader>
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                This shows the governed coverage areas required before the final Sandbox qualification run opens.
+                This shows the governed development evidence that unlocks the remaining Deep Dives. It is separate from the final eight-session Sandbox graduation qualification.
               </p>
               {effectiveSandboxProgress?.qualification?.sourceStatus === "unavailable" ? (
                 <Alert>
