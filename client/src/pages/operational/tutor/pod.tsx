@@ -740,10 +740,11 @@ export default function TutorPod() {
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Final Sandbox Graduation Qualification</p>
                     <p className="mt-2 text-sm font-semibold text-foreground">
-                      {effectiveSandboxProgress.qualification.qualifyingSessions}/
-                      {effectiveSandboxProgress.qualification.requiredSessions} clean sessions credited
+                      {effectiveSandboxProgress.qualification.qualificationReady
+                        ? `${effectiveSandboxProgress.qualification.qualifyingSessions}/${effectiveSandboxProgress.qualification.requiredSessions} clean sessions complete`
+                        : "Final gate follows remaining Deep Dives and RI-OS Retention/Application"}
                     </p>
-                    <p className="mt-1 text-xs text-muted-foreground">This is the final gate after remaining Deep Dives, RI-OS Retention and RI-OS Application. Two clean sessions are required in each RI-OS phase.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">This is the final gate after remaining Deep Dives, RI-OS Retention and RI-OS Application. Two clean sessions are required in each RI-OS phase; phase counts are shown as requirements until final qualification evidence is complete.</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant={effectiveSandboxProgress.qualification.qualificationReady ? "default" : "outline"}>
@@ -768,7 +769,7 @@ export default function TutorPod() {
                       <div key={phase} className="ri-alignment-info-card rounded-xl border border-primary/15 bg-background px-3 py-2 text-sm text-foreground">
                         <span className="font-medium">{phase}</span>
                         <span className="ml-2 text-muted-foreground">
-                          {effectiveSandboxProgress.qualification.developmentCoverageReady ? `${count}/${required}` : "Locked"}
+                          {effectiveSandboxProgress.qualification.qualificationReady ? `${count}/${required} complete` : `${required} required at final gate`}
                         </span>
                       </div>
                     );
