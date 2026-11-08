@@ -1810,11 +1810,17 @@ export default function StudentTopicConditioningDialog({
     ),
   );
   const weeklySessionTargetLabel = `${packageWeeklySessionTarget} ${packageWeeklySessionTarget === 1 ? "lesson" : "lessons"}`;
-  const earliestActionableTrainingSession = [...actionableTrainingSessions].sort(
-    (a: any, b: any) => new Date(a.scheduled_time || 0).getTime() - new Date(b.scheduled_time || 0).getTime(),
-  )[0] || null;
-  const activeTrainingWeekKey = earliestActionableTrainingSession
-    ? getTrainingSessionWeekKey(earliestActionableTrainingSession.scheduled_time, earliestActionableTrainingSession.timezone)
+  const activeTrainingWeekCandidate = [...(trainingSessionsData?.sessions || [])]
+    .filter((session: any) => {
+      const status = String(session.status || "");
+      return !["completed", "flagged"].includes(status) &&
+        !(status === "cancelled" && session.cancellation?.disposition === "closed_consumed");
+    })
+    .sort(
+      (a: any, b: any) => new Date(a.scheduled_time || 0).getTime() - new Date(b.scheduled_time || 0).getTime(),
+    )[0] || null;
+  const activeTrainingWeekKey = activeTrainingWeekCandidate
+    ? getTrainingSessionWeekKey(activeTrainingWeekCandidate.scheduled_time, activeTrainingWeekCandidate.timezone)
     : null;
   const weeklyTrainingSessions = (trainingSessionsData?.sessions || []).filter(
     (session: any) =>
