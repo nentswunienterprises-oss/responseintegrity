@@ -59,18 +59,20 @@ test("Sandbox cycle identifiers are canonicalized without using them as expiry d
   assert.match(upsert, /sequence key, not an expiry boundary tied to the real calendar/);
 });
 
-test("Sandbox booking uses simulated package cadence and Commercial remains two slots", () => {
+test("Commercial and Sandbox booking both enforce the active package cadence", () => {
   const booking = source(
     'app.post("/api/parent/training-sessions/schedule-week"',
     'app.post("/api/parent/training-sessions/respond"',
   );
-  assert.match(booking, /const packageWeeklyTarget = isSandboxContext/);
-  assert.match(booking, /packageSessionQuota === 16[\s\S]*?packageSessionQuota === 12[\s\S]*?monthlyQuota\?\.planned_sessions_per_week/);
-  assert.match(booking, /parsedSlots\.length !== expectedWeeklySessions/);
-  assert.doesNotMatch(booking, /if \(rawSlots\.length !== 2\)/);
-  assert.match(booking, /if \(!isSandboxContext\) \{[\s\S]*?const nowMs = Date\.now\(\)/);
-  assert.match(booking, /AND \(\$5::boolean = TRUE OR scheduled_time >= \$6::timestamptz\)/);
-  assert.match(booking, /if \(!isSandboxContext\) \{[\s\S]*?existingQuery = existingQuery\.gte\("scheduled_time"/);
+  assert.match(booking, /const packageWeeklyTarget = packageSessionQuota === 16/);
+  assert.match(booking, /packageSessionQuota === 16[\\s\\S]*?packageSessionQuota === 12[\\s\\S]*?planned_sessions_per_week/);
+  assert.match(booking, /parsedSlots\\.length !== expectedWeeklySessions/);
+  assert.doesNotMatch(booking, /if \\(rawSlots\\.length !== 2\\)/);
+  assert.doesNotMatch(booking, /const packageWeeklyTarget = isSandboxContext/);
+  // Sandbox simulation remains isolated from Commercial live-calendar rules.
+  assert.match(booking, /if \\(!isSandboxContext\\) \\{[\\s\\S]*?const nowMs = Date\\.now\\(\\)/);
+  assert.match(booking, /AND \\(\\$5::boolean = TRUE OR scheduled_time >= \\$6::timestamptz\\)/);
+  assert.match(booking, /if \\(!isSandboxContext\\) \\{[\\s\\S]*?existingQuery = existingQuery\\.gte\\("scheduled_time"/);
   assert.match(booking, /Simulated package exhausted/);
 });
 
