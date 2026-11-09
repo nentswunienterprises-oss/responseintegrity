@@ -180,7 +180,8 @@
     {
       "path": "migrations/20261109_scheduled_session_timezone_instants.sql",
       "description": "Convert scheduled session starts from timezone-naive wall-clock values to timestamptz using each row's recorded IANA timezone; repair only legacy UTC-wall-clock scheduled_end values, and update dependent trigger semantics.",
-      "risk": "destructive"
+      "risk": "destructive",
+      "gitBlobSha": "02011f4788a98a5c1f9a591aa26baa56968f7773"
     }
   ]
 }
