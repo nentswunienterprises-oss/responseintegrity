@@ -66,6 +66,7 @@ test("Commercial and Sandbox booking both enforce the active package cadence", (
   );
   assert.ok(booking.includes("const packageWeeklyTarget = packageSessionQuota === 16"));
   assert.ok(booking.includes("packageSessionQuota === 12"));
+  assert.ok(booking.includes("packageSessionQuota === 8"));
   assert.ok(booking.includes("planned_sessions_per_week"));
   assert.ok(booking.includes("parsedSlots.length !== expectedWeeklySessions"));
   assert.ok(!booking.includes("if (rawSlots.length !== 2)"));
