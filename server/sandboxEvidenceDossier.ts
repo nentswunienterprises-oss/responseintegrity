@@ -202,8 +202,13 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
               behaviorClass: currentRule?.behaviorClass || String(observation?.behaviorClass || "unresolved"),
             };
           }).filter((observation: any) => observation.dimensionId && observation.behaviorId);
-          const expectedSupportEvents = [...new Set(retrospectiveEvidence.map((item: any) => String(item?.supportEvent || "")).filter(Boolean))];
-          const expectedSupportEvent = expectedSupportEvents.length === 1 ? expectedSupportEvents[0] : null;
+          // The response snapshot is the primary source for what the simulated
+          // student required at this probe. The evidence projection can carry a
+          // specialist-side or retrospective support annotation, so use it only
+          // as a compatibility fallback when the saved opportunity has no event.
+          const savedResponseSupportEvent = String(submitted?.supportEvent || "").trim();
+          const expectedSupportEvents = [...new Set(retrospectiveEvidence.map((item: any) => String(item?.supportEvent || "").trim()).filter(Boolean))];
+          const expectedSupportEvent = savedResponseSupportEvent || (expectedSupportEvents.length === 1 ? expectedSupportEvents[0] : null);
           const expectedByDimension = new Map(canonical.map((item: any) => [item.dimensionId, item.behaviorId]));
           const comparisons = recorded.map((item: any) => {
             const recordedRule = getDiagnosisObservationOption(item.dimensionId as any, item.behaviorId);
