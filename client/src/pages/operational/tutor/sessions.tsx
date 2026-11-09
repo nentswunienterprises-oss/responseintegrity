@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import StudentTopicConditioningDialog from "@/components/tutor/StudentTopicConditioningDialog";
 import { apiRequest } from "@/lib/queryClient";
 import { getAuthMode } from "@/lib/authMode";
+import { formatScheduledSessionTime } from "@/lib/scheduledSessionTime";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   summarizeSnapshotObservedResponse,
@@ -292,7 +293,7 @@ export default function TutorSessions() {
                                   {session.student?.name || "Unlinked student"} • {sessionLabel(session.type)}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  {format(new Date(session.scheduled_time), "h:mm a")}
+                                  {formatScheduledSessionTime(session.scheduled_time, session.timezone)}
                                   {session.student?.grade ? ` • ${formatTutorGradeLabel(session.student.grade)}` : ""}
                                 </p>
                               </div>
@@ -380,7 +381,7 @@ export default function TutorSessions() {
                   <div>
                     <p className="font-medium">{sessionLabel(sessionLog.session.type)}</p>
                     <p className="text-sm text-muted-foreground">
-                      {format(new Date(sessionLog.session.scheduled_time), "EEEE, MMM d, yyyy • h:mm a")}
+                      {formatScheduledSessionTime(sessionLog.session.scheduled_time, (sessionLog.session as any).timezone)}
                     </p>
                   </div>
                   <Badge variant="outline">{statusLabel(sessionLog.session.status)}</Badge>

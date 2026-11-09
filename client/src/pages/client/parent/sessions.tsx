@@ -16,6 +16,7 @@ import {
   PARENT_TRAINING_SESSION_CANCELLATION_REASONS,
   buildTrainingSessionCancellationNote,
 } from "@/lib/trainingSessionCancellation";
+import { formatScheduledSessionTime } from "@/lib/scheduledSessionTime";
 
 const PAYFAST_MERCHANT_REFERENCE_STORAGE_KEY = "parent-gateway:payfast-merchant-reference";
 const PAYFAST_RETURN_PATH_STORAGE_KEY = "parent-payfast:return-path";
@@ -108,17 +109,8 @@ export default function ParentSessions() {
     }).format(date);
   };
 
-  const formatSessionDateTime = (value?: string | null) => {
-    if (!value) return "-";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "-";
-    return new Intl.DateTimeFormat(undefined, {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      hour: "numeric",
-      minute: "2-digit",
-    }).format(date);
+  const formatSessionDateTime = (value?: string | null, timezone?: string | null) => {
+    return value ? formatScheduledSessionTime(value, timezone) : "-";
   };
 
   const combineDateAndTime = (date?: Date, time?: string) => {
@@ -765,7 +757,7 @@ export default function ParentSessions() {
                     <div>
                       <p className="font-medium text-foreground">Response Integrity Training Session</p>
                       <p className="text-sm text-muted-foreground">
-                        {formatSessionDateTime(session.scheduled_time)}
+                        {formatSessionDateTime(session.scheduled_time, session.timezone)}
                       </p>
                     </div>
                     <span className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -1077,7 +1069,7 @@ export default function ParentSessions() {
         title="Cancel Confirmed Session"
         description={
           cancelSessionTarget
-            ? `You are cancelling the confirmed lesson on ${formatSessionDateTime(cancelSessionTarget.scheduled_time)}. Select the reason so the Specialist and billing trail stay accurate.`
+            ? `You are cancelling the confirmed lesson on ${formatSessionDateTime(cancelSessionTarget.scheduled_time, cancelSessionTarget.timezone)}. Select the reason so the Specialist and billing trail stay accurate.`
             : "Select the cancellation reason so the Specialist and billing trail stay accurate."
         }
         confirmLabel="Cancel Session"
