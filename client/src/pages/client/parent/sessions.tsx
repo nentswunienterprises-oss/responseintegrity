@@ -319,7 +319,9 @@ export default function ParentSessions() {
     ? 4
     : packageSessionQuota === 12
       ? 3
-      : Math.max(2, Math.min(4, Number(data?.monthlyQuota?.planned_sessions_per_week) || 2));
+      : packageSessionQuota === 8
+        ? 2
+        : Math.max(2, Math.min(4, Number(data?.monthlyQuota?.planned_sessions_per_week) || 2));
   const handleScheduleWeek = async () => {
     const selectedSlots = scheduleSlots.slice(0, plannedSessionsPerWeek)
       .map((slot) => combineDateAndTime(slot.date, slot.time));
