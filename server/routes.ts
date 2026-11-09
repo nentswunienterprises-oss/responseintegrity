@@ -15395,13 +15395,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .sort((a, b) => new Date(a.scheduledStart).getTime() - new Date(b.scheduledStart).getTime());
 
       const packageSessionQuota = Number(monthlyQuota?.session_quota);
-      const packageWeeklyTarget = isSandboxContext
-        ? packageSessionQuota === 16
-          ? 4
-          : packageSessionQuota === 12
-            ? 3
-            : Number(monthlyQuota?.planned_sessions_per_week || 2)
-        : 2;
+      // The active paid package controls cadence in both Commercial and Sandbox.
+      // Keep planned_sessions_per_week as a compatibility fallback for older rows.
+      const packageWeeklyTarget = packageSessionQuota === 16
+        ? 4
+        : packageSessionQuota === 12
+          ? 3
+          : Math.max(2, Math.min(4, Number(monthlyQuota?.planned_sessions_per_week) || 2));
       const expectedWeeklySessions = Number.isSafeInteger(packageWeeklyTarget) && packageWeeklyTarget >= 2 && packageWeeklyTarget <= 4
         ? packageWeeklyTarget
         : 2;
