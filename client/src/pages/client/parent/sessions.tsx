@@ -313,13 +313,13 @@ export default function ParentSessions() {
   };
 
   const packageSessionQuota = Number(data?.monthlyQuota?.session_quota);
-  const plannedSessionsPerWeek = data?.operationalMode === "sandbox"
-    ? packageSessionQuota === 16
-      ? 4
-      : packageSessionQuota === 12
-        ? 3
-        : Math.max(2, Math.min(4, Number(data?.monthlyQuota?.planned_sessions_per_week) || 2))
-    : 2;
+  // Use the active package cadence in both Commercial and Sandbox.
+  // planned_sessions_per_week remains a fallback for older package records.
+  const plannedSessionsPerWeek = packageSessionQuota === 16
+    ? 4
+    : packageSessionQuota === 12
+      ? 3
+      : Math.max(2, Math.min(4, Number(data?.monthlyQuota?.planned_sessions_per_week) || 2));
   const handleScheduleWeek = async () => {
     const selectedSlots = scheduleSlots.slice(0, plannedSessionsPerWeek)
       .map((slot) => combineDateAndTime(slot.date, slot.time));
@@ -387,7 +387,7 @@ export default function ParentSessions() {
           payload?.createdCount > 0
             ? data?.operationalMode === "sandbox"
               ? `${plannedSessionsPerWeek} simulated weekly session times were proposed. Your Specialist must confirm all dates before the lessons are ready.`
-              : "Two weekly session times were proposed. Your Specialist must confirm both dates before Meet links are created."
+              : `${plannedSessionsPerWeek} weekly session times were proposed. Your Specialist must confirm all dates before Meet links are created.`
             : "Those weekly session times already exist.",
       });
 
@@ -607,8 +607,8 @@ export default function ParentSessions() {
   const scheduleWeekDescription = data?.operationalMode === "sandbox"
     ? `Choose ${plannedSessionsPerWeek} simulated Monday-to-Saturday training times in the same week. These dates are part of the Sandbox timeline, not live calendar availability. Your Specialist must confirm all dates before lessons are ready.`
     : trainingModeScheduling
-      ? "Choose two Monday-to-Saturday training session times in the same week. Your Specialist must confirm both dates before Response Integrity locks the sessions into the training flow."
-      : "Choose two Monday-to-Saturday training session times in the same week. Your Specialist must confirm both dates before Response Integrity creates the Meet links.";
+      ? `Choose ${plannedSessionsPerWeek} Monday-to-Saturday training session times in the same week. Your Specialist must confirm all dates before Response Integrity locks the sessions into the training flow.`
+      : `Choose ${plannedSessionsPerWeek} Monday-to-Saturday training session times in the same week. Your Specialist must confirm all dates before Response Integrity creates the Meet links.`;
   const actionableSessions = sessions.filter(
     (session) => !["completed", "cancelled", "flagged"].includes(String(session.status || "")),
   );
