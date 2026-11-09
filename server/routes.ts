@@ -15401,7 +15401,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? 4
         : packageSessionQuota === 12
           ? 3
-          : Math.max(2, Math.min(4, Number(monthlyQuota?.planned_sessions_per_week) || 2));
+          : packageSessionQuota === 8
+            ? 2
+            : Math.max(2, Math.min(4, Number(monthlyQuota?.planned_sessions_per_week) || 2));
       const expectedWeeklySessions = Number.isSafeInteger(packageWeeklyTarget) && packageWeeklyTarget >= 2 && packageWeeklyTarget <= 4
         ? packageWeeklyTarget
         : 2;
