@@ -27,9 +27,9 @@ test("timezone migration preserves server-only security and complete session vie
   const viewEnd = migration.indexOf("CREATE OR REPLACE FUNCTION public.capture_tutor_trial_first_session_v2");
   assert.ok(viewStart >= 0 && viewEnd > viewStart);
   const viewSql = migration.slice(viewStart, viewEnd);
-  assert.match(viewSql, /WITH \\(security_invoker = true\\)/);
-  assert.match(viewSql, /SELECT\\s+ss\\.\\*/);
-  assert.match(viewSql, /REVOKE ALL PRIVILEGES[\\s\\S]*FROM PUBLIC, anon, authenticated/);
-  assert.match(viewSql, /GRANT SELECT[\\s\\S]*TO service_role/);
-  assert.doesNotMatch(viewSql, /GRANT ALL PRIVILEGES[\\s\\S]*TO anon, authenticated/);
+  assert.match(viewSql, /WITH \(security_invoker = true\)/);
+  assert.match(viewSql, /SELECT\s+ss\.\*/);
+  assert.match(viewSql, /REVOKE ALL PRIVILEGES[\s\S]*FROM PUBLIC, anon, authenticated/);
+  assert.match(viewSql, /GRANT SELECT[\s\S]*TO service_role/);
+  assert.doesNotMatch(viewSql, /GRANT ALL PRIVILEGES[\s\S]*TO anon, authenticated/);
 });
