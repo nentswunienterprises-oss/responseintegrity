@@ -143,8 +143,8 @@ test('assigned TD can inspect diagnosis runs and probe submissions without fabri
   assert.equal(run.probes[0].observations[0].behaviorId,'no_recognition');
   assert.equal(run.probes[0].canonicalObservations[0].behaviorId,'no_recognition');
   assert.equal(run.probes[0].comparisons[0].matched,true);
-  assert.equal(run.probes[0].expectedSupportEvent,'none');
-  assert.equal(run.probes[0].supportRecognitionStatus,'diverged');
+  assert.equal(run.probes[0].expectedSupportEvent,'teaching');
+  assert.equal(run.probes[0].supportRecognitionStatus,'aligned');
   assert.equal(run.probes[0].simulatedBehavior,null);
   assert.match(run.evidenceNotice,/retrospectively evaluated against the saved simulated response and current RI diagnosis observation rules/);
 });
@@ -167,8 +167,8 @@ test('assigned TD sees exact captured diagnosis outcome truth beside the Special
   assert.equal(probe.simulatedBehavior,'The student identifies the relevant quantities, selects a method independently, and explains the first step.');
   assert.equal(probe.comparisons[0].matched,true);
   assert.equal(probe.comparisons[0].expectedBehaviorLabel,'Could not identify the important terms or symbols');
-  assert.equal(probe.expectedSupportEvent,'none');
-  assert.equal(probe.supportRecognitionStatus,'diverged');
+  assert.equal(probe.expectedSupportEvent,'teaching');
+  assert.equal(probe.supportRecognitionStatus,'aligned');
 });
 test('legacy human-readable option IDs still resolve to canonical labels', async () => {
   await database.exec(`
