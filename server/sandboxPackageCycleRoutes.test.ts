@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { normalizeSandboxCycleKey, selectAuthoritativeSandboxCycle } from "./sandboxPackageCycle";
 
 const routes = readFileSync("server/routes.ts", "utf8");
 const source = (begin: string, end: string) => {
@@ -190,4 +191,33 @@ test("targeted re-diagnosis consumes a package session only after scoped complet
   const retry = source.slice(source.indexOf('if (existingRun.status === "completed")'));
   assert.match(retry, /completeScheduledTrainingSessionAfterDiagnosis\(\{/);
   assert.match(retry, /completedAt: existingRun.completed_at \|\| null,[\s\S]*?runId,/);
+});
+
+
+test("legacy activation-date cycle key retains the existing active package quota", () => {
+  assert.equal(normalizeSandboxCycleKey("2026-11-09"), "2026-11-01");
+  assert.equal(normalizeSandboxCycleKey("2026-02-30"), null);
+  const selected = selectAuthoritativeSandboxCycle([{
+    id: "student-6-cycle",
+    parent_id: "parent-6",
+    student_id: "student-6",
+    is_sandbox: true,
+    month_key: "2026-11-09",
+    status: "active",
+    session_quota: 12,
+    sessions_used: 0,
+    sessions_remaining: 12,
+  }], "parent-6", "student-6");
+  assert.ok(selected);
+  assert.equal(selected.month_key, "2026-11-01");
+  assert.equal(selected.session_quota, 12);
+  assert.equal(selected.sessions_remaining, 12);
+});
+
+test("legacy and canonical keys for the same month are treated as duplicate cycles", () => {
+  const selected = selectAuthoritativeSandboxCycle([
+    { parent_id: "p", student_id: "s", is_sandbox: true, month_key: "2026-11-09", status: "active", session_quota: 12, sessions_used: 0, sessions_remaining: 12 },
+    { parent_id: "p", student_id: "s", is_sandbox: true, month_key: "2026-11-01", status: "active", session_quota: 12, sessions_used: 0, sessions_remaining: 12 },
+  ], "p", "s");
+  assert.equal(selected, null);
 });
