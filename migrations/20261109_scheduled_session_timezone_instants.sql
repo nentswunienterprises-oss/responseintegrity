@@ -23,18 +23,11 @@ ALTER TABLE public.scheduled_sessions
   ALTER COLUMN scheduled_time TYPE timestamptz
   USING scheduled_time AT TIME ZONE COALESCE(NULLIF(timezone, ''), 'Africa/Johannesburg');
 
-CREATE VIEW public.scheduled_sessions_with_names AS
- SELECT ss.id,
-    ss.parent_id,
-    ss.tutor_id,
-    ss.scheduled_time,
-    ss.type,
-    ss.status,
-    ss.parent_confirmed,
-    ss.tutor_confirmed,
-    ss.created_at,
-    ss.updated_at,
-    ss.student_id,
+CREATE VIEW public.scheduled_sessions_with_names
+WITH (security_invoker = true)
+AS
+ SELECT
+    ss.*,
     p.full_name AS parent_full_name,
     pu.email AS parent_email,
     t.full_name AS tutor_full_name,
@@ -44,8 +37,11 @@ CREATE VIEW public.scheduled_sessions_with_names AS
      LEFT JOIN public.users pu ON p.user_id::text = pu.id::text
      LEFT JOIN public.tutor_applications t ON ss.tutor_id::text = t.id::text;
 
-GRANT ALL PRIVILEGES ON TABLE public.scheduled_sessions_with_names
-  TO anon, authenticated, service_role;
+-- The view is server-only. Preserve the SEC178 posture: no direct client
+-- access, and retain the existing privileged server-role read path.
+REVOKE ALL PRIVILEGES ON TABLE public.scheduled_sessions_with_names
+  FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON TABLE public.scheduled_sessions_with_names TO service_role;
 
 CREATE OR REPLACE FUNCTION public.capture_tutor_trial_first_session_v2()
 RETURNS trigger
