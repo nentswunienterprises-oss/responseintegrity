@@ -27,7 +27,7 @@ export type SandboxPackageCycleRow = {
  */
 export function normalizeSandboxCycleKey(value: unknown): string | null {
   const key = String(value ?? "").trim();
-  const match = /^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$/.exec(key);
+  const match = /^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.exec(key);
   if (!match) return null;
   const year = Number(match[1]);
   const month = Number(match[2]);
