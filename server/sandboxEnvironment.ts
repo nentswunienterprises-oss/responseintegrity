@@ -1421,8 +1421,7 @@ async function readinessFor(input: {
   // deployment omitted the separate activation variable; never elsewhere.
   const activated = process.env.RI_SANDBOX_QUALIFICATION_V1_ACTIVE === "true" ||
     (isCapabilityProofPreview(process.env) &&
-      process.env.RI_SANDBOX_CROSSMODE_CAPTURE_V1 === "true" &&
-      input.tutorId === "b8448bbf-e01b-4f7b-bf6a-baf3ddb5d0bc");
+      process.env.RI_SANDBOX_CROSSMODE_CAPTURE_V1 === "true");
   let qualification = evaluateSandboxQualification([], { activated: false });
   let qualificationSourceGaps: string[] = [];
   let evidenceFingerprint: string | null = null;
