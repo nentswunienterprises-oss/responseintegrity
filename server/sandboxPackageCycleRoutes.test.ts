@@ -64,16 +64,18 @@ test("Commercial and Sandbox booking both enforce the active package cadence", (
     'app.post("/api/parent/training-sessions/schedule-week"',
     'app.post("/api/parent/training-sessions/respond"',
   );
-  assert.match(booking, /const packageWeeklyTarget = packageSessionQuota === 16/);
-  assert.match(booking, /packageSessionQuota === 16[\\s\\S]*?packageSessionQuota === 12[\\s\\S]*?planned_sessions_per_week/);
-  assert.match(booking, /parsedSlots\\.length !== expectedWeeklySessions/);
-  assert.doesNotMatch(booking, /if \\(rawSlots\\.length !== 2\\)/);
-  assert.doesNotMatch(booking, /const packageWeeklyTarget = isSandboxContext/);
+  assert.ok(booking.includes("const packageWeeklyTarget = packageSessionQuota === 16"));
+  assert.ok(booking.includes("packageSessionQuota === 12"));
+  assert.ok(booking.includes("planned_sessions_per_week"));
+  assert.ok(booking.includes("parsedSlots.length !== expectedWeeklySessions"));
+  assert.ok(!booking.includes("if (rawSlots.length !== 2)"));
+  assert.ok(!booking.includes("const packageWeeklyTarget = isSandboxContext"));
   // Sandbox simulation remains isolated from Commercial live-calendar rules.
-  assert.match(booking, /if \\(!isSandboxContext\\) \\{[\\s\\S]*?const nowMs = Date\\.now\\(\\)/);
-  assert.match(booking, /AND \\(\\$5::boolean = TRUE OR scheduled_time >= \\$6::timestamptz\\)/);
-  assert.match(booking, /if \\(!isSandboxContext\\) \\{[\\s\\S]*?existingQuery = existingQuery\\.gte\\("scheduled_time"/);
-  assert.match(booking, /Simulated package exhausted/);
+  assert.ok(booking.includes("if (!isSandboxContext)"));
+  assert.ok(booking.includes("const nowMs = Date.now()"));
+  assert.ok(booking.includes("AND ($5::boolean = TRUE OR scheduled_time >= $6::timestamptz)"));
+  assert.ok(booking.includes("existingQuery = existingQuery.gte(\"scheduled_time\""));
+  assert.ok(booking.includes("Simulated package exhausted"));
 });
 
 test("parent renewal is explicit, not triggered by calendar rollover", () => {
