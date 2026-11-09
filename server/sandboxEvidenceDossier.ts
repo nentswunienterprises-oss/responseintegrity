@@ -224,14 +224,17 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
             canonicalObservations: canonical,
             comparisons,
             supportEvent: String(probe?.supportEvent || submitted?.supportEvent || "not_recorded"),
-            expectedSupportEvent: capturedCanonical ? null : expectedSupportEvent,
-            supportRecognitionStatus: capturedCanonical
-              ? "not_independently_compared"
-              : expectedSupportEvent
-                ? (expectedSupportEvent === String(probe?.supportEvent || submitted?.supportEvent || "not_recorded")
-                    ? "aligned"
-                    : "diverged")
-                : "unresolved",
+            // Compare the Specialist's selected support event against the
+            // support event saved with the simulated response, even when the
+            // observation truth also has an immutable capture. These are
+            // separate evidence dimensions and capture must not suppress the
+            // response-context comparison.
+            expectedSupportEvent,
+            supportRecognitionStatus: expectedSupportEvent
+              ? (expectedSupportEvent === String(probe?.supportEvent || submitted?.supportEvent || "not_recorded")
+                  ? "aligned"
+                  : "diverged")
+              : "unresolved",
             passiveTiming: probe?.passiveTiming || null,
             canonicalEvidenceAvailable: canonical.length > 0,
             evidenceStatus: capturedCanonical ? "versioned_outcome_captured" : canonical.length ? "retrospective_current_rules" : "canonical_truth_not_captured",
