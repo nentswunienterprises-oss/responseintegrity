@@ -167,7 +167,8 @@ test('assigned TD sees exact captured diagnosis outcome truth beside the Special
   assert.equal(probe.simulatedBehavior,'The student identifies the relevant quantities, selects a method independently, and explains the first step.');
   assert.equal(probe.comparisons[0].matched,true);
   assert.equal(probe.comparisons[0].expectedBehaviorLabel,'Could not identify the important terms or symbols');
-  assert.equal(probe.supportRecognitionStatus,'not_independently_compared');
+  assert.equal(probe.expectedSupportEvent,'none');
+  assert.equal(probe.supportRecognitionStatus,'diverged');
 });
 test('legacy human-readable option IDs still resolve to canonical labels', async () => {
   await database.exec(`
