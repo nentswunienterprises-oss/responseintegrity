@@ -2451,7 +2451,11 @@ async function upsertMembershipMonth(options: {
   isSandbox?: boolean;
   packageKey?: MonthlyPackageKey | null;
 }) {
-  const monthKey = toMonthKey(options.monthStartIso);
+  // Canonicalize the cycle identifier. For Sandbox this is a simulated
+  // sequence key, not an expiry boundary tied to the real calendar.
+  const normalizedMonthStartIso = getMonthStartIso(options.monthStartIso);
+  if (!normalizedMonthStartIso) return null;
+  const monthKey = toMonthKey(normalizedMonthStartIso);
   const nowIso = new Date().toISOString();
 
   const { data: existing } = await supabase
@@ -2962,7 +2966,7 @@ async function getMonthlySessionQuotaSnapshot(options: {
   if (!monthStartIso) return null;
   const monthKey = toMonthKey(monthStartIso);
 
-  if (isEmergencyDbMode()) {
+  if (isEmergencyDbMode() || (options.isSandboxContext === true && usesDirectProofSessionDatabase())) {
     const isSandbox = options.isSandboxContext === true;
     // Sandbox month_key names a simulated package cycle, not calendar expiry.
     const result = isSandbox
@@ -13772,6 +13776,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const operationalMode = await getTutorOperationalMode(tutorId);
+        const isSandboxTraining = String(operationalMode || "").trim().toLowerCase() === "sandbox";
 
         if (usesDirectProofSessionDatabase()) {
           const [currentSessionsResult, latestCompletedSessionResult] = await Promise.all([
@@ -13782,9 +13787,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   AND student_id = $2
                   AND type = 'training'
                   AND status NOT IN ('completed', 'flagged')
-                  AND scheduled_time >= NOW() - INTERVAL '2 hours'
+                  AND ($3::boolean = TRUE OR scheduled_time >= NOW() - INTERVAL '2 hours')
                 ORDER BY scheduled_time ASC`,
-              [tutorId, studentId],
+              [tutorId, studentId, isSandboxTraining],
             ),
             pool.query(
               `SELECT ${SCHEDULED_SESSION_SELECT}
@@ -13794,8 +13799,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   AND type = 'training'
                   AND status = 'completed'
                 ORDER BY scheduled_time DESC
-                LIMIT 1`,
-              [tutorId, studentId],
+                LIMIT $3`,
+              [tutorId, studentId, isSandboxTraining ? 100 : 1],
             ),
           ]);
           const recentSessions = [
@@ -13871,25 +13876,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const currentTrainingSessionFloor = new Date(
           Date.now() - 2 * 60 * 60 * 1000,
         ).toISOString();
+        let currentSessionsQuery: any = supabase
+          .from("scheduled_sessions")
+          .select(SCHEDULED_SESSION_SELECT)
+          .eq("tutor_id", tutorId)
+          .eq("student_id", studentId)
+          .eq("type", "training")
+          .not("status", "in", "(completed,flagged)");
+        if (!isSandboxTraining) {
+          currentSessionsQuery = currentSessionsQuery.gte("scheduled_time", currentTrainingSessionFloor);
+        }
+        const latestCompletedSessionQuery = supabase
+          .from("scheduled_sessions")
+          .select(SCHEDULED_SESSION_SELECT)
+          .eq("tutor_id", tutorId)
+          .eq("student_id", studentId)
+          .eq("type", "training")
+          .eq("status", "completed")
+          .order("scheduled_time", { ascending: false })
+          .limit(isSandboxTraining ? 100 : 1);
         const [currentSessionsResult, latestCompletedSessionResult] = await Promise.all([
-          supabase
-            .from("scheduled_sessions")
-            .select(SCHEDULED_SESSION_SELECT)
-            .eq("tutor_id", tutorId)
-            .eq("student_id", studentId)
-            .eq("type", "training")
-            .not("status", "in", "(completed,flagged)")
-            .gte("scheduled_time", currentTrainingSessionFloor)
-            .order("scheduled_time", { ascending: true }),
-          supabase
-            .from("scheduled_sessions")
-            .select(SCHEDULED_SESSION_SELECT)
-            .eq("tutor_id", tutorId)
-            .eq("student_id", studentId)
-            .eq("type", "training")
-            .eq("status", "completed")
-            .order("scheduled_time", { ascending: false })
-            .limit(1),
+          currentSessionsQuery.order("scheduled_time", { ascending: true }),
+          latestCompletedSessionQuery,
         ]);
 
         if (currentSessionsResult.error || latestCompletedSessionResult.error) {
@@ -15332,10 +15340,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       };
 
-      if (rawSlots.length !== 2) {
-        return res.status(400).json({ message: "Exactly two weekly session slots are required." });
-      }
-
       const { data: enrollment, error: enrollmentError } = await selectLatestParentEnrollment({
         parentId: userId,
         primarySelect: "id, user_id, assigned_tutor_id, assigned_student_id, student_full_name, student_grade, parent_email",
@@ -15400,8 +15404,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }))
         .sort((a, b) => new Date(a.scheduledStart).getTime() - new Date(b.scheduledStart).getTime());
 
-      if (parsedSlots.length !== 2) {
-        return res.status(400).json({ message: "Both weekly session times are required." });
+      const packageSessionQuota = Number(monthlyQuota?.session_quota);
+      // The active paid package controls cadence in both Commercial and Sandbox.
+      // Keep planned_sessions_per_week as a compatibility fallback for older rows.
+      const packageWeeklyTarget = packageSessionQuota === 16
+        ? 4
+        : packageSessionQuota === 12
+          ? 3
+          : packageSessionQuota === 8
+            ? 2
+            : Math.max(2, Math.min(4, Number(monthlyQuota?.planned_sessions_per_week) || 2));
+      const expectedWeeklySessions = Number.isSafeInteger(packageWeeklyTarget) && packageWeeklyTarget >= 2 && packageWeeklyTarget <= 4
+        ? packageWeeklyTarget
+        : 2;
+      if (parsedSlots.length !== expectedWeeklySessions) {
+        return res.status(400).json({
+          message: `This package requires exactly ${expectedWeeklySessions} session times for the week.`,
+          expectedWeeklySessions,
+        });
       }
 
       const weekInfos = parsedSlots.map((slot) => getLocalWeekInfo(slot.scheduledStart));
@@ -15415,12 +15435,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const targetWeekStartUtc = weekInfos[0]?.weekStartUtc;
       if (weekInfos.some((info) => info?.weekStartUtc !== targetWeekStartUtc)) {
-        return res.status(400).json({ message: "Both weekly session dates must be within the same Monday-to-Saturday week." });
+        return res.status(400).json({ message: "All weekly session dates must be within the same Monday-to-Saturday week." });
       }
 
-      const nowMs = Date.now();
-      if (parsedSlots.some((slot) => new Date(slot.scheduledStart).getTime() <= nowMs)) {
-        return res.status(400).json({ message: "Weekly sessions must be scheduled in the future." });
+      // Sandbox dates are simulated timeline coordinates, not live-calendar
+      // availability. Commercial bookings must remain future-dated.
+      if (!isSandboxContext) {
+        const nowMs = Date.now();
+        if (parsedSlots.some((slot) => new Date(slot.scheduledStart).getTime() <= nowMs)) {
+          return res.status(400).json({ message: "Weekly sessions must be scheduled in the future." });
+        }
       }
 
       const slotTimes = parsedSlots.map((slot) => slot.scheduledStart);
@@ -15439,28 +15463,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
               AND tutor_id::text = $3::text
               AND type = 'training'
               AND status::text = ANY($4::text[])
-              AND scheduled_time >= $5::timestamptz
+              AND ($5::boolean = TRUE OR scheduled_time >= $6::timestamptz)
             ORDER BY scheduled_time ASC`,
           [
             userId,
             String(studentId),
             String(enrollment.assigned_tutor_id),
             ["pending_tutor_confirmation", "pending_parent_confirmation", "confirmed", "ready", "live"],
+            isSandboxContext,
             new Date().toISOString(),
           ],
         );
         existingSessions = existingResult.rows || [];
       } else {
-        const result = await supabase
+        let existingQuery = supabase
           .from("scheduled_sessions")
           .select(SCHEDULED_SESSION_SELECT)
           .eq("parent_id", userId)
           .eq("student_id", studentId)
           .eq("tutor_id", enrollment.assigned_tutor_id)
           .eq("type", "training")
-          .in("status", ["pending_tutor_confirmation", "pending_parent_confirmation", "confirmed", "ready", "live"])
-          .gte("scheduled_time", new Date().toISOString())
-          .order("scheduled_time", { ascending: true });
+          .in("status", ["pending_tutor_confirmation", "pending_parent_confirmation", "confirmed", "ready", "live"]);
+        if (!isSandboxContext) {
+          existingQuery = existingQuery.gte("scheduled_time", new Date().toISOString());
+        }
+        const result = await existingQuery.order("scheduled_time", { ascending: true });
 
         if (result.error) {
           return res.status(500).json({ message: "Failed to inspect existing training sessions." });

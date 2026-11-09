@@ -52,7 +52,8 @@ test("missing or internally contradictory Sandbox membership fails closed", () =
   assert.equal(select([cycle({ sessions_used: null })]), null);
   assert.equal(select([cycle({ session_quota: -8 })]), null);
   assert.equal(select([cycle({ month_key: "bad" })]), null);
-  assert.equal(select([cycle({ month_key: "2026-10-20" })]), null);
+  assert.equal(select([cycle({ month_key: "2026-02-30" })]), null);
+  assert.equal(select([cycle({ month_key: "2026-10-20" })])?.month_key, "2026-10-01");
 });
 
 test("unknown, crossed-student, live-family or malformed rows cannot authorize a package", () => {
@@ -82,7 +83,8 @@ test("unrecorded consumption or stale snapshots stay unavailable rather than est
 test("explicit renewal cycle increments its key independent of today's date", () => {
   assert.equal(nextSandboxCycleKey("2026-05-01"), "2026-06-01");
   assert.equal(nextSandboxCycleKey("2026-12-01"), "2027-01-01");
-  assert.equal(nextSandboxCycleKey("2026-10-20"), null);
+  assert.equal(nextSandboxCycleKey("2026-10-20"), "2026-11-01");
+  assert.equal(nextSandboxCycleKey("2026-02-30"), null);
   assert.equal(nextSandboxCycleKey(null), null);
   assert.equal(nextSandboxCycleKey("9998-12-01"), null);
 });
