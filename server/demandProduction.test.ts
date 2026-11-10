@@ -55,6 +55,12 @@ test('Demand migration, compatibility and database integrity boundaries', async 
     await assert.rejects(command(fresh.id,'qualification','qualified','coo',null,'Fit confirmed','new'),/authorized staff/);
     await command(fresh.id,'qualification','qualified','coo',null,'Fit and availability confirmed');
     const qualified = await row('new'); assert.equal(qualified.qualification_decided_by,'coo'); assert.ok(qualified.qualification_completed_at);
+    await assert.rejects(db.query('SELECT save_parent_qualification_assessment($1,$2,$3::jsonb)', [fresh.id,'coo',JSON.stringify({
+      parentExperience:{parentAccount:'Changed after decision'},
+      supportPreferences:{evidence:'Existing'},
+      riExplanation:{evidence:'Existing'},
+      commercialReadiness:{evidence:'Existing'},
+    })]),/locked after the decision/);
     await assert.rejects(command(fresh.id,'qualification','pending'),/already completed/);
   });
   await t.test('entry and handover require distinct recipient and next-action evidence; assignment then opens', async () => {
