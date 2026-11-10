@@ -2,6 +2,8 @@ import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { isAuthenticated } from "../supabaseAuth";
 import { ensureVisibleSandboxStudentsForTutor } from "../routes";
+import { ensureEmergencyAuthUserIdentity } from "../emergencyAuth";
+import { pool } from "../db";
 import {
   confirmCapabilityQuestionStateless,
   getCapabilityAssessmentHistory,
@@ -86,6 +88,8 @@ export function registerCapabilityEngineRoutes(app: Express) {
         });
         if (state.stageGate.mode === "sandbox") {
           try {
+            await ensureEmergencyAuthUserIdentity(pool, String(dbUser.id));
+            await ensureEmergencyAuthUserIdentity(pool, String(dbUser.id));
             const provisioned = await ensureVisibleSandboxStudentsForTutor(String(dbUser.id));
             return res.json({
               ...state,
