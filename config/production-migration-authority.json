@@ -193,5 +193,11 @@
       "description": "Require evidence in all four approved parent qualification sections before a terminal qualified or not_qualified decision. Pending Preview validation; not authorized for Production promotion.",
       "risk": "additive"
     }
+  ],
+  "previewOnlyMigrations": [
+    {
+      "path": "migrations/20261011_practicals_shared_video_benchmarks_v1.sql",
+      "description": "Staged Practicals shared-video benchmark schema and integrity guards. Isolated Preview/CI only; explicitly excluded from The Hub Production plan and apply pending full lifecycle acceptance and separate authorization."
+    }
   ]
 }

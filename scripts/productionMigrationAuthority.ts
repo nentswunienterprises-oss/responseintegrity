@@ -25,6 +25,8 @@ export type ProductionMigrationAuthority = {
     migrations: BaselineMigration[];
   };
   managedMigrations: ManagedMigration[];
+  // Staged for isolated Preview validation only; never considered by Production plan/apply.
+  previewOnlyMigrations?: Array<{ path: string; description: string }>;
 };
 
 const ROOT = process.cwd();
@@ -172,9 +174,21 @@ export function verifyProductionMigrationAuthority() {
     assertTransactionCompatible(safePath, sql);
   }
 
-  const changed = changedMigrationFilesSinceBaseline(authority);
-  const unmanaged = changed.filter(
-    (migration) => !managedPaths.has(migration) && !baselinePaths.has(migration),
+  const previewOnlyPaths = new Set<string>();
+  for (const migration of authority.previewOnlyMigrations || []) {
+    const safePath = migrationPath(migration.path);
+    if (baselinePaths.has(safePath) || managedPaths.has(safePath) || previewOnlyPaths.has(safePath)) {
+      fail("Preview-only migration overlaps another authority class: " + safePath);
+    }
+    if (!migration.description.trim()) fail("Preview-only migration has no description: " + safePath);
+    const sql = readMigration(safePath).toString("utf8");
+    assertNoForbiddenSql(safePath, sql);
+    assertTransactionCompatible(safePath, sql);
+    previewOnlyPaths.add(safePath);
+  }
+
+  const changed = changedMigrationFilesSinceBaseline(authority);  const unmanaged = changed.filter(
+    (migration) => !managedPaths.has(migration) && !baselinePaths.has(migration) && !previewOnlyPaths.has(migration),
   );
   if (unmanaged.length) {
     fail(
