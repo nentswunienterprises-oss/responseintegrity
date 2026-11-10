@@ -12,60 +12,207 @@ const labels: Record<string, string> = {
   training: "Training", sandbox: "Sandbox", trial: "Trial", certified_live: "Certified Live",
 };
 
-function Metric({ label, value }: { label: string; value: number | null }) {
-  return <div className="border-l pl-4"><div className="text-xs text-muted-foreground">{label}</div><div className="text-2xl font-semibold">{value == null ? "Not measurable" : value}</div></div>;
+function Metric({ label, value }: { label: string; value: number | null | undefined }) {
+  return (
+    <div className="rounded-lg border bg-background px-4 py-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 text-2xl font-semibold">{value == null ? "—" : value}</p>
+    </div>
+  );
 }
 
 export default function TrackLeadsPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const [filter, setFilter] = React.useState("all");
   const [reviewId, setReviewId] = React.useState<string | null>(null);
-  const [selected, setSelected] = React.useState<any | null>(null);
+  const [sourceFilter, setSourceFilter] = React.useState("all");
+  const [selectedSource, setSelectedSource] = React.useState<string | null>(null);
+  const [sourcesOpen, setSourcesOpen] = React.useState(false);
   const { data, isLoading, error } = useQuery<any>({
     queryKey: ["/api/coo/production-economy"],
     enabled: isAuthenticated && !authLoading,
     queryFn: async () => (await apiRequest("GET", "/api/coo/production-economy")).json(),
   });
 
+  const applications = React.useMemo(
+    () => [...(data?.demandLineages || []), ...(data?.organic || [])]
+      .filter((lineage: any) => lineage.enrollment)
+      .sort((a: any, b: any) => new Date(b.enrollment.created_at || 0).getTime() - new Date(a.enrollment.created_at || 0).getTime()),
+    [data?.demandLineages, data?.organic],
+  );
+
   const sources = (data?.sources || []).filter((source: any) => {
-    if (filter === "demand" || filter === "capacity") return source.pipeline === filter;
-    if (filter === "reward") return source.reward.eligible;
-    if (filter === "blocked") return (data.summary.blockers || []).length > 0 && source.pipeline === "demand";
+    if (sourceFilter === "demand" || sourceFilter === "capacity") return source.pipeline === sourceFilter;
+    if (sourceFilter === "reward") return Boolean(source.reward?.eligible);
+    if (sourceFilter === "blocked") return (data?.summary?.blockers || []).length > 0 && source.pipeline === "demand";
     return true;
   });
 
-  const copy = async (value: string) => navigator.clipboard?.writeText(value);
+  const copy = async (value: string) => {
+    try { await navigator.clipboard?.writeText(value); } catch { /* Clipboard may be unavailable in this browser. */ }
+  };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
-      <Button variant="outline" onClick={() => window.location.href = "/executive/coo/dashboard"}>Back to Dashboard</Button>
-      <header><p className="text-sm text-muted-foreground">COO operating desk</p><h1 className="text-3xl font-semibold">Production Economy</h1><p className="text-muted-foreground">Lineage before vanity metrics. Every station below is derived from persisted production records.</p></header>
-      {isLoading && <Card><CardContent className="pt-6">Loading production records...</CardContent></Card>}
-      {error && <Card><CardContent className="pt-6 text-destructive">Production Economy could not be loaded.</CardContent></Card>}
-      {data && <>
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card><CardHeader><CardTitle>Demand Production</CardTitle></CardHeader><CardContent className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {[['Captured', 'captured'], ['Review pending', 'qualificationPending'], ['Contacted', 'contacted'], ['Qualified', 'qualified'], ['Not qualified', 'notQualified'], ['Handed over', 'handoverCompleted'], ['Pilot service entry', 'pilotEntry'], ['Commercial paid entry', 'commercialEntry'], ['Verified service entry', 'verifiedServiceEntry'], ['Organic', 'organic'], ['Historical qualification unknown', 'historicalQualificationUnknown']].map(([label, key]) => <Metric key={key} label={label} value={data.summary.demand[key]} />)}
-            <p className="col-span-full text-sm text-muted-foreground">Production Rewards are disabled. Unknown historical qualification is excluded from evidenced station counts.</p>
-          </CardContent></Card>
-          <Card><CardHeader><CardTitle>Capacity Production</CardTitle></CardHeader><CardContent className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <Metric label="Active links" value={data.summary.capacity.activeLinks} /><Metric label="Applications" value={data.summary.capacity.applications} /><Metric label="Training" value={data.summary.capacity.training} /><Metric label="Sandbox" value={data.summary.capacity.sandbox} /><Metric label="Trial" value={data.summary.capacity.trial} /><Metric label="Certified live" value={data.summary.capacity.certifiedLive} /><Metric label="Deployed" value={data.summary.capacity.deployed} />
-            <div className="border-l pl-4"><div className="text-xs text-muted-foreground">Reward</div><div className="text-sm font-medium">Not applicable in MVP</div></div>
-          </CardContent></Card>
+    <main className="mx-auto max-w-6xl space-y-6 px-4 py-6">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <p className="text-sm text-muted-foreground">COO operating desk</p>
+          <h1 className="text-3xl font-semibold tracking-tight">Track Leads</h1>
+          <p className="max-w-2xl text-sm text-muted-foreground">Review parent applications and move qualified demand through the existing operating process.</p>
         </div>
-        {(data.summary.blockers || []).length > 0 && <Card className="border-amber-400"><CardHeader><CardTitle>Current blockers</CardTitle></CardHeader><CardContent className="space-y-2">{data.summary.blockers.map((blocker: any) => <p key={blocker.code} className="text-sm">{blocker.message}</p>)}</CardContent></Card>}
-        <section className="space-y-3"><h2 className="text-xl font-semibold">Parent application review</h2>
-          {[...(data.demandLineages || []), ...(data.organic || [])].filter((lineage: any) => lineage.enrollment).map((lineage: any) => <div key={lineage.id} className="space-y-2">
-            <Button variant="outline" className="h-auto text-left whitespace-normal" onClick={() => setReviewId(reviewId === lineage.id ? null : lineage.id)} aria-expanded={reviewId === lineage.id}>
-              {lineage.parentName || lineage.parentId} · {lineage.enrollment.student_full_name} · {lineage.currentStation.replaceAll('_', ' ')}
-            </Button>
-            {reviewId === lineage.id && <DemandReview key={`${lineage.id}:${lineage.enrollment.updated_at}`} lineage={lineage} staff={data.staff || []} />}
-          </div>)}
-          {![...(data.demandLineages || []), ...(data.organic || [])].some((lineage: any) => lineage.enrollment) && <p className="text-sm text-muted-foreground">No submitted applications recorded.</p>}
-        </section>
-        <div className="flex flex-wrap gap-2">{[["all", "All"], ["demand", "Demand"], ["capacity", "Capacity"], ["reward", "Reward eligible"], ["blocked", "Blocked"]].map(([value, label]) => <Button key={value} size="sm" variant={filter === value ? "default" : "outline"} onClick={() => setFilter(value)}>{label}</Button>)}</div>
-        <section className="space-y-3"><h2 className="text-xl font-semibold">Production Sources</h2>{sources.length === 0 ? <Card><CardContent className="pt-6 text-muted-foreground">No Production Links match this filter.</CardContent></Card> : sources.map((source: any) => <Card key={source.code} className="cursor-pointer" onClick={() => setSelected(selected?.code === source.code ? null : source)}><CardContent className="pt-6 space-y-3"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><span className="font-mono font-semibold">{source.code}</span><Badge variant="secondary">{source.pipeline}</Badge><Badge>{source.status}</Badge></div><p className="text-sm">{source.ownerName} <span className="text-muted-foreground">({source.ownerType})</span></p></div><div className="text-right text-sm text-muted-foreground">{source.opportunitiesProduced} opportunities<br />{source.reward.eligible ? "Reward eligible" : source.reward.status === "not_applicable" ? "No Production Reward" : "Production Rewards disabled"}</div></div><div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">{Object.entries(source.counts).map(([key, value]) => <span key={key}><b>{value == null ? "n/a" : value}</b> {key.replace(/[A-Z]/g, (letter) => ` ${letter.toLowerCase()}`)}</span>)}</div><div className="text-xs text-muted-foreground break-all">{source.link}</div><div className="flex gap-2" onClick={(event) => event.stopPropagation()}><Button size="sm" variant="outline" onClick={() => copy(source.code)}>Copy code</Button><Button size="sm" variant="outline" onClick={() => copy(source.link)}>Copy link</Button></div>{selected?.code === source.code && <div className="border-t pt-3 space-y-2"><h3 className="font-semibold">Lineage</h3>{source.lineages.map((lineage: any) => <div key={lineage.id} className="text-sm border rounded p-3"><div className="flex justify-between"><span className="font-mono">{lineage.code}</span><Badge variant="outline">{labels[lineage.currentStation] || lineage.currentStation}</Badge></div><p className="text-muted-foreground">{lineage.createdAt ? new Date(lineage.createdAt).toLocaleString() : "Timestamp unavailable"}</p>{lineage.close && <p className="mt-1">Close: {lineage.close.id} · {lineage.close.ownerName || "owner snapshot unavailable"} · affiliate {lineage.close.affiliateId || "none"}</p>}{lineage.reward && <p className="mt-1">Reward: {lineage.reward.eligible ? "eligible" : lineage.reward.status}</p>}</div>)}</div>}</CardContent></Card>)}</section>
-      </>}
-    </div>
+        <Button variant="outline" onClick={() => { window.location.href = "/executive/coo/dashboard"; }}>Back to Dashboard</Button>
+      </header>
+
+      {isLoading && <Card><CardContent className="pt-6 text-sm text-muted-foreground">Loading parent applications…</CardContent></Card>}
+      {error && <Card><CardContent className="pt-6 text-sm text-destructive">Parent applications could not be loaded. Refresh the page and try again.</CardContent></Card>}
+
+      {data && (
+        <>
+          <section aria-labelledby="parent-review-heading" className="space-y-3">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 id="parent-review-heading" className="text-xl font-semibold">Parent application review</h2>
+                <p className="text-sm text-muted-foreground">The primary work queue. Open an application to complete or review its qualification record.</p>
+              </div>
+              <Badge variant="secondary">{applications.length} applications</Badge>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <Metric label="Captured" value={data.summary?.demand?.captured} />
+              <Metric label="Awaiting qualification" value={data.summary?.demand?.qualificationPending} />
+              <Metric label="Qualified" value={data.summary?.demand?.qualified} />
+              <Metric label="Handed over" value={data.summary?.demand?.handoverCompleted} />
+            </div>
+
+            {(data.summary?.blockers || []).length > 0 && (
+              <div className="rounded-lg border border-amber-400/60 bg-amber-50/50 p-4 dark:bg-amber-950/20">
+                <p className="font-medium text-sm">Operational blockers</p>
+                <ul className="mt-1 list-inside list-disc space-y-1 text-sm text-muted-foreground">
+                  {data.summary.blockers.map((blocker: any) => <li key={blocker.code}>{blocker.message}</li>)}
+                </ul>
+              </div>
+            )}
+
+            {applications.length === 0 ? (
+              <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">No submitted parent applications are available for review.</CardContent></Card>
+            ) : (
+              <div className="space-y-2">
+                {applications.map((lineage: any) => {
+                  const enrollment = lineage.enrollment;
+                  const isOpen = reviewId === lineage.id;
+                  const qualification = String(enrollment.qualification_status || "").toLowerCase();
+                  const qualificationLabel = qualification === "qualified"
+                    ? "Qualified"
+                    : qualification === "not_qualified"
+                      ? "Not qualified"
+                      : enrollment.demand_flow_version === 0
+                        ? "Historical · unknown"
+                        : "Awaiting qualification";
+                  const qualificationVariant = qualification === "qualified" ? "default" : "secondary";
+                  return (
+                    <Card key={lineage.id} className="overflow-hidden">
+                      <button
+                        type="button"
+                        className="flex w-full flex-col gap-3 p-4 text-left transition-colors hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between"
+                        onClick={() => setReviewId(isOpen ? null : lineage.id)}
+                        aria-expanded={isOpen}
+                        aria-controls={`parent-review-${lineage.id}`}
+                      >
+                        <div className="min-w-0 space-y-1">
+                          <p className="truncate font-semibold">{lineage.parentName || lineage.parentId}</p>
+                          <p className="text-sm text-muted-foreground">{enrollment.student_full_name} · {enrollment.student_grade || "Grade not recorded"}</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                          <Badge variant={qualificationVariant}>{qualificationLabel}</Badge>
+                          <Badge variant="outline">{String(lineage.currentStation || "captured").replaceAll("_", " ")}</Badge>
+                          <span className="text-xs text-muted-foreground">{isOpen ? "Close review" : "Review application"}</span>
+                        </div>
+                      </button>
+                      {isOpen && (
+                        <div id={`parent-review-${lineage.id}`} className="border-t p-4">
+                          <DemandReview key={`${lineage.id}:${enrollment.updated_at}`} lineage={lineage} staff={data.staff || []} />
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <section className="overflow-hidden rounded-xl border">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-4 p-4 text-left hover:bg-muted/30"
+              onClick={() => setSourcesOpen((open) => !open)}
+              aria-expanded={sourcesOpen}
+            >
+              <span>
+                <span className="block font-semibold">Production Sources</span>
+                <span className="block text-sm text-muted-foreground">Secondary view · links, attribution and source lineage</span>
+              </span>
+              <span className="text-sm text-muted-foreground">{sourcesOpen ? "Hide" : "Show"} sources</span>
+            </button>
+            {sourcesOpen && (
+              <div className="space-y-4 border-t p-4">
+                <div className="flex flex-wrap gap-2">
+                  {([["all", "All"], ["demand", "Demand"], ["capacity", "Capacity"], ["reward", "Reward eligible"], ["blocked", "Blocked"]] as const).map(([value, label]) => (
+                    <Button key={value} size="sm" variant={sourceFilter === value ? "default" : "outline"} onClick={() => setSourceFilter(value)}>{label}</Button>
+                  ))}
+                </div>
+                {sources.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-muted-foreground">No Production Sources match this filter.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {sources.map((source: any) => {
+                      const isSelected = selectedSource === source.code;
+                      return (
+                        <Card key={source.code}>
+                          <CardHeader className="space-y-2 pb-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-mono font-semibold">{source.code}</span>
+                                <Badge variant="secondary">{source.pipeline}</Badge>
+                                <Badge variant="outline">{source.status}</Badge>
+                              </div>
+                              <span className="text-xs text-muted-foreground">{source.opportunitiesProduced} opportunities</span>
+                            </div>
+                            <CardTitle className="text-base">{source.ownerName} <span className="font-normal text-muted-foreground">({source.ownerType})</span></CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                              {Object.entries(source.counts || {}).map(([key, value]) => <span key={key}><strong className="text-foreground">{value == null ? "n/a" : String(value)}</strong> {key.replace(/[A-Z]/g, (letter) => ` ${letter.toLowerCase()}`)}</span>)}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <Button size="sm" variant="outline" onClick={() => copy(source.code)}>Copy code</Button>
+                              <Button size="sm" variant="outline" onClick={() => copy(source.link)}>Copy link</Button>
+                              <Button size="sm" variant="ghost" onClick={() => setSelectedSource(isSelected ? null : source.code)}>{isSelected ? "Hide lineage" : "View lineage"}</Button>
+                            </div>
+                            {isSelected && (
+                              <div className="space-y-2 border-t pt-3">
+                                {source.lineages.map((item: any) => (
+                                  <div key={item.id} className="rounded-md border p-3 text-sm">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <span className="font-mono">{item.code}</span>
+                                      <Badge variant="outline">{labels[item.currentStation] || item.currentStation}</Badge>
+                                    </div>
+                                    <p className="mt-1 text-xs text-muted-foreground">{item.createdAt ? new Date(item.createdAt).toLocaleString() : "Timestamp unavailable"}</p>
+                                    {item.close && <p className="mt-2">Close: {item.close.id} · {item.close.ownerName || "owner snapshot unavailable"} · affiliate {item.close.affiliateId || "none"}</p>}
+                                    {item.reward && <p className="mt-1">Reward: {item.reward.eligible ? "eligible" : item.reward.status}</p>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        </>
+      )}
+    </main>
   );
 }
