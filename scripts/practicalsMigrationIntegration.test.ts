@@ -8,7 +8,7 @@ import { derivePracticalCompletionGate } from "../shared/practicalCompletionGate
 
 const databaseUrl=process.env.PRACTICALS_CI_DATABASE_URL;
 
-test("Managed Practicals migration executes on PostgreSQL and enforces immutable test evidence",{
+test("Staged Practicals migration executes on isolated PostgreSQL and enforces immutable evidence",{
   skip:!databaseUrl && "Run against an isolated Postgres service via Practicals Acceptance CI",
 },async()=>{
   const db=new Client({connectionString:databaseUrl});
@@ -342,6 +342,7 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       "UPDATE public.specialist_practical_benchmark_runs SET active_case_index=2 WHERE id=$1",
       [runId]),/must reveal every case once/);
     await operation(1,1);
+    await assert.rejects(reveal(2),/Benchmark case must be issued, in order/);
     await assert.rejects(db.query(
       "UPDATE public.specialist_practical_benchmark_runs SET active_case_index=2 WHERE id=$1",
       [runId]),/must reveal every case once/);
