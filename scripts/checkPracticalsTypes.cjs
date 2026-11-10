@@ -36,9 +36,9 @@ const touched=new Set([
  "client/src/pages/operational/tutor/practicals.tsx",
  "client/src/pages/operational/td/practicals-review.tsx",
 ]);
-const program=ts.createProgram(parsed.fileNames,{...parsed.options,noEmit:true,incremental:false,tsBuildInfoFile:undefined});
-const all=ts.getPreEmitDiagnostics(program);
-const local=all.filter(diag=>diag.file&&touched.has(path.relative(root,diag.file.fileName).replaceAll("\\","/")));
+const roots=[...touched].map(file=>path.resolve(root,file));
+const program=ts.createProgram(roots,{...parsed.options,noEmit:true,incremental:false,tsBuildInfoFile:undefined});
+const local=ts.getPreEmitDiagnostics(program);
 if(local.length){
  console.error(ts.formatDiagnosticsWithColorAndContext(local,{
    getCurrentDirectory:()=>root,
