@@ -15,7 +15,7 @@ on:
       - 'server/privatePracticalBankSourceBoundary.test.ts'
       - 'scripts/checkPracticalsTypes.cjs'
       - 'scripts/productionMigrationAuthority.test.ts'
-      - 'shared/capabilityPracticalEvidence.ts'
+      - 'shared/capabilityPracticalEvidence*'
       - 'shared/practicalEntryGate*'
       - 'server/sandboxEnvironment.ts'
       - 'client/src/components/sandbox/SandboxReadinessAssessmentCard.tsx'
