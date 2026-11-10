@@ -74,7 +74,8 @@ export async function requestPracticalRecordingRecovery(input:AssignedRun & {
 
 export async function getAssignedTdRecordingRecoveryQueue(input:{reviewerId:string;reviewerRole:string}){
  if(input.reviewerRole!=="td")throw fail(403,"Assigned TD review role is required.");
- const data=await pool.query(`
+ let data;
+ try { data=await pool.query(`
    SELECT req.id AS request_id,req.run_id,req.reason,req.incident_note,req.requested_at,
        r.tutor_assignment_id,r.tutor_id,r.proof_key,r.proof_version,r.bank_version,
        r.attempt_number,r.active_case_index,r.started_at,
@@ -87,6 +88,11 @@ export async function getAssignedTdRecordingRecoveryQueue(input:{reviewerId:stri
    LEFT JOIN public.specialist_practical_recording_recovery_decisions dec ON dec.request_id=req.id
    WHERE p.td_id=$1 AND dec.id IS NULL AND r.status='active'
    ORDER BY req.requested_at ASC`,[input.reviewerId]);
+ } catch(error) {
+   const code=(error as {code?:string})?.code;
+   if(code==="42P01"||code==="3F000") throw fail(503,"The Practicals benchmark schema is not installed in this environment.");
+   throw error;
+ }
  return data.rows.map(row=>({
    requestId:row.request_id,runId:row.run_id,reason:row.reason,
    incidentNote:row.incident_note,requestedAt:row.requested_at,
