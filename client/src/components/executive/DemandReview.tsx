@@ -22,7 +22,7 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
   const [note, setNote] = useState("");
   const [entry, setEntry] = useState("");
   const [transferConfirmed, setTransferConfirmed] = useState(false);
-  const [assessment, setAssessment] = useState<ParentQualificationAssessment>(e.qualification_assessment || {});
+  const [assessment, setAssessment] = useState<ParentQualificationAssessment>(e.qualification_assessment || {});\n  const [assessmentSaved, setAssessmentSaved] = useState(Boolean(e.qualification_assessment_updated_at));
   const cache = useQueryClient();
   const save = useMutation({
     mutationFn: async (command: object) => (await apiRequest("PATCH", `/api/hr/enrollments/${e.id}/demand`, command)).json(),
@@ -35,7 +35,7 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
     },
   });
   const setAssessmentField = (section: ParentQualificationSection, field: "parentAccount" | "evidence" | "interviewerObservation" | "followUp", value: string) => {
-    setAssessment((current) => ({ ...current, [section]: { ...current[section], [field]: value } }));
+    setAssessmentSaved(false);\n    setAssessment((current) => ({ ...current, [section]: { ...current[section], [field]: value } }));
   };
   const sectionComplete = (section: ParentQualificationSection) => {
     const item = assessment[section];
@@ -113,8 +113,8 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
         <label className="block text-sm">Qualification status<select className={control} value={status} onChange={(event) => setStatus(event.target.value)}>{QUALIFICATION_STATUSES.map((value) => <option key={value} value={value}>{words(value)}</option>)}</select></label>
         <label className="block text-sm">Responsible owner<select className={control} value={owner} onChange={(event) => setOwner(event.target.value)}><option value="">Choose owner</option>{staff.map((user) => <option key={user.id} value={user.id}>{user.name} ({user.role})</option>)}</select></label>
         <label className="block text-sm">Decision note / follow-up context<textarea className={control} maxLength={2000} value={note} onChange={(event) => setNote(event.target.value)} required={["qualified", "not_qualified"].includes(status)} /></label>
-        <Button disabled={save.isPending || (terminalDecision && !assessmentComplete)}>Save qualification</Button>
-        {terminalDecision && !assessmentComplete && <p className="text-xs text-muted-foreground">Complete and save evidence in all four assessment sections before recording a terminal decision.</p>}
+        <Button disabled={save.isPending || (terminalDecision && (!assessmentComplete || !assessmentSaved))}>Save qualification</Button>
+        {terminalDecision && (!assessmentComplete || !assessmentSaved) && <p className="text-xs text-muted-foreground">Complete all four sections and save the assessment before recording a terminal decision.</p>}
       </form>}
       {e.qualification_status === "qualified" && !e.entry_selected_at && <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); save.mutate({ action: "entry", entryType: entry }); }}>
         <label className="block text-sm">Service entry arrangement<select required className={control} value={entry} onChange={(event) => setEntry(event.target.value)}><option value="">Choose entry type</option><option value="pilot">Pilot - approved free access</option><option value="commercial">Commercial - paid monthly package</option></select></label>
