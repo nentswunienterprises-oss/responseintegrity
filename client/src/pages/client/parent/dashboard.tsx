@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   UserRound,
   LogOut,
+  MessageSquare,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, getQueryFn } from "@/lib/queryClient";
@@ -517,6 +518,15 @@ export default function ParentDashboard() {
   });
   const sessionsRemaining = trainingSessionsData?.monthlyQuota != null ? Number(trainingSessionsData.monthlyQuota.sessions_remaining ?? 0) : null;
 
+  const { data: communicationUnreadData } = useQuery<{ unreadCount: number }>({
+    queryKey: ["/api/parent/communications/unread-count"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    refetchInterval: emergencyDbMode ? false : 60000,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
+  });
+
   const { data: topicStatesData } = useQuery<ParentTopicState[]>({
     queryKey: ["/api/parent/topic-conditioning-states"],
     queryFn: getQueryFn({ on401: "returnNull" }),
@@ -727,6 +737,25 @@ export default function ParentDashboard() {
         title="Enable out-of-app alerts"
         description="Turn on browser notifications so Response Integrity can alert you when reports are sent or when a Specialist action needs your response."
       />
+
+      {Number(communicationUnreadData?.unreadCount || 0) > 0 && (
+        <button
+          type="button"
+          onClick={() => navigate("/client/parent/updates?tab=messages")}
+          className="flex w-full items-start justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-left transition-colors hover:bg-primary/10"
+        >
+          <span className="flex min-w-0 items-start gap-3">
+            <MessageSquare className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-foreground">New Specialist message for {studentFirstName}</span>
+              <span className="block text-xs text-muted-foreground">Open the parent inbox to read and reply inside the platform.</span>
+            </span>
+          </span>
+          <Badge variant="destructive" className="shrink-0">
+            {Number(communicationUnreadData?.unreadCount) > 9 ? "9+" : Number(communicationUnreadData?.unreadCount || 0)}
+          </Badge>
+        </button>
+      )}
 
       {sessionsRemaining !== null && sessionsRemaining <= 2 && (
         <div
