@@ -2018,7 +2018,7 @@ async function loadTutorAssignmentLoadStats(tutorId: string) {
             parent_full_name, parent_email, student_full_name
        FROM public.parent_enrollments
       WHERE assigned_tutor_id = $1
-        AND status = ANY($2::text[])`,
+        AND status::text = ANY($2::text[])`,
     [tutorId, [...ACTIVE_PARENT_ENROLLMENT_STATUSES, "awaiting_tutor_acceptance"]],
   );
   const enrollments = result.rows || [];
