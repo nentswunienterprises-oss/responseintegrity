@@ -1,5 +1,4 @@
 -- A terminal qualification decision is not permitted until all four standard sections have evidence.
-BEGIN;
 CREATE OR REPLACE FUNCTION public.guard_qualification_completion() RETURNS trigger
 LANGUAGE plpgsql SECURITY INVOKER SET search_path = public AS $$
 DECLARE section_key text; section_value jsonb;
@@ -26,4 +25,3 @@ DROP TRIGGER IF EXISTS guard_qualification_completion ON public.parent_enrollmen
 CREATE TRIGGER guard_qualification_completion
 BEFORE UPDATE ON public.parent_enrollments
 FOR EACH ROW EXECUTE FUNCTION public.guard_qualification_completion();
-COMMIT;
