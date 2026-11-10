@@ -49,5 +49,3 @@ if(local.length){
  process.exit(1);
 }
 console.log("Practicals scoped TypeScript contract: PASS ("+touched.size+" touched files).");
-const other=all.length-local.length;
-if(other)console.log("Existing unrelated repository TypeScript diagnostics outside scope:",other,"(not silently changed).");
