@@ -314,7 +314,7 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
         (request_id,reviewer_id,decision,rationale) VALUES($1,$2,'deny',$3)`,
       [deniedRequest.rows[0].id,reviewerId,"The evidence does not justify repeating this assessment attempt."]);
     await db.query("UPDATE public.specialist_practical_benchmark_runs SET status='closed',completed_at=now() WHERE id=$1",[deniedRun.rows[0].id]);
-    await assert.rejects(db.query("UPDATE public.specialist_practical_benchmark_runs SET status='active',completed_at=NULL WHERE id=$1",[deniedRun.rows[0].id]),/cannot be erased or restarted|must reveal/);
+    await assert.rejects(db.query("UPDATE public.specialist_practical_benchmark_runs SET status='active',completed_at=NULL WHERE id=$1",[deniedRun.rows[0].id]),/cannot be erased or restarted|must reveal|recording incident permanently closes/);
 
     const runId=randomUUID();
     await db.query(`INSERT INTO public.specialist_practical_benchmark_runs
@@ -367,7 +367,7 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       "DELETE FROM public.specialist_practical_case_actions WHERE run_id=$1",
       [runId]),/immutable/);
     await assert.rejects(db.query("DELETE FROM public.specialist_practical_benchmark_case_reveals WHERE run_id=$1",[runId]),/immutable/);
-    await assert.rejects(db.query("UPDATE public.specialist_practical_benchmark_runs SET active_case_index=1 WHERE id=$1",[runId]),/cannot be erased or restarted|must reveal/);
+    await assert.rejects(db.query("UPDATE public.specialist_practical_benchmark_runs SET active_case_index=1 WHERE id=$1",[runId]),/cannot be erased or restarted|must reveal|recording incident permanently closes/);
 
     const insertV2=(run:string|null,duration:number)=>db.query(`
       INSERT INTO public.specialist_capability_practical_evidence

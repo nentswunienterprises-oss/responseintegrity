@@ -49,7 +49,7 @@ export function PracticalRecordingRecoveryControls({runId,assignmentId,proofKey}
    {q.isError&&<p role="alert" className="text-sm">Recovery status unavailable. Do not attempt another recording: {String((q.error as Error).message)}</p>}
    {recovery&&<p className="text-sm">{recovery.decision==="approve_repeat"
      ?"The assigned TD authorized a new assessment attempt. The original record is retained."
-     :recovery.decision==="deny"?"The TD denied an independent repeat; preserve the original and follow the recorded review decision."
+     :recovery.decision==="deny"?"The TD denied recovery. This attempt is permanently closed; no replacement attempt is authorized."
      :recovery.decision==="integrity_review"?"This recording is under formal integrity review. No new attempt is authorized."
      :"Your incident is recorded; the assigned TD must review it before a replacement can be issued."}
      {recovery.rationale&&<span className="block mt-1 text-xs text-muted-foreground">{recovery.rationale}</span>}</p>}
