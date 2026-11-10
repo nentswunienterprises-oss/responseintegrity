@@ -272,7 +272,7 @@ test("canonical Deep Dive authority is evidence-native", () => {
 
 
 test("Specialist Diagnosis UI does not present numeric phase scores or scored drill language", () => {
-  const source = readFileSync("client/src/components/tutor/IntroSessionDrillRunner.tsx", "utf8");
+  const source = read("client/src/components/tutor/IntroSessionDrillRunner.tsx");
   assert.doesNotMatch(source, /scored \$\{adaptiveTransition\.phaseScore\}\/100/i);
   assert.doesNotMatch(source, /scored drill sets/i);
   assert.doesNotMatch(source, /Sets 2 and 3 are the scored/i);
