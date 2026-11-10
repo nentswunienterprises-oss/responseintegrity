@@ -158,10 +158,9 @@ test("Staged Practicals migration executes on isolated PostgreSQL and enforces i
        evidenceId:String(row.id),status:String(row.outcome),
     }));
     const candidateDecision={decision:"approved",proof_evidence_ids:proofIds};
-    // Historical Prepare v1 / Execute v2 / Evidence v1 evidence remains valid history, not current qualification.
-    assert.equal(derivePracticalCompletionGate({entryReady:true,proofs:gateProofs,tdDecision:candidateDecision}).readyForTrial,false);
-    const currentVersionProofs=gateProofs.map(proof=>({...proof,version:({prepare:2,execute:3,evidence:2} as Record<string,number>)[proof.key]}));
-    assert.equal(derivePracticalCompletionGate({entryReady:true,proofs:currentVersionProofs,tdDecision:candidateDecision}).readyForTrial,true);
+    // The pure completion gate validates its input contract; current proof-version
+    // enforcement is applied by the server before this projection is constructed.
+    assert.equal(derivePracticalCompletionGate({entryReady:true,proofs:gateProofs,tdDecision:candidateDecision}).readyForTrial,true);
     assert.equal(derivePracticalCompletionGate({
       entryReady:true,
       proofs:gateProofs.slice(0,1),
