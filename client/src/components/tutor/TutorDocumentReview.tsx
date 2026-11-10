@@ -14,6 +14,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { API_URL } from "@/lib/config";
 import { apiRequest } from "@/lib/queryClient";
 import { resolveStoredDocumentUrl } from "@shared/storedDocumentUrl";
 import { CheckCircle2, ChevronDown, Download, ExternalLink, FileCheck, Loader2, ShieldCheck, XCircle } from "lucide-react";
