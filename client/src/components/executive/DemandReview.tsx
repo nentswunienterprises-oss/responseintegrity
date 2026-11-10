@@ -65,7 +65,7 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
     if (section === "parentExperience") return PARENT_EXPERIENCE_QUESTIONS.every((_, index) => Boolean(item?.responses?.[`experience_${index + 1}`]?.trim()));
     if (section === "supportPreferences") return SUPPORT_PREFERENCE_QUESTIONS.every((_, index) => Boolean(item?.responses?.[`support_${index + 1}`]?.trim()));
     if (section === "riExplanation") return Boolean(item?.scriptPresented && item?.responses?.ri_parent_response?.trim());
-    return Boolean(item?.parentAccount?.trim() || item?.evidence?.trim() || item?.interviewerObservation?.trim());
+    return false; // Part 4 is intentionally unavailable until its approved interview guide is supplied.
   };
   const assessmentComplete = PARENT_QUALIFICATION_SECTIONS.every(sectionComplete);
   const terminalDecision = ["qualified", "not_qualified"].includes(status);
