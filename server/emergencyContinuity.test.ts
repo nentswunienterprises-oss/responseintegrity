@@ -1703,3 +1703,20 @@ test("local server preloads environment before database-dependent imports", () =
   assert.match(envSource, /dotenv\.config\(\{ path: "\.env\.local" \}\)/);
   assert.match(envSource, /dotenv\.config\(\)/);
 });
+
+
+test("COO document review uses the authenticated database identity and bearer-aware client request", () => {
+  const routes = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const routeStart = routes.indexOf('"/api/coo/tutor/:id/document/:docStep/review"');
+  const routeEnd = routes.indexOf("// Get tutor's own applications", routeStart);
+  const route = routes.slice(routeStart, routeEnd);
+  const client = readFileSync(resolve(process.cwd(), "client/src/components/tutor/TutorDocumentReview.tsx"), "utf8");
+  const reviewStart = client.indexOf("const reviewMutation = useMutation");
+  const reviewEnd = client.indexOf("const openRejectDialog", reviewStart);
+  const mutation = client.slice(reviewStart, reviewEnd);
+
+  assert.match(route, /requireRole\\(\\["coo"\\]\\)/);
+  assert.match(route, /const reviewerId = \\(req as any\\)\\.dbUser\\.id/);
+  assert.match(mutation, /apiRequest\\(/);
+  assert.doesNotMatch(mutation, /fetch\\(/);
+});

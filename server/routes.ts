@@ -24025,7 +24025,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const { id } = req.params;
         const docStep = Number(req.params.docStep);
-        const reviewerId = (req.session as any).userId;
+        const reviewerId = (req as any).dbUser.id;
         const { fileName, fileData, fileType } = req.body;
 
         if (!Number.isInteger(docStep) || docStep < 1 || docStep > 5) {
