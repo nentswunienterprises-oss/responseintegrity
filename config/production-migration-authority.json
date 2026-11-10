@@ -182,6 +182,16 @@
       "description": "Convert scheduled session starts from timezone-naive wall-clock values to timestamptz using each row's recorded IANA timezone; repair only legacy UTC-wall-clock scheduled_end values, and update dependent trigger semantics.",
       "risk": "destructive",
       "gitBlobSha": "02011f4788a98a5c1f9a591aa26baa56968f7773"
+    },
+    {
+      "path": "migrations/20261110100000_parent_qualification_assessment.sql",
+      "description": "Additive parent-enrollment assessment JSONB evidence for the four approved qualification sections, with server-only RPC persistence and no historical backfill. Pending Preview validation; not authorized for Production promotion.",
+      "risk": "additive"
+    },
+    {
+      "path": "migrations/20261110101000_enforce_four_part_parent_qualification.sql",
+      "description": "Require evidence in all four approved parent qualification sections before a terminal qualified or not_qualified decision. Pending Preview validation; not authorized for Production promotion.",
+      "risk": "additive"
     }
   ]
 }
