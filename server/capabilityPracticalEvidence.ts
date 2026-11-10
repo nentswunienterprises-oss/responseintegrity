@@ -3,6 +3,8 @@ import { getSandboxCapabilityReadiness } from "./sandboxEnvironment";
 import { derivePracticalCompletionGate } from "@shared/practicalCompletionGate";
 import { loadPracticalEntryStatus } from "./practicalEntryStatus";
 import { assertCompletedExecuteChallenge, getExecuteChallengeForTd } from "./practicalExecuteChallenge";
+import { eligibleAttempt, requireCompletedBenchmark, getBenchmarkRunForTd } from "./practicalBenchmarkRuns";
+import { validatePracticalRecordingDeclaration, validateCaseReviews, validatePracticalVideoVerification, type PracticalBenchmarkProof, type PracticalCaseReview, type PracticalRecordingDeclaration, type PracticalVideoVerification } from "@shared/practicalBenchmarkPolicy";
 import {
   CAPABILITY_PRACTICAL_PROOFS,
   deriveCapabilityPracticalReview,
