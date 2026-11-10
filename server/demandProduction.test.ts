@@ -48,6 +48,10 @@ test('Demand migration, compatibility and database integrity boundaries', async 
     assert.equal((await row('new')).qualification_contacted_at.getTime(),contacted.qualification_contacted_at.getTime());
     await assert.rejects(command(fresh.id,'qualification','qualified','coo',null,null),/requires owner/);
     await assert.rejects(command(fresh.id,'qualification','qualified','coo',null,'Premature decision'),/four-part|section/);
+    await db.query('SELECT save_parent_qualification_assessment($1,$2,$3::jsonb)', [fresh.id,'coo',JSON.stringify({
+      parentExperience:{parentAccount:'Parent describes the learner’s mathematics experience.'},
+    })]);
+    await assert.rejects(command(fresh.id,'qualification','qualified','coo',null,'Partial evidence is not enough'),/supportPreferences/);
     await completeAssessment(fresh.id);
     const assessed = await row('new');
     assert.equal(Object.keys(assessed.qualification_assessment).length,4);
