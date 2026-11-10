@@ -56,11 +56,19 @@ export async function loadPrivatePracticalBank(
 ):Promise<IssuedPracticalBenchmarkCase[]>{
   // This is an intentionally fail-closed source. There is no fallback to the
   // published nine-case sample bank, including on preview or Production.
-  const query=await pool.query(
-    `SELECT case_sequence,case_key,case_version,case_snapshot
-       FROM private.specialist_practical_benchmark_private_cases
-      WHERE proof_key=$1 AND bank_version=$2 ORDER BY case_sequence`,
-    [proof,bankVersion]);
+  let query;
+  try {
+    query=await pool.query(
+      `SELECT case_sequence,case_key,case_version,case_snapshot
+         FROM private.specialist_practical_benchmark_private_cases
+        WHERE proof_key=$1 AND bank_version=$2 ORDER BY case_sequence`,
+      [proof,bankVersion]);
+  } catch(error) {
+    const code=(error as {code?:string})?.code;
+    if(code==="42P01"||code==="3F000")
+      throw fail("The confidential Practicals assessment bank is not provisioned; its Preview-only schema has not been installed.");
+    throw error;
+  }
   if(query.rows.length!==PRACTICAL_BENCHMARK_CASE_COUNT)
     throw fail("The confidential Practicals assessment bank is not provisioned; published sample cases cannot qualify Specialists.");
   const cases=query.rows.map((row,index)=>{
