@@ -17,6 +17,7 @@ test("production DB authority locks the verified The Hub baseline", () => {
   assert.equal(result.managedCount, 24);
   assert.deepEqual(result.authority.previewOnlyMigrations?.map((migration) => migration.path), [
     "migrations/20261011_practicals_shared_video_benchmarks_v1.sql",
+    "migrations/20261110_practicals_shared_video_benchmarks_v1_preview_compat.sql",
   ]);
   assert.equal(result.authority.managedMigrations.some((migration) => migration.path === "migrations/20261011_practicals_shared_video_benchmarks_v1.sql"), false);
   assert.deepEqual(
