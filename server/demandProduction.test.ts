@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createDemandDatabase } from './testing/demandDatabase';
-import { demandAssignmentBlock, handoverSla } from '../shared/demandProduction';
+import { demandAssignmentBlock, handoverSla, PARENT_EXPERIENCE_QUESTIONS, SUPPORT_PREFERENCE_QUESTIONS, RI_EXPLANATION_SCRIPT } from '../shared/demandProduction';
 import { buildProductionEconomy } from './productionEconomy';
 
 test('Demand migration, compatibility and database integrity boundaries', async (t) => {
@@ -201,4 +201,14 @@ test('Specialist assignment surfaces require current enrollment authority', () =
     cardSource,
     /parentEnrollmentTutorId === cardTutorId/,
   );
+});
+
+
+test('approved Parent Qualification interview guide remains complete and individually addressable', () => {
+  assert.equal(PARENT_EXPERIENCE_QUESTIONS.length, 8);
+  assert.equal(SUPPORT_PREFERENCE_QUESTIONS.length, 11);
+  assert.match(PARENT_EXPERIENCE_QUESTIONS[0], /^Tell me about your child/);
+  assert.match(SUPPORT_PREFERENCE_QUESTIONS[10], /marks improved more slowly/);
+  assert.match(RI_EXPLANATION_SCRIPT, /^Thank you for sharing your experience with me/);
+  assert.match(RI_EXPLANATION_SCRIPT, /Diagnosis/);
 });
