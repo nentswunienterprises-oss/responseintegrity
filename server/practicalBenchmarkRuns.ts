@@ -121,10 +121,16 @@ async function view(run:RunRow,includeTdFlags=false) {
 
 export async function getBenchmarkRunStatus(input:RunInput) {
   const eligibility=await eligibleAttempt(input);
-  if(!eligibility.allowed)return {
-    started:false as const,allowed:false,reason:eligibility.reason,completed:false,
-    requiredCases:PRACTICAL_BENCHMARK_CASE_COUNT,
-  };
+  if(!eligibility.allowed){
+    const incident=await getSpecialistRecordingRecovery(input);
+    return {
+      started:false as const,allowed:false,reason:eligibility.reason,completed:false,
+      requiredCases:PRACTICAL_BENCHMARK_CASE_COUNT,
+      ...(incident.runId && incident.recovery
+        ? {runId:incident.runId,recovery:incident.recovery}
+        : {}),
+    };
+  }
   const run=await findRun(input,eligibility.attemptNumber);
   if(!run){
     try{
