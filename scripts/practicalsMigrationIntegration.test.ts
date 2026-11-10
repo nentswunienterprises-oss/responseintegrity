@@ -350,9 +350,10 @@ test("Staged Practicals migration executes on isolated PostgreSQL and enforces i
     await reveal(2);
     await db.query("UPDATE public.specialist_practical_benchmark_runs SET active_case_index=2 WHERE id=$1",[runId]);
     await assert.rejects(operation(1,1),/out of sequence/);
-    await reveal(3);
     await operation(2,1);
+    await assert.rejects(reveal(3),/Benchmark case must be issued, in order/);
     await operation(2,2);
+    await reveal(3);
     await db.query("UPDATE public.specialist_practical_benchmark_runs SET active_case_index=3 WHERE id=$1",[runId]);
     await assert.rejects(db.query(
       "UPDATE public.specialist_practical_benchmark_runs SET active_case_index=4,status='complete',completed_at=now() WHERE id=$1",
