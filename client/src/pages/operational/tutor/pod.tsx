@@ -652,7 +652,7 @@ export default function TutorPod() {
           </Card>
         ) : null}
 
-        {sandboxTrainingActive ? (
+        {standingSummary?.developmentPathway?.currentStage === "practicals" ? (
           <Card className="border-primary/15 bg-background shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-4 p-5">
               <div>
