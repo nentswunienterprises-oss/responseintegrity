@@ -52,11 +52,6 @@ test('Demand migration, compatibility and database integrity boundaries', async 
     const assessed = await row('new');
     assert.equal(Object.keys(assessed.qualification_assessment).length,4);
     assert.ok(assessed.qualification_assessment_updated_at);
-    await assert.rejects(command(fresh.id,'qualification','qualified','coo',null,'Premature decision'),/four-part|section/);
-    await completeAssessment(fresh.id);
-    const assessed = await row('new');
-    assert.equal(Object.keys(assessed.qualification_assessment).length,4);
-    assert.ok(assessed.qualification_assessment_updated_at);
     await assert.rejects(command(fresh.id,'qualification','qualified','coo',null,'Fit confirmed','new'),/authorized staff/);
     await command(fresh.id,'qualification','qualified','coo',null,'Fit and availability confirmed');
     const qualified = await row('new'); assert.equal(qualified.qualification_decided_by,'coo'); assert.ok(qualified.qualification_completed_at);
