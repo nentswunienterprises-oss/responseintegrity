@@ -120,7 +120,17 @@ async function view(run:RunRow,includeTdFlags=false) {
 }
 
 export async function getBenchmarkRunStatus(input:RunInput) {
-  const eligibility=await eligibleAttempt(input);
+  let eligibility:Awaited<ReturnType<typeof eligibleAttempt>>;
+  try { eligibility=await eligibleAttempt(input); }
+  catch(error) {
+    const code=(error as {code?:string})?.code;
+    if(code==="42P01"||code==="3F000") return {
+      started:false as const,allowed:false,completed:false,
+      reason:"The Practicals benchmark schema is not installed in this environment. Install the isolated Preview migration before assessment use.",
+      requiredCases:PRACTICAL_BENCHMARK_CASE_COUNT,
+    };
+    throw error;
+  }
   if(!eligibility.allowed){
     const incident=await getSpecialistRecordingRecovery(input);
     return {
@@ -153,7 +163,13 @@ export async function startBenchmarkRun(input:RunInput & {
   if(input.preflightConfirmed!==true || input.recordingStartedBeforeReveal!==true ||
      input.consentToRecording!==true || input.privacyScopeConfirmed!==true)
     throw fail(400,"A visible tools/environment preflight and a recording started before case reveal are required.");
-  const eligibility=await eligibleAttempt(input);
+  let eligibility:Awaited<ReturnType<typeof eligibleAttempt>>;
+  try { eligibility=await eligibleAttempt(input); }
+  catch(error) {
+    const code=(error as {code?:string})?.code;
+    if(code==="42P01"||code==="3F000") throw fail(503,"The Practicals benchmark schema is not installed in this environment.");
+    throw error;
+  }
   if(!eligibility.allowed)throw fail(409,eligibility.reason||"No Practical attempt available.");
   const existing=await findRun(input,eligibility.attemptNumber);
   if(existing)return view(existing);
