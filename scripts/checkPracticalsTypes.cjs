@@ -36,9 +36,9 @@ const touched=new Set([
  "client/src/pages/operational/tutor/practicals.tsx",
  "client/src/pages/operational/td/practicals-review.tsx",
 ]);
-const roots=[...touched].map(file=>path.resolve(root,file));
-const program=ts.createProgram(roots,{...parsed.options,noEmit:true,incremental:false,tsBuildInfoFile:undefined});
-const local=ts.getPreEmitDiagnostics(program);
+const program=ts.createProgram(parsed.fileNames,{...parsed.options,noEmit:true,incremental:false,tsBuildInfoFile:undefined});
+const all=ts.getPreEmitDiagnostics(program);
+const local=all.filter(diag=>diag.file&&touched.has(path.relative(root,diag.file.fileName).replaceAll("\\","/")));
 if(local.length){
  console.error(ts.formatDiagnosticsWithColorAndContext(local,{
    getCurrentDirectory:()=>root,
@@ -49,3 +49,5 @@ if(local.length){
  process.exit(1);
 }
 console.log("Practicals scoped TypeScript contract: PASS ("+touched.size+" touched files).");
+const other=all.length-local.length;
+if(other)console.log("Existing unrelated repository TypeScript diagnostics outside scope:",other,"(not silently changed).");
