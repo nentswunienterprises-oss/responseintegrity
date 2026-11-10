@@ -106,7 +106,7 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
           <label className="block text-sm">Follow-up required<textarea className={control} rows={2} maxLength={1000} value={item.followUp || ""} onChange={(event) => setAssessmentField(section, "followUp", event.target.value)} placeholder="Optional next question or evidence to verify." /></label>
         </fieldset>;
       })}
-      <div className="flex flex-wrap items-center gap-3"><Button type="button" disabled={save.isPending} onClick={() => save.mutate({ action: "assessment", assessment })}>Save assessment</Button><span className="text-xs text-muted-foreground">{PARENT_QUALIFICATION_SECTIONS.filter(sectionComplete).length} of 4 sections have evidence · {e.qualification_assessment_updated_at ? `Last saved ${when(e.qualification_assessment_updated_at)}` : "Not yet saved"}</span></div>
+      <div className="flex flex-wrap items-center gap-3"><Button type="button" disabled={save.isPending} onClick={() => save.mutate({ action: "assessment", assessment })}>Save assessment</Button><span className="text-xs text-muted-foreground">{PARENT_QUALIFICATION_SECTIONS.filter(sectionComplete).length} of 4 sections have evidence · {!assessmentSaved ? "Unsaved changes" : e.qualification_assessment_updated_at ? `Last saved ${when(e.qualification_assessment_updated_at)}` : "Not yet saved"}</span></div>
     </section>}
     {save.error && <p role="alert" className="text-sm text-destructive">{save.error.message}</p>}
     {!legacy && !e.handover_completed_at && <div className="border-t pt-4 space-y-4">
