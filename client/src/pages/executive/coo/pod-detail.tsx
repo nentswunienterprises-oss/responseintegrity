@@ -955,6 +955,12 @@ export default function PodDetail() {
     && typeof podStats?.totalTutors === "number"
     && podTutors.length === podStats.totalTutors
     && Array.isArray(assignedTutorIds)
+    && podTutors.every((assignment: any) =>
+      assignment
+      && typeof assignment.id === "string"
+      && typeof assignment.tutorId === "string"
+      && assignedTutorIds.includes(assignment.tutorId)
+    )
     && !assignedTutorsLoading;
   const availableSlots = canEditRoster ? Math.max(0, maxTutors - tutorCount) : 0;
   const maxStudentsPerTutor = getMaxStudentsPerTutorForVehicle((currentPod as Pod).vehicle);
