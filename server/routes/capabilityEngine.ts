@@ -89,7 +89,6 @@ export function registerCapabilityEngineRoutes(app: Express) {
         if (state.stageGate.mode === "sandbox") {
           try {
             await ensureEmergencyAuthUserIdentity(pool, String(dbUser.id));
-            await ensureEmergencyAuthUserIdentity(pool, String(dbUser.id));
             const provisioned = await ensureVisibleSandboxStudentsForTutor(String(dbUser.id));
             return res.json({
               ...state,
@@ -238,6 +237,7 @@ export function registerCapabilityEngineRoutes(app: Express) {
         };
         if (progression?.mode === "sandbox") {
           try {
+            await ensureEmergencyAuthUserIdentity(pool, String(dbUser.id));
             const provisioned = await ensureVisibleSandboxStudentsForTutor(String(dbUser.id));
             sandboxProvisioning = {
               status: "ready",
