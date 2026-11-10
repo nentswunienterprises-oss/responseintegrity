@@ -198,6 +198,10 @@
     {
       "path": "migrations/20261011_practicals_shared_video_benchmarks_v1.sql",
       "description": "Staged Practicals shared-video benchmark schema and integrity guards. Isolated Preview/CI only; explicitly excluded from The Hub Production plan and apply pending full lifecycle acceptance and separate authorization."
+    },
+    {
+      "path": "migrations/20261110_practicals_shared_video_benchmarks_v1_preview_compat.sql",
+      "description": "Capability Proof-compatible Practicals shared-video benchmark schema and integrity guards, applied only to the isolated Preview database. Explicitly excluded from The Hub Production plan and apply; any Production promotion requires a separate reviewed migration and authorization."
     }
   ]
 }
