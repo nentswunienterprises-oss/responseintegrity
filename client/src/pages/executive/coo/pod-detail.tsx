@@ -1205,6 +1205,12 @@ export default function PodDetail() {
                   </div>
                 </div>
 
+                {assignedTutorsError ? (
+                  <p role="status" className="text-sm text-muted-foreground">
+                    The global Specialist assignment registry is unavailable. Adding or changing assignments is paused until it can be verified.
+                  </p>
+                ) : null}
+
                 {/* Specialists List */}
                 {tutorsSectionExpanded ? (
                   podTutorsLoading ? (
