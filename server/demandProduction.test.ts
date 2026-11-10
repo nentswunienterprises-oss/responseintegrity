@@ -12,8 +12,16 @@ test('Demand migration, compatibility and database integrity boundaries', async 
   const row = async (user: string) => (await db.query('SELECT * FROM parent_enrollments WHERE user_id=$1',[user])).rows[0];
   const command = (id: string, action: string, status: string | null = null, owner: string | null = null, entry: string | null = null, note: string | null = null, actor = 'coo') =>
     db.query('SELECT update_demand_production($1,$2,$3,$4,$5,$6,$7)', [id,actor,action,status,owner,entry,note]);
+  const completeAssessment = (id: string) => db.query('SELECT save_parent_qualification_assessment($1,$2,$3::jsonb)', [id,'coo',JSON.stringify({
+    parentExperience:{parentAccount:'Parent describes recurring difficulty with fractions.'},
+    supportPreferences:{evidence:'Parent prefers structured weekly support.'},
+    riExplanation:{interviewerObservation:'Parent can explain the distinction between understanding and execution.'},
+    commercialReadiness:{evidence:'Parent has reviewed the available monthly arrangements.'},
+  })]);
   await t.test('migration is repeatable; legacy evidence stays unknown and live Pilot remains usable', async () => {
-    await db.exec(migration);\n    await db.exec(assessmentMigration);\n    await db.exec(completionMigration);
+    await db.exec(migration);
+    await db.exec(assessmentMigration);
+    await db.exec(completionMigration);
     const legacy = await row('legacy');
     assert.equal(legacy.demand_flow_version,0); assert.equal(legacy.qualification_status,null);
     assert.equal(legacy.qualification_completed_at,null); assert.equal(legacy.handover_completed_at,null);
@@ -38,7 +46,17 @@ test('Demand migration, compatibility and database integrity boundaries', async 
     const contacted = await row('new'); assert.ok(contacted.qualification_contacted_at);
     await command(fresh.id,'qualification','follow_up','coo',null,'Confirm availability');
     assert.equal((await row('new')).qualification_contacted_at.getTime(),contacted.qualification_contacted_at.getTime());
-    await assert.rejects(command(fresh.id,'qualification','qualified','coo',null,null),/requires owner/);\n    await assert.rejects(command(fresh.id,'qualification','qualified','coo',null,'Premature decision'),/four-part|section/);\n    await completeAssessment(fresh.id);\n    const assessed = await row('new');\n    assert.equal(Object.keys(assessed.qualification_assessment).length,4);\n    assert.ok(assessed.qualification_assessment_updated_at);
+    await assert.rejects(command(fresh.id,'qualification','qualified','coo',null,null),/requires owner/);
+    await assert.rejects(command(fresh.id,'qualification','qualified','coo',null,'Premature decision'),/four-part|section/);
+    await completeAssessment(fresh.id);
+    const assessed = await row('new');
+    assert.equal(Object.keys(assessed.qualification_assessment).length,4);
+    assert.ok(assessed.qualification_assessment_updated_at);
+    await assert.rejects(command(fresh.id,'qualification','qualified','coo',null,'Premature decision'),/four-part|section/);
+    await completeAssessment(fresh.id);
+    const assessed = await row('new');
+    assert.equal(Object.keys(assessed.qualification_assessment).length,4);
+    assert.ok(assessed.qualification_assessment_updated_at);
     await assert.rejects(command(fresh.id,'qualification','qualified','coo',null,'Fit confirmed','new'),/authorized staff/);
     await command(fresh.id,'qualification','qualified','coo',null,'Fit and availability confirmed');
     const qualified = await row('new'); assert.equal(qualified.qualification_decided_by,'coo'); assert.ok(qualified.qualification_completed_at);
@@ -59,6 +77,7 @@ test('Demand migration, compatibility and database integrity boundaries', async 
   });
   await t.test('not qualified is terminal and cannot be assigned or handed over', async () => {
     const rejected = await row('rejected');
+    await completeAssessment(rejected.id);
     await command(rejected.id,'qualification','not_qualified','coo',null,'Outside supported intake');
     await assert.rejects(command(rejected.id,'entry',null,null,'pilot'),/Qualify/);
     await assert.rejects(command(rejected.id,'handover',null,'recipient',null,'Assign'),/entry must be selected/);
