@@ -149,9 +149,11 @@ test("configure and begin-rep Specialist steps cannot reveal answer keys or futu
    assert.equal("studentBehavior" in projected,false);
  }
  assert.equal("setId" in configure,false);
- assert.equal(begin.setId,shared.setId);
+ assert.equal("setId" in begin,true);
+ if("setId" in begin) assert.equal(begin.setId,shared.setId);
  const rep=projectSpecialistPracticalStep({...shared,kind:"rep"});
- assert.equal(rep.studentBehavior,shared.studentBehavior);
+ assert.equal("studentBehavior" in rep,true);
+ if("studentBehavior" in rep) assert.equal(rep.studentBehavior,shared.studentBehavior);
  assert.equal("observedSupport" in rep,false);
 });
 
