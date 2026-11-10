@@ -30,3 +30,24 @@ export function resolveEntryType(parent: any): EntryType | null {
   const value = parent?.onboarding_type;
   return value === "pilot" || value === "commercial" || value === "pending" ? value : null;
 }
+
+
+export const PARENT_QUALIFICATION_SECTIONS = [
+  "parentExperience",
+  "supportPreferences",
+  "riExplanation",
+  "commercialReadiness",
+] as const;
+
+export type ParentQualificationSection = typeof PARENT_QUALIFICATION_SECTIONS[number];
+
+export interface ParentQualificationEvidence {
+  parentAccount?: string;
+  evidence?: string;
+  interviewerObservation?: string;
+  followUp?: string;
+}
+
+export type ParentQualificationAssessment = Partial<
+  Record<ParentQualificationSection, ParentQualificationEvidence>
+>;
