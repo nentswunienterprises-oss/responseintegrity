@@ -22,12 +22,14 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
   const [note, setNote] = useState("");
   const [entry, setEntry] = useState("");
   const [transferConfirmed, setTransferConfirmed] = useState(false);
-  const [assessment, setAssessment] = useState<ParentQualificationAssessment>(e.qualification_assessment || {});\n  const [assessmentSaved, setAssessmentSaved] = useState(Boolean(e.qualification_assessment_updated_at));
+  const [assessment, setAssessment] = useState<ParentQualificationAssessment>(e.qualification_assessment || {});
+  const [assessmentSaved, setAssessmentSaved] = useState(Boolean(e.qualification_assessment_updated_at));
   const cache = useQueryClient();
   const save = useMutation({
     mutationFn: async (command: object) => (await apiRequest("PATCH", `/api/hr/enrollments/${e.id}/demand`, command)).json(),
-    onSuccess: async () => {
+    onSuccess: async (_data, command: any) => {
       setNote("");
+      if (command.action === "assessment") setAssessmentSaved(true);
       await Promise.all([
         cache.invalidateQueries({ queryKey: ["/api/coo/production-economy"] }),
         cache.invalidateQueries({ queryKey: ["/api/hr/enrollments"] }),
@@ -35,7 +37,8 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
     },
   });
   const setAssessmentField = (section: ParentQualificationSection, field: "parentAccount" | "evidence" | "interviewerObservation" | "followUp", value: string) => {
-    setAssessmentSaved(false);\n    setAssessment((current) => ({ ...current, [section]: { ...current[section], [field]: value } }));
+    setAssessmentSaved(false);\n    setAssessmentSaved(false);
+    setAssessment((current) => ({ ...current, [section]: { ...current[section], [field]: value } }));
   };
   const sectionComplete = (section: ParentQualificationSection) => {
     const item = assessment[section];
