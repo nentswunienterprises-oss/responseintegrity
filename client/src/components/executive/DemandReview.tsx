@@ -41,7 +41,8 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
     const item = assessment[section];
     return Boolean(item?.parentAccount?.trim() || item?.evidence?.trim() || item?.interviewerObservation?.trim());
   };
-  const assessmentComplete = PARENT_QUALIFICATION_SECTIONS.every(sectionComplete);\n  const terminalDecision = ["qualified", "not_qualified"].includes(status);
+  const assessmentComplete = PARENT_QUALIFICATION_SECTIONS.every(sectionComplete);
+  const terminalDecision = ["qualified", "not_qualified"].includes(status);
   const person = (id: string) => id ? staff.find((user) => user.id === id)?.name || id : "Unset";
   const sla = lineage.handoverSla;
   const slaLabel = sla.status === "breached" ? "Breached" : sla.status === "within_standard" ? "Within standard"
