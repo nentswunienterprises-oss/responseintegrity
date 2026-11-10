@@ -26,6 +26,7 @@ test("COO roster edits require complete, matching authoritative reads", () => {
   assert.match(detail, /const canEditRoster = !podTutorsError && !podStatsError && !assignedTutorsError/);
   assert.match(detail, /podTutors\.length === podStats\.totalTutors/);
   assert.match(detail, /Array\.isArray\(assignedTutorIds\)/);
+  assert.match(detail, /assignedTutorIds\.includes\(assignment\.tutorId\)/);
   assert.match(detail, /const availableSlots = canEditRoster \?/);
   assert.match(detail, /canEditRoster && availableSlots > 0/);
   assert.match(detail, /disabled=\{!canEditRoster \|\| removeTutorMutation\.isPending\}/);
