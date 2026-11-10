@@ -89,7 +89,14 @@ test('real HTTP signup → Gateway → qualification → handover → assignment
     assert.equal((await request('POST',`/api/hr/enrollments/${e.id}/assign-tutor`,'coo',{tutorId:'specialist',podId:'pod'})).status,409);
     await ok('PATCH',`/api/hr/enrollments/${e.id}/demand`,'coo',{action:'qualification',status:'contacted',ownerId:'coo',note:'Parent contacted'});
     await snapshot(user,'contacted');
-    await ok('PATCH',`/api/hr/enrollments/${e.id}/demand`,'coo',{action:'qualification',status:'qualified',ownerId:'coo',note:'Fit and arrangement confirmed'});
+    await ok('PATCH',`/api/hr/enrollments/${e.id}/demand`,'coo',{action:'assessment',assessment:{
+      parentExperience:{parentAccount:'Parent describes the learner’s current mathematics experience.'},
+      supportPreferences:{evidence:'Parent explains the support structure and communication preferences.'},
+      riExplanation:{interviewerObservation:'Parent responds to the RI explanation and describes the distinction between understanding and execution.'},
+      commercialReadiness:{evidence:'Parent discusses the available monthly service arrangements and readiness to proceed.'},
+    }});
+    await snapshot(user,'four-part assessment saved');
+    await ok('PATCH',`/api/hr/enrollments/${e.id}/demand`,'coo',{action:'qualification',status:'qualified',ownerId:'coo',note:'Four-part assessment reviewed; fit and arrangement confirmed'});
     await snapshot(user,'qualified');
     await ok('PATCH',`/api/hr/enrollments/${e.id}/demand`,'coo',{action:'entry',entryType:entry});
     await snapshot(user,'entry deliberately selected');
