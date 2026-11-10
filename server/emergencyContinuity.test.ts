@@ -1715,8 +1715,8 @@ test("COO document review uses the authenticated database identity and bearer-aw
   const reviewEnd = client.indexOf("const openRejectDialog", reviewStart);
   const mutation = client.slice(reviewStart, reviewEnd);
 
-  assert.match(route, /requireRole\\(\\["coo"\\]\\)/);
-  assert.match(route, /const reviewerId = \\(req as any\\)\\.dbUser\\.id/);
-  assert.match(mutation, /apiRequest\\(/);
-  assert.doesNotMatch(mutation, /fetch\\(/);
+  assert.ok(route.includes('requireRole(["coo"])'));
+  assert.ok(route.includes("const reviewerId = (req as any).dbUser.id"));
+  assert.ok(mutation.includes("apiRequest("));
+  assert.ok(!mutation.includes("fetch("));
 });
