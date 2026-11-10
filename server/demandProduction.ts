@@ -1,14 +1,18 @@
 import { z } from "zod";
 import { QUALIFICATION_STATUSES, handoverSla } from "../shared/demandProduction";
 
+const evidenceSchema = z.object({
+  parentAccount: z.string().max(3000).optional(),
+  evidence: z.string().max(3000).optional(),
+  interviewerObservation: z.string().max(3000).optional(),
+  followUp: z.string().max(1000).optional(),
+  responses: z.record(z.string(), z.string().max(3000)).optional(),
+  scriptPresented: z.boolean().optional(),
+}).strict();
+
 const commandSchema = z.object({
   action: z.enum(["qualification", "entry", "handover", "assessment"]),
-  assessment: z.record(z.string(), z.object({
-    parentAccount: z.string().max(3000).optional(),
-    evidence: z.string().max(3000).optional(),
-    interviewerObservation: z.string().max(3000).optional(),
-    followUp: z.string().max(1000).optional(),
-  }).strict()).optional(),
+  assessment: z.record(z.string(), evidenceSchema).optional(),
   status: z.enum(QUALIFICATION_STATUSES).optional(),
   ownerId: z.string().min(1).max(64).optional(),
   entryType: z.enum(["pilot", "commercial"]).optional(),
