@@ -264,11 +264,26 @@ test("Staged Practicals migration executes on isolated PostgreSQL and enforces i
     await assert.rejects(db.query(`
       UPDATE public.specialist_practical_benchmark_runs SET status='abandoned',
       completed_at=now() WHERE id=$1`,[incidentRunId]),/Benchmark must reveal/);
+    for(let step=0;step<incidentCase.workflowSteps.length;step++){
+      const action=incidentCase.workflowSteps[step];
+      await db.query(`INSERT INTO public.specialist_practical_case_actions
+        (run_id,case_sequence,step_number,operation_key,recorded_payload,system_snapshot)
+        VALUES($1,1,$2,$3,$4::jsonb,$5::jsonb)`,
+        [incidentRunId,step+1,action.kind,JSON.stringify({fictionalOnly:true}),JSON.stringify(action)]);
+    }
+
     const recovery=await db.query(`INSERT INTO public.specialist_practical_recording_recovery_requests
       (run_id,reason,incident_note)
       VALUES($1,'recording_interrupted',$2) RETURNING id`,
       [incidentRunId,"Original camera recording stopped before the issued assessment concluded."]);
     const recoveryId=recovery.rows[0].id;
+    const secondIncidentCase=fixtureCase("prepare",2);
+    await assert.rejects(db.query(`INSERT INTO public.specialist_practical_benchmark_case_reveals
+      (run_id,case_sequence,case_key,case_version,case_snapshot)
+      VALUES($1,2,$2,2,$3::jsonb)`,
+      [incidentRunId,secondIncidentCase.caseKey,JSON.stringify(secondIncidentCase)]),
+      /Benchmark case must be issued, in order/);
+
     await assert.rejects(db.query(`INSERT INTO public.specialist_practical_case_actions
       (run_id,case_sequence,step_number,operation_key,recorded_payload,system_snapshot)
       VALUES($1,1,1,'rep','{}'::jsonb,$2::jsonb)`,

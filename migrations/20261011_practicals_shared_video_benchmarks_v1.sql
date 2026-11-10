@@ -71,6 +71,7 @@ DECLARE
     FROM public.specialist_practical_benchmark_case_reveals
     WHERE run_id=NEW.run_id;
   IF issuer IS NULL OR issuer.status<>'active'
+     OR EXISTS (SELECT 1 FROM public.specialist_practical_recording_recovery_requests req WHERE req.run_id=NEW.run_id)
      OR issuer.bank_version<2
      OR NEW.case_sequence<>expected_next
      OR NEW.case_sequence>issuer.active_case_index+1
