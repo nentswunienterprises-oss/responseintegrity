@@ -35,7 +35,7 @@ CREATE TABLE public.specialist_practical_benchmark_runs (
   recording_started_before_reveal_attested boolean NOT NULL CHECK (recording_started_before_reveal_attested=true),
   consent_to_recording_attested boolean NOT NULL CHECK (consent_to_recording_attested=true),
   privacy_scope_attested boolean NOT NULL CHECK (privacy_scope_attested=true),
-  status varchar NOT NULL DEFAULT 'active' CHECK (status IN ('active','complete','abandoned')),
+  status varchar NOT NULL DEFAULT 'active' CHECK (status IN ('active','complete','abandoned','closed','integrity_hold')),
   active_case_index integer NOT NULL DEFAULT 1 CHECK (active_case_index BETWEEN 1 AND 4),
   started_at timestamptz NOT NULL DEFAULT now(),
   completed_at timestamptz,
@@ -237,11 +237,11 @@ RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $$ BEGIN
     LEFT JOIN public.specialist_practical_recording_recovery_decisions dec
       ON dec.request_id=req.id
     WHERE req.run_id=OLD.id
-  ) AND NEW.status <> 'abandoned'
+  ) AND NEW.status NOT IN ('abandoned','closed','integrity_hold')
     THEN RAISE EXCEPTION 'A recording incident permanently closes the original case sequence'; END IF;
   -- Only the assigned TD's immutable, approved recovery permits retirement.
   -- The attempt's case index, original actions and timestamps are retained.
-  IF OLD.status='active' AND NEW.status='abandoned'
+  IF OLD.status='active' AND NEW.status IN ('abandoned','closed','integrity_hold')
      AND NEW.active_case_index=OLD.active_case_index
      AND NEW.completed_at IS NOT NULL
      AND NEW.id=OLD.id
@@ -260,10 +260,13 @@ RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $$ BEGIN
        SELECT 1
        FROM public.specialist_practical_recording_recovery_requests req
        JOIN public.specialist_practical_recording_recovery_decisions dec
-         ON dec.request_id=req.id AND dec.decision='approve_repeat'
+         ON dec.request_id=req.id
        JOIN public.tutor_assignments ta ON ta.id=OLD.tutor_assignment_id
        JOIN public.pods p ON p.id=ta.pod_id
        WHERE req.run_id=OLD.id AND p.td_id=dec.reviewer_id
+         AND ((NEW.status='abandoned' AND dec.decision='approve_repeat')
+           OR (NEW.status='closed' AND dec.decision='deny')
+           OR (NEW.status='integrity_hold' AND dec.decision='integrity_review'))
      )
   THEN RETURN NEW; END IF;
   IF OLD.status <> 'active' OR NEW.status NOT IN ('active','complete')

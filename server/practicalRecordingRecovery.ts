@@ -133,11 +133,11 @@ export async function decidePracticalRecordingRecovery(input:{
        (request_id,reviewer_id,decision,rationale)
      VALUES($1,$2,$3,$4) RETURNING id,decided_at`,
      [input.requestId,input.reviewerId,input.decision,input.rationale.trim()]);
-   if(input.decision==="approve_repeat"){
-     await client.query(`
-       UPDATE public.specialist_practical_benchmark_runs
-       SET status='abandoned',completed_at=now() WHERE id=$1`,[row.run_id]);
-   }
+   const terminalStatus=input.decision==="approve_repeat"?"abandoned":
+     input.decision==="deny"?"closed":"integrity_hold";
+   await client.query(`
+     UPDATE public.specialist_practical_benchmark_runs
+     SET status=$2,completed_at=now() WHERE id=$1`,[row.run_id,terminalStatus]);
    await client.query("COMMIT");
    return {decisionId:String(decision.rows[0].id),runId:row.run_id,
      outcome:input.decision,decidedAt:decision.rows[0].decided_at,

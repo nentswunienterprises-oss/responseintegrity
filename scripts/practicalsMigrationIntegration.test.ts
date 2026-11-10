@@ -300,6 +300,22 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       VALUES($1,$2,'evidence',2,2,2,true,true,true,true) RETURNING id`,[assignmentId,tutorId]);
     assert.ok(nextRun.rows[0].id,"One separately issued attempt follows the immutable TD recovery");
 
+    const deniedRun=await db.query(`
+      INSERT INTO public.specialist_practical_benchmark_runs
+        (tutor_assignment_id,tutor_id,proof_key,proof_version,bank_version,attempt_number,
+         preflight_attested,recording_started_before_reveal_attested,consent_to_recording_attested,privacy_scope_attested)
+      VALUES($1,$2,'prepare',2,2,9,true,true,true,true) RETURNING id`,[assignmentId,tutorId]);
+    const deniedRequest=await db.query(`
+      INSERT INTO public.specialist_practical_recording_recovery_requests
+        (run_id,reason,incident_note) VALUES($1,'recording_interrupted',$2) RETURNING id`,
+      [deniedRun.rows[0].id,"Synthetic interruption with sufficient context for the assigned TD to review."]);
+    await db.query(`
+      INSERT INTO public.specialist_practical_recording_recovery_decisions
+        (request_id,reviewer_id,decision,rationale) VALUES($1,$2,'deny',$3)`,
+      [deniedRequest.rows[0].id,reviewerId,"The evidence does not justify repeating this assessment attempt."]);
+    await db.query("UPDATE public.specialist_practical_benchmark_runs SET status='closed',completed_at=now() WHERE id=$1",[deniedRun.rows[0].id]);
+    await assert.rejects(db.query("UPDATE public.specialist_practical_benchmark_runs SET status='active',completed_at=NULL WHERE id=$1",[deniedRun.rows[0].id]),/cannot be erased or restarted|must reveal/);
+
     const runId=randomUUID();
     await db.query(`INSERT INTO public.specialist_practical_benchmark_runs
       (id,tutor_assignment_id,tutor_id,proof_key,proof_version,bank_version,

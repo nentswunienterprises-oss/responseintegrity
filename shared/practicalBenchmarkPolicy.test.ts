@@ -154,3 +154,13 @@ test("configure and begin-rep Specialist steps cannot reveal answer keys or futu
  assert.equal(rep.studentBehavior,shared.studentBehavior);
  assert.equal("observedSupport" in rep,false);
 });
+
+
+test("recording recovery denial and integrity review are terminally blocked",()=>{
+  const base={attempt_number:1,status:"active",recovery_request_id:"request-1",recovery_decision:"deny"};
+  assert.equal(resolvePracticalAttempt(null,base).allowed,false);
+  assert.match(String(resolvePracticalAttempt(null,base).reason),/closed and cannot be repeated/);
+  assert.equal(resolvePracticalAttempt(null,{...base,status:"integrity_hold",recovery_decision:"integrity_review"}).allowed,false);
+  assert.equal(resolvePracticalAttempt(null,{...base,recovery_decision:null}).allowed,false);
+  assert.equal(resolvePracticalAttempt(null,{...base,status:"abandoned",recovery_decision:"approve_repeat"}).allowed,true);
+});

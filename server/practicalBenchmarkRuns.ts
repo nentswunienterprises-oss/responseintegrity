@@ -19,7 +19,7 @@ type RunInput = {tutorAssignmentId:string;tutorId:string;proofKey:PracticalBench
 type RunRow = {
   id:string;tutor_assignment_id:string;tutor_id:string;proof_key:string;
   proof_version:number;attempt_number:number;bank_version:number;
-  status:"active"|"complete"|"abandoned";active_case_index:number;
+  status:"active"|"complete"|"abandoned"|"closed"|"integrity_hold";active_case_index:number;
   started_at:Date|string;completed_at:Date|string|null;
 };
 const sqlRun=`SELECT id,tutor_assignment_id,tutor_id,proof_key,proof_version,

@@ -49,8 +49,12 @@ export function resolvePracticalAttempt(
       return {allowed:false,reason:"An abandoned recording has no authorised TD recovery.",attemptNumber:0};
     return {allowed:true,reason:null,attemptNumber:Number(run.attempt_number)+1};
   }
-  if(run.recovery_request_id&&run.recovery_decision==="integrity_review")
-    return {allowed:false,reason:"The recording incident is under integrity review.",attemptNumber:0};
+  if(run.status==="closed" || run.recovery_decision==="deny")
+    return {allowed:false,reason:"The assigned TD denied recovery. This attempt is closed and cannot be repeated.",attemptNumber:0};
+  if(run.status==="integrity_hold" || run.recovery_decision==="integrity_review")
+    return {allowed:false,reason:"The recording incident is under integrity review. The attempt remains locked pending an authorised integrity resolution.",attemptNumber:0};
+  if(run.recovery_request_id && !run.recovery_decision)
+    return {allowed:false,reason:"Recording recovery is awaiting the assigned TD's decision. The attempt is locked.",attemptNumber:0};
   if(run.status!=="active"&&run.status!=="complete")
     return {allowed:false,reason:"An unrecognised recording state cannot qualify.",attemptNumber:0};
   return {allowed:true,reason:null,attemptNumber:Number(run.attempt_number)};
