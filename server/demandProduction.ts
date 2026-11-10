@@ -2,7 +2,13 @@ import { z } from "zod";
 import { QUALIFICATION_STATUSES, handoverSla } from "../shared/demandProduction";
 
 const commandSchema = z.object({
-  action: z.enum(["qualification", "entry", "handover"]),
+  action: z.enum(["qualification", "entry", "handover", "assessment"]),
+  assessment: z.record(z.string(), z.object({
+    parentAccount: z.string().max(3000).optional(),
+    evidence: z.string().max(3000).optional(),
+    interviewerObservation: z.string().max(3000).optional(),
+    followUp: z.string().max(1000).optional(),
+  }).strict()).optional(),
   status: z.enum(QUALIFICATION_STATUSES).optional(),
   ownerId: z.string().min(1).max(64).optional(),
   entryType: z.enum(["pilot", "commercial"]).optional(),
@@ -11,6 +17,18 @@ const commandSchema = z.object({
 
 export async function updateDemandProduction(client: any, enrollmentId: string, actorId: string, input: unknown) {
   const command = commandSchema.parse(input);
+  if (command.action === "assessment") {
+    if (!command.assessment || Object.keys(command.assessment).some((key) => !["parentExperience", "supportPreferences", "riExplanation", "commercialReadiness"].includes(key))) {
+      throw new Error("Provide evidence under the four approved qualification sections");
+    }
+    const { data, error } = await client.rpc("save_parent_qualification_assessment", {
+      p_enrollment_id: enrollmentId,
+      p_actor_id: actorId,
+      p_assessment: command.assessment,
+    });
+    if (error) throw new Error(error.message);
+    return { ...data, handoverSla: handoverSla(data) };
+  }
   const { data, error } = await client.rpc("update_demand_production", {
     p_enrollment_id: enrollmentId,
     p_actor_id: actorId,
