@@ -1,6 +1,4 @@
 -- Structured four-part Parent Qualification evidence. Additive only; no historical backfill.
-BEGIN;
-
 ALTER TABLE public.parent_enrollments
   ADD COLUMN IF NOT EXISTS qualification_assessment jsonb,
   ADD COLUMN IF NOT EXISTS qualification_assessment_updated_at timestamptz,
@@ -78,4 +76,3 @@ END $$;
 REVOKE ALL ON FUNCTION public.save_parent_qualification_assessment(text,text,jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.save_parent_qualification_assessment(text,text,jsonb) TO service_role;
 
-COMMIT;
