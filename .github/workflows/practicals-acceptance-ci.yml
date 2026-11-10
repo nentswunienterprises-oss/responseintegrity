@@ -114,7 +114,7 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - name: Scoped Practicals TypeScript contract
-        run: node scripts/checkPracticalsTypes.cjs
+        run: npm run check:practicals-types
       - name: Versioned adaptive Execute contract and security boundaries
         run: npm run test:practicals
       - name: PostgreSQL schema and immutable evidence integration
