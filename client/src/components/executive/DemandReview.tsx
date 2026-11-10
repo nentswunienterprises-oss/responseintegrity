@@ -28,7 +28,7 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
   const save = useMutation({
     mutationFn: async (command: object) => (await apiRequest("PATCH", `/api/hr/enrollments/${e.id}/demand`, command)).json(),
     onSuccess: async (_data, command: any) => {
-      setNote("");
+      if (command.action !== "assessment") setNote("");
       if (command.action === "assessment") setAssessmentSaved(true);
       await Promise.all([
         cache.invalidateQueries({ queryKey: ["/api/coo/production-economy"] }),
