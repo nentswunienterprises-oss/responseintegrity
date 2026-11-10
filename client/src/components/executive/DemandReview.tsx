@@ -2,15 +2,23 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
-import { QUALIFICATION_STATUSES, PARENT_QUALIFICATION_SECTIONS, type ParentQualificationAssessment, type ParentQualificationSection } from "@shared/demandProduction";
+import {
+  QUALIFICATION_STATUSES,
+  PARENT_QUALIFICATION_SECTIONS,
+  PARENT_EXPERIENCE_QUESTIONS,
+  SUPPORT_PREFERENCE_QUESTIONS,
+  RI_EXPLANATION_SCRIPT,
+  type ParentQualificationAssessment,
+  type ParentQualificationSection,
+} from "@shared/demandProduction";
 
 const words = (value: string) => value?.replaceAll("_", " ") || "Unset";
 const when = (value: string) => value ? new Date(value).toLocaleString() : "Not recorded";
 const control = "block w-full rounded border bg-background p-2 text-sm mt-1";
 const sectionLabels: Record<ParentQualificationSection, string> = {
   parentExperience: "1. Parent Experience",
-  supportPreferences: "2. Support Preferences",
-  riExplanation: "3. RI Explanation and Concept Response",
+  supportPreferences: "2. Understanding Support Preferences",
+  riExplanation: "3. Response Integrity Explanation",
   commercialReadiness: "4. Commercial Readiness",
 };
 
@@ -36,12 +44,27 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
       ]);
     },
   });
-  const setAssessmentField = (section: ParentQualificationSection, field: "parentAccount" | "evidence" | "interviewerObservation" | "followUp", value: string) => {
+  const setResponse = (section: ParentQualificationSection, questionId: string, value: string) => {
+    setAssessmentSaved(false);
+    setAssessment((current) => {
+      const responses = { ...(current[section]?.responses || {}), [questionId]: value };
+      const count = Object.values(responses).filter((answer) => answer.trim()).length;
+      return { ...current, [section]: { ...current[section], responses, parentAccount: count ? `${count} individual question response(s) recorded.` : "" } };
+    });
+  };
+  const setSectionField = (section: ParentQualificationSection, field: "interviewerObservation" | "followUp", value: string) => {
     setAssessmentSaved(false);
     setAssessment((current) => ({ ...current, [section]: { ...current[section], [field]: value } }));
   };
+  const markScriptPresented = (presented: boolean) => {
+    setAssessmentSaved(false);
+    setAssessment((current) => ({ ...current, riExplanation: { ...current.riExplanation, scriptPresented: presented } }));
+  };
   const sectionComplete = (section: ParentQualificationSection) => {
     const item = assessment[section];
+    if (section === "parentExperience") return PARENT_EXPERIENCE_QUESTIONS.every((_, index) => Boolean(item?.responses?.[`experience_${index + 1}`]?.trim()));
+    if (section === "supportPreferences") return SUPPORT_PREFERENCE_QUESTIONS.every((_, index) => Boolean(item?.responses?.[`support_${index + 1}`]?.trim()));
+    if (section === "riExplanation") return Boolean(item?.scriptPresented && item?.responses?.ri_parent_response?.trim());
     return Boolean(item?.parentAccount?.trim() || item?.evidence?.trim() || item?.interviewerObservation?.trim());
   };
   const assessmentComplete = PARENT_QUALIFICATION_SECTIONS.every(sectionComplete);
@@ -51,6 +74,21 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
   const slaLabel = sla.status === "breached" ? "Breached" : sla.status === "within_standard" ? "Within standard"
     : sla.status === "pending" ? "Within 24 hours - transfer pending" : "Not yet measurable";
   const legacy = e.demand_flow_version === 0;
+  const responseValue = (section: ParentQualificationSection, id: string) => assessment[section]?.responses?.[id] || "";
+
+  const renderQuestionSet = (section: ParentQualificationSection, questions: readonly string[], prefix: string) => (
+    <div className="space-y-4">
+      {questions.map((question, index) => {
+        const id = `${prefix}_${index + 1}`;
+        return <label key={id} className="block text-sm">
+          <span className="font-medium">{index + 1}. {question}</span>
+          <textarea className={control} rows={3} maxLength={3000} value={responseValue(section, id)}
+            onChange={(event) => setResponse(section, id, event.target.value)}
+            placeholder="Record the parent's answer. Preserve their meaning and wording." />
+        </label>;
+      })}
+    </div>
+  );
 
   return <div className="space-y-4 border rounded-lg p-4">
     <h3 className="font-semibold">{lineage.parentName || "Parent application"} · {e.student_full_name}</h3>
@@ -81,32 +119,49 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
       </div>
     </details>
     {e.qualification_note && <p className="text-sm whitespace-pre-wrap">Decision context: {e.qualification_note}</p>}
-    {e.qualification_assessment && <details className="rounded-md border p-3 text-sm"><summary className="cursor-pointer font-medium">View saved four-part qualification evidence</summary>
+    {e.qualification_assessment && <details className="rounded-md border p-3 text-sm"><summary className="cursor-pointer font-medium">View saved qualification evidence</summary>
       <div className="mt-3 space-y-4">{PARENT_QUALIFICATION_SECTIONS.map((section) => {
         const item = e.qualification_assessment[section] || {};
         return <section key={section}><h4 className="font-semibold">{sectionLabels[section]}</h4>
-          {item.parentAccount && <p className="mt-1 whitespace-pre-wrap"><strong>Parent's account:</strong> {item.parentAccount}</p>}
-          {item.evidence && <p className="mt-1 whitespace-pre-wrap"><strong>Evidence:</strong> {item.evidence}</p>}
-          {item.interviewerObservation && <p className="mt-1 whitespace-pre-wrap"><strong>Interviewer observation:</strong> {item.interviewerObservation}</p>}
-          {item.followUp && <p className="mt-1 whitespace-pre-wrap"><strong>Follow-up:</strong> {item.followUp}</p>}
+          {section === "parentExperience" && PARENT_EXPERIENCE_QUESTIONS.map((question, index) => <p key={index} className="mt-2 whitespace-pre-wrap"><strong>{index + 1}. {question}</strong><br />{item.responses?.[`experience_${index + 1}`] || "Not recorded"}</p>)}
+          {section === "supportPreferences" && SUPPORT_PREFERENCE_QUESTIONS.map((question, index) => <p key={index} className="mt-2 whitespace-pre-wrap"><strong>{index + 1}. {question}</strong><br />{item.responses?.[`support_${index + 1}`] || "Not recorded"}</p>)}
+          {section === "riExplanation" && <><p className="mt-2">Approved RI explanation presented: {item.scriptPresented ? "Yes" : "Not recorded"}</p><p className="whitespace-pre-wrap">Parent response: {item.responses?.ri_parent_response || "Not recorded"}</p></>}
+          {item.interviewerObservation && <p className="mt-2 whitespace-pre-wrap"><strong>Interviewer observation:</strong> {item.interviewerObservation}</p>}
+          {item.followUp && <p className="mt-2 whitespace-pre-wrap"><strong>Follow-up:</strong> {item.followUp}</p>}
+          {section === "commercialReadiness" && <p className="mt-2 text-muted-foreground">Part 4 evidence: {item.parentAccount || item.evidence || item.interviewerObservation || "Not yet recorded."}</p>}
         </section>;
       })}</div>
     </details>}
     {e.handover_note && <p className="text-sm whitespace-pre-wrap">Agreed next action: {e.handover_note}</p>}
     {legacy && <p className="text-sm text-muted-foreground">Existing service remains operational. Historical qualification and handover are not inferred.</p>}
     {!legacy && !e.qualification_completed_at && <section className="border-t pt-4 space-y-4">
-      <div><h4 className="font-semibold">Parent Qualification — four-part assessment</h4><p className="text-sm text-muted-foreground">Record what the parent actually says, the evidence discussed, and your own observations separately. Save progress as the conversation develops. A final qualification decision remains blocked until all four sections contain evidence.</p></div>
-      {PARENT_QUALIFICATION_SECTIONS.map((section) => {
-        const item = assessment[section] || {};
-        return <fieldset key={section} className="rounded-md border p-3 space-y-3">
-          <legend className="px-1 text-sm font-semibold">{sectionLabels[section]} · {sectionComplete(section) ? "Evidence recorded" : "Outstanding"}</legend>
-          <label className="block text-sm">Parent's account / response<textarea className={control} rows={3} maxLength={3000} value={item.parentAccount || ""} onChange={(event) => setAssessmentField(section, "parentAccount", event.target.value)} placeholder="Capture the parent's own words or account." /></label>
-          <label className="block text-sm">Evidence discussed<textarea className={control} rows={3} maxLength={3000} value={item.evidence || ""} onChange={(event) => setAssessmentField(section, "evidence", event.target.value)} placeholder="Record concrete examples, context, or supporting information." /></label>
-          <label className="block text-sm">Interviewer observation<textarea className={control} rows={2} maxLength={3000} value={item.interviewerObservation || ""} onChange={(event) => setAssessmentField(section, "interviewerObservation", event.target.value)} placeholder="Keep interpretation distinct from what the parent reported." /></label>
-          <label className="block text-sm">Follow-up required<textarea className={control} rows={2} maxLength={1000} value={item.followUp || ""} onChange={(event) => setAssessmentField(section, "followUp", event.target.value)} placeholder="Optional next question or evidence to verify." /></label>
-        </fieldset>;
-      })}
-      <div className="flex flex-wrap items-center gap-3"><Button type="button" disabled={save.isPending} onClick={() => save.mutate({ action: "assessment", assessment })}>Save assessment</Button><span className="text-xs text-muted-foreground">{PARENT_QUALIFICATION_SECTIONS.filter(sectionComplete).length} of 4 sections have evidence · {!assessmentSaved ? "Unsaved changes" : e.qualification_assessment_updated_at ? `Last saved ${when(e.qualification_assessment_updated_at)}` : "Not yet saved"}</span></div>
+      <div><h4 className="font-semibold">Parent Qualification — approved interview guide</h4><p className="text-sm text-muted-foreground">Ask the approved questions and record each answer individually. Keep the parent's account separate from interviewer observations. Save partial progress during the conversation. Part 4 remains pending until its approved questions are supplied.</p></div>
+      <fieldset className="rounded-md border p-3 space-y-4">
+        <legend className="px-1 text-sm font-semibold">1. Parent Experience · {sectionComplete("parentExperience") ? "Complete" : "In progress"}</legend>
+        {renderQuestionSet("parentExperience", PARENT_EXPERIENCE_QUESTIONS, "experience")}
+        <label className="block text-sm">Interviewer observation<textarea className={control} rows={2} maxLength={3000} value={assessment.parentExperience?.interviewerObservation || ""} onChange={(event) => setSectionField("parentExperience", "interviewerObservation", event.target.value)} /></label>
+        <label className="block text-sm">Follow-up required<textarea className={control} rows={2} maxLength={1000} value={assessment.parentExperience?.followUp || ""} onChange={(event) => setSectionField("parentExperience", "followUp", event.target.value)} /></label>
+      </fieldset>
+      <fieldset className="rounded-md border p-3 space-y-4">
+        <legend className="px-1 text-sm font-semibold">2. Understanding Support Preferences · {sectionComplete("supportPreferences") ? "Complete" : "In progress"}</legend>
+        {renderQuestionSet("supportPreferences", SUPPORT_PREFERENCE_QUESTIONS, "support")}
+        <label className="block text-sm">Interviewer observation<textarea className={control} rows={2} maxLength={3000} value={assessment.supportPreferences?.interviewerObservation || ""} onChange={(event) => setSectionField("supportPreferences", "interviewerObservation", event.target.value)} /></label>
+        <label className="block text-sm">Follow-up required<textarea className={control} rows={2} maxLength={1000} value={assessment.supportPreferences?.followUp || ""} onChange={(event) => setSectionField("supportPreferences", "followUp", event.target.value)} /></label>
+      </fieldset>
+      <fieldset className="rounded-md border p-3 space-y-4">
+        <legend className="px-1 text-sm font-semibold">3. Response Integrity Explanation · {sectionComplete("riExplanation") ? "Complete" : "In progress"}</legend>
+        <p className="text-sm text-muted-foreground">Present this explanation as written. Do not paraphrase or replace it with a generic description.</p>
+        <div className="rounded-md bg-muted/40 p-4 text-sm leading-relaxed whitespace-pre-wrap">{RI_EXPLANATION_SCRIPT}</div>
+        <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={Boolean(assessment.riExplanation?.scriptPresented)} onChange={(event) => markScriptPresented(event.target.checked)} />I presented the approved explanation to the parent.</label>
+        <label className="block text-sm">Parent's response / questions after the explanation<textarea className={control} rows={4} maxLength={3000} value={responseValue("riExplanation", "ri_parent_response")} onChange={(event) => setResponse("riExplanation", "ri_parent_response", event.target.value)} placeholder="Record the parent's reaction, understanding, questions, or concerns." /></label>
+        <label className="block text-sm">Interviewer observation<textarea className={control} rows={2} maxLength={3000} value={assessment.riExplanation?.interviewerObservation || ""} onChange={(event) => setSectionField("riExplanation", "interviewerObservation", event.target.value)} /></label>
+        <label className="block text-sm">Follow-up required<textarea className={control} rows={2} maxLength={1000} value={assessment.riExplanation?.followUp || ""} onChange={(event) => setSectionField("riExplanation", "followUp", event.target.value)} /></label>
+      </fieldset>
+      <fieldset className="rounded-md border border-dashed p-3 space-y-2">
+        <legend className="px-1 text-sm font-semibold">4. Commercial Readiness · Pending approval</legend>
+        <p className="text-sm text-muted-foreground">The approved Part 4 questions have not yet been provided. This section is intentionally not editable. Qualification cannot be finalized until the approved Part 4 is implemented.</p>
+      </fieldset>
+      <div className="flex flex-wrap items-center gap-3"><Button type="button" disabled={save.isPending} onClick={() => save.mutate({ action: "assessment", assessment })}>Save assessment</Button><span className="text-xs text-muted-foreground">{[sectionComplete("parentExperience"), sectionComplete("supportPreferences"), sectionComplete("riExplanation")].filter(Boolean).length} of 3 supplied parts complete · Part 4 pending · {!assessmentSaved ? "Unsaved changes" : e.qualification_assessment_updated_at ? `Last saved ${when(e.qualification_assessment_updated_at)}` : "Not yet saved"}</span></div>
     </section>}
     {save.error && <p role="alert" className="text-sm text-destructive">{save.error.message}</p>}
     {!legacy && !e.handover_completed_at && <div className="border-t pt-4 space-y-4">
@@ -115,9 +170,9 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
       }}>
         <label className="block text-sm">Qualification status<select className={control} value={status} onChange={(event) => setStatus(event.target.value)}>{QUALIFICATION_STATUSES.map((value) => <option key={value} value={value}>{words(value)}</option>)}</select></label>
         <label className="block text-sm">Responsible owner<select className={control} value={owner} onChange={(event) => setOwner(event.target.value)}><option value="">Choose owner</option>{staff.map((user) => <option key={user.id} value={user.id}>{user.name} ({user.role})</option>)}</select></label>
-        <label className="block text-sm">Decision note / follow-up context<textarea className={control} maxLength={2000} value={note} onChange={(event) => setNote(event.target.value)} required={["qualified", "not_qualified"].includes(status)} /></label>
+        <label className="block text-sm">Decision note / follow-up context<textarea className={control} maxLength={2000} value={note} onChange={(event) => setNote(event.target.value)} required={terminalDecision} /></label>
         <Button disabled={save.isPending || (terminalDecision && (!assessmentComplete || !assessmentSaved))}>Save qualification</Button>
-        {terminalDecision && (!assessmentComplete || !assessmentSaved) && <p className="text-xs text-muted-foreground">Complete all four sections and save the assessment before recording a terminal decision.</p>}
+        {terminalDecision && (!assessmentComplete || !assessmentSaved) && <p className="text-xs text-muted-foreground">Complete and save all four approved sections before recording a terminal decision. Part 4 is currently pending.</p>}
       </form>}
       {e.qualification_status === "qualified" && !e.entry_selected_at && <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); save.mutate({ action: "entry", entryType: entry }); }}>
         <label className="block text-sm">Service entry arrangement<select required className={control} value={entry} onChange={(event) => setEntry(event.target.value)}><option value="">Choose entry type</option><option value="pilot">Pilot - approved free access</option><option value="commercial">Commercial - paid monthly package</option></select></label>
