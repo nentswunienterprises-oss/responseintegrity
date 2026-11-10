@@ -143,8 +143,11 @@ export default function PracticalBenchmarkRun({
           <PracticalRecordingRecoveryControls
             runId={q.data.runId} assignmentId={assignmentId} proofKey={proofKey}/>}
         {recordingHeld&&<p className="rounded-md border p-3 text-sm font-medium">
-          Recording incident recorded. This assessment is held until the assigned TD
-          makes a recovery decision. Do not continue with a broken original recording.
+          {q.data.recovery?.decision==="deny"
+            ? "The assigned TD denied recovery. This attempt is closed and cannot be repeated."
+            : q.data.recovery?.decision==="integrity_review"
+            ? "This attempt is locked pending authorised integrity resolution. No replacement attempt is permitted."
+            : "Recording incident recorded. This assessment is held until the assigned TD makes a recovery decision. Do not continue with a broken original recording."}
         </p>}
         {!recordingHeld&&current&&!q.data.completed&&q.data.runId&&
           <PracticalCaseWorkbench runId={q.data.runId} caseSequence={current.sequence}
