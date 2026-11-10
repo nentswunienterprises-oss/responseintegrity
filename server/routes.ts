@@ -21917,29 +21917,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const totalTutors = assignments.length;
         let totalStudents = 0;
 
-        if (tutorIds.length > 0) {
-          const enrollmentCountResult = await supabase
-            .from("parent_enrollments")
-            .select("id", { count: "exact", head: true })
-            .in("assigned_tutor_id", tutorIds)
-            .in("status", activeEnrollmentStatuses);
-          if (enrollmentCountResult.error) {
-            throw new Error(`Failed to load Pod enrollment count: ${enrollmentCountResult.error.message}`);
-          }
-          totalStudents = enrollmentCountResult.count ?? 0;
-        }
-
         let sessionsCompleted = 0;
         if (tutorIds.length > 0) {
-          const sessionCountResult = await supabase
-            .from("scheduled_sessions")
-            .select("id", { count: "exact", head: true })
-            .in("tutor_id", tutorIds)
-            .eq("status", "completed");
-          if (sessionCountResult.error) {
-            throw new Error(`Failed to load completed-session count: ${sessionCountResult.error.message}`);
-          }
-          sessionsCompleted = sessionCountResult.count ?? 0;
+          // COO Pod statistics are a protected server projection. Use the
+          // configured PostgreSQL connection rather than publishable-key
+          // PostgREST reads; both identity columns are varchar in the schema.
+          const [enrollmentCountResult, sessionCountResult] = await Promise.all([
+            pool.query(
+              `SELECT COUNT(*)::integer AS total
+                 FROM public.parent_enrollments
+                WHERE assigned_tutor_id = ANY($1::varchar[])
+                  AND status::text = ANY($2::text[])`,
+              [tutorIds, activeEnrollmentStatuses],
+            ),
+            pool.query(
+              `SELECT COUNT(*)::integer AS total
+                 FROM public.scheduled_sessions
+                WHERE tutor_id = ANY($1::varchar[])
+                  AND status = 'completed'`,
+              [tutorIds],
+            ),
+          ]);
+          totalStudents = Number(enrollmentCountResult.rows[0]?.total ?? 0);
+          sessionsCompleted = Number(sessionCountResult.rows[0]?.total ?? 0);
         }
         
         res.json({
