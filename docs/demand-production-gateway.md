@@ -8,6 +8,21 @@ Demand: awareness → Production Link (optional for organic) → signup / captur
 
 Capacity: Production Link → Specialist application → Training → Sandbox → Trial → Certified Live → deployment. `assignment_lane` governs the Specialist placement; it does not choose the family's service arrangement. An approved Pilot can use the Certified Live lane. An attributed family can enter Commercial.
 
+## Four-part parent qualification assessment
+
+The existing COO Production Economy review is the staff workspace; this is not a second CRM or a new intake channel. Each new-flow application now carries a structured, editable assessment with four fixed sections, matching the approved Parent Qualification & Commercial Readiness Standard:
+
+1. **Parent Experience**
+2. **Support Preferences**
+3. **RI Explanation and Concept Response**
+4. **Commercial Readiness**
+
+Each section separates the parent's account, evidence discussed, interviewer observation, and any follow-up required. Staff may save partial progress during the conversation. A terminal `qualified` or `not_qualified` decision is blocked at the database layer until all four sections contain recorded evidence. The assessment is locked once the decision is completed. Historical version-0 and synthetic Sandbox records cannot receive retrospective assessment evidence.
+
+The assessment records what was said and observed; it does not automatically infer suitability, affordability, or a qualification outcome. A commercial affordability constraint must not be treated as an educational suitability failure. The existing Pilot / Commercial choice remains a separate, deliberate post-qualification decision. Package prices and entitlements remain sourced from `shared/servicePackages.ts`.
+
+Territorial adaptation may change local outreach language, channels and scheduling, but it must not change these four sections, the evidence distinction, decision gate, or national package terms. Territory ownership and routing are a subsequent operating-model layer; this implementation does not yet create or assign territories.
+
 ## Source, decisions and gates
 
 `users.production_link_code` and the earliest attributed `leads` row preserve first valid attribution. Parent `affiliate_code` is retained as a compatibility mirror. Code, original tracking source and campaign cannot be replaced once attributed. Conflicting later links are rejected. Existing attribution survives link revocation; new claims require an active Demand link. UTM data supplements lineage. Account/profile refresh omits attribution fields rather than clearing them. Password signup, OAuth and Gateway share `captureDemandParent`.
@@ -24,7 +39,7 @@ Both assignment APIs check the Demand gate before creating students/Trial placem
 
 ## Database changes
 
-Apply `migrations/20260916191307_demand_production_gateway.sql` **before** deploying the application. Generated with the Supabase CLI and moved into this repository's existing migration directory. The migration is transactional and repeatable.
+Apply the migrations in timestamp order **before** deploying the application. The existing Demand Gateway migration establishes the original gate; `20261110100000_parent_qualification_assessment.sql` adds persisted four-part assessment evidence and `20261110101000_enforce_four_part_parent_qualification.sql` prevents terminal decisions without all four sections. Both additions are transactional and repeatable; neither backfills historical records.
 
 | Table / column | Purpose | New default | Existing rows / migration |
 |---|---|---|---|
@@ -64,4 +79,4 @@ Canonical economics come from `shared/servicePackages.ts`: R200/session; 8/12/16
 
 ## Proof boundary
 
-`npm run test:demand-production` applies the actual migration to isolated PGlite PostgreSQL, exercises role/constraint boundaries and then uses the real signup, Gateway, decision, assignment, proposal and sandbox-payment HTTP handlers through a narrow test PostgREST transport. No production database or payment provider is contacted. Supabase Auth identity issuance and session transport are synthetic; actual route authentication/role checks run. The Specialist intro/diagnosis prerequisites are seeded as fixtures, not reimplemented. Both family journeys preserve account, lead and parent lineage. The UI proof operates on synthetic records only.
+`npm run test:demand-production` applies the Demand Gateway and four-part assessment migrations to isolated PGlite PostgreSQL, exercises role/constraint boundaries and then uses the real signup, Gateway, decision, assignment, proposal and sandbox-payment HTTP handlers through a narrow test PostgREST transport. No production database or payment provider is contacted. Supabase Auth identity issuance and session transport are synthetic; actual route authentication/role checks run. The Specialist intro/diagnosis prerequisites are seeded as fixtures, not reimplemented. Both family journeys preserve account, lead and parent lineage. The UI proof operates on synthetic records only.
