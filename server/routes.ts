@@ -2011,34 +2011,17 @@ function isSandboxEnrollmentForTutor(enrollment: any, tutorId?: string) {
 }
 
 async function loadTutorAssignmentLoadStats(tutorId: string) {
-  let data: any[] | null = null;
-  let error: any = null;
-  {
-    const initial = await supabase
-      .from("parent_enrollments")
-      .select("id, status, current_step, is_sandbox_account, assignment_lane, parent_full_name, parent_email, student_full_name")
-      .eq("assigned_tutor_id", tutorId)
-      .in("status", [...ACTIVE_PARENT_ENROLLMENT_STATUSES, "awaiting_tutor_acceptance"]);
-
-    data = initial.data as any;
-    error = initial.error as any;
-  }
-
-  if (error && isMissingSandboxAccountColumnError(error)) {
-    const fallback = await supabase
-      .from("parent_enrollments")
-      .select("id, status, current_step, parent_full_name, parent_email, student_full_name")
-      .eq("assigned_tutor_id", tutorId)
-      .in("status", [...ACTIVE_PARENT_ENROLLMENT_STATUSES, "awaiting_tutor_acceptance"]);
-    data = fallback.data || [];
-    error = fallback.error;
-  }
-
-  if (error) {
-    throw new Error(`Failed to load tutor assignment stats: ${error.message}`);
-  }
-
-  const enrollments = data || [];
+  // Read through the server's configured PostgreSQL connection. IDs are
+  // varchar in the canonical schema; do not cast them to UUID.
+  const result = await pool.query(
+    `SELECT id, status, current_step, is_sandbox_account, assignment_lane,
+            parent_full_name, parent_email, student_full_name
+       FROM public.parent_enrollments
+      WHERE assigned_tutor_id = $1
+        AND status = ANY($2::text[])`,
+    [tutorId, [...ACTIVE_PARENT_ENROLLMENT_STATUSES, "awaiting_tutor_acceptance"]],
+  );
+  const enrollments = result.rows || [];
   const sandboxEnrollments = enrollments.filter((enrollment: any) =>
     isSandboxEnrollmentForTutor(enrollment, tutorId)
   );
@@ -2050,7 +2033,6 @@ async function loadTutorAssignmentLoadStats(tutorId: string) {
       !isSandboxEnrollmentForTutor(enrollment, tutorId) &&
       String(enrollment.assignment_lane || "commercial").trim().toLowerCase() !== "trial"
   );
-
   return {
     activeAssignmentCount: enrollments.length,
     sandboxParentCount: sandboxEnrollments.length,
@@ -21905,21 +21887,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     requireRole(["coo"]),
     async (req: Request, res: Response) => {
       try {
-        const { data: assignments } = await supabase
-          .from("tutor_assignments")
-          .select("tutor_id");
-        
-        console.log("📋 Raw assignments from DB:", assignments);
-        
-        if (!assignments) {
-          console.log("📋 No assignments found, returning empty array");
-          return res.json([]);
-        }
-        
-        // Transform snake_case to camelCase (tutor_id -> tutorId)
-        // Return just the tutor IDs to check against
-        const tutorIds = assignments.map((a: any) => a.tutor_id);
-        console.log("📋 All assigned tutor IDs:", tutorIds);
+        const assignmentResult = await pool.query(
+          `SELECT tutor_id FROM public.tutor_assignments ORDER BY created_at ASC`
+        );
+        // A successful zero-row result is a legitimate empty roster. Query
+        // failures throw and reach the explicit 500 response below.
+        const tutorIds = assignmentResult.rows.map((assignment: any) => assignment.tutor_id);
         res.json(tutorIds);
       } catch (error) {
         console.error("Error fetching all tutor assignments:", error);
@@ -21945,22 +21918,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let totalStudents = 0;
 
         if (tutorIds.length > 0) {
-          const { count } = await supabase
+          const enrollmentCountResult = await supabase
             .from("parent_enrollments")
             .select("id", { count: "exact", head: true })
             .in("assigned_tutor_id", tutorIds)
             .in("status", activeEnrollmentStatuses);
-          totalStudents = count || 0;
+          if (enrollmentCountResult.error) {
+            throw new Error(`Failed to load Pod enrollment count: ${enrollmentCountResult.error.message}`);
+          }
+          totalStudents = enrollmentCountResult.count ?? 0;
         }
 
         let sessionsCompleted = 0;
         if (tutorIds.length > 0) {
-          const { count } = await supabase
+          const sessionCountResult = await supabase
             .from("scheduled_sessions")
             .select("id", { count: "exact", head: true })
             .in("tutor_id", tutorIds)
             .eq("status", "completed");
-          sessionsCompleted = count || 0;
+          if (sessionCountResult.error) {
+            throw new Error(`Failed to load completed-session count: ${sessionCountResult.error.message}`);
+          }
+          sessionsCompleted = sessionCountResult.count ?? 0;
         }
         
         res.json({
