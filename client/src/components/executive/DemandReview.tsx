@@ -37,7 +37,7 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
     },
   });
   const setAssessmentField = (section: ParentQualificationSection, field: "parentAccount" | "evidence" | "interviewerObservation" | "followUp", value: string) => {
-    setAssessmentSaved(false);\n    setAssessmentSaved(false);
+    setAssessmentSaved(false);
     setAssessment((current) => ({ ...current, [section]: { ...current[section], [field]: value } }));
   };
   const sectionComplete = (section: ParentQualificationSection) => {
