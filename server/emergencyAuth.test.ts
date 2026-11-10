@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import {
   authenticateEmergencyUser,
   createEmergencyTutorAccount,
+  ensureEmergencyAuthUserIdentity,
   resetEmergencyLoginAttempts,
 } from "./emergencyAuth";
 
@@ -213,8 +214,11 @@ test("emergency tutor signup uses one transaction and persists only a bcrypt cre
   assert.equal(result.id, "new-tutor-id");
   const userInsert = queries.find(({ text }) => text.includes("INSERT INTO public.users"));
   const credentialInsert = queries.find(({ text }) => text.includes("private.emergency_auth_credentials"));
+  const authMirrorInsert = queries.find(({ text }) => text.includes("INSERT INTO auth.users"));
   assert.ok(userInsert);
   assert.ok(credentialInsert);
+  assert.ok(authMirrorInsert);
+  assert.ok(queries.indexOf(authMirrorInsert!) < queries.findIndex(({ text }) => text === "COMMIT"));
   assert.equal(userInsert?.text.includes("password"), false);
   assert.equal(credentialInsert?.values?.includes("StrongPass!123"), false);
   assert.match(String(credentialInsert?.values?.[1]), /^\$2[aby]\$/);
@@ -710,5 +714,115 @@ test("local non-Proof development does not self-heal a missing sandbox credentia
     else process.env.DATABASE_URL = previousDatabaseUrl;
     if (previousSupabaseUrl === undefined) delete process.env.SUPABASE_URL;
     else process.env.SUPABASE_URL = previousSupabaseUrl;
+  }
+});
+
+
+test("emergency Sandbox provisioning can create a passwordless Auth identity mirror for an existing Specialist", async () => {
+  const previousEmergencyMode = process.env.EMERGENCY_DB_MODE;
+  const previousVercelEnv = process.env.VERCEL_ENV;
+  process.env.EMERGENCY_DB_MODE = "true";
+  delete process.env.VERCEL_ENV;
+
+  const queries: Array<{ text: string; values?: unknown[] }> = [];
+  const pool = {
+    query: async (text: string, values?: unknown[]) => {
+      queries.push({ text, values });
+      if (text.includes("FROM public.users")) {
+        return {
+          rows: [{
+            id: "existing-tutor-id",
+            email: "existing@example.com",
+            role: "tutor",
+            name: "Existing Tutor",
+            first_name: "Existing",
+            last_name: "Tutor",
+          }],
+        };
+      }
+      if (text.includes("FROM auth.users") && text.includes("id::text = $1::text")) {
+        return { rows: [] };
+      }
+      if (text.includes("FROM auth.users") && text.includes("lower(email)")) {
+        return { rows: [] };
+      }
+      if (text.includes("INSERT INTO auth.users")) {
+        return { rows: [{ id: "existing-tutor-id" }] };
+      }
+      return { rows: [] };
+    },
+  } as any;
+
+  try {
+    const result = await ensureEmergencyAuthUserIdentity(pool, "existing-tutor-id");
+    assert.deepEqual(result, { status: "created", created: true });
+    const insert = queries.find(({ text }) => text.includes("INSERT INTO auth.users"));
+    assert.ok(insert);
+    assert.match(insert!.text, /emergency-db-session/);
+    assert.equal(insert!.text.includes("encrypted_password"), false);
+  } finally {
+    if (previousEmergencyMode === undefined) delete process.env.EMERGENCY_DB_MODE;
+    else process.env.EMERGENCY_DB_MODE = previousEmergencyMode;
+    if (previousVercelEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = previousVercelEnv;
+  }
+});
+
+test("emergency auth verifies the private credential behind an emergency Auth identity mirror", async () => {
+  resetEmergencyLoginAttempts();
+  const previousEmergencyMode = process.env.EMERGENCY_DB_MODE;
+  const previousVercelEnv = process.env.VERCEL_ENV;
+  process.env.EMERGENCY_DB_MODE = "true";
+  delete process.env.VERCEL_ENV;
+
+  const credentialHash = await bcrypt.hash(password, 4);
+  const mirrorUser = await createAuthUser({
+    id: "emergency-mirror-user",
+    email: "specialist@example.com",
+    encrypted_password: null,
+    email_confirmed_at: null,
+    raw_app_meta_data: {
+      provider: "emergency-db-session",
+      providers: ["emergency-db-session"],
+    },
+  });
+  const queries: string[] = [];
+  const pool = {
+    query: async (text: string) => {
+      queries.push(text);
+      if (text.includes("FROM auth.users")) return { rows: [mirrorUser] };
+      if (text.includes("FROM public.users")) {
+        return {
+          rows: [{
+            id: "emergency-mirror-user",
+            email: "specialist@example.com",
+            role: "tutor",
+          }],
+        };
+      }
+      if (text.includes("FROM private.emergency_auth_credentials")) {
+        return {
+          rows: [{ user_id: "emergency-mirror-user", password_hash: credentialHash }],
+        };
+      }
+      return { rows: [] };
+    },
+  } as any;
+
+  try {
+    const result = await authenticateEmergencyUser(
+      pool,
+      "specialist@example.com",
+      password,
+      "127.0.0.1",
+    );
+    assert.equal("authUser" in result, true);
+    if ("authUser" in result) assert.equal(result.authUser.id, "emergency-mirror-user");
+    assert.equal(queries.some((text) => text.includes("FROM private.emergency_auth_credentials")), true);
+  } finally {
+    if (previousEmergencyMode === undefined) delete process.env.EMERGENCY_DB_MODE;
+    else process.env.EMERGENCY_DB_MODE = previousEmergencyMode;
+    if (previousVercelEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = previousVercelEnv;
   }
 });
