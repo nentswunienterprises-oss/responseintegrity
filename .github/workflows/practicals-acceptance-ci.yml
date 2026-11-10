@@ -3,6 +3,18 @@ on:
   pull_request:
     paths:
       - 'shared/practicalExecuteChallenge*'
+      - 'shared/practicalBenchmarkPolicy*'
+      - 'shared/practicalPrivateBankIntegrity*'
+      - 'shared/practicalRepObservation*'
+      - 'server/practicalBenchmarkBank*'
+      - 'server/practicalBenchmarkRuns.ts'
+      - 'server/practicalCasePlans*'
+      - 'server/practicalCaseWork.ts'
+      - 'server/practicalRecordingRecovery.ts'
+      - 'server/privatePracticalBenchmarkBank.ts'
+      - 'server/privatePracticalBankSourceBoundary.test.ts'
+      - 'scripts/checkPracticalsTypes.cjs'
+      - 'scripts/productionMigrationAuthority.test.ts'
       - 'shared/capabilityPracticalEvidence.ts'
       - 'shared/practicalEntryGate*'
       - 'server/sandboxEnvironment.ts'
@@ -23,7 +35,53 @@ on:
   push:
     branches: [main]
     paths:
+name: Practicals Acceptance CI
+on:
+  pull_request:
+    paths:
       - 'shared/practicalExecuteChallenge*'
+      - 'shared/practicalBenchmarkPolicy*'
+      - 'shared/practicalPrivateBankIntegrity*'
+      - 'shared/practicalRepObservation*'
+      - 'server/practicalBenchmarkBank*'
+      - 'server/practicalBenchmarkRuns.ts'
+      - 'server/practicalCasePlans*'
+      - 'server/practicalCaseWork.ts'
+      - 'server/practicalRecordingRecovery.ts'
+      - 'server/privatePracticalBenchmarkBank.ts'
+      - 'migrations/20261011_practicals_shared_video_benchmarks_v1.sql'
+      - 'shared/practicalBenchmarkPolicy*'
+      - 'shared/practicalPrivateBankIntegrity*'
+      - 'shared/practicalRepObservation*'
+      - 'server/practicalBenchmarkBank*'
+      - 'server/practicalBenchmarkRuns.ts'
+      - 'server/practicalCasePlans*'
+      - 'server/practicalCaseWork.ts'
+      - 'server/practicalRecordingRecovery.ts'
+      - 'server/privatePracticalBenchmarkBank.ts'
+      - 'server/privatePracticalBankSourceBoundary.test.ts'
+      - 'scripts/checkPracticalsTypes.cjs'
+      - 'scripts/productionMigrationAuthority.test.ts'
+      - 'shared/capabilityPracticalEvidence.ts'
+      - 'shared/practicalEntryGate*'
+      - 'server/sandboxEnvironment.ts'
+      - 'client/src/components/sandbox/SandboxReadinessAssessmentCard.tsx'
+      - 'server/practicalExecuteChallenge.ts'
+      - 'server/capabilityPracticalEvidence.ts'
+      - 'server/routes/capabilityPracticalEvidence.ts'
+      - 'client/src/components/practicals/**'
+      - 'client/src/pages/operational/tutor/practicals.tsx'
+      - 'client/src/pages/operational/td/practicals-review.tsx'
+      - 'migrations/20261009_practicals_evidence_stage_v1.sql'
+      - 'migrations/20261011_practicals_shared_video_benchmarks_v1.sql'
+      - 'config/production-migration-authority.json'
+      - '.github/workflows/practicals-acceptance-ci.yml'
+      - 'scripts/practicalsMigrationIntegration.test.ts'
+      - 'scripts/practicalsProductionUnauthenticated.test.ts'
+      - 'package.json'
+  push:
+    branches: [main]
+    paths:
       - 'server/practicalExecuteChallenge.ts'
       - 'server/capabilityPracticalEvidence.ts'
       - 'client/src/components/practicals/**'
@@ -55,6 +113,8 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts
+      - name: Scoped Practicals TypeScript contract
+        run: node scripts/checkPracticalsTypes.cjs
       - name: Versioned adaptive Execute contract and security boundaries
         run: npm run test:practicals
       - name: PostgreSQL schema and immutable evidence integration
