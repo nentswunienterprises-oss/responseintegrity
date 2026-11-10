@@ -130,6 +130,7 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
     const approvedSnapshot={
       practicalsReady:true, policyStatus:"approved", policyVersion:2,
       bankKey:"sandbox-ci-only", bankVersion:3,
+      qualification:{policyId:"ri-sandbox-qualification",policyVersion:1,qualificationReady:true,evidenceFingerprint:"isolated-fixture-fingerprint"},
     };
     await db.query(`INSERT INTO public.tutor_sandbox_mock_assessments
       (tutor_id,tutor_assignment_id,decision,checklist,evidence_note,assessed_by_user_id)
@@ -157,11 +158,10 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
        evidenceId:String(row.id),status:String(row.outcome),
     }));
     const candidateDecision={decision:"approved",proof_evidence_ids:proofIds};
-    assert.equal(derivePracticalCompletionGate({
-      entryReady:true,
-      proofs:gateProofs,
-      tdDecision:candidateDecision,
-    }).readyForTrial,true);
+    // Historical Prepare v1 / Execute v2 / Evidence v1 evidence remains valid history, not current qualification.
+    assert.equal(derivePracticalCompletionGate({entryReady:true,proofs:gateProofs,tdDecision:candidateDecision}).readyForTrial,false);
+    const currentVersionProofs=gateProofs.map(proof=>({...proof,version:({prepare:2,execute:3,evidence:2} as Record<string,number>)[proof.key]}));
+    assert.equal(derivePracticalCompletionGate({entryReady:true,proofs:currentVersionProofs,tdDecision:candidateDecision}).readyForTrial,true);
     assert.equal(derivePracticalCompletionGate({
       entryReady:true,
       proofs:gateProofs.slice(0,1),
