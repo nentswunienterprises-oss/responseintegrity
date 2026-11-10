@@ -41,7 +41,7 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
     const item = assessment[section];
     return Boolean(item?.parentAccount?.trim() || item?.evidence?.trim() || item?.interviewerObservation?.trim());
   };
-  const assessmentComplete = PARENT_QUALIFICATION_SECTIONS.every(sectionComplete);
+  const assessmentComplete = PARENT_QUALIFICATION_SECTIONS.every(sectionComplete);\n  const terminalDecision = ["qualified", "not_qualified"].includes(status);
   const person = (id: string) => id ? staff.find((user) => user.id === id)?.name || id : "Unset";
   const sla = lineage.handoverSla;
   const slaLabel = sla.status === "breached" ? "Breached" : sla.status === "within_standard" ? "Within standard"
@@ -77,6 +77,17 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
       </div>
     </details>
     {e.qualification_note && <p className="text-sm whitespace-pre-wrap">Decision context: {e.qualification_note}</p>}
+    {e.qualification_assessment && <details className="rounded-md border p-3 text-sm"><summary className="cursor-pointer font-medium">View saved four-part qualification evidence</summary>
+      <div className="mt-3 space-y-4">{PARENT_QUALIFICATION_SECTIONS.map((section) => {
+        const item = e.qualification_assessment[section] || {};
+        return <section key={section}><h4 className="font-semibold">{sectionLabels[section]}</h4>
+          {item.parentAccount && <p className="mt-1 whitespace-pre-wrap"><strong>Parent's account:</strong> {item.parentAccount}</p>}
+          {item.evidence && <p className="mt-1 whitespace-pre-wrap"><strong>Evidence:</strong> {item.evidence}</p>}
+          {item.interviewerObservation && <p className="mt-1 whitespace-pre-wrap"><strong>Interviewer observation:</strong> {item.interviewerObservation}</p>}
+          {item.followUp && <p className="mt-1 whitespace-pre-wrap"><strong>Follow-up:</strong> {item.followUp}</p>}
+        </section>;
+      })}</div>
+    </details>}
     {e.handover_note && <p className="text-sm whitespace-pre-wrap">Agreed next action: {e.handover_note}</p>}
     {legacy && <p className="text-sm text-muted-foreground">Existing service remains operational. Historical qualification and handover are not inferred.</p>}
     {!legacy && !e.qualification_completed_at && <section className="border-t pt-4 space-y-4">
@@ -101,8 +112,8 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
         <label className="block text-sm">Qualification status<select className={control} value={status} onChange={(event) => setStatus(event.target.value)}>{QUALIFICATION_STATUSES.map((value) => <option key={value} value={value}>{words(value)}</option>)}</select></label>
         <label className="block text-sm">Responsible owner<select className={control} value={owner} onChange={(event) => setOwner(event.target.value)}><option value="">Choose owner</option>{staff.map((user) => <option key={user.id} value={user.id}>{user.name} ({user.role})</option>)}</select></label>
         <label className="block text-sm">Decision note / follow-up context<textarea className={control} maxLength={2000} value={note} onChange={(event) => setNote(event.target.value)} required={["qualified", "not_qualified"].includes(status)} /></label>
-        <Button disabled={save.isPending || !assessmentComplete}>Save qualification</Button>
-        {!assessmentComplete && <p className="text-xs text-muted-foreground">Complete and save evidence in all four assessment sections before recording a terminal decision.</p>}
+        <Button disabled={save.isPending || (terminalDecision && !assessmentComplete)}>Save qualification</Button>
+        {terminalDecision && !assessmentComplete && <p className="text-xs text-muted-foreground">Complete and save evidence in all four assessment sections before recording a terminal decision.</p>}
       </form>}
       {e.qualification_status === "qualified" && !e.entry_selected_at && <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); save.mutate({ action: "entry", entryType: entry }); }}>
         <label className="block text-sm">Service entry arrangement<select required className={control} value={entry} onChange={(event) => setEntry(event.target.value)}><option value="">Choose entry type</option><option value="pilot">Pilot - approved free access</option><option value="commercial">Commercial - paid monthly package</option></select></label>
