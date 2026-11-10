@@ -110,13 +110,20 @@ function assertNoForbiddenSql(relativePath: string, sql: string) {
 }
 
 function assertTransactionCompatible(relativePath: string, sql: string) {
-  if (/\bCREATE\s+(?:UNIQUE\s+)?INDEX\s+CONCURRENTLY\b/i.test(sql)) {
+  if (/\\bCREATE\\s+(?:UNIQUE\\s+)?INDEX\\s+CONCURRENTLY\\b/i.test(sql)) {
     fail(relativePath + " uses CREATE INDEX CONCURRENTLY and cannot run in the transactional production runner.");
   }
-  if (/\bVACUUM\b/i.test(sql)) {
+  if (/\\bVACUUM\\b/i.test(sql)) {
     fail(relativePath + " uses VACUUM and cannot run in the transactional production runner.");
   }
-  if (/^\s*(BEGIN|START\s+TRANSACTION|COMMIT|ROLLBACK)\b/im.test(sql)) {
+
+  // PL/pgSQL function bodies are dollar-quoted strings. Their BEGIN/END
+  // blocks are procedural syntax, not transaction control at migration scope.
+  // Remove dollar-quoted bodies before checking top-level transaction commands.
+  const migrationSql = sql.replace(/\\$([A-Za-z_][A-Za-z0-9_]*)?\\$[\\s\\S]*?\\$\\1\\$/g, (body) =>
+    body.replace(/[^\\r\\n]/g, " "),
+  );
+  if (/^\\s*(BEGIN|START\\s+TRANSACTION|COMMIT|ROLLBACK)\\b/im.test(migrationSql)) {
     fail(relativePath + " contains explicit transaction control. The production runner owns the transaction boundary.");
   }
 }
