@@ -2051,6 +2051,30 @@ function TutorStudentsSection({
 
   const activeStudentCount = students?.length || studentCount || 0;
   const tutorAtCapacity = activeStudentCount >= maxStudentsPerTutor;
+  const provisionFreshSandboxAccountMutation = useMutation({
+    mutationFn: async () =>
+      apiRequest(
+        "POST",
+        `/api/coo/tutors/${tutorId}/provision-fresh-sandbox-account`,
+      ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: [`/api/coo/tutors/${tutorId}/students`],
+      });
+      await queryClient.invalidateQueries({ queryKey: ["/api/coo/pods"] });
+      toast({
+        title: "Fresh Sandbox account provisioned",
+        description: "The new assignment is awaiting Specialist acceptance. Review it through the normal assignment workflow.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Could not provision fresh Sandbox account",
+        description: error.message || "No new account was confirmed. Check the roster before retrying.",
+        variant: "destructive",
+      });
+    },
+  });
 
   return (
     <div className="mt-4 pt-4 border-t space-y-4">
@@ -2061,7 +2085,29 @@ function TutorStudentsSection({
             Drill down into the students currently assigned to {tutorName}.
           </p>
         </div>
-        <Badge variant="outline">{activeStudentCount}/{maxStudentsPerTutor}</Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline">{activeStudentCount}/{maxStudentsPerTutor}</Badge>
+          {String(operationalMode || "").toLowerCase() === "sandbox" ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-2"
+              disabled={provisionFreshSandboxAccountMutation.isPending || isLoading}
+              onClick={() => {
+                const confirmed = window.confirm(
+                  `Create one genuinely new Sandbox student for ${tutorName}?\n\nThe existing six assignments will remain unchanged. The new assignment will require Specialist acceptance.`
+                );
+                if (confirmed) provisionFreshSandboxAccountMutation.mutate();
+              }}
+              data-testid={`button-provision-fresh-sandbox-${tutorId}`}
+            >
+              <Plus className="h-4 w-4" />
+              {provisionFreshSandboxAccountMutation.isPending
+                ? "Provisioning..."
+                : "Provision fresh Sandbox student"}
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <TrialCertificationPanel
