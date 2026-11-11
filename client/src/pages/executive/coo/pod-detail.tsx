@@ -2040,6 +2040,7 @@ function TutorStudentsSection({
   onViewTopicConditioning,
   onViewCommunication,
 }: TutorStudentsSectionProps) {
+  const { toast } = useToast();
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const canAssignParents = isTutorEligibleForParentAssignment(operationalMode);
   const { data: students, isLoading } = useQuery<any[]>({
