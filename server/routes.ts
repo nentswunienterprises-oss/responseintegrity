@@ -1483,6 +1483,7 @@ async function reactivateDetachedSandboxEnrollment(enrollment: any, tutorId: str
 async function autoProvisionSandboxAccountsForTutorUnlocked(
   tutorId: string,
   minimumCount = SANDBOX_REQUIRED_ACCOUNT_COUNT,
+  options: { reuseDetached?: boolean } = {},
 ) {
   const certificationMode = await getTutorCertificationMode(tutorId);
   if (certificationMode !== "sandbox") {
@@ -1571,7 +1572,9 @@ async function autoProvisionSandboxAccountsForTutorUnlocked(
 
   const missingSandboxCount = minimumCount - existingSandboxCount;
   const { data: detachedSandboxEnrollments, error: detachedSandboxError } =
-    await loadDetachedSandboxEnrollmentsForTutor(tutorId);
+    options.reuseDetached === false
+      ? { data: [] as any[], error: null }
+      : await loadDetachedSandboxEnrollmentsForTutor(tutorId);
 
   if (detachedSandboxError) {
     throw new Error(`Failed to load detached sandbox enrollments: ${detachedSandboxError.message}`);
@@ -1816,11 +1819,12 @@ async function autoProvisionSandboxAccountsForTutorUnlocked(
 async function autoProvisionSandboxAccountsForTutor(
   tutorId: string,
   minimumCount = SANDBOX_REQUIRED_ACCOUNT_COUNT,
+  options: { reuseDetached?: boolean } = {},
 ) {
   return withSandboxProvisionLock(
     pool,
     tutorId,
-    () => autoProvisionSandboxAccountsForTutorUnlocked(tutorId, minimumCount),
+    () => autoProvisionSandboxAccountsForTutorUnlocked(tutorId, minimumCount, options),
     { transactionScoped: true },
   );
 }
@@ -13072,6 +13076,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         console.error("Error fetching pod team:", error);
         return res.status(500).json({ message: "Failed to fetch pod team" });
+      }
+    }
+  );
+
+  // Provision one additional, genuinely new Sandbox account without reusing detached identities.
+  // This is intentionally separate from the six-account reconciliation endpoint.
+  app.post(
+    "/api/coo/tutors/:tutorId/provision-fresh-sandbox-account",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        const { tutorId } = req.params;
+        const targetCount = SANDBOX_REQUIRED_ACCOUNT_COUNT + 1;
+        const result = await autoProvisionSandboxAccountsForTutor(
+          tutorId,
+          targetCount,
+          { reuseDetached: false },
+        );
+        if (result.certificationMode !== "sandbox") {
+          return res.status(400).json({
+            message: `Tutor must be in sandbox mode to provision a fresh account. Current status: ${result.certificationMode}`,
+          });
+        }
+
+        const { data: assignedSandboxEnrollments, error } = await supabase
+          .from("parent_enrollments")
+          .select("id")
+          .eq("assigned_tutor_id", tutorId)
+          .eq("is_sandbox_account", true)
+          .in("status", [...ACTIVE_PARENT_ENROLLMENT_STATUSES]);
+
+        if (error) {
+          throw new Error(`Failed to verify Sandbox roster after provisioning: ${error.message}`);
+        }
+
+        const rosterCount = assignedSandboxEnrollments?.length || 0;
+        if (rosterCount < targetCount) {
+          return res.status(409).json({
+            message: "Fresh Sandbox account was not fully provisioned; roster remains below the requested target.",
+            rosterCount,
+            targetCount,
+            accounts: result.createdAccounts,
+          });
+        }
+
+        return res.json({
+          message: result.createdAccounts.length > 0
+            ? "Provisioned a fresh Sandbox account. The new assignment is awaiting Specialist acceptance."
+            : "The additional Sandbox roster slot already exists; no duplicate account was created.",
+          rosterCount,
+          targetCount,
+          accounts: result.createdAccounts,
+        });
+      } catch (error) {
+        console.error("Error provisioning fresh sandbox account:", error);
+        return res.status(500).json({ message: "Failed to provision fresh sandbox account" });
       }
     }
   );
