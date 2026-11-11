@@ -6,6 +6,10 @@
 -- the one already-correct local instant and all non-matching historical data.
 LOCK TABLE public.scheduled_sessions IN ACCESS EXCLUSIVE MODE;
 
+-- The trigger's UPDATE OF column list depends on scheduled_time's current type.
+-- Drop it before altering the column, then restore the exact event contract below.
+DROP TRIGGER IF EXISTS trg_capture_tutor_trial_first_session_v2 ON public.scheduled_sessions;
+
 -- This view projects scheduled_time directly, so PostgreSQL will not permit
 -- changing the underlying column type while the view exists. Recreate it
 -- with the same projection and joins after the type conversion.
@@ -83,6 +87,11 @@ DECLARE
   RETURN NEW;
 END;
 $function$;
+
+CREATE TRIGGER trg_capture_tutor_trial_first_session_v2
+AFTER INSERT OR UPDATE OF status, type, scheduled_time, student_id, tutor_id
+ON public.scheduled_sessions
+FOR EACH ROW EXECUTE FUNCTION public.capture_tutor_trial_first_session_v2();
 
 CREATE OR REPLACE FUNCTION public.notify_scheduled_session_changes()
 RETURNS trigger
