@@ -82,9 +82,15 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
             `SELECT r.id, r.student_id, r.tutor_id, r.topic, r.starting_phase,
                     r.session_context, r.session_container, r.activity_kind,
                     r.status, r.scheduled_session_id, r.probe_history, r.decision,
+                    r.source_drill_id, d.submitted_at, d.drill AS drill_payload,
                     r.created_at, r.completed_at,
                     ss.type AS scheduled_session_type, ss.scheduled_time
                FROM public.response_integrity_diagnosis_runs r
+               LEFT JOIN public.intro_session_drills d
+                 ON d.id = r.source_drill_id
+                AND d.tutor_id = r.tutor_id
+                AND d.student_id = r.student_id
+                AND d.scheduled_session_id::text = r.scheduled_session_id::text
                LEFT JOIN public.scheduled_sessions ss
                  ON ss.id::text = r.scheduled_session_id::text
               WHERE r.tutor_id = $1
@@ -156,16 +162,36 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
         const decision = run.decision && typeof run.decision === "object" && !Array.isArray(run.decision)
           ? run.decision
           : {};
+        const drillPayload = (() => {
+          const value = run.drill_payload;
+          if (value && typeof value === "object" && !Array.isArray(value)) return value;
+          if (typeof value === "string") {
+            try { const parsed = JSON.parse(value); return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {}; }
+            catch { return {}; }
+          }
+          return {};
+        })();
+        const responseSnapshot = drillPayload.responseSnapshot && typeof drillPayload.responseSnapshot === "object"
+          ? drillPayload.responseSnapshot : {};
+        const opportunities = Array.isArray(responseSnapshot.opportunities) ? responseSnapshot.opportunities : [];
+        const savedExpectedEvidence = Array.isArray(drillPayload.evidence) ? drillPayload.evidence : [];
         const probes = history.map((probe: any, index: number) => {
           const turn = turns.get(index + 1);
+          const probeId = String(probe?.probeId || turn?.probe_id || "unknown");
+          const submitted = opportunities.find((opportunity: any) =>
+            Number(opportunity?.order) === index + 1 || String(opportunity?.probeId || "") === probeId
+          );
+          const retrospectiveEvidence = savedExpectedEvidence.filter((item: any) => String(item?.probeId || "") === probeId);
           const recordedRaw = parseJsonArray(turn?.specialist_submission?.observations).length
             ? parseJsonArray(turn.specialist_submission.observations)
             : parseJsonArray(probe?.observations);
-          const expectedRaw = turn ? parseJsonArray(turn.canonical_observations) : [];
-          const recordedObservations = recordedRaw.map(observationView);
-          const expectedObservations = turn?.canonical_observations == null
+          const capturedExpectedRaw = turn?.canonical_observations == null
             ? null
-            : expectedRaw.map(observationView);
+            : parseJsonArray(turn.canonical_observations);
+          const expectedRaw = capturedExpectedRaw ?? retrospectiveEvidence;
+          const recordedObservations = recordedRaw.map(observationView);
+          const expectedObservations = expectedRaw === null ? null : expectedRaw.map(observationView);
+          const expectedSupportEvent = turn?.actual_support_event ?? submitted?.supportEvent ?? null;
           const byDimension = new Map<string, { recorded: any; expected: any }>();
           for (const observation of recordedObservations) {
             byDimension.set(observation.dimensionId, { recorded: observation, expected: null });
@@ -191,15 +217,15 @@ export function createSandboxEvidenceDossierHandler(db: DossierDatabase) {
             narrativePreserved: typeof turn?.student_behavior === "string" && turn.student_behavior.length > 0,
             bankVersion: turn?.bank_version == null ? null : Number(turn.bank_version),
             behaviorModelVersion: turn?.behavior_model_version == null ? null : Number(turn.behavior_model_version),
-            truthPresent: turn?.canonical_observations != null,
+            truthPresent: expectedRaw !== null && expectedRaw.length > 0,
             recordedObservations,
             expectedObservations,
             comparisons,
             recordedSupportEvent: turn?.specialist_submission?.supportEvent ?? probe?.supportEvent ?? null,
-            expectedSupportEvent: turn?.actual_support_event ?? null,
-            supportEventMatched: turn?.actual_support_event == null
+            expectedSupportEvent,
+            supportEventMatched: expectedSupportEvent == null
               ? null
-              : String(turn?.specialist_submission?.supportEvent ?? probe?.supportEvent ?? "") === String(turn.actual_support_event),
+              : String(turn?.specialist_submission?.supportEvent ?? probe?.supportEvent ?? "not_recorded") === String(expectedSupportEvent),
             conditionConformed: turn?.condition_conformed ?? null,
             observationExact: turn?.observation_exact ?? null,
             matchingObservations: turn?.matching_observations == null ? null : Number(turn.matching_observations),

@@ -14,10 +14,14 @@ before(async () => {
     CREATE TABLE public.students (id text, name text, tutor_id text);
     CREATE TABLE public.users (id text, name text);
     CREATE TABLE public.scheduled_sessions (id text, type text, scheduled_time timestamptz);
+    CREATE TABLE public.intro_session_drills (
+      id text, tutor_id text, student_id text, scheduled_session_id text,
+      drill jsonb, submitted_at timestamptz
+    );
     CREATE TABLE public.response_integrity_diagnosis_runs (
       id text, student_id text, tutor_id text, topic text, starting_phase text,
       session_context text, session_container text, activity_kind text, status text,
-      scheduled_session_id text, probe_history jsonb, decision jsonb,
+      scheduled_session_id text, source_drill_id text, probe_history jsonb, decision jsonb,
       created_at timestamptz, updated_at timestamptz, completed_at timestamptz);
     CREATE TABLE public.specialist_sandbox_live_evidence_turns (
       id text, tutor_assignment_id text, tutor_id text, student_id text,
@@ -174,6 +178,28 @@ test('legacy human-readable option IDs still resolve to canonical labels', async
   const comparison = rep.comparisons.find((entry: any) => entry.fieldKey === 'immediateApply');
   assert.equal(comparison.recorded.label, 'Engaged only after extended uncertainty');
   assert.equal(comparison.expected.label, 'Engaged only after extended uncertainty');
+});
+test('intro diagnosis falls back to saved response evidence and support context when immutable capture is absent', async () => {
+  await database.exec(`
+    INSERT INTO public.intro_session_drills
+      (id,tutor_id,student_id,scheduled_session_id,drill,submitted_at)
+    VALUES ('intro-drill-a','specialist','student-a','training-session-a',
+      '{"responseSnapshot":{"opportunities":[{"order":1,"probeId":"stack.challenge_no_timer","supportEvent":"teaching"}]},"evidence":[{"probeId":"stack.challenge_no_timer","dimensionId":"execution.start","behaviorId":"valid_independent_start"}]}'::jsonb,
+      '2026-11-07 15:00:00+00');
+    UPDATE public.response_integrity_diagnosis_runs
+      SET source_drill_id = 'intro-drill-a', session_container = 'intro_session',
+          activity_kind = 'intro_diagnosis'
+      WHERE id = 'diagnosis-a';
+    DELETE FROM private.specialist_sandbox_live_evidence_truth WHERE event_id = 'diagnosis-turn-a';
+  `);
+  const result = await invoke({id:'td-a',role:'td'});
+  assert.equal(result.status,200);
+  const probe = result.body.diagnosisRuns[0].probes[0];
+  assert.equal(probe.truthPresent,true);
+  assert.equal(probe.expectedObservations[0].behaviorId,'valid_independent_start');
+  assert.equal(probe.comparisons[0].matched,false);
+  assert.equal(probe.expectedSupportEvent,'teaching');
+  assert.equal(probe.supportEventMatched,false);
 });
 test('missing canonical and condition evidence remains explicitly unresolved', async () => {
   const result = await invoke({id:'td-a',role:'td'});

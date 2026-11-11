@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { useScheduledSession, useTutorRespondToSession } from "@/hooks/useScheduledSession";
 import { useParentIntroSessionStatus } from "@/hooks/useParentIntroSessionStatus";
 import { useState } from "react";
+import { formatScheduledSessionTime, getLocalTimeZone, localDateTimeToIso } from "@/lib/scheduledSessionTime";
 
 type TutorIntroSessionActionsProps = {
   studentId?: number | string | null;
@@ -30,8 +31,7 @@ export function TutorIntroSessionActions({ studentId, parentId, tutorId, session
     return <div className="text-xs text-muted-foreground">No {sessionLabel} proposed.</div>;
   }
 
-  const proposed = new Date(data.scheduled_time);
-  const formatted = proposed.toLocaleString();
+  const formatted = formatScheduledSessionTime(data.scheduled_time, data.timezone);
 
   return (
     <div className="space-y-1">
@@ -87,7 +87,12 @@ export function TutorIntroSessionActions({ studentId, parentId, tutorId, session
           <Button
             size="sm"
             variant="outline"
-            onClick={() => respond.mutate({ action: "propose_adjustment", newDate, newTime })}
+            onClick={() => {
+              const scheduledStart = localDateTimeToIso(newDate, newTime);
+              if (scheduledStart) {
+                respond.mutate({ action: "propose_adjustment", scheduledStart, timezone: getLocalTimeZone() });
+              }
+            }}
             disabled={respond.isPending || !newDate || !newTime}
           >
             Adjust

@@ -2744,7 +2744,7 @@ function IntroSessionDrillRunnerCore({
     if (!adaptiveTransition) return;
     setAdaptiveDiagnosisBlocks((prev) => [...prev, adaptiveTransition.currentBlock]);
     setAdaptiveDiagnosisMessage(
-      `${adaptiveTransition.currentPhase} scored ${adaptiveTransition.phaseScore}/100. ${
+      `${adaptiveTransition.currentPhase} evidence check is complete. ${
         adaptiveTransition.direction === "escalate"
           ? `Moving up to ${adaptiveTransition.nextPhase}.`
           : `Dropping to ${adaptiveTransition.nextPhase}.`
@@ -3135,7 +3135,7 @@ function IntroSessionDrillRunnerCore({
     }
 
     if (shouldShowTopicReferenceCapture) {
-      setTopicReferenceError("Save the Topic Reference before starting the scored drill sets.");
+      setTopicReferenceError("Save the Topic Reference before starting the independent observation sets.");
       return;
     }
 
@@ -4273,7 +4273,7 @@ function IntroSessionDrillRunnerCore({
           <div className="text-muted-foreground text-xs leading-relaxed">
             Specialist teaches first. Student does <strong>NOT</strong> solve yet.<br />
             Run <strong>Vocabulary → Recognition / Method → Ordered Steps → Reason</strong>, then ask the student to explain back.<br />
-            Sets 2 and 3 are the scored drill sets.
+            Sets 2 and 3 are the independent observation sets.
           </div>
         </div>
       )}

@@ -3,6 +3,15 @@ import { z } from "zod";
 import { isAuthenticated } from "../supabaseAuth";
 import { pool } from "../db";
 import { getExecuteChallengeStatus,startExecuteChallenge,recordExecuteTurn } from "../practicalExecuteChallenge";
+import { getBenchmarkRunStatus,startBenchmarkRun,advanceBenchmarkRun } from "../practicalBenchmarkRuns";
+import { getPracticalCaseWork,recordPracticalCaseAction } from "../practicalCaseWork";
+import {
+  getSpecialistRecordingRecovery,requestPracticalRecordingRecovery,
+  getAssignedTdRecordingRecoveryQueue,decidePracticalRecordingRecovery,
+} from "../practicalRecordingRecovery";
+import type { ExecuteResponse } from "@shared/practicalExecuteChallenge";
+import type { PracticalRecordingDeclaration, PracticalCaseReview, PracticalVideoVerification, PracticalBenchmarkProof } from "@shared/practicalBenchmarkPolicy";
+import type { CapabilityPracticalCriterionReviewInput } from "@shared/capabilityPracticalEvidence";
 import {
   buildPublicPracticalDefinitions,
   getPracticalReviewQueue,
@@ -22,7 +31,14 @@ const practicalSubmissionSchema = z.object({
   declaration: z.record(z.string(), z.unknown()),
   noRealStudentDataConfirmed: z.literal(true),
   executeChallengeId: z.string().uuid().optional(),
-});
+  benchmarkRunId: z.string().uuid(),
+  recording: z.object({
+    durationSeconds: z.number().int().positive(),
+    recordingStartedBeforeReveal: z.literal(true),
+    continuousUneditedRecording: z.literal(true),
+    setupToolsDemonstrated: z.literal(true),
+  }).strict(),
+}).strict();
 
 const practicalReviewSchema = z.object({
   rubricVersion: z.number().int().positive(),
@@ -33,6 +49,21 @@ const practicalReviewSchema = z.object({
   })).min(1),
   feedback: z.string().trim().max(4000).optional().nullable(),
   executeTraceVideoVerified: z.boolean().optional(),
+  benchmarkCaseReviews: z.array(z.object({
+    caseKey: z.string().min(1),
+    judgment: z.enum(["clear","partial","fail"]),
+    observedEvidence: z.string().trim().min(30).max(2000),
+    videoTraceMatched: z.boolean(),
+  }).strict()).length(3),
+  videoVerification: z.object({
+    observedDurationSeconds:z.number().int().positive(),
+    recordingContinuous:z.boolean(),recordingBeginsBeforeReveal:z.boolean(),
+    allThreeCasesVisible:z.boolean(),environmentAndToolsVisible:z.boolean(),
+    specialistScreenFaceVoiceObservable:z.boolean(),
+    recordingConsentVerified:z.boolean(),recordingAccessRestricted:z.boolean(),
+    noRealStudentDataOrBystanders:z.boolean(),
+    flaggedCutOrManipulation:z.boolean(),flaggedTechnicalInterruption:z.boolean(),
+  }).strict(),
 }).strict();
 
 function requireSpecialist(req: Request, res: Response) {
@@ -119,6 +150,8 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
           declaration: payload.declaration,
           noRealStudentDataConfirmed: payload.noRealStudentDataConfirmed,
           executeChallengeId: payload.executeChallengeId || null,
+          benchmarkRunId: payload.benchmarkRunId,
+          recording: payload.recording as PracticalRecordingDeclaration,
         });
 
         return res.status(201).json(result);
@@ -128,6 +161,128 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
     },
   );
 
+
+  type ConfirmedBenchmark={tutorAssignmentId:string;proofKey:PracticalBenchmarkProof};
+  const proofKeySchema=z.enum(["prepare","execute","evidence"]);
+  const benchmarkInput=z.object({
+    tutorAssignmentId:z.string().trim().min(1),
+    proofKey:proofKeySchema,
+  }).strict();
+  const requireEntry=async(tutorAssignmentId:string,tutorId:string)=>{
+    const entry=await getPracticalEntryStatus(tutorAssignmentId,tutorId);
+    if(!entry.ready)throw Object.assign(new Error(entry.blockers.join(" ")),{status:403});
+  };
+  app.get("/api/tutor/capability-practicals/benchmark",isAuthenticated,async(req,res)=>{
+    try {
+      const user=requireSpecialist(req,res);if(!user)return;
+      const input=benchmarkInput.parse({
+        tutorAssignmentId:req.query.tutorAssignmentId,
+        proofKey:req.query.proofKey,
+      }) as ConfirmedBenchmark;
+      await requireEntry(input.tutorAssignmentId,String(user.id));
+      return res.json(await getBenchmarkRunStatus({...input,tutorId:String(user.id)}));
+    }catch(error){return respondError(res,error,"Failed to load system-issued Practicals case.");}
+  });
+  app.post("/api/tutor/capability-practicals/benchmark/start",isAuthenticated,async(req,res)=>{
+    try {
+      const user=requireSpecialist(req,res);if(!user)return;
+      const input=benchmarkInput.extend({
+        preflightConfirmed:z.literal(true),
+        recordingStartedBeforeReveal:z.literal(true),
+        consentToRecording:z.literal(true),privacyScopeConfirmed:z.literal(true),
+      }).parse(req.body) as ConfirmedBenchmark & {
+        preflightConfirmed:true;recordingStartedBeforeReveal:true;
+        consentToRecording:true;privacyScopeConfirmed:true;
+      };
+      await requireEntry(input.tutorAssignmentId,String(user.id));
+      return res.status(201).json(await startBenchmarkRun({...input,tutorId:String(user.id)}));
+    }catch(error){return respondError(res,error,"Failed to issue Practicals cases.");}
+  });
+  app.post("/api/tutor/capability-practicals/benchmark/:runId/advance",isAuthenticated,async(req,res)=>{
+    try {
+      const user=requireSpecialist(req,res);if(!user)return;
+      const input=benchmarkInput.extend({
+        action:z.enum(["next","finish"]),
+      }).parse(req.body) as ConfirmedBenchmark & {action:"next"|"finish"};
+      const runId=z.string().uuid().parse(req.params.runId);
+      await requireEntry(input.tutorAssignmentId,String(user.id));
+      return res.status(201).json(await advanceBenchmarkRun({...input,runId,tutorId:String(user.id)}));
+    }catch(error){return respondError(res,error,"Failed to advance Practicals cases.");}
+  });
+
+  const workSchema=benchmarkInput.extend({stepNumber:z.number().int().positive(),
+    payload:z.record(z.string(),z.unknown())}).strict();
+  app.get("/api/tutor/capability-practicals/benchmark/:runId/work",isAuthenticated,async(req,res)=>{
+    try{
+      const user=requireSpecialist(req,res);if(!user)return;
+      const input=benchmarkInput.parse({tutorAssignmentId:req.query.tutorAssignmentId,proofKey:req.query.proofKey}) as ConfirmedBenchmark;
+      const runId=z.string().uuid().parse(req.params.runId);
+      await requireEntry(input.tutorAssignmentId,String(user.id));
+      return res.json(await getPracticalCaseWork({...input,runId,tutorId:String(user.id)}));
+    }catch(error){return respondError(res,error,"Failed to load the issued Practicals workbench.");}
+  });
+  app.post("/api/tutor/capability-practicals/benchmark/:runId/work",isAuthenticated,async(req,res)=>{
+    try{
+      const user=requireSpecialist(req,res);if(!user)return;
+      const input=workSchema.parse(req.body) as ConfirmedBenchmark & {stepNumber:number;payload:Record<string,unknown>};
+      const runId=z.string().uuid().parse(req.params.runId);
+      await requireEntry(input.tutorAssignmentId,String(user.id));
+      return res.status(201).json(await recordPracticalCaseAction({
+        ...input,runId,tutorId:String(user.id),
+      }));
+    }catch(error){return respondError(res,error,"Failed to save the live Practicals operation.");}
+  });
+
+  // A broken or unusable original recording is never replaced by the
+  // Specialist. Only an assigned TD can sign an immutable repeat authorization.
+  const recoveryReason=z.enum(["recording_interrupted","recording_unusable","accessibility_failure"]);
+  app.get("/api/tutor/capability-practicals/recording-recovery",isAuthenticated,async(req,res)=>{
+    try{
+      const user=requireSpecialist(req,res);if(!user)return;
+      const input=benchmarkInput.parse({tutorAssignmentId:req.query.tutorAssignmentId,
+        proofKey:req.query.proofKey}) as {tutorAssignmentId:string;proofKey:PracticalBenchmarkProof};
+      return res.json(await getSpecialistRecordingRecovery({...input,tutorId:String(user.id)}));
+    }catch(error){return respondError(res,error,"Could not read the recording recovery state.");}
+  });
+  app.post("/api/tutor/capability-practicals/benchmark/:runId/recovery",isAuthenticated,async(req,res)=>{
+    try{
+      const user=requireSpecialist(req,res);if(!user)return;
+      const body=benchmarkInput.extend({
+        reason:recoveryReason,incidentNote:z.string().trim().min(30).max(3000),
+      }).strict().parse(req.body) as {
+        tutorAssignmentId:string;proofKey:PracticalBenchmarkProof;
+        reason:"recording_interrupted"|"recording_unusable"|"accessibility_failure";
+        incidentNote:string;
+      };
+      const runId=z.string().uuid().parse(req.params.runId);
+      return res.status(201).json(await requestPracticalRecordingRecovery({
+        ...body,runId,tutorId:String(user.id),
+      }));
+    }catch(error){return respondError(res,error,"Unable to request a TD-authorised recording repeat.");}
+  });
+  app.get("/api/capability-review/practicals/recording-recoveries/pending",isAuthenticated,async(req,res)=>{
+    try{
+      const reviewer=requireReviewer(req,res);if(!reviewer)return;
+      return res.json({queue:await getAssignedTdRecordingRecoveryQueue({
+        reviewerId:String(reviewer.id),reviewerRole:String(reviewer.role),
+      })});
+    }catch(error){return respondError(res,error,"Unable to load assigned recording incidents.");}
+  });
+  app.post("/api/capability-review/practicals/recording-recoveries/:requestId/decision",isAuthenticated,async(req,res)=>{
+    try{
+      const reviewer=requireReviewer(req,res);if(!reviewer)return;
+      const body=z.object({
+        decision:z.enum(["approve_repeat","deny","integrity_review"]),
+        rationale:z.string().trim().min(30).max(3000),
+      }).strict().parse(req.body) as {
+        decision:"approve_repeat"|"deny"|"integrity_review";rationale:string;
+      };
+      const requestId=z.string().uuid().parse(req.params.requestId);
+      return res.status(201).json(await decidePracticalRecordingRecovery({
+        ...body,requestId,reviewerId:String(reviewer.id),reviewerRole:String(reviewer.role),
+      }));
+    }catch(error){return respondError(res,error,"Recording recovery decision could not be recorded.");}
+  });
 
   // A Specialist cannot choose the case, response sequence, or a new attempt to cherry-pick an easier outcome.
   app.get("/api/tutor/capability-practicals/execute-challenge",isAuthenticated,async (req,res)=>{
@@ -164,7 +319,7 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
       const challengeId=z.string().uuid().parse(req.params.challengeId);
       return res.status(201).json(await recordExecuteTurn({
         tutorAssignmentId:body.tutorAssignmentId,tutorId:String(user.id),challengeId,
-        turnNumber:body.turnNumber,response:body.response,
+        turnNumber:body.turnNumber,response:body.response as ExecuteResponse,
       }));
     } catch(error){return respondError(res,error,"Failed to record Execute turn.");}
   });
@@ -201,9 +356,11 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
           reviewerId: String(user.id),
           reviewerRole: String(user.role),
           rubricVersion: payload.rubricVersion,
-          criterionJudgments: payload.criterionJudgments,
+          criterionJudgments: payload.criterionJudgments as CapabilityPracticalCriterionReviewInput[],
           feedback: payload.feedback,
           executeTraceVideoVerified: payload.executeTraceVideoVerified===true,
+          benchmarkCaseReviews: payload.benchmarkCaseReviews as PracticalCaseReview[],
+          videoVerification: payload.videoVerification as PracticalVideoVerification,
         });
 
         return res.status(201).json(result);

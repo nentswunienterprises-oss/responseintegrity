@@ -176,6 +176,36 @@
       "path": "migrations/20261108_parent_enrollment_topic_response_symptom_ids.sql",
       "description": "Add the optional per-topic parent response symptom identifier map to parent enrollments. Applied to The Hub Production on 2026-11-08; Supabase migration version 20261108114942; column type, NOT NULL constraint, and '{}'::jsonb default read-back verified.",
       "risk": "additive"
+    },
+    {
+      "path": "migrations/20261109_scheduled_session_timezone_instants.sql",
+      "description": "Convert scheduled session starts from timezone-naive wall-clock values to timestamptz using each row's recorded IANA timezone; repair only legacy UTC-wall-clock scheduled_end values, and update dependent trigger semantics.",
+      "risk": "destructive",
+      "gitBlobSha": "02011f4788a98a5c1f9a591aa26baa56968f7773"
+    },
+    {
+      "path": "migrations/20261110100000_parent_qualification_assessment.sql",
+      "description": "Additive parent-enrollment assessment JSONB evidence for the four approved qualification sections, with server-only RPC persistence and no historical backfill. Pending Preview validation; not authorized for Production promotion.",
+      "risk": "additive"
+    },
+    {
+      "path": "migrations/20261110101000_enforce_four_part_parent_qualification.sql",
+      "description": "Require evidence in all four approved parent qualification sections before a terminal qualified or not_qualified decision. Pending Preview validation; not authorized for Production promotion.",
+      "risk": "additive"
+    }
+  ],
+  "previewOnlyMigrations": [
+    {
+      "path": "migrations/20261011_practicals_shared_video_benchmarks_v1.sql",
+      "description": "Staged Practicals shared-video benchmark schema and integrity guards. Isolated Preview/CI only; explicitly excluded from The Hub Production plan and apply pending full lifecycle acceptance and separate authorization."
+    },
+    {
+      "path": "migrations/20261110_practicals_shared_video_benchmarks_v1_preview_compat.sql",
+      "description": "Capability Proof-compatible Practicals shared-video benchmark schema and integrity guards, applied only to the isolated Preview database. Explicitly excluded from The Hub Production plan and apply; any Production promotion requires a separate reviewed migration and authorization."
+    },
+    {
+      "path": "migrations/20261111043902_reconcile_scheduled_sessions_view_security.sql",
+      "description": "Restore Capability Proof's scheduled_sessions_with_names view to the The Hub security contract: security_invoker=true, no PUBLIC/anon/authenticated privileges, service_role SELECT only. Applied only to Preview because The Hub already has the intended configuration; explicitly excluded from Production promotion."
     }
   ]
 }

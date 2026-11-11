@@ -51,6 +51,14 @@ interface ParentEnrollment {
     | "session_booked"
     | "report_received"
     | "confirmed";
+  qualification_status?: string | null;
+  qualification_completed_at?: string | null;
+  qualification_decided_by?: string | null;
+  entry_selected_at?: string | null;
+  entry_selected_by?: string | null;
+  handover_completed_at?: string | null;
+  handover_from_user_id?: string | null;
+  handover_to_user_id?: string | null;
   current_step?: string;
   assigned_tutor_id?: string | null;
   assigned_student_id?: string | null;
@@ -241,11 +249,21 @@ export default function ExecutiveHRTraffic() {
 
   // Filter enrollments by status (normalize strings to avoid casing/whitespace issues)
   const normalize = (s: any) => (s ? String(s).toLowerCase().trim() : "");
-  const awaitingAssignment = enrollments.filter((e: ParentEnrollment) => normalize(e.status) === "awaiting_assignment");
-  // Treat 'session_booked' as assigned for HR display so booked sessions are visible under Assigned
+  // A submitted enrollment stays in Awaiting until a terminal qualification decision is recorded.
+  const awaitingAssignment = enrollments.filter((e: ParentEnrollment) =>
+    normalize(e.status) === "awaiting_assignment" &&
+    !["qualified", "not_qualified"].includes(normalize(e.qualification_status))
+  );
+  // Qualified is a distinct stage: it is not yet assigned to a Specialist.
+  const qualifiedEnrollments = enrollments.filter((e: ParentEnrollment) =>
+    normalize(e.qualification_status) === "qualified" &&
+    !e.assigned_tutor_id &&
+    !["assigned", "session_booked", "awaiting_tutor_acceptance", "proposal_sent"].includes(normalize(e.status))
+  );
+  // Treat all post-assignment states as Assigned for HR display.
   const assigned = enrollments.filter((e: ParentEnrollment) => {
     const s = normalize(e.status);
-    return s === "assigned" || s === "session_booked" || s === "awaiting_tutor_acceptance" || s === "proposal_sent";
+    return Boolean(e.assigned_tutor_id) || s === "assigned" || s === "session_booked" || s === "awaiting_tutor_acceptance" || s === "proposal_sent";
   });
   const activeInPods = enrollments.filter((e: ParentEnrollment) => !!e.active_in_pod);
   const confirmed = enrollments.filter((e: ParentEnrollment) => normalize(e.status) === "confirmed");
@@ -446,6 +464,19 @@ export default function ExecutiveHRTraffic() {
   };
 
   
+
+  const getAssignmentReadiness = (enrollment: ParentEnrollment) => {
+    if (normalize(enrollment.qualification_status) !== "qualified" || !enrollment.qualification_completed_at || !enrollment.qualification_decided_by) {
+      return "Qualification must be completed before assignment.";
+    }
+    if (!enrollment.entry_selected_at || !enrollment.entry_selected_by) {
+      return "Select the Pilot or Commercial service entry before assignment.";
+    }
+    if (!enrollment.handover_completed_at || !enrollment.handover_from_user_id || !enrollment.handover_to_user_id) {
+      return "Complete the transfer of responsibility before assignment.";
+    }
+    return null;
+  };
 
   const getStatusBadge = (status: ParentEnrollment["status"] | string) => {
     const statusConfig: Record<string, { label: string; color: string }> = {
@@ -784,11 +815,15 @@ export default function ExecutiveHRTraffic() {
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row">
-              {enrollment.status === "awaiting_assignment" && (
-                <Button onClick={() => handleOpenAssignModal(enrollment.id)}>
-                  Assign Specialist
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
+              {normalize(enrollment.qualification_status) === "qualified" && !enrollment.assigned_tutor_id && (
+                getAssignmentReadiness(enrollment) ? (
+                  <p className="max-w-md text-sm text-muted-foreground">{getAssignmentReadiness(enrollment)}</p>
+                ) : (
+                  <Button onClick={() => handleOpenAssignModal(enrollment.id)} disabled={normalize(enrollment.status) !== "awaiting_assignment"}>
+                    Assign Specialist
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                )
               )}
 
               {enrollment.assigned_tutor_id && (
@@ -1112,10 +1147,14 @@ export default function ExecutiveHRTraffic() {
             </Card>
           ) : (
             <Tabs value={parentSubTab} onValueChange={setParentSubTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 sm:flex sm:flex-nowrap h-auto rounded-xl border border-primary/15 bg-muted/20 p-1 gap-1">
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-auto rounded-xl border border-primary/15 bg-muted/20 p-1 gap-1">
                 <TabsTrigger value="awaiting" className="text-xs sm:text-sm py-2 px-2 sm:px-3 justify-between sm:justify-center gap-2">
                   <span>Awaiting</span>
                   <span className="text-[10px] sm:text-xs text-muted-foreground">{awaitingAssignment.length}</span>
+                </TabsTrigger>
+                <TabsTrigger value="qualified" className="text-xs sm:text-sm py-2 px-2 sm:px-3 justify-between sm:justify-center gap-2">
+                  <span>Qualified</span>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">{qualifiedEnrollments.length}</span>
                 </TabsTrigger>
                 <TabsTrigger value="assigned" className="text-xs sm:text-sm py-2 px-2 sm:px-3 justify-between sm:justify-center gap-2">
                   <span>Assigned</span>
@@ -1141,6 +1180,20 @@ export default function ExecutiveHRTraffic() {
                 ) : (
                   <div className="grid gap-4">
                     {awaitingAssignment.map((enrollment: ParentEnrollment) => (
+                      <EnrollmentReviewCard key={enrollment.id} enrollment={enrollment} />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="qualified" className="space-y-4 mt-4">
+                {qualifiedEnrollments.length === 0 ? (
+                  <Card className="p-10 text-center">
+                    <p className="text-muted-foreground">No qualified enrollments are currently waiting for Specialist assignment.</p>
+                  </Card>
+                ) : (
+                  <div className="grid gap-4">
+                    {qualifiedEnrollments.map((enrollment: ParentEnrollment) => (
                       <EnrollmentReviewCard key={enrollment.id} enrollment={enrollment} />
                     ))}
                   </div>

@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { createHash, createCipheriv, createDecipheriv, randomBytes, randomUUID } from "crypto";
 import type { Pool } from "pg";
-import { isProofDbAuthMode } from "./emergencyMode";
+import { isEmergencyDbMode, isProofDbAuthMode } from "./emergencyMode";
 
 const WINDOW_MS = 10 * 60 * 1000;
 const MAX_FAILURES = 5;
@@ -93,6 +93,96 @@ export type EmergencyTutorSignupInput = {
   trackingCampaign?: string | null;
 };
 
+export async function ensureEmergencyAuthUserIdentity(pool: Pool, userId: string) {
+  if (!isEmergencyDbMode()) {
+    return { status: "not_applicable" as const, created: false };
+  }
+
+  const userResult = await pool.query<{
+    id: string;
+    email: string;
+    role: string;
+    name: string | null;
+    first_name: string | null;
+    last_name: string | null;
+  }>(
+    `SELECT id, email, role, name, first_name, last_name
+       FROM public.users
+      WHERE id::text = $1::text
+        AND role = 'tutor'
+      LIMIT 1`,
+    [userId],
+  );
+  const user = userResult.rows[0];
+  if (!user) {
+    throw new Error("Cannot create an emergency Auth identity mirror: Specialist profile was not found.");
+  }
+
+  const existingAuthResult = await pool.query<{ id: string; email: string | null }>(
+    `SELECT id, email
+       FROM auth.users
+      WHERE id::text = $1::text
+      LIMIT 1`,
+    [user.id],
+  );
+  const existingAuthUser = existingAuthResult.rows[0];
+  if (existingAuthUser) {
+    if (String(existingAuthUser.email || "").trim().toLowerCase() !== String(user.email || "").trim().toLowerCase()) {
+      throw new Error("Emergency Specialist identity conflicts with an existing Auth identity.");
+    }
+    return { status: "existing" as const, created: false };
+  }
+
+  const emailOwnerResult = await pool.query<{ id: string }>(
+    `SELECT id
+       FROM auth.users
+      WHERE lower(email) = lower($1)
+        AND id::text <> $2::text
+      LIMIT 1`,
+    [user.email, user.id],
+  );
+  if (emailOwnerResult.rows[0]) {
+    throw new Error("Emergency Specialist email is already attached to a different Auth identity.");
+  }
+
+  const fullName = String(
+    user.name || [user.first_name, user.last_name].filter(Boolean).join(" "),
+  ).trim();
+  const insertResult = await pool.query<{ id: string }>(
+    `INSERT INTO auth.users (
+       id, aud, role, email, email_confirmed_at,
+       raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+     ) VALUES (
+       $1::uuid, 'authenticated', 'authenticated', $2, NULL,
+       jsonb_build_object('provider', 'emergency-db-session', 'providers', jsonb_build_array('emergency-db-session')),
+       jsonb_build_object('role', 'tutor', 'name', $3),
+       now(), now()
+     )
+     ON CONFLICT (id) DO NOTHING
+     RETURNING id`,
+    [user.id, user.email, fullName],
+  );
+
+  if (!insertResult.rows[0]) {
+    const retryResult = await pool.query<{ id: string; email: string | null }>(
+      `SELECT id, email
+         FROM auth.users
+        WHERE id::text = $1::text
+        LIMIT 1`,
+      [user.id],
+    );
+    if (
+      !retryResult.rows[0] ||
+      String(retryResult.rows[0].email || "").trim().toLowerCase() !== String(user.email || "").trim().toLowerCase()
+    ) {
+      throw new Error("Emergency Specialist Auth identity mirror could not be established.");
+    }
+    return { status: "existing" as const, created: false };
+  }
+
+  return { status: "created" as const, created: true };
+}
+
 export async function createEmergencyTutorAccount(
   pool: Pool,
   input: EmergencyTutorSignupInput,
@@ -143,6 +233,18 @@ export async function createEmergencyTutorAccount(
       `INSERT INTO private.emergency_auth_credentials (user_id, password_hash)
        VALUES ($1, $2)`,
       [userId, passwordHash],
+    );
+    await client.query(
+      `INSERT INTO auth.users (
+         id, aud, role, email, email_confirmed_at,
+         raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+       ) VALUES (
+         $1::uuid, 'authenticated', 'authenticated', $2, NULL,
+         jsonb_build_object('provider', 'emergency-db-session', 'providers', jsonb_build_array('emergency-db-session')),
+         jsonb_build_object('role', 'tutor', 'name', $3),
+         now(), now()
+       )`,
+      [userId, input.email, fullName],
     );
     await client.query("COMMIT");
     return userResult.rows[0];
@@ -305,8 +407,19 @@ export async function authenticateEmergencyUser(
       Boolean(authUser.email_confirmed_at) &&
       authUser.raw_app_meta_data?.provider === "proof-db-session",
   );
+  const emergencyDbSessionMirrorWithoutPassword = Boolean(
+    isEmergencyDbMode() &&
+      authUser &&
+      !authUser.encrypted_password &&
+      !authUser.deleted_at &&
+      !authUser.is_anonymous &&
+      !isBanned &&
+      authUser.raw_app_meta_data?.provider === "emergency-db-session",
+  );
+  const databaseSessionMirrorWithoutPassword =
+    proofDbSessionMirrorWithoutPassword || emergencyDbSessionMirrorWithoutPassword;
 
-  if (authUser && !proofDbSessionMirrorWithoutPassword) {
+  if (authUser && !databaseSessionMirrorWithoutPassword) {
     if (!authUserMatches) {
       const previewSyntheticSharedPasswordAccepted =
         (process.env.VERCEL_ENV === "preview" || proofDbAuthMode) &&
@@ -383,7 +496,7 @@ export async function authenticateEmergencyUser(
       : { error: "invalid", reason: "account_not_found" };
   }
 
-  if (proofDbSessionMirrorWithoutPassword && publicUser.id !== authUser?.id) {
+  if (databaseSessionMirrorWithoutPassword && publicUser.id !== authUser?.id) {
     recordFailure(key, attempt, now);
     return attempt.blockedUntil > now
       ? { error: "throttled", reason: "throttled" }

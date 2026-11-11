@@ -1,5 +1,6 @@
 import { confidentialReference, ensurePrivateBucket, createConfidentialDownloadHandler } from "./confidentialStorage";
 import { captureDemandParent } from "./demandCapture";
+import { normalizeScheduledInstant, normalizeScheduledTimeZone } from "./bookingTimezone";
 import { registerDemandProductionRoutes } from "./demandProduction";
 import { demandAssignmentBlock, resolveEntryType } from "../shared/demandProduction";
 import type { Express, Request, Response } from "express";
@@ -2010,34 +2011,17 @@ function isSandboxEnrollmentForTutor(enrollment: any, tutorId?: string) {
 }
 
 async function loadTutorAssignmentLoadStats(tutorId: string) {
-  let data: any[] | null = null;
-  let error: any = null;
-  {
-    const initial = await supabase
-      .from("parent_enrollments")
-      .select("id, status, current_step, is_sandbox_account, assignment_lane, parent_full_name, parent_email, student_full_name")
-      .eq("assigned_tutor_id", tutorId)
-      .in("status", [...ACTIVE_PARENT_ENROLLMENT_STATUSES, "awaiting_tutor_acceptance"]);
-
-    data = initial.data as any;
-    error = initial.error as any;
-  }
-
-  if (error && isMissingSandboxAccountColumnError(error)) {
-    const fallback = await supabase
-      .from("parent_enrollments")
-      .select("id, status, current_step, parent_full_name, parent_email, student_full_name")
-      .eq("assigned_tutor_id", tutorId)
-      .in("status", [...ACTIVE_PARENT_ENROLLMENT_STATUSES, "awaiting_tutor_acceptance"]);
-    data = fallback.data || [];
-    error = fallback.error;
-  }
-
-  if (error) {
-    throw new Error(`Failed to load tutor assignment stats: ${error.message}`);
-  }
-
-  const enrollments = data || [];
+  // Read through the server's configured PostgreSQL connection. Tutor IDs are
+  // opaque identifiers; compare as text across UUID- and varchar-backed schemas.
+  const result = await pool.query(
+    `SELECT id, status, current_step, is_sandbox_account, assignment_lane,
+            parent_full_name, parent_email, student_full_name
+       FROM public.parent_enrollments
+      WHERE assigned_tutor_id::text = $1::text
+        AND status::text = ANY($2::text[])`,
+    [tutorId, [...ACTIVE_PARENT_ENROLLMENT_STATUSES, "awaiting_tutor_acceptance"]],
+  );
+  const enrollments = result.rows || [];
   const sandboxEnrollments = enrollments.filter((enrollment: any) =>
     isSandboxEnrollmentForTutor(enrollment, tutorId)
   );
@@ -2049,7 +2033,6 @@ async function loadTutorAssignmentLoadStats(tutorId: string) {
       !isSandboxEnrollmentForTutor(enrollment, tutorId) &&
       String(enrollment.assignment_lane || "commercial").trim().toLowerCase() !== "trial"
   );
-
   return {
     activeAssignmentCount: enrollments.length,
     sandboxParentCount: sandboxEnrollments.length,
@@ -2450,7 +2433,11 @@ async function upsertMembershipMonth(options: {
   isSandbox?: boolean;
   packageKey?: MonthlyPackageKey | null;
 }) {
-  const monthKey = toMonthKey(options.monthStartIso);
+  // Canonicalize the cycle identifier. For Sandbox this is a simulated
+  // sequence key, not an expiry boundary tied to the real calendar.
+  const normalizedMonthStartIso = getMonthStartIso(options.monthStartIso);
+  if (!normalizedMonthStartIso) return null;
+  const monthKey = toMonthKey(normalizedMonthStartIso);
   const nowIso = new Date().toISOString();
 
   const { data: existing } = await supabase
@@ -2961,7 +2948,7 @@ async function getMonthlySessionQuotaSnapshot(options: {
   if (!monthStartIso) return null;
   const monthKey = toMonthKey(monthStartIso);
 
-  if (isEmergencyDbMode()) {
+  if (isEmergencyDbMode() || (options.isSandboxContext === true && usesDirectProofSessionDatabase())) {
     const isSandbox = options.isSandboxContext === true;
     // Sandbox month_key names a simulated package cycle, not calendar expiry.
     const result = isSandbox
@@ -11033,6 +11020,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return res.json({
               id: session.id,
               scheduled_time: session.scheduled_time,
+            timezone: session.timezone || "Africa/Johannesburg",
               status: getEffectiveScheduledSessionStatus(session),
               parent_confirmed: session.parent_confirmed,
               tutor_confirmed: session.tutor_confirmed,
@@ -11183,11 +11171,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req as any).dbUser.id;
       const operationalMode = await getParentAssignedTutorOperationalMode(userId);
-      const { proposedDate, proposedTime, timezone } = req.body;
-      if (!proposedDate || !proposedTime) {
-        return res.status(400).json({ message: "Missing date or time" });
+      const { scheduledStart, timezone } = req.body;
+      const scheduledTimestamp = normalizeScheduledInstant(scheduledStart);
+      const requestedTimezone = normalizeScheduledTimeZone(timezone);
+      if (!scheduledTimestamp || !requestedTimezone) {
+        return res.status(400).json({ message: "A valid ISO 8601 session time and IANA timezone are required." });
       }
-      const requestedTimezone = String(timezone || "Africa/Johannesburg").trim() || "Africa/Johannesburg";
 
       // Get parent's enrollment to find assigned tutor
       const activeEnrollmentStatuses = [
@@ -11293,14 +11282,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ],
         );
         const existingSession = existingSessionResult.rows[0] || null;
-        const scheduledTimestamp = `${proposedDate}T${proposedTime}`;
 
         let persistedSession: any = null;
         if (existingSession) {
           const updatedSession = await pool.query(
             `UPDATE public.scheduled_sessions
                 SET student_id = $2::uuid,
-                    scheduled_time = $3::timestamp,
+                    scheduled_time = $3::timestamptz,
                     timezone = $4,
                     parent_confirmed = TRUE,
                     tutor_confirmed = FALSE,
@@ -11315,7 +11303,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const insertedSession = await pool.query(
             `INSERT INTO public.scheduled_sessions
               (parent_id, tutor_id, student_id, scheduled_time, timezone, type, status, parent_confirmed, tutor_confirmed)
-             VALUES ($1, $2, $3::uuid, $4::timestamp, $5, $6, 'pending_tutor_confirmation', TRUE, FALSE)
+             VALUES ($1, $2, $3::uuid, $4::timestamptz, $5, $6, 'pending_tutor_confirmation', TRUE, FALSE)
              RETURNING id, student_id, scheduled_time, timezone, type, status, parent_confirmed, tutor_confirmed`,
             [
               String(userId),
@@ -11419,7 +11407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .from("scheduled_sessions")
           .update({
             student_id: assignedStudent?.id || null,
-            scheduled_time: `${proposedDate}T${proposedTime}`,
+            scheduled_time: scheduledTimestamp,
             timezone: requestedTimezone,
             parent_confirmed: true,
             tutor_confirmed: false,
@@ -11450,7 +11438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "pending_tutor_confirmation",
           operationalMode,
           type: sessionType,
-          scheduled_time: `${proposedDate}T${proposedTime}`,
+          scheduled_time: scheduledTimestamp,
             timezone: requestedTimezone,
           parent_confirmed: true,
           tutor_confirmed: false,
@@ -11465,7 +11453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             parent_id: userId,
             tutor_id: enrollmentData.assigned_tutor_id,
             student_id: assignedStudent?.id || null,
-            scheduled_time: `${proposedDate}T${proposedTime}`,
+            scheduled_time: scheduledTimestamp,
             timezone: requestedTimezone,
             type: sessionType,
             status: "pending_tutor_confirmation",
@@ -11508,7 +11496,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "pending_tutor_confirmation",
         operationalMode,
         type: sessionType,
-        scheduled_time: `${proposedDate}T${proposedTime}`,
+        scheduled_time: scheduledTimestamp,
             timezone: requestedTimezone,
         parent_confirmed: true,
         tutor_confirmed: false,
@@ -12265,7 +12253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (student) {
             const result = await supabase
               .from("scheduled_sessions")
-              .select("id, scheduled_time, status, parent_confirmed, tutor_confirmed, created_at, updated_at, tutor_id, student_id, parent_id, type")
+              .select("id, scheduled_time, timezone, status, parent_confirmed, tutor_confirmed, created_at, updated_at, tutor_id, student_id, parent_id, type")
               .eq("tutor_id", dbUser.id)
               .eq("student_id", studentId)
               .eq("type", "intro")
@@ -12278,7 +12266,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!session && parentId) {
             const { data: introSession, error: introSessionError } = await supabase
               .from("scheduled_sessions")
-              .select("id, scheduled_time, status, parent_confirmed, tutor_confirmed, created_at, updated_at, tutor_id, student_id, parent_id, type")
+              .select("id, scheduled_time, timezone, status, parent_confirmed, tutor_confirmed, created_at, updated_at, tutor_id, student_id, parent_id, type")
               .eq("tutor_id", dbUser.id)
               .eq("parent_id", parentId)
               .eq("type", "intro")
@@ -12300,6 +12288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           res.json({
             id: session.id,
             scheduled_time: session.scheduled_time,
+            timezone: session.timezone || "Africa/Johannesburg",
             status: session.status,
             parent_confirmed: session.parent_confirmed,
             tutor_confirmed: session.tutor_confirmed,
@@ -13459,7 +13448,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Find latest intro session for this student/tutor
         const { data: session, error: sessionError } = await supabase
           .from("scheduled_sessions")
-          .select("id, scheduled_time, status, parent_confirmed, tutor_confirmed, created_at, updated_at, tutor_id, student_id, type")
+          .select("id, scheduled_time, timezone, status, parent_confirmed, tutor_confirmed, created_at, updated_at, tutor_id, student_id, type")
           .eq("tutor_id", dbUser.id)
           .eq("student_id", studentId)
           .eq("type", "intro")
@@ -13474,7 +13463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (parentId) {
             const { data: fallbackSession, error: fallbackError } = await supabase
               .from("scheduled_sessions")
-              .select("id, scheduled_time, status, parent_confirmed, tutor_confirmed, created_at, updated_at, tutor_id, student_id, parent_id, type")
+              .select("id, scheduled_time, timezone, status, parent_confirmed, tutor_confirmed, created_at, updated_at, tutor_id, student_id, parent_id, type")
               .eq("tutor_id", dbUser.id)
               .eq("parent_id", parentId)
               .eq("type", "intro")
@@ -13499,6 +13488,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json({
           id: resolvedSession.id,
           scheduled_time: resolvedSession.scheduled_time,
+          timezone: resolvedSession.timezone || "Africa/Johannesburg",
           status: getEffectiveScheduledSessionStatus(resolvedSession),
           parent_confirmed: resolvedSession.parent_confirmed,
           tutor_confirmed: resolvedSession.tutor_confirmed,
@@ -13523,7 +13513,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { studentId } = req.params;
       const dbUser = (req as any).dbUser;
-      const { action, newDate, newTime } = req.body;
+      const { action, scheduledStart, timezone } = req.body;
       const student = await storage.getStudent(studentId);
       const studentWorkflow = ((student?.personalProfile as any) || {}).workflow || {};
       const sessionType = studentWorkflow.handoverRequiredAt && !studentWorkflow.handoverCompletedAt ? "handover" : "intro";
@@ -13574,12 +13564,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updated_at: new Date().toISOString(),
         };
       } else if (action === "propose_adjustment") {
-        if (!newDate || !newTime) {
-          return res.status(400).json({ message: "Missing new date or time" });
+        const normalizedScheduledStart = normalizeScheduledInstant(scheduledStart);
+        const requestedTimezone = normalizeScheduledTimeZone(timezone || (session as any).timezone);
+        if (!normalizedScheduledStart || !requestedTimezone) {
+          return res.status(400).json({ message: "A valid ISO 8601 session time and IANA timezone are required." });
         }
         // Tutor is proposing an adjustment, so tutor has confirmed, parent must confirm next
         updateFields = {
-          scheduled_time: `${newDate}T${newTime}`,
+          scheduled_time: normalizedScheduledStart,
+          timezone: requestedTimezone,
           tutor_confirmed: true,
           parent_confirmed: false,
           status: "pending_parent_confirmation",
@@ -13625,7 +13618,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { studentId } = req.params;
       const dbUser = (req as any).dbUser;
-      const { action, newDate, newTime } = req.body;
+      const { action, scheduledStart, timezone } = req.body;
       const student = await storage.getStudent(studentId);
       const studentWorkflow = ((student?.personalProfile as any) || {}).workflow || {};
       const sessionType = studentWorkflow.handoverRequiredAt && !studentWorkflow.handoverCompletedAt ? "handover" : "intro";
@@ -13675,12 +13668,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updated_at: new Date().toISOString(),
         };
       } else if (action === "propose_adjustment") {
-        if (!newDate || !newTime) {
-          return res.status(400).json({ message: "Missing new date or time" });
+        const normalizedScheduledStart = normalizeScheduledInstant(scheduledStart);
+        const requestedTimezone = normalizeScheduledTimeZone(timezone || (session as any).timezone);
+        if (!normalizedScheduledStart || !requestedTimezone) {
+          return res.status(400).json({ message: "A valid ISO 8601 session time and IANA timezone are required." });
         }
         // Tutor is proposing an adjustment, so tutor has confirmed, parent must confirm next
         updateFields = {
-          scheduled_time: `${newDate}T${newTime}`,
+          scheduled_time: normalizedScheduledStart,
+          timezone: requestedTimezone,
           tutor_confirmed: true,
           parent_confirmed: false,
           status: "pending_parent_confirmation",
@@ -13762,6 +13758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const operationalMode = await getTutorOperationalMode(tutorId);
+        const isSandboxTraining = String(operationalMode || "").trim().toLowerCase() === "sandbox";
 
         if (usesDirectProofSessionDatabase()) {
           const [currentSessionsResult, latestCompletedSessionResult] = await Promise.all([
@@ -13772,9 +13769,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   AND student_id = $2
                   AND type = 'training'
                   AND status NOT IN ('completed', 'flagged')
-                  AND scheduled_time >= NOW() - INTERVAL '2 hours'
+                  AND ($3::boolean = TRUE OR scheduled_time >= NOW() - INTERVAL '2 hours')
                 ORDER BY scheduled_time ASC`,
-              [tutorId, studentId],
+              [tutorId, studentId, isSandboxTraining],
             ),
             pool.query(
               `SELECT ${SCHEDULED_SESSION_SELECT}
@@ -13784,8 +13781,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   AND type = 'training'
                   AND status = 'completed'
                 ORDER BY scheduled_time DESC
-                LIMIT 1`,
-              [tutorId, studentId],
+                LIMIT $3`,
+              [tutorId, studentId, isSandboxTraining ? 100 : 1],
             ),
           ]);
           const recentSessions = [
@@ -13861,25 +13858,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const currentTrainingSessionFloor = new Date(
           Date.now() - 2 * 60 * 60 * 1000,
         ).toISOString();
+        let currentSessionsQuery: any = supabase
+          .from("scheduled_sessions")
+          .select(SCHEDULED_SESSION_SELECT)
+          .eq("tutor_id", tutorId)
+          .eq("student_id", studentId)
+          .eq("type", "training")
+          .not("status", "in", "(completed,flagged)");
+        if (!isSandboxTraining) {
+          currentSessionsQuery = currentSessionsQuery.gte("scheduled_time", currentTrainingSessionFloor);
+        }
+        const latestCompletedSessionQuery = supabase
+          .from("scheduled_sessions")
+          .select(SCHEDULED_SESSION_SELECT)
+          .eq("tutor_id", tutorId)
+          .eq("student_id", studentId)
+          .eq("type", "training")
+          .eq("status", "completed")
+          .order("scheduled_time", { ascending: false })
+          .limit(isSandboxTraining ? 100 : 1);
         const [currentSessionsResult, latestCompletedSessionResult] = await Promise.all([
-          supabase
-            .from("scheduled_sessions")
-            .select(SCHEDULED_SESSION_SELECT)
-            .eq("tutor_id", tutorId)
-            .eq("student_id", studentId)
-            .eq("type", "training")
-            .not("status", "in", "(completed,flagged)")
-            .gte("scheduled_time", currentTrainingSessionFloor)
-            .order("scheduled_time", { ascending: true }),
-          supabase
-            .from("scheduled_sessions")
-            .select(SCHEDULED_SESSION_SELECT)
-            .eq("tutor_id", tutorId)
-            .eq("student_id", studentId)
-            .eq("type", "training")
-            .eq("status", "completed")
-            .order("scheduled_time", { ascending: false })
-            .limit(1),
+          currentSessionsQuery.order("scheduled_time", { ascending: true }),
+          latestCompletedSessionQuery,
         ]);
 
         if (currentSessionsResult.error || latestCompletedSessionResult.error) {
@@ -15322,10 +15322,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       };
 
-      if (rawSlots.length !== 2) {
-        return res.status(400).json({ message: "Exactly two weekly session slots are required." });
-      }
-
       const { data: enrollment, error: enrollmentError } = await selectLatestParentEnrollment({
         parentId: userId,
         primarySelect: "id, user_id, assigned_tutor_id, assigned_student_id, student_full_name, student_grade, parent_email",
@@ -15390,8 +15386,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }))
         .sort((a, b) => new Date(a.scheduledStart).getTime() - new Date(b.scheduledStart).getTime());
 
-      if (parsedSlots.length !== 2) {
-        return res.status(400).json({ message: "Both weekly session times are required." });
+      const packageSessionQuota = Number(monthlyQuota?.session_quota);
+      // The active paid package controls cadence in both Commercial and Sandbox.
+      // Keep planned_sessions_per_week as a compatibility fallback for older rows.
+      const packageWeeklyTarget = packageSessionQuota === 16
+        ? 4
+        : packageSessionQuota === 12
+          ? 3
+          : packageSessionQuota === 8
+            ? 2
+            : Math.max(2, Math.min(4, Number(monthlyQuota?.planned_sessions_per_week) || 2));
+      const expectedWeeklySessions = Number.isSafeInteger(packageWeeklyTarget) && packageWeeklyTarget >= 2 && packageWeeklyTarget <= 4
+        ? packageWeeklyTarget
+        : 2;
+      if (parsedSlots.length !== expectedWeeklySessions) {
+        return res.status(400).json({
+          message: `This package requires exactly ${expectedWeeklySessions} session times for the week.`,
+          expectedWeeklySessions,
+        });
       }
 
       const weekInfos = parsedSlots.map((slot) => getLocalWeekInfo(slot.scheduledStart));
@@ -15405,12 +15417,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const targetWeekStartUtc = weekInfos[0]?.weekStartUtc;
       if (weekInfos.some((info) => info?.weekStartUtc !== targetWeekStartUtc)) {
-        return res.status(400).json({ message: "Both weekly session dates must be within the same Monday-to-Saturday week." });
+        return res.status(400).json({ message: "All weekly session dates must be within the same Monday-to-Saturday week." });
       }
 
-      const nowMs = Date.now();
-      if (parsedSlots.some((slot) => new Date(slot.scheduledStart).getTime() <= nowMs)) {
-        return res.status(400).json({ message: "Weekly sessions must be scheduled in the future." });
+      // Sandbox dates are simulated timeline coordinates, not live-calendar
+      // availability. Commercial bookings must remain future-dated.
+      if (!isSandboxContext) {
+        const nowMs = Date.now();
+        if (parsedSlots.some((slot) => new Date(slot.scheduledStart).getTime() <= nowMs)) {
+          return res.status(400).json({ message: "Weekly sessions must be scheduled in the future." });
+        }
       }
 
       const slotTimes = parsedSlots.map((slot) => slot.scheduledStart);
@@ -15429,28 +15445,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
               AND tutor_id::text = $3::text
               AND type = 'training'
               AND status::text = ANY($4::text[])
-              AND scheduled_time >= $5::timestamptz
+              AND ($5::boolean = TRUE OR scheduled_time >= $6::timestamptz)
             ORDER BY scheduled_time ASC`,
           [
             userId,
             String(studentId),
             String(enrollment.assigned_tutor_id),
             ["pending_tutor_confirmation", "pending_parent_confirmation", "confirmed", "ready", "live"],
+            isSandboxContext,
             new Date().toISOString(),
           ],
         );
         existingSessions = existingResult.rows || [];
       } else {
-        const result = await supabase
+        let existingQuery = supabase
           .from("scheduled_sessions")
           .select(SCHEDULED_SESSION_SELECT)
           .eq("parent_id", userId)
           .eq("student_id", studentId)
           .eq("tutor_id", enrollment.assigned_tutor_id)
           .eq("type", "training")
-          .in("status", ["pending_tutor_confirmation", "pending_parent_confirmation", "confirmed", "ready", "live"])
-          .gte("scheduled_time", new Date().toISOString())
-          .order("scheduled_time", { ascending: true });
+          .in("status", ["pending_tutor_confirmation", "pending_parent_confirmation", "confirmed", "ready", "live"]);
+        if (!isSandboxContext) {
+          existingQuery = existingQuery.gte("scheduled_time", new Date().toISOString());
+        }
+        const result = await existingQuery.order("scheduled_time", { ascending: true });
 
         if (result.error) {
           return res.status(500).json({ message: "Failed to inspect existing training sessions." });
@@ -21868,21 +21887,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     requireRole(["coo"]),
     async (req: Request, res: Response) => {
       try {
-        const { data: assignments } = await supabase
-          .from("tutor_assignments")
-          .select("tutor_id");
-        
-        console.log("📋 Raw assignments from DB:", assignments);
-        
-        if (!assignments) {
-          console.log("📋 No assignments found, returning empty array");
-          return res.json([]);
-        }
-        
-        // Transform snake_case to camelCase (tutor_id -> tutorId)
-        // Return just the tutor IDs to check against
-        const tutorIds = assignments.map((a: any) => a.tutor_id);
-        console.log("📋 All assigned tutor IDs:", tutorIds);
+        const assignmentResult = await pool.query(
+          `SELECT tutor_id FROM public.tutor_assignments ORDER BY created_at ASC`
+        );
+        // A successful zero-row result is a legitimate empty roster. Query
+        // failures throw and reach the explicit 500 response below.
+        const tutorIds = assignmentResult.rows.map((assignment: any) => assignment.tutor_id);
         res.json(tutorIds);
       } catch (error) {
         console.error("Error fetching all tutor assignments:", error);
@@ -21907,23 +21917,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const totalTutors = assignments.length;
         let totalStudents = 0;
 
-        if (tutorIds.length > 0) {
-          const { count } = await supabase
-            .from("parent_enrollments")
-            .select("id", { count: "exact", head: true })
-            .in("assigned_tutor_id", tutorIds)
-            .in("status", activeEnrollmentStatuses);
-          totalStudents = count || 0;
-        }
-
         let sessionsCompleted = 0;
         if (tutorIds.length > 0) {
-          const { count } = await supabase
-            .from("scheduled_sessions")
-            .select("id", { count: "exact", head: true })
-            .in("tutor_id", tutorIds)
-            .eq("status", "completed");
-          sessionsCompleted = count || 0;
+          // COO Pod statistics are a protected server projection. Use the
+          // configured PostgreSQL connection rather than publishable-key
+          // PostgREST reads; both identity columns are varchar in the schema.
+          const [enrollmentCountResult, sessionCountResult] = await Promise.all([
+            pool.query(
+              `SELECT COUNT(*)::integer AS total
+                 FROM public.parent_enrollments
+                WHERE assigned_tutor_id::text = ANY($1::text[])
+                  AND status::text = ANY($2::text[])`,
+              [tutorIds, activeEnrollmentStatuses],
+            ),
+            pool.query(
+              `SELECT COUNT(*)::integer AS total
+                 FROM public.scheduled_sessions
+                WHERE tutor_id::text = ANY($1::text[])
+                  AND status = 'completed'`,
+              [tutorIds],
+            ),
+          ]);
+          totalStudents = Number(enrollmentCountResult.rows[0]?.total ?? 0);
+          sessionsCompleted = Number(sessionCountResult.rows[0]?.total ?? 0);
         }
         
         res.json({
@@ -23988,7 +24004,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const { id } = req.params;
         const docStep = Number(req.params.docStep);
-        const reviewerId = (req.session as any).userId;
+        const reviewerId = (req as any).dbUser.id;
         const { fileName, fileData, fileType } = req.body;
 
         if (!Number.isInteger(docStep) || docStep < 1 || docStep > 5) {

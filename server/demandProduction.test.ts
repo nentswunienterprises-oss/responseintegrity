@@ -3,17 +3,25 @@ import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createDemandDatabase } from './testing/demandDatabase';
-import { demandAssignmentBlock, handoverSla } from '../shared/demandProduction';
+import { demandAssignmentBlock, handoverSla, PARENT_EXPERIENCE_QUESTIONS, SUPPORT_PREFERENCE_QUESTIONS, RI_EXPLANATION_SCRIPT } from '../shared/demandProduction';
 import { buildProductionEconomy } from './productionEconomy';
 
 test('Demand migration, compatibility and database integrity boundaries', async (t) => {
-  const { db, migration } = await createDemandDatabase();
+  const { db, migration, assessmentMigration, completionMigration } = await createDemandDatabase();
   t.after(() => db.close());
   const row = async (user: string) => (await db.query('SELECT * FROM parent_enrollments WHERE user_id=$1',[user])).rows[0];
   const command = (id: string, action: string, status: string | null = null, owner: string | null = null, entry: string | null = null, note: string | null = null, actor = 'coo') =>
     db.query('SELECT update_demand_production($1,$2,$3,$4,$5,$6,$7)', [id,actor,action,status,owner,entry,note]);
+  const completeAssessment = (id: string) => db.query('SELECT save_parent_qualification_assessment($1,$2,$3::jsonb)', [id,'coo',JSON.stringify({
+    parentExperience:{parentAccount:'Parent describes recurring difficulty with fractions.'},
+    supportPreferences:{evidence:'Parent prefers structured weekly support.'},
+    riExplanation:{interviewerObservation:'Parent can explain the distinction between understanding and execution.'},
+    commercialReadiness:{evidence:'Parent has reviewed the available monthly arrangements.'},
+  })]);
   await t.test('migration is repeatable; legacy evidence stays unknown and live Pilot remains usable', async () => {
     await db.exec(migration);
+    await db.exec(assessmentMigration);
+    await db.exec(completionMigration);
     const legacy = await row('legacy');
     assert.equal(legacy.demand_flow_version,0); assert.equal(legacy.qualification_status,null);
     assert.equal(legacy.qualification_completed_at,null); assert.equal(legacy.handover_completed_at,null);
@@ -39,9 +47,24 @@ test('Demand migration, compatibility and database integrity boundaries', async 
     await command(fresh.id,'qualification','follow_up','coo',null,'Confirm availability');
     assert.equal((await row('new')).qualification_contacted_at.getTime(),contacted.qualification_contacted_at.getTime());
     await assert.rejects(command(fresh.id,'qualification','qualified','coo',null,null),/requires owner/);
+    await assert.rejects(command(fresh.id,'qualification','qualified','coo',null,'Premature decision'),/four-part|section/);
+    await db.query('SELECT save_parent_qualification_assessment($1,$2,$3::jsonb)', [fresh.id,'coo',JSON.stringify({
+      parentExperience:{parentAccount:'Parent describes the learner’s mathematics experience.'},
+    })]);
+    await assert.rejects(command(fresh.id,'qualification','qualified','coo',null,'Partial evidence is not enough'),/supportPreferences/);
+    await completeAssessment(fresh.id);
+    const assessed = await row('new');
+    assert.equal(Object.keys(assessed.qualification_assessment).length,4);
+    assert.ok(assessed.qualification_assessment_updated_at);
     await assert.rejects(command(fresh.id,'qualification','qualified','coo',null,'Fit confirmed','new'),/authorized staff/);
     await command(fresh.id,'qualification','qualified','coo',null,'Fit and availability confirmed');
     const qualified = await row('new'); assert.equal(qualified.qualification_decided_by,'coo'); assert.ok(qualified.qualification_completed_at);
+    await assert.rejects(db.query('SELECT save_parent_qualification_assessment($1,$2,$3::jsonb)', [fresh.id,'coo',JSON.stringify({
+      parentExperience:{parentAccount:'Changed after decision'},
+      supportPreferences:{evidence:'Existing'},
+      riExplanation:{evidence:'Existing'},
+      commercialReadiness:{evidence:'Existing'},
+    })]),/locked after the decision/);
     await assert.rejects(command(fresh.id,'qualification','pending'),/already completed/);
   });
   await t.test('entry and handover require distinct recipient and next-action evidence; assignment then opens', async () => {
@@ -59,6 +82,7 @@ test('Demand migration, compatibility and database integrity boundaries', async 
   });
   await t.test('not qualified is terminal and cannot be assigned or handed over', async () => {
     const rejected = await row('rejected');
+    await completeAssessment(rejected.id);
     await command(rejected.id,'qualification','not_qualified','coo',null,'Outside supported intake');
     await assert.rejects(command(rejected.id,'entry',null,null,'pilot'),/Qualify/);
     await assert.rejects(command(rejected.id,'handover',null,'recipient',null,'Assign'),/entry must be selected/);
@@ -177,4 +201,14 @@ test('Specialist assignment surfaces require current enrollment authority', () =
     cardSource,
     /parentEnrollmentTutorId === cardTutorId/,
   );
+});
+
+
+test('approved Parent Qualification interview guide remains complete and individually addressable', () => {
+  assert.equal(PARENT_EXPERIENCE_QUESTIONS.length, 8);
+  assert.equal(SUPPORT_PREFERENCE_QUESTIONS.length, 11);
+  assert.match(PARENT_EXPERIENCE_QUESTIONS[0], /^Tell me about your child/);
+  assert.match(SUPPORT_PREFERENCE_QUESTIONS[10], /marks improved more slowly/);
+  assert.match(RI_EXPLANATION_SCRIPT, /^Thank you for sharing your experience with me/);
+  assert.match(RI_EXPLANATION_SCRIPT, /Diagnosis/);
 });

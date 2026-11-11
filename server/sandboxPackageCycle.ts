@@ -20,11 +20,30 @@ export type SandboxPackageCycleRow = {
   [property: string]: unknown;
 };
 
+/**
+ * Historical Sandbox rows were sometimes keyed by activation date rather
+ * than the canonical first-of-month key. Normalize valid dates in memory;
+ * this read compatibility path never writes or creates a new cycle.
+ */
+export function normalizeSandboxCycleKey(value: unknown): string | null {
+  const key = String(value ?? "").trim();
+  const match = /^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.exec(key);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (
+    !Number.isSafeInteger(year) || year < 2000 || year >= 9999 ||
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) return null;
+  return `${match[1]}-${match[2]}-01`;
+}
+
 export function isSandboxCycleKey(value: unknown): value is string {
-  const key = String(value ?? "");
-  if (!/^\d{4}-(0[1-9]|1[0-2])-01$/.test(key)) return false;
-  const year = Number(key.slice(0, 4));
-  return Number.isSafeInteger(year) && year >= 2000 && year < 9999;
+  return normalizeSandboxCycleKey(value) !== null;
 }
 
 const validCount = (value: unknown): number | null => {
@@ -44,15 +63,19 @@ export function selectAuthoritativeSandboxCycle(
   if (!requestedParentId || !requestedStudentId) return null;
 
   const candidates = rows as SandboxPackageCycleRow[];
-  if (candidates.some(row =>
-    !row ||
-    row.is_sandbox !== true ||
-    String(row.parent_id || "").trim() !== requestedParentId ||
-    String(row.student_id || "").trim() !== requestedStudentId ||
-    !isSandboxCycleKey(row.month_key)
-  )) return null;
+  const normalized = candidates.map(row => {
+    if (
+      !row ||
+      row.is_sandbox !== true ||
+      String(row.parent_id || "").trim() !== requestedParentId ||
+      String(row.student_id || "").trim() !== requestedStudentId
+    ) return null;
+    const monthKey = normalizeSandboxCycleKey(row.month_key);
+    return monthKey ? { ...row, month_key: monthKey } : null;
+  });
+  if (normalized.some(row => row === null)) return null;
 
-  const ordered = [...candidates].sort((a, b) => {
+  const ordered = (normalized as SandboxPackageCycleRow[]).sort((a, b) => {
     const byCycle = String(b.month_key).localeCompare(String(a.month_key));
     return byCycle || String(b.created_at || "").localeCompare(String(a.created_at || ""));
   });

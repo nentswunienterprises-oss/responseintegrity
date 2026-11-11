@@ -7,8 +7,12 @@ export async function createDemandDatabase() {
   const db = new PGlite();
   await db.exec(await readFile(new URL('./demand-fixture.sql', import.meta.url), 'utf8'));
   const migration = await readFile(new URL('../../migrations/20260916191307_demand_production_gateway.sql', import.meta.url), 'utf8');
+  const assessmentMigration = await readFile(new URL('../../migrations/20261110100000_parent_qualification_assessment.sql', import.meta.url), 'utf8');
+  const completionMigration = await readFile(new URL('../../migrations/20261110101000_enforce_four_part_parent_qualification.sql', import.meta.url), 'utf8');
   await db.exec(migration);
-  return { db, migration };
+  await db.exec(assessmentMigration);
+  await db.exec(completionMigration);
+  return { db, migration, assessmentMigration, completionMigration };
 }
 
 // Minimal PostgREST transport for real Supabase clients against isolated PostgreSQL.
@@ -21,6 +25,14 @@ export async function serveDemandDatabase(db: any) {
     return `"${value}"`;
   };
   app.post('/auth/v1/signup', (req, res) => res.json({ id: req.body.email.split('@')[0], email: req.body.email, aud: 'authenticated', created_at: new Date().toISOString() }));
+  app.post('/rest/v1/rpc/save_parent_qualification_assessment', async (req, res) => {
+    try {
+      const p = req.body;
+      const result = await db.query('SELECT save_parent_qualification_assessment($1,$2,$3::jsonb) AS result',
+        [p.p_enrollment_id,p.p_actor_id,JSON.stringify(p.p_assessment)]);
+      res.json(result.rows[0].result);
+    } catch (error: any) { res.status(400).json({ message: error.message, code: error.code }); }
+  });
   app.post('/rest/v1/rpc/update_demand_production', async (req, res) => {
     try {
       const p = req.body;

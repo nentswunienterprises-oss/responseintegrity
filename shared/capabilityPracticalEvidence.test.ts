@@ -9,12 +9,15 @@ import {
 
 test("current Practicals retain valid competency and integrity-boundary lineage",()=>{
  assert.deepEqual(CAPABILITY_PRACTICAL_PROOFS.map(p=>p.key),["prepare","execute","evidence"]);
+ assert.deepEqual(CAPABILITY_PRACTICAL_PROOFS.map(p=>[p.key,p.version,p.reviewRubric.version]),[
+  ["prepare",2,2],["execute",3,3],["evidence",2,2],
+ ]);
  for(const proof of CAPABILITY_PRACTICAL_PROOFS) {
   assert.ok(validateCapabilityPracticalRubric(proof.reviewRubric));
   assert.ok(proof.reviewRubric.criteria.length>=5);
  }
  const execute=CAPABILITY_PRACTICAL_PROOFS[1];
- assert.equal(execute.version,2);
+ assert.equal(execute.version,3);
  assert.equal(execute.reviewRubric.version,3);
  assert.ok(execute.mustShow.some(x=>x.includes("system")||x.includes("turn")));
  assert.ok(execute.reviewRubric.criteria.some(c=>c.key==="adaptive_turn_integrity"));
