@@ -129,5 +129,56 @@ test('real HTTP signup → Gateway → qualification → handover → assignment
     assert.equal(lineage.evidence.verifiedServiceEntry,true); assert.equal(lineage.evidence.verifiedConversions,entry==='commercial');
     assert.equal(lineage.enrollment.assignment_lane,'commercial');
   });
+
+  await t.test('Sandbox proposal acceptance bypasses Demand review without fabricating qualification or entry evidence',async()=>{
+    await db.query("UPDATE parents SET onboarding_type='pending' WHERE user_id='legacy'");
+    const studentId='legacy-sandbox-student';
+    await db.query("INSERT INTO students(id,parent_id,tutor_id,full_name) VALUES ($1,'legacy','specialist','Sandbox Learner')",[studentId]);
+    const proposal=(await db.query(
+      "INSERT INTO onboarding_proposals(enrollment_id,student_id,tutor_id,parent_id,package_key,package_sessions,planned_sessions_per_week,package_amount,topic_conditioning_topic,topic_conditioning_entry_phase,topic_conditioning_stability) SELECT id,$1,'specialist','legacy','monthly_8',8,2,1600,'Algebra','Clarity','Low' FROM parent_enrollments WHERE user_id='legacy' RETURNING id",
+      [studentId],
+    )).rows[0];
+    await db.query(
+      "UPDATE parent_enrollments SET status='proposal_sent',current_step='proposal_sent',is_sandbox_account=true,assigned_tutor_id='specialist',assigned_student_id=$1,proposal_id=$2 WHERE user_id='legacy'",
+      [studentId,proposal.id],
+    );
+
+    const prepared=await ok('POST','/api/parent/proposal/accept','legacy',{});
+    assert.equal(prepared.sandbox,true);
+    assert.equal(prepared.sandboxCheckout,true);
+    assert.equal(prepared.paymentStatus,'UNPAID');
+
+    const confirmed=await ok('POST','/api/parent/proposal/accept','legacy',{completeSandboxPayment:true});
+    assert.equal(confirmed.paymentStatus,'PAID');
+    assert.equal(confirmed.sandbox,true);
+
+    const sandboxEnrollment=await enrollment('legacy');
+    assert.equal(sandboxEnrollment.status,'session_booked');
+    assert.equal(sandboxEnrollment.qualification_status,'pending');
+    assert.equal(sandboxEnrollment.qualification_completed_at,null);
+    assert.equal(sandboxEnrollment.qualification_decided_by,null);
+    assert.equal(sandboxEnrollment.entry_selected_at,null);
+    assert.equal(sandboxEnrollment.entry_selected_by,null);
+    assert.equal(sandboxEnrollment.handover_completed_at,null);
+  });
+
+  await t.test('ordinary pending family remains blocked from proposal acceptance',async()=>{
+    await db.query("INSERT INTO users(id,role,name,email) VALUES ('pending-family','parent','Pending Family','pending-family@example.test')");
+    await db.query("INSERT INTO parents(user_id,onboarding_type) VALUES ('pending-family','pending')");
+    const studentId='pending-family-student';
+    await db.query("INSERT INTO students(id,parent_id,tutor_id,full_name) VALUES ($1,'pending-family','specialist','Pending Learner')",[studentId]);
+    const proposal=(await db.query(
+      "INSERT INTO onboarding_proposals(student_id,tutor_id,parent_id,package_key) VALUES ($1,'specialist','pending-family','monthly_8') RETURNING id",
+      [studentId],
+    )).rows[0];
+    await db.query(
+      "INSERT INTO parent_enrollments(user_id,parent_full_name,status,current_step,is_sandbox_account,assigned_tutor_id,assigned_student_id,proposal_id) VALUES ('pending-family','Pending Family','proposal_sent','proposal_sent',false,'specialist',$1,$2)",
+      [studentId,proposal.id],
+    );
+    const blocked=await request('POST','/api/parent/proposal/accept','pending-family',{});
+    assert.equal(blocked.status,409);
+    assert.equal(blocked.body.message,'Application review and entry selection must be completed before proposal acceptance.');
+  });
+
   if(process.env.RI_DEMAND_PROOF_OUTPUT) await writeFile(process.env.RI_DEMAND_PROOF_OUTPUT,JSON.stringify(evidence,null,2)+'\n');
 });

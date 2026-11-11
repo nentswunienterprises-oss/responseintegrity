@@ -29792,6 +29792,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const payfastSandboxForEnrollment = isSandboxPaymentEnrollment(paymentEnrollment);
       if (
+        (!billingModel.data.onboardingType || billingModel.data.onboardingType === "pending") &&
+        !payfastSandboxForEnrollment
+      ) {
+        return res.status(409).json({ message: "Application review and entry selection must be completed before proposal acceptance." });
+      }
+
+      if (
         String(paymentEnrollment.status || "") === "session_booked" &&
         !payfastSandboxForEnrollment
       ) {
