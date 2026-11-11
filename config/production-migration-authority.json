@@ -192,6 +192,11 @@
       "path": "migrations/20261110101000_enforce_four_part_parent_qualification.sql",
       "description": "Require evidence in all four approved parent qualification sections before a terminal qualified or not_qualified decision. Pending Preview validation; not authorized for Production promotion.",
       "risk": "additive"
+    },
+    {
+      "path": "migrations/20261111120000_sandbox_behavior_model_v2_default.sql",
+      "description": "Set the default Behaviour Model version for newly created Sandbox trajectories to V2 while preserving all existing version-pinned trajectories. Reviewed in PR #334; pending separate Preview/Production promotion and explicit Production authorization.",
+      "risk": "additive"
     }
   ],
   "previewOnlyMigrations": [

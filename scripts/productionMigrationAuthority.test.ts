@@ -14,7 +14,7 @@ test("production DB authority locks the verified The Hub baseline", () => {
   assert.equal(result.authority.productionProjectRef, "yzcnavucvwgmulcxgxvw");
   assert.equal(result.authority.baseline.commit, "a8c1aab29b230ce523c0353cfcc4eb4b1ae07627");
   assert.equal(result.baselineCount, 15);
-  assert.equal(result.managedCount, 24);
+  assert.equal(result.managedCount, 25);
   assert.deepEqual(result.authority.previewOnlyMigrations?.map((migration) => migration.path), [
     "migrations/20261011_practicals_shared_video_benchmarks_v1.sql",
     "migrations/20261110_practicals_shared_video_benchmarks_v1_preview_compat.sql",
@@ -47,7 +47,8 @@ test("production DB authority locks the verified The Hub baseline", () => {
         "migrations/20261108_parent_enrollment_topic_response_symptom_ids.sql",
         "migrations/20261109_scheduled_session_timezone_instants.sql",
         "migrations/20261110100000_parent_qualification_assessment.sql",
-        "migrations/20261110101000_enforce_four_part_parent_qualification.sql"
+        "migrations/20261110101000_enforce_four_part_parent_qualification.sql",
+        "migrations/20261111120000_sandbox_behavior_model_v2_default.sql"
     ],
   );
 });
