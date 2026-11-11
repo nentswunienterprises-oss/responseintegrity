@@ -202,6 +202,10 @@
     {
       "path": "migrations/20261110_practicals_shared_video_benchmarks_v1_preview_compat.sql",
       "description": "Capability Proof-compatible Practicals shared-video benchmark schema and integrity guards, applied only to the isolated Preview database. Explicitly excluded from The Hub Production plan and apply; any Production promotion requires a separate reviewed migration and authorization."
+    },
+    {
+      "path": "migrations/20261111043902_reconcile_scheduled_sessions_view_security.sql",
+      "description": "Restore Capability Proof's scheduled_sessions_with_names view to the The Hub security contract: security_invoker=true, no PUBLIC/anon/authenticated privileges, service_role SELECT only. Applied only to Preview because The Hub already has the intended configuration; explicitly excluded from Production promotion."
     }
   ]
 }
