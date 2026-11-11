@@ -759,6 +759,7 @@ test("emergency Sandbox provisioning can create a passwordless Auth identity mir
     const insert = queries.find(({ text }) => text.includes("INSERT INTO auth.users"));
     assert.ok(insert);
     assert.match(insert!.text, /emergency-db-session/);
+    assert.ok(insert!.text.includes("jsonb_build_object('role', 'tutor', 'name', $3::text)"));
     assert.equal(insert!.text.includes("encrypted_password"), false);
   } finally {
     if (previousEmergencyMode === undefined) delete process.env.EMERGENCY_DB_MODE;
