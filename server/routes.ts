@@ -4361,9 +4361,22 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
             SET enrollment_id = $1,
                 accepted_at = COALESCE(accepted_at, $2),
                 parent_code = $3,
+                package_key = $5,
+                package_sessions = $6,
+                planned_sessions_per_week = $7,
+                package_amount = $8,
                 updated_at = $2
           WHERE id = $4`,
-        [enrollment.id, nowIso, parentCode, proposal.id],
+        [
+          enrollment.id,
+          nowIso,
+          parentCode,
+          proposal.id,
+          servicePackage.key,
+          servicePackage.sessionsPerMonth,
+          servicePackage.plannedSessionsPerWeek,
+          servicePackage.amountZar.toFixed(2),
+        ],
       );
 
       const acceptedTopic = String(proposal.topic_conditioning_topic || "").trim();
@@ -4617,6 +4630,10 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
       enrollment_id: enrollment.id,
       accepted_at: proposal.accepted_at || nowIso,
       parent_code: parentCode,
+      package_key: servicePackage.key,
+      package_sessions: servicePackage.sessionsPerMonth,
+      planned_sessions_per_week: servicePackage.plannedSessionsPerWeek,
+      package_amount: servicePackage.amountZar.toFixed(2),
       updated_at: nowIso,
     })
     .eq("id", proposal.id);
@@ -29539,6 +29556,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!existingPayment) {
             return res.status(409).json({ message: "Sandbox checkout has not been prepared yet." });
           }
+          if (requestedPackageKey && String(existingPayment.package_key || "") !== requestedPackageKey) {
+            return res.status(409).json({ message: "The selected package does not match the prepared checkout. Reopen checkout and try again." });
+          }
           const completedAt = new Date().toISOString();
           const completedPaymentResult = await pool.query(
             `UPDATE public.payment_transactions
@@ -29814,6 +29834,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!existingPayment) {
           return res.status(409).json({ message: "Sandbox checkout has not been prepared yet." });
         }
+        if (requestedPackageKey && String(existingPayment.package_key || "") !== requestedPackageKey) {
+          return res.status(409).json({ message: "The selected package does not match the prepared checkout. Reopen checkout and try again." });
+        }
         const completedAt = new Date().toISOString();
         const { data: completedPayment, error: completionError } = await supabase
           .from("payment_transactions")
@@ -29861,7 +29884,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!paymentProposal?.student_id || !paymentProposal?.tutor_id) {
         return res.status(400).json({ message: "Proposal is missing student or tutor linkage." });
       }
-      const servicePackage = getMonthlyServicePackage(paymentProposal.package_key);
+      const servicePackage = getMonthlyServicePackage(requestedPackageKey || paymentProposal.package_key);
 
       if (billingModel.data.onboardingType === "pilot") {
         const finalizationSeed = existingPayment || {
