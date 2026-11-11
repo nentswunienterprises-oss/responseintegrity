@@ -29767,10 +29767,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to resolve onboarding type for billing." });
       }
 
-      if (!billingModel.data.onboardingType || billingModel.data.onboardingType === "pending") {
-        return res.status(409).json({ message: "Application review and entry selection must be completed before proposal acceptance." });
-      }
-
       const { data: paymentEnrollment, error: paymentEnrollmentError } = await supabase
         .from("parent_enrollments")
         .select("id, status, proposal_id, student_full_name, current_step, assigned_tutor_id, parent_email, is_sandbox_account")
