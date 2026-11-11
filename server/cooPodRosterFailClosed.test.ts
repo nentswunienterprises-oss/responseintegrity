@@ -51,10 +51,10 @@ test("COO Pod statistics use parameterized protected PostgreSQL reads for both s
   assert.match(stats, /requireRole\(\["coo"\]\)/);
   assert.match(stats, /pool\.query/);
   assert.match(stats, /FROM public\.parent_enrollments/);
-  assert.match(stats, /assigned_tutor_id = ANY\(\$1::varchar\[\]\)/);
+  assert.match(stats, /assigned_tutor_id::text = ANY\(\$1::text\[\]\)/);
   assert.match(stats, /status::text = ANY\(\$2::text\[\]\)/);
   assert.match(stats, /FROM public\.scheduled_sessions/);
-  assert.match(stats, /tutor_id = ANY\(\$1::varchar\[\]\)/);
+  assert.match(stats, /tutor_id::text = ANY\(\$1::text\[\]\)/);
   assert.doesNotMatch(stats, /\.from\(["']parent_enrollments["']\)|\.from\(["']scheduled_sessions["']\)/);
 });
 
@@ -65,7 +65,7 @@ test("COO assignment and roster projections do not turn denied reads into empty 
   assert.match(allAssignments, /res\.status\(500\)\.json/);
   const loadStats = section(routes, "async function loadTutorAssignmentLoadStats(", "function derivePodOperatingState(");
   assert.match(loadStats, /FROM public\.parent_enrollments/);
-  assert.match(loadStats, /assigned_tutor_id = \$1/);
+  assert.match(loadStats, /assigned_tutor_id::text = \$1::text/);
   assert.match(loadStats, /status::text = ANY\(\$2::text\[\]\)/);
   assert.doesNotMatch(loadStats, /assigned_tutor_id = \$1::uuid/);
 });
