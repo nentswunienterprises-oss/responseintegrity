@@ -2011,13 +2011,13 @@ function isSandboxEnrollmentForTutor(enrollment: any, tutorId?: string) {
 }
 
 async function loadTutorAssignmentLoadStats(tutorId: string) {
-  // Read through the server's configured PostgreSQL connection. IDs are
-  // varchar in the canonical schema; do not cast them to UUID.
+  // Read through the server's configured PostgreSQL connection. Tutor IDs are
+  // opaque identifiers; compare as text across UUID- and varchar-backed schemas.
   const result = await pool.query(
     `SELECT id, status, current_step, is_sandbox_account, assignment_lane,
             parent_full_name, parent_email, student_full_name
        FROM public.parent_enrollments
-      WHERE assigned_tutor_id = $1
+      WHERE assigned_tutor_id::text = $1::text
         AND status::text = ANY($2::text[])`,
     [tutorId, [...ACTIVE_PARENT_ENROLLMENT_STATUSES, "awaiting_tutor_acceptance"]],
   );
@@ -21926,14 +21926,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             pool.query(
               `SELECT COUNT(*)::integer AS total
                  FROM public.parent_enrollments
-                WHERE assigned_tutor_id = ANY($1::varchar[])
+                WHERE assigned_tutor_id::text = ANY($1::text[])
                   AND status::text = ANY($2::text[])`,
               [tutorIds, activeEnrollmentStatuses],
             ),
             pool.query(
               `SELECT COUNT(*)::integer AS total
                  FROM public.scheduled_sessions
-                WHERE tutor_id = ANY($1::varchar[])
+                WHERE tutor_id::text = ANY($1::text[])
                   AND status = 'completed'`,
               [tutorIds],
             ),
