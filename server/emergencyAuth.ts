@@ -155,7 +155,7 @@ export async function ensureEmergencyAuthUserIdentity(pool: Pool, userId: string
      ) VALUES (
        $1::uuid, 'authenticated', 'authenticated', $2, NULL,
        jsonb_build_object('provider', 'emergency-db-session', 'providers', jsonb_build_array('emergency-db-session')),
-       jsonb_build_object('role', 'tutor', 'name', $3),
+       jsonb_build_object('role', 'tutor', 'name', $3::text),
        now(), now()
      )
      ON CONFLICT (id) DO NOTHING
