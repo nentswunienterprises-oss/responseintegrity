@@ -414,7 +414,7 @@ test("a breakdown narrative cannot claim recurrence without a prior breakdown on
     },
   });
   assert.match(selected.studentBehavior, /breaks the response; the student/);
-  assert.doesNotMatch(selected.studentBehavior, /\\bagain\\b/i);
+  assert.doesNotMatch(selected.studentBehavior, /\bagain\b/i);
 });
 
 test("a breakdown narrative may describe recurrence when prior canonical evidence records breakdown", () => {
@@ -450,5 +450,5 @@ test("recurrence wording follows the latest same-probe evidence, not an older fa
       ],
     },
   });
-  assert.doesNotMatch(selected.studentBehavior, /\\bagain\\b/i);
+  assert.doesNotMatch(selected.studentBehavior, /\bagain\b/i);
 });
