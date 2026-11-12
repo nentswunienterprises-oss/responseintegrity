@@ -432,3 +432,23 @@ test("a breakdown narrative may describe recurrence when prior canonical evidenc
   });
   assert.match(selected.studentBehavior, /breaks the response again/);
 });
+
+
+test("recurrence wording follows the latest same-probe evidence, not an older failure", () => {
+  const breakdown = outcomeFor("difficulty.recovery", "difficulty.recovery.pattern_4", "breakdown");
+  breakdown.studentBehavior = "The difficult moment breaks the response again; the student cannot recover independently.";
+  const selected = selectSandboxDiagnosisOutcome({
+    seed: "latest-evidence-guard",
+    outcomes: [breakdown],
+    context: {
+      startingPhase: "Controlled Discomfort",
+      probeId: "difficulty.recovery",
+      sequenceNumber: 3,
+      priorOutcomes: [
+        { probeId: "difficulty.recovery", trajectoryClass: "breakdown", observations: [] },
+        { probeId: "difficulty.recovery", trajectoryClass: "confounded", observations: [] },
+      ],
+    },
+  });
+  assert.doesNotMatch(selected.studentBehavior, /\\bagain\\b/i);
+});
