@@ -70,7 +70,7 @@ where source.bank_key = 'sandbox_stateful_environment'
   and source.bank_version = 1
   and source.active = true;
 
-do $
+do $$
 declare
   source_training_rows integer;
   copied_training_rows integer;
@@ -134,7 +134,7 @@ begin
     raise exception 'V2 Training phase/set/rep coverage differs from the approved V1 bank.';
   end if;
 end
-$;
+$$;
 
 -- Four duplicate canonical outcome pairs are consolidated by retaining pattern_4.
 -- pattern_4 has the higher existing selection weight in each pair. The duplicate
