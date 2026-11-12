@@ -73,5 +73,5 @@ test("ambiguous same-priority trajectories fail closed instead of selecting the 
 test("new work selects the active bank trajectory when no older episode is pending", () => {
   const v2Active = { id: "trajectory-v2", bank_version: 2, trajectory_resolution_priority: 2 };
   const retiredOrNonDiagnosisV1 = { id: "trajectory-v1", bank_version: 1, trajectory_resolution_priority: 3 };
-  assert.equal(selectSandboxRediagnosisTrajectoryCandidate([v2Active, retiredOrNon-diagnosisV1]), v2Active);
+  assert.equal(selectSandboxRediagnosisTrajectoryCandidate([v2Active, retiredOrNonDiagnosisV1]), v2Active);
 });
