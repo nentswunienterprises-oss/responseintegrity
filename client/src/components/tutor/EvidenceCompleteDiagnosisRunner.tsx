@@ -197,8 +197,31 @@ function describePreviousOpportunity(
     .map((observation) => {
       const dimension = DIAGNOSIS_OBSERVATION_MATRIX[observation.dimensionId];
       const selected = dimension?.options.find((option) => option.id === observation.behaviorId);
+      const confoundedNarratives: Partial<Record<DiagnosisDimensionId, string>> = {
+        "clarity.vocabulary": "The task did not give us a reliable view of whether the student could recognise the important mathematical language and symbols.",
+        "clarity.method": "The task did not give us a reliable view of whether the student could choose an appropriate method independently.",
+        "clarity.reason": "The task did not give us a reliable view of whether the student could explain why the method fits.",
+        "clarity.immediate_apply": "The response did not let us establish whether the student could turn their understanding into an independent first action.",
+        "execution.start": "The conditions did not let us establish whether the student could begin independently.",
+        "execution.step_discipline": "The response did not give us a reliable view of whether the student could maintain the method from one step to the next.",
+        "execution.repeatability": "There was not enough comparable evidence to establish whether the student could repeat the earlier method.",
+        "execution.independence": "The conditions did not let us establish whether the student could carry the work without help.",
+        "difficulty.initial_response": "The task did not give us a reliable view of how the student responded at the first point of difficulty.",
+        "difficulty.first_step_control": "The conditions did not let us establish whether the student could make a controlled first move when the work became difficult.",
+        "difficulty.tolerance": "The task did not give us a reliable view of whether the student could stay engaged and recover through difficulty.",
+        "difficulty.rescue_dependence": "We could not reliably establish whether the student would continue independently when they became stuck.",
+        "time.start": "The conditions did not let us establish whether the student could begin in a controlled way under time pressure.",
+        "time.structure": "The response did not give us a reliable view of whether the student could maintain the method under time pressure.",
+        "time.pace": "The response did not give us a reliable view of whether the student could regulate their pace under time pressure.",
+        "time.completion_integrity": "The task did not give us a reliable view of whether the student could complete the work while preserving the method."
+      };
       return selected && selected.behaviorClass !== "not_observed"
-        ? { detail: selected.detail, behaviorClass: selected.behaviorClass }
+        ? {
+            detail: selected.behaviorClass === "confounded"
+              ? confoundedNarratives[observation.dimensionId] || selected.detail
+              : selected.detail,
+            behaviorClass: selected.behaviorClass,
+          }
         : null;
     })
     .filter((item): item is NonNullable<typeof item> => item !== null);
