@@ -1233,6 +1233,22 @@ export default function StudentTopicConditioningDialog({
     const selectedTopics = Array.from(selectedSessionTopics);
     if (selectedTopics.length === 0) return;
 
+    // Revalidate against current activation authority at the launch boundary.
+    // This also rejects stale selections retained from an earlier render.
+    const blockedParentReports = Array.from(selectedSessionTopics).filter((topic) =>
+      pendingParentReportedTopicKeys.has(normalizeTopicKey(topic) || ""),
+    );
+    const noLongerEligibleTopics = Array.from(selectedSessionTopics).filter((topic) =>
+      !sessionEligibleTopics.some((eligible) => normalizeTopicKey(eligible.topic) === normalizeTopicKey(topic)),
+    );
+    if (blockedParentReports.length > 0 || noLongerEligibleTopics.length > 0) {
+      setTrainingSessionMeetMessage(
+        blockedParentReports.length > 0
+          ? "Parent-reported topics must be reviewed and explicitly activated before they can enter a booked session."
+          : "The selected topic state has changed. Refresh the conditioning map and select eligible topics again.",
+      );
+      return;
+    }
     const selectedTopicStates = selectedTopics
       .map((topicName) => topics.find((topic) => topic.topic === topicName))
       .filter((topic): topic is TopicRow => !!topic);
@@ -1395,22 +1411,6 @@ export default function StudentTopicConditioningDialog({
       return;
     }
     if (selectedSessionTopics.size === 0 || !sessionPrepChecklistComplete || sandboxPreparationPending) return;
-    // Revalidate against current activation authority at the launch boundary.
-    // This also rejects stale selections retained from an earlier render.
-    const blockedParentReports = Array.from(selectedSessionTopics).filter((topic) =>
-      pendingParentReportedTopicKeys.has(normalizeTopicKey(topic) || ""),
-    );
-    const noLongerEligibleTopics = Array.from(selectedSessionTopics).filter((topic) =>
-      !sessionEligibleTopics.some((eligible) => normalizeTopicKey(eligible.topic) === normalizeTopicKey(topic)),
-    );
-    if (blockedParentReports.length > 0 || noLongerEligibleTopics.length > 0) {
-      setTrainingSessionMeetMessage(
-        blockedParentReports.length > 0
-          ? "Parent-reported topics must be reviewed and explicitly activated before they can enter a booked session."
-          : "The selected topic state has changed. Refresh the conditioning map and select eligible topics again.",
-      );
-      return;
-    }
     const activeSession = activeTrainingSession;
     if (activeSession) {
       await launchTrainingSession(activeSession.id);
