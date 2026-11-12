@@ -113,7 +113,7 @@ begin
        and bank_version = 2 and active = true
      group by phase, set_id, rep_number
     having count(*) filter (
-      where outcome_key !~ '\\.pattern_7
+      where outcome_key NOT LIKE '%.pattern_7'
      where bank_key = 'sandbox_stateful_environment'
        and bank_version = 1 and active = true
      group by phase, set_id, rep_number
@@ -320,7 +320,7 @@ $$;
 
         and coalesce(definition->>'trajectoryClass', '') <> 'not_observed'
     ) < 6 or count(*) filter (
-      where outcome_key !~ '\\.pattern_7
+      where outcome_key NOT LIKE '%.pattern_7'
      where bank_key = 'sandbox_stateful_environment'
        and bank_version = 1 and active = true
      group by phase, set_id, rep_number
