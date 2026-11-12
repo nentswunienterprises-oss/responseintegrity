@@ -9,6 +9,7 @@ import {
   type DiagnosisDimensionId,
   type DiagnosisProbeId,
   type DiagnosisProbeResult,
+  type DiagnosisBehaviorClass,
   type DiagnosisSupportEvent,
 } from "@shared/evidenceCompleteDiagnosis";
 import {
@@ -24,6 +25,7 @@ import {
   validateSandboxDiagnosisOutcomeDefinition,
   type SandboxDiagnosisOutcomeDefinition,
   type SandboxDiagnosisSubmittedProbe,
+  type SandboxDiagnosisCanonicalObservation,
 } from "@shared/sandboxDiagnosisEnvironment";
 import type {
   SandboxCapabilityOccurrence,
