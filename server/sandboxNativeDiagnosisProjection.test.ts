@@ -71,6 +71,11 @@ test("first native Diagnosis initializes only an owned Sandbox trajectory before
   assert.match(native, /await assertSandboxAccess\(input\);[\s\S]*?const initializedTrajectoryId = input.scope === "diagnosis"[\s\S]*?await initializeSandboxNativeEvidenceTrajectory\(input\)[\s\S]*?loadTrajectory\(\{[\s\S]*?trajectoryId: initializedTrajectoryId/);
   assert.match(native, /trajectoryId: prepared.trajectoryId/);
   const environment = readFileSync(new URL("./sandboxEnvironment.ts", import.meta.url), "utf8");
+  const history = environment.slice(environment.indexOf("export async function getSandboxEnvironmentHistory"));
+  assert.match(history, /bankVersion\?: number/);
+  assert.match(history, /loadEnvironmentBankVersion\(DEFAULT_SANDBOX_ENVIRONMENT_BANK_KEY, input.bankVersion\)/);
+  const planner = source.slice(source.indexOf("async function plan("), source.indexOf("function projectProbe("));
+  assert.match(planner, /getSandboxEnvironmentHistory\(\{ \.\.\.input, bankVersion: trajectory.bank_version \}\)/);
   const initialize = environment.slice(environment.indexOf("export async function initializeSandboxNativeEvidenceTrajectory"), environment.indexOf("export async function getSandboxEnvironmentHistory"));
   assert.match(initialize, /await assertSandboxAccess\(input\)/);
   assert.match(initialize, /loadActiveEnvironmentBank/);
