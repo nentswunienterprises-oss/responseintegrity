@@ -456,3 +456,50 @@ test("recurrence wording follows the latest same-probe evidence, not an older fa
   });
   assert.doesNotMatch(selected.studentBehavior, /\bagain\b/i);
 });
+
+
+test("repeat-opportunity wording is preserved when the current response is successful", () => {
+  const repeated = outcomeFor("execution.repeatability", "execution.repeatability.pattern_1", "supported");
+  repeated.studentBehavior = "The student applies the method again and preserves the same structure independently.";
+  const selected = selectSandboxDiagnosisOutcome({
+    seed: "successful-repeat-wording",
+    outcomes: [repeated],
+    context: {
+      startingPhase: "Structured Execution",
+      probeId: "execution.repeatability",
+      sequenceNumber: 2,
+      priorOutcomes: [{
+        probeId: "execution.repeatability",
+        trajectoryClass: "breakdown",
+        observations: [],
+      }],
+    },
+  });
+  assert.match(selected.studentBehavior, /again/);
+});
+
+test("a prior breakdown on a different dimension does not establish the same failure recurring", () => {
+  const breakdown = outcomeFor("difficulty.recovery", "difficulty.recovery.pattern_4", "breakdown");
+  breakdown.studentBehavior = "The difficult moment breaks the response again; the student cannot recover independently.";
+  const currentFailures = breakdown.canonicalObservations.filter((observation) =>
+    DIAGNOSIS_OBSERVATION_MATRIX[observation.dimensionId].options.find(
+      (option) => option.id === observation.behaviorId,
+    )?.behaviorClass === "breakdown"
+  );
+  assert.ok(currentFailures.length > 1);
+  const selected = selectSandboxDiagnosisOutcome({
+    seed: "different-dimension-does-not-repeat",
+    outcomes: [breakdown],
+    context: {
+      startingPhase: "Controlled Discomfort",
+      probeId: "difficulty.recovery",
+      sequenceNumber: 2,
+      priorOutcomes: [{
+        probeId: "difficulty.recovery",
+        trajectoryClass: "breakdown",
+        observations: [currentFailures[0]],
+      }],
+    },
+  });
+  assert.doesNotMatch(selected.studentBehavior, /\\bagain\\b/i);
+});
