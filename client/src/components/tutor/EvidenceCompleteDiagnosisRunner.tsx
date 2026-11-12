@@ -1903,9 +1903,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
                   {currentProbe.evidenceQuestion}
                 </p>
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  {previousOpportunityExplanation}
-                </p>
+                
               </div>
 
               {executionProtocol && (
@@ -2153,9 +2151,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
                   {currentProbe.evidenceQuestion}
                 </p>
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  {previousOpportunityExplanation}
-                </p>
+                
               </div>
 
               <div className="mt-4 rounded-xl border bg-background/70 px-4 py-3">
