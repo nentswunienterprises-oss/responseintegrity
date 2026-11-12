@@ -328,7 +328,7 @@ export function selectSandboxDiagnosisOutcome(input: {
   const longitudinallyGuarded = applyLongitudinalNarrativeGuard(chosen, input.context.priorOutcomes || []);
   if (input.context.behaviorModelVersion !== 2) return longitudinallyGuarded;
   const studentBehavior = renderSandboxDiagnosisExceptionNarrativeV2(chosen.key);
-  if (!studentBehavior) return chosen;
+  if (!studentBehavior) return longitudinallyGuarded;
   if (chosen.trajectoryClass !== "not_observed" && chosen.trajectoryClass !== "confounded") {
     throw new Error("A V2 integrity scenario cannot replace an ordinary diagnostic outcome.");
   }
