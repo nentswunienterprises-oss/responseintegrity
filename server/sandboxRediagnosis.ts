@@ -40,7 +40,7 @@ import {
   type PersistedTpsTimerContract,
 } from "./tpsTimingAuthority";
 import { getSandboxEnvironmentHistory, initializeSandboxNativeEvidenceTrajectory } from "./sandboxEnvironment";
-import { resolveSandboxRediagnosisEpisodeRun, canRetireSupersededEmptySandboxEpisode, sandboxRediagnosisSelectionSeed } from "./sandboxRediagnosisEpisode";
+import { resolveSandboxRediagnosisEpisodeRun, canRetireSupersededEmptySandboxEpisode, sandboxRediagnosisSelectionSeed, selectSandboxRediagnosisTrajectoryCandidate } from "./sandboxRediagnosisEpisode";
 import { SANDBOX_DIAGNOSIS_EXCEPTION_NARRATIVE_VERSION } from "@shared/sandboxDiagnosisExceptionNarrativesV2";
 
 import { projectSandboxNativeDiagnosisOutcome, SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION } from "./sandboxNativeDiagnosisProjection";
@@ -248,12 +248,13 @@ async function loadTrajectory(input: {
     [input.tutorAssignmentId, input.tutorId, input.studentId, BANK_KEY,
       input.trajectoryId || null, input.rediagnosisRunId || null],
   );
-  const row = result.rows[0];
-  if (!row) throw httpError(409, "No active Sandbox trajectory matches this re-diagnosis episode.");
-  if (result.rows[1] &&
-      Number(result.rows[1].trajectory_resolution_priority) === Number(row.trajectory_resolution_priority)) {
+  let row: any;
+  try {
+    row = selectSandboxRediagnosisTrajectoryCandidate(result.rows);
+  } catch {
     throw httpError(409, "More than one Sandbox trajectory could own this re-diagnosis route. No trajectory was selected; resolve the version transition before continuing.");
   }
+  if (!row) throw httpError(409, "No active Sandbox trajectory matches this re-diagnosis episode.");
   return {
     trajectory: row as TrajectoryRow,
     truth: {
