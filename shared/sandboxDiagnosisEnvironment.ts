@@ -194,10 +194,10 @@ function narrativeMayClaimRecurrence(
   outcome: SandboxDiagnosisOutcomeDefinition,
   priorOutcomes: NonNullable<SandboxDiagnosisOutcomeSelectionContext["priorOutcomes"]>,
 ) {
-  return priorOutcomes.some((prior) =>
-    prior.probeId === outcome.probeId &&
-    prior.trajectoryClass === "breakdown"
-  );
+  const previousSameProbe = priorOutcomes
+    .filter((prior) => prior.probeId === outcome.probeId)
+    .at(-1);
+  return previousSameProbe?.trajectoryClass === "breakdown";
 }
 
 function applyLongitudinalNarrativeGuard(
