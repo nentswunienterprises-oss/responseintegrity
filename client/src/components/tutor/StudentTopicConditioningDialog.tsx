@@ -32,7 +32,7 @@ import {
 import { getQueryFn } from "@/lib/queryClient";
 import { Target, AlertCircle, Info, ChevronDown, MoreHorizontal } from "lucide-react";
 import { useStudentWorkflowState } from "@/hooks/useStudentWorkflowState";
-import { getTrainingSessionWeekKey } from "@/lib/trainingSessionWeek";
+import { getTrainingSessionWeekKey, isScheduledTrainingSessionUpcoming } from "@/lib/trainingSessionWeek";
 // Removed TutorSessionLogForm import (manual session logging is deprecated)
 import {
   PHASES,
@@ -1834,11 +1834,17 @@ export default function StudentTopicConditioningDialog({
     ),
   );
   const weeklySessionTargetLabel = `${packageWeeklySessionTarget} ${packageWeeklySessionTarget === 1 ? "lesson" : "lessons"}`;
+  // A confirmed booking in a historical week is not an active lesson.
+  // Choose the next future actionable booking; otherwise the runner can reopen
+  // a completed diagnosis by reusing an old scheduledSessionId.
   const activeTrainingWeekCandidate = [...(trainingSessionsData?.sessions || [])]
     .filter((session: any) => {
       const status = String(session.status || "");
-      return !["completed", "flagged"].includes(status) &&
-        !(status === "cancelled" && session.cancellation?.disposition === "closed_consumed");
+      const isLaunchableLiveSession = status === "live" && session.launch?.canLaunch === true;
+      return (
+        (isScheduledTrainingSessionUpcoming(session.scheduled_time) || isLaunchableLiveSession) &&
+        ["confirmed", "ready", "live"].includes(status)
+      );
     })
     .sort(
       (a: any, b: any) => new Date(a.scheduled_time || 0).getTime() - new Date(b.scheduled_time || 0).getTime(),
@@ -1852,10 +1858,23 @@ export default function StudentTopicConditioningDialog({
       getTrainingSessionWeekKey(session.scheduled_time, session.timezone) === activeTrainingWeekKey,
   );
   const weeklyActionableTrainingSessions = weeklyTrainingSessions.filter(
-    (session: any) => !["completed", "cancelled", "flagged"].includes(String(session.status || "")),
+    (session: any) => {
+      const status = String(session.status || "");
+      const isLaunchableLiveSession = status === "live" && session.launch?.canLaunch === true;
+      return (
+        !["completed", "cancelled", "flagged"].includes(status) &&
+        (isScheduledTrainingSessionUpcoming(session.scheduled_time) || isLaunchableLiveSession)
+      );
+    },
   );
   const confirmedTrainingSessions = weeklyActionableTrainingSessions.filter(
-    (session: any) => ["confirmed", "ready", "live"].includes(String(session.status || "")),
+    (session: any) => {
+      const status = String(session.status || "");
+      return (
+        ["confirmed", "ready"].includes(status) && isScheduledTrainingSessionUpcoming(session.scheduled_time) ||
+        status === "live" && session.launch?.canLaunch === true
+      );
+    },
   );
   const pendingConfirmedMeetSyncSessions = confirmedTrainingSessions.filter(
     (session: any) => !session.google_meet_url,
@@ -1882,8 +1901,13 @@ export default function StudentTopicConditioningDialog({
   );
   const weeklyReadySessionCount = weeklyTrainingSessions.filter((session: any) => {
     const status = String(session.status || "");
-    return ["confirmed", "ready", "live", "completed"].includes(status) ||
+    const completedOrConsumed =
+      status === "completed" ||
       (status === "cancelled" && session.cancellation?.disposition === "closed_consumed");
+    const upcomingConfirmed =
+      ["confirmed", "ready"].includes(status) && isScheduledTrainingSessionUpcoming(session.scheduled_time);
+    const activeLive = status === "live" && session.launch?.canLaunch === true;
+    return completedOrConsumed || upcomingConfirmed || activeLive;
   }).length;
   const weeklyScheduleHasBlockedSession = weeklyTrainingSessions.some((session: any) => {
     const status = String(session.status || "");
