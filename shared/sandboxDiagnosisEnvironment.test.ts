@@ -427,7 +427,11 @@ test("a breakdown narrative may describe recurrence when prior canonical evidenc
       startingPhase: "Controlled Discomfort",
       probeId: "difficulty.recovery",
       sequenceNumber: 2,
-      priorOutcomes: [{ probeId: "difficulty.recovery", trajectoryClass: "breakdown", observations: [] }],
+      priorOutcomes: [{
+        probeId: "difficulty.recovery",
+        trajectoryClass: "breakdown",
+        observations: breakdown.canonicalObservations,
+      }],
     },
   });
   assert.match(selected.studentBehavior, /breaks the response again/);
@@ -445,7 +449,7 @@ test("recurrence wording follows the latest same-probe evidence, not an older fa
       probeId: "difficulty.recovery",
       sequenceNumber: 3,
       priorOutcomes: [
-        { probeId: "difficulty.recovery", trajectoryClass: "breakdown", observations: [] },
+        { probeId: "difficulty.recovery", trajectoryClass: "breakdown", observations: breakdown.canonicalObservations },
         { probeId: "difficulty.recovery", trajectoryClass: "confounded", observations: [] },
       ],
     },
