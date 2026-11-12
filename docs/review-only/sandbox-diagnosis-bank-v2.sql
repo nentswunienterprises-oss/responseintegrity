@@ -113,10 +113,10 @@ begin
        and bank_version = 2 and active = true
      group by phase, set_id, rep_number
     having count(*) filter (
-      where outcome_key NOT LIKE '%.pattern_7'
+      where right(outcome_key, 10) <> '.pattern_7'
         and coalesce(definition->>'trajectoryClass', '') <> 'not_observed'
     ) < 6 or count(*) filter (
-      where outcome_key NOT LIKE '%.pattern_7'
+      where right(outcome_key, 10) <> '.pattern_7'
         and coalesce(definition->>'trajectoryClass', '') <> 'not_observed'
     ) > 10
   ) then
