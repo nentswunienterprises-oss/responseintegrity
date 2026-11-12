@@ -14,7 +14,7 @@ test("V2 diagnosis bank SQL remains a review artifact outside executable migrati
 
 test("V2 draft preserves V1 and refuses unexpected source state", () => {
   assert.match(sql, /bank_version = 1[\s\S]*?active = true[\s\S]*?\) <> 56/);
-  assert.match(sql, /bank_version,\s*2[\s\S]*?false\s*from private\.specialist_sandbox_environment_banks/i);
+  assert.match(sql, /select\s+bank_key,\s+2,[\s\S]*?false\s+from private\.specialist_sandbox_environment_banks/i);
   assert.doesNotMatch(sql, /(?:update|delete\s+from)\s+private\.specialist_sandbox_(?:environment_banks|diagnosis_outcomes)/i);
   assert.match(sql, /V2 must remain inactive/i);
 });
