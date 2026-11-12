@@ -1720,3 +1720,22 @@ test("COO document review uses the authenticated database identity and bearer-aw
   assert.ok(mutation.includes("apiRequest("));
   assert.ok(!mutation.includes("fetch("));
 });
+
+
+test("parent-selected package remains authoritative through proposal checkout and activation", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const acceptStart = routesSource.indexOf('app.post("/api/parent/proposal/accept"');
+  const acceptEnd = routesSource.indexOf('app.post("/api/parent/proposal/decline"', acceptStart);
+  const acceptSource = routesSource.slice(acceptStart, acceptEnd);
+  const finalizeStart = routesSource.indexOf("async function finalizeAcceptedProposalFromPayment");
+  const finalizeEnd = routesSource.indexOf('app.post("/api/parent/proposal/accept"', finalizeStart);
+  const finalizeSource = routesSource.slice(finalizeStart, finalizeEnd);
+
+  assert.ok(acceptStart >= 0 && acceptEnd > acceptStart);
+  assert.match(acceptSource, /getMonthlyServicePackage\(requestedPackageKey \|\| paymentProposal\.package_key\)/);
+  assert.match(acceptSource, /selected package does not match the prepared checkout/);
+  assert.match(finalizeSource, /package_key = \$5[\s\S]*package_sessions = \$6[\s\S]*planned_sessions_per_week = \$7/);
+  assert.match(finalizeSource, /package_key: servicePackage\\.key[\\s\\S]*package_sessions: servicePackage\\.sessionsPerMonth[\\s\\S]*planned_sessions_per_week: servicePackage\\.plannedSessionsPerWeek/);
+  assert.match(finalizeSource, /justification: updateDiagnosisProposalSnapshotPackage\\([\\s\\S]*servicePackage\\.sessionsPerMonth[\\s\\S]*servicePackage\\.plannedSessionsPerWeek/);
+  assert.match(finalizeSource, /justification = \\$9/);
+});

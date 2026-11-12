@@ -39,6 +39,33 @@ export type DiagnosisProposalSnapshot = {
 const DIAGNOSIS_PROPOSAL_SNAPSHOT_MARKER =
   "\n\n[[RI_DIAGNOSIS_PROPOSAL_SNAPSHOT_V1]]";
 
+export function updateDiagnosisProposalSnapshotPackage(
+  value: unknown,
+  sessionsPerMonth: number,
+  plannedSessionsPerWeek: number,
+): string {
+  const text = String(value || "");
+  const markerIndex = text.lastIndexOf(DIAGNOSIS_PROPOSAL_SNAPSHOT_MARKER);
+  if (markerIndex < 0) return text;
+
+  const payload = text
+    .slice(markerIndex + DIAGNOSIS_PROPOSAL_SNAPSHOT_MARKER.length)
+    .trim();
+  if (!payload) return text;
+
+  try {
+    const parsed = JSON.parse(payload) as Partial<DiagnosisProposalSnapshot>;
+    if (parsed.version !== 1 || !clean(parsed.commitment)) return text;
+
+    parsed.commitment =
+      `Consistency and active participation are required across the selected ${sessionsPerMonth}-session monthly package (${plannedSessionsPerWeek} sessions per week). Students are expected to attempt before receiving guidance.`;
+
+    return `${text.slice(0, markerIndex)}${DIAGNOSIS_PROPOSAL_SNAPSHOT_MARKER}${JSON.stringify(parsed)}`;
+  } catch {
+    return text;
+  }
+}
+
 export function attachDiagnosisProposalSnapshot(
   justification: string,
   snapshot: DiagnosisProposalSnapshot,

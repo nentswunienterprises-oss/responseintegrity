@@ -3,6 +3,7 @@ import { captureDemandParent } from "./demandCapture";
 import { normalizeScheduledInstant, normalizeScheduledTimeZone } from "./bookingTimezone";
 import { registerDemandProductionRoutes } from "./demandProduction";
 import { demandAssignmentBlock, resolveEntryType } from "../shared/demandProduction";
+import { updateDiagnosisProposalSnapshotPackage } from "@shared/diagnosisProposalCopy";
 import type { Express, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { createHash, randomUUID } from "crypto";
@@ -1483,6 +1484,7 @@ async function reactivateDetachedSandboxEnrollment(enrollment: any, tutorId: str
 async function autoProvisionSandboxAccountsForTutorUnlocked(
   tutorId: string,
   minimumCount = SANDBOX_REQUIRED_ACCOUNT_COUNT,
+  options: { reuseDetached?: boolean } = {},
 ) {
   const certificationMode = await getTutorCertificationMode(tutorId);
   if (certificationMode !== "sandbox") {
@@ -1571,7 +1573,9 @@ async function autoProvisionSandboxAccountsForTutorUnlocked(
 
   const missingSandboxCount = minimumCount - existingSandboxCount;
   const { data: detachedSandboxEnrollments, error: detachedSandboxError } =
-    await loadDetachedSandboxEnrollmentsForTutor(tutorId);
+    options.reuseDetached === false
+      ? { data: [] as any[], error: null }
+      : await loadDetachedSandboxEnrollmentsForTutor(tutorId);
 
   if (detachedSandboxError) {
     throw new Error(`Failed to load detached sandbox enrollments: ${detachedSandboxError.message}`);
@@ -1816,11 +1820,12 @@ async function autoProvisionSandboxAccountsForTutorUnlocked(
 async function autoProvisionSandboxAccountsForTutor(
   tutorId: string,
   minimumCount = SANDBOX_REQUIRED_ACCOUNT_COUNT,
+  options: { reuseDetached?: boolean } = {},
 ) {
   return withSandboxProvisionLock(
     pool,
     tutorId,
-    () => autoProvisionSandboxAccountsForTutorUnlocked(tutorId, minimumCount),
+    () => autoProvisionSandboxAccountsForTutorUnlocked(tutorId, minimumCount, options),
     { transactionScoped: true },
   );
 }
@@ -4230,7 +4235,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
         `SELECT id, accepted_at, parent_code, student_id, tutor_id,
                 topic_conditioning_topic, topic_conditioning_entry_phase,
                 topic_conditioning_stability, package_key, package_sessions,
-                planned_sessions_per_week
+                planned_sessions_per_week, justification
            FROM public.onboarding_proposals
           WHERE id = $1
           FOR UPDATE`,
@@ -4357,9 +4362,28 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
             SET enrollment_id = $1,
                 accepted_at = COALESCE(accepted_at, $2),
                 parent_code = $3,
+                package_key = $5,
+                package_sessions = $6,
+                planned_sessions_per_week = $7,
+                package_amount = $8,
+                justification = $9,
                 updated_at = $2
           WHERE id = $4`,
-        [enrollment.id, nowIso, parentCode, proposal.id],
+        [
+          enrollment.id,
+          nowIso,
+          parentCode,
+          proposal.id,
+          servicePackage.key,
+          servicePackage.sessionsPerMonth,
+          servicePackage.plannedSessionsPerWeek,
+          servicePackage.amountZar.toFixed(2),
+          updateDiagnosisProposalSnapshotPackage(
+            proposal.justification,
+            servicePackage.sessionsPerMonth,
+            servicePackage.plannedSessionsPerWeek,
+          ),
+        ],
       );
 
       const acceptedTopic = String(proposal.topic_conditioning_topic || "").trim();
@@ -4498,7 +4522,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
 
   const { data: proposal } = await supabase
     .from("onboarding_proposals")
-    .select("id, accepted_at, parent_code, student_id, tutor_id, topic_conditioning_topic, topic_conditioning_entry_phase, topic_conditioning_stability, package_key, package_sessions, planned_sessions_per_week")
+    .select("id, accepted_at, parent_code, student_id, tutor_id, topic_conditioning_topic, topic_conditioning_entry_phase, topic_conditioning_stability, package_key, package_sessions, planned_sessions_per_week, tutor_notes")
     .eq("id", proposalId)
     .maybeSingle();
 
@@ -4613,6 +4637,15 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
       enrollment_id: enrollment.id,
       accepted_at: proposal.accepted_at || nowIso,
       parent_code: parentCode,
+      package_key: servicePackage.key,
+      package_sessions: servicePackage.sessionsPerMonth,
+      planned_sessions_per_week: servicePackage.plannedSessionsPerWeek,
+      package_amount: servicePackage.amountZar.toFixed(2),
+      justification: updateDiagnosisProposalSnapshotPackage(
+        proposal.tutor_notes,
+        servicePackage.sessionsPerMonth,
+        servicePackage.plannedSessionsPerWeek,
+      ),
       updated_at: nowIso,
     })
     .eq("id", proposal.id);
@@ -13072,6 +13105,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         console.error("Error fetching pod team:", error);
         return res.status(500).json({ message: "Failed to fetch pod team" });
+      }
+    }
+  );
+
+  // Provision one additional, genuinely new Sandbox account without reusing detached identities.
+  // This is intentionally separate from the six-account reconciliation endpoint.
+  app.post(
+    "/api/coo/tutors/:tutorId/provision-fresh-sandbox-account",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        const { tutorId } = req.params;
+        const targetCount = SANDBOX_REQUIRED_ACCOUNT_COUNT + 1;
+        const result = await autoProvisionSandboxAccountsForTutor(
+          tutorId,
+          targetCount,
+          { reuseDetached: false },
+        );
+        if (result.certificationMode !== "sandbox") {
+          return res.status(400).json({
+            message: `Tutor must be in sandbox mode to provision a fresh account. Current status: ${result.certificationMode}`,
+          });
+        }
+
+        const { data: assignedSandboxEnrollments, error } = await supabase
+          .from("parent_enrollments")
+          .select("id")
+          .eq("assigned_tutor_id", tutorId)
+          .eq("is_sandbox_account", true)
+          .in("status", [...ACTIVE_PARENT_ENROLLMENT_STATUSES]);
+
+        if (error) {
+          throw new Error(`Failed to verify Sandbox roster after provisioning: ${error.message}`);
+        }
+
+        const rosterCount = assignedSandboxEnrollments?.length || 0;
+        if (rosterCount < targetCount) {
+          return res.status(409).json({
+            message: "Fresh Sandbox account was not fully provisioned; roster remains below the requested target.",
+            rosterCount,
+            targetCount,
+            accounts: result.createdAccounts,
+          });
+        }
+
+        return res.json({
+          message: result.createdAccounts.length > 0
+            ? "Provisioned a fresh Sandbox account. The new assignment is awaiting Specialist acceptance."
+            : "The additional Sandbox roster slot already exists; no duplicate account was created.",
+          rosterCount,
+          targetCount,
+          accounts: result.createdAccounts,
+        });
+      } catch (error) {
+        console.error("Error provisioning fresh sandbox account:", error);
+        return res.status(500).json({ message: "Failed to provision fresh sandbox account" });
       }
     }
   );
@@ -29478,6 +29568,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!existingPayment) {
             return res.status(409).json({ message: "Sandbox checkout has not been prepared yet." });
           }
+          if (requestedPackageKey && String(existingPayment.package_key || "") !== requestedPackageKey) {
+            return res.status(409).json({ message: "The selected package does not match the prepared checkout. Reopen checkout and try again." });
+          }
           const completedAt = new Date().toISOString();
           const completedPaymentResult = await pool.query(
             `UPDATE public.payment_transactions
@@ -29706,10 +29799,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to resolve onboarding type for billing." });
       }
 
-      if (!billingModel.data.onboardingType || billingModel.data.onboardingType === "pending") {
-        return res.status(409).json({ message: "Application review and entry selection must be completed before proposal acceptance." });
-      }
-
       const { data: paymentEnrollment, error: paymentEnrollmentError } = await supabase
         .from("parent_enrollments")
         .select("id, status, proposal_id, student_full_name, current_step, assigned_tutor_id, parent_email, is_sandbox_account")
@@ -29731,6 +29820,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const payfastSandboxForEnrollment = isSandboxPaymentEnrollment(paymentEnrollment);
       if (
+        (!billingModel.data.onboardingType || billingModel.data.onboardingType === "pending") &&
+        !payfastSandboxForEnrollment
+      ) {
+        return res.status(409).json({ message: "Application review and entry selection must be completed before proposal acceptance." });
+      }
+
+      if (
         String(paymentEnrollment.status || "") === "session_booked" &&
         !payfastSandboxForEnrollment
       ) {
@@ -29749,6 +29845,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (payfastSandboxForEnrollment && req.body?.completeSandboxPayment === true) {
         if (!existingPayment) {
           return res.status(409).json({ message: "Sandbox checkout has not been prepared yet." });
+        }
+        if (requestedPackageKey && String(existingPayment.package_key || "") !== requestedPackageKey) {
+          return res.status(409).json({ message: "The selected package does not match the prepared checkout. Reopen checkout and try again." });
         }
         const completedAt = new Date().toISOString();
         const { data: completedPayment, error: completionError } = await supabase
@@ -29797,7 +29896,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!paymentProposal?.student_id || !paymentProposal?.tutor_id) {
         return res.status(400).json({ message: "Proposal is missing student or tutor linkage." });
       }
-      const servicePackage = getMonthlyServicePackage(paymentProposal.package_key);
+      const servicePackage = getMonthlyServicePackage(requestedPackageKey || paymentProposal.package_key);
 
       if (billingModel.data.onboardingType === "pilot") {
         const finalizationSeed = existingPayment || {
