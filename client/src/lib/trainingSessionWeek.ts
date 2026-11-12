@@ -42,3 +42,15 @@ export function isScheduledTrainingSessionUpcoming(
   const scheduledAt = new Date(value).getTime();
   return Number.isFinite(scheduledAt) && scheduledAt > now;
 }
+
+/**
+ * Pending Specialist decisions are independent of the active training week.
+ * Keep this queue separate from the week-scoped set of lessons eligible to launch.
+ */
+export function getPendingTutorConfirmationSessions<T extends { status?: string | null }>(
+  sessions: T[] | null | undefined,
+): T[] {
+  return (Array.isArray(sessions) ? sessions : []).filter(
+    (session) => String(session?.status || "").trim().toLowerCase() === "pending_tutor_confirmation",
+  );
+}

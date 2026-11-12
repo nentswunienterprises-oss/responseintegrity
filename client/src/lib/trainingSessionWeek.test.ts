@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getTrainingSessionWeekKey, isScheduledTrainingSessionUpcoming } from "./trainingSessionWeek";
+import { getPendingTutorConfirmationSessions, getTrainingSessionWeekKey, isScheduledTrainingSessionUpcoming } from "./trainingSessionWeek";
 
 test("uses the saved IANA timezone when assigning a session to its Monday week", () => {
   assert.equal(getTrainingSessionWeekKey("2026-11-08T22:30:00.000Z", "Africa/Johannesburg"), "2026-11-09");
@@ -23,4 +23,20 @@ test("missing and invalid scheduled timestamps cannot launch as upcoming lessons
   const now = Date.parse("2026-11-12T09:00:00.000Z");
   assert.equal(isScheduledTrainingSessionUpcoming(null, now), false);
   assert.equal(isScheduledTrainingSessionUpcoming("not-a-date", now), false);
+});
+
+test("pending Specialist confirmations include bookings outside the active training week", () => {
+  const sessions = [
+    { id: "this-week", status: "pending_tutor_confirmation", scheduled_time: "2026-11-12T13:00:00.000Z" },
+    { id: "next-week", status: "pending_tutor_confirmation", scheduled_time: "2026-11-16T13:00:00.000Z" },
+    { id: "later", status: "pending_tutor_confirmation", scheduled_time: "2026-11-23T13:00:00.000Z" },
+    { id: "confirmed-next-week", status: "confirmed", scheduled_time: "2026-11-16T15:00:00.000Z" },
+    { id: "cancelled-next-week", status: "cancelled", scheduled_time: "2026-11-16T17:00:00.000Z" },
+  ];
+
+  assert.deepEqual(
+    getPendingTutorConfirmationSessions(sessions).map((session) => session.id),
+    ["this-week", "next-week", "later"],
+  );
+  assert.deepEqual(getPendingTutorConfirmationSessions(null), []);
 });

@@ -32,7 +32,7 @@ import {
 import { getQueryFn } from "@/lib/queryClient";
 import { Target, AlertCircle, Info, ChevronDown, MoreHorizontal } from "lucide-react";
 import { useStudentWorkflowState } from "@/hooks/useStudentWorkflowState";
-import { getTrainingSessionWeekKey, isScheduledTrainingSessionUpcoming } from "@/lib/trainingSessionWeek";
+import { getPendingTutorConfirmationSessions, getTrainingSessionWeekKey, isScheduledTrainingSessionUpcoming } from "@/lib/trainingSessionWeek";
 // Removed TutorSessionLogForm import (manual session logging is deprecated)
 import {
   PHASES,
@@ -1886,8 +1886,12 @@ export default function StudentTopicConditioningDialog({
         new Date(b.scheduled_time || b.updated_at || 0).getTime() -
         new Date(a.scheduled_time || a.updated_at || 0).getTime()
     )[0] || null;
-  const pendingTutorConfirmationSessions = weeklyActionableTrainingSessions.filter(
-    (session: any) => session.status === "pending_tutor_confirmation",
+  // Specialist confirmations are inbox work, not week-scoped training work.
+  // A parent can book sessions weeks ahead; those still require an immediate
+  // accept/decline decision even though only the active week's confirmed
+  // sessions are eligible to launch from Training.
+  const pendingTutorConfirmationSessions = getPendingTutorConfirmationSessions(
+    trainingSessionsData?.sessions || [],
   );
   const isConfirmingTrainingSession = (sessionId: string) =>
     confirmTrainingSession.isPending && confirmTrainingSession.variables?.sessionId === sessionId;
