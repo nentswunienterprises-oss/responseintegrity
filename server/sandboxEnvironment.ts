@@ -621,6 +621,34 @@ function buildSandboxResponseSnapshot(input: {
   });
 }
 
+async function loadEnvironmentBankVersion(
+  bankKey: string,
+  bankVersion: number,
+): Promise<SandboxEnvironmentBank | null> {
+  const result = await pool.query(
+    `SELECT bank_key, bank_version, title,
+            target_outcomes_per_rep, minimum_outcomes_per_rep, maximum_outcomes_per_rep,
+            capability_policy
+       FROM private.specialist_sandbox_environment_banks
+      WHERE bank_key = $1 AND bank_version = $2
+      LIMIT 1`,
+    [bankKey, bankVersion],
+  );
+  const row = result.rows[0];
+  if (!row) return null;
+  return {
+    bankKey: String(row.bank_key),
+    bankVersion: Number(row.bank_version),
+    title: String(row.title),
+    targetOutcomesPerRep: Number(row.target_outcomes_per_rep),
+    minimumOutcomesPerRep: Number(row.minimum_outcomes_per_rep),
+    maximumOutcomesPerRep: Number(row.maximum_outcomes_per_rep),
+    capabilityPolicy: row.capability_policy
+      ? parseSandboxCapabilityReadinessPolicy(row.capability_policy)
+      : null,
+  };
+}
+
 async function loadActiveEnvironmentBank(
   bankKey = DEFAULT_SANDBOX_ENVIRONMENT_BANK_KEY,
 ): Promise<SandboxEnvironmentBank | null> {
@@ -2828,9 +2856,12 @@ export async function getSandboxEnvironmentHistory(input: {
   tutorAssignmentId: string;
   tutorId: string;
   studentId: string;
+  bankVersion?: number;
 }) {
   const sandboxStudent = await assertSandboxAccess(input);
-  const bank = await loadActiveEnvironmentBank();
+  const bank = input.bankVersion == null
+    ? await loadActiveEnvironmentBank()
+    : await loadEnvironmentBankVersion(DEFAULT_SANDBOX_ENVIRONMENT_BANK_KEY, input.bankVersion);
   if (!bank) throw httpError(404, "No active stateful Sandbox environment bank is available.");
   const bundle = await ensureTrajectory({
     tutorAssignmentId: input.tutorAssignmentId,
