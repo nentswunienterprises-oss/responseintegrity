@@ -1395,6 +1395,22 @@ export default function StudentTopicConditioningDialog({
       return;
     }
     if (selectedSessionTopics.size === 0 || !sessionPrepChecklistComplete || sandboxPreparationPending) return;
+    // Revalidate against current activation authority at the launch boundary.
+    // This also rejects stale selections retained from an earlier render.
+    const blockedParentReports = Array.from(selectedSessionTopics).filter((topic) =>
+      pendingParentReportedTopicKeys.has(normalizeTopicKey(topic) || ""),
+    );
+    const noLongerEligibleTopics = Array.from(selectedSessionTopics).filter((topic) =>
+      !sessionEligibleTopics.some((eligible) => normalizeTopicKey(eligible.topic) === normalizeTopicKey(topic)),
+    );
+    if (blockedParentReports.length > 0 || noLongerEligibleTopics.length > 0) {
+      setTrainingSessionMeetMessage(
+        blockedParentReports.length > 0
+          ? "Parent-reported topics must be reviewed and explicitly activated before they can enter a booked session."
+          : "The selected topic state has changed. Refresh the conditioning map and select eligible topics again.",
+      );
+      return;
+    }
     const activeSession = activeTrainingSession;
     if (activeSession) {
       await launchTrainingSession(activeSession.id);
@@ -1496,6 +1512,14 @@ export default function StudentTopicConditioningDialog({
     row.parentReported &&
     !row.hasObservedState &&
     !activationTopics.some(({ topic }) => normalizeTopicKey(topic) === normalizeTopicKey(row.topic)),
+  );
+  // Pending parent reports are review-only. They become session-eligible only
+  // after explicit Specialist activation or genuine observed session evidence.
+  const pendingParentReportedTopicKeys = new Set(
+    parentReportedTopics.map((row) => normalizeTopicKey(row.topic)).filter((key): key is string => !!key),
+  );
+  const sessionEligibleTopics = topics.filter(
+    (row) => !pendingParentReportedTopicKeys.has(normalizeTopicKey(row.topic) || ""),
   );
   const [showParentReportedTopics, setShowParentReportedTopics] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<string>(activeMapTopics[0]?.topic || "");
@@ -3169,7 +3193,7 @@ export default function StudentTopicConditioningDialog({
                     Choose the topics you want to cover. One or two unobserved topics launch sequential entry diagnosis. A topic flagged by a prerequisite sentinel launches targeted re-diagnosis on its own. Ordinary observed topics launch Training.
                   </p>
                   <div className="grid gap-2 max-h-60 overflow-y-auto">
-                    {topics.map((topic) => (
+                    {sessionEligibleTopics.map((topic) => (
                       <div key={topic.topic} className="flex items-center space-x-2">
                         <input
                           type="checkbox"
