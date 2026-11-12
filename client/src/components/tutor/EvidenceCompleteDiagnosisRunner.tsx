@@ -234,13 +234,12 @@ function describePreviousOpportunity(
       } as Record<DiagnosisProbeDefinition["id"], string>)[currentProbe.id]
     : "The system will use this result to identify the smallest remaining question needed before confirming a starting point.";
 
-  const previousQuestion = "The previous opportunity asked whether " +
-    previousProbe.evidenceQuestion.charAt(0).toLowerCase() + previousProbe.evidenceQuestion.slice(1);
+  const previousQuestion = "The previous opportunity asked, “" + previousProbe.evidenceQuestion + "”.";
   const resultNarrative = observedBehaviour
     ? observedBehaviour + " " + resultMeaning
     : resultMeaning;
   const currentQuestion = currentProbe
-    ? " The current opportunity asks whether " + currentProbe.evidenceQuestion.charAt(0).toLowerCase() + currentProbe.evidenceQuestion.slice(1)
+    ? " The current opportunity now asks, “" + currentProbe.evidenceQuestion + "”."
     : "";
 
   return previousQuestion + " " + resultNarrative + " " + nextStep + currentQuestion;
