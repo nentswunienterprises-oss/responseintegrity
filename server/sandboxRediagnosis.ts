@@ -730,8 +730,13 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
   probeId?: DiagnosisProbeId | null;
 }) {
   await assertSandboxAccess(input);
-  if (input.scope === "diagnosis") await initializeSandboxNativeEvidenceTrajectory(input);
-  const { trajectory, truth } = await loadTrajectory(input);
+  const initializedTrajectoryId = input.scope === "diagnosis"
+    ? await initializeSandboxNativeEvidenceTrajectory(input)
+    : null;
+  const { trajectory, truth } = await loadTrajectory({
+    ...input,
+    trajectoryId: initializedTrajectoryId,
+  });
 
   const timerContract =
     input.scope === "handover" &&
@@ -883,7 +888,10 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
     bankVersion: prepared.bankVersion,
     probeId: prepared.probeId as DiagnosisProbeId,
   });
-  const { trajectory, truth } = await loadTrajectory(input);
+  const { trajectory, truth } = await loadTrajectory({
+    ...input,
+    trajectoryId: prepared.trajectoryId,
+  });
   // Preparation and submission must select the *same* versioned outcome.
   // Re-evaluating a V2 Profile through V1 weighting can silently score the
   // Specialist against a student response they were never shown.
