@@ -1,4 +1,5 @@
 import { createHmac } from "crypto";
+import { isSandboxCrossModeCaptureEnabled } from "./sandboxCrossModeCapture";
 import { diagnosisContinuationContext, diagnosisDecisionWithContext, authorizeDiagnosisContinuation } from "./diagnosisContinuation";
 import { pool } from "./db";
 import { loadTutorOperationalModeAuthority } from "./tutorOperationalModeAuthority";
@@ -951,7 +952,7 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
 
   // Historical, submitted simulation only. Protected Proof schema + explicit flag required.
   // A simulation observation never claims native Diagnosis/Handover authority.
-  if (process.env.RI_SANDBOX_CROSSMODE_CAPTURE_V1 === "true") {
+  if (isSandboxCrossModeCaptureEnabled(input.tutorId)) {
     const selectedRecord = outcomes.find(record =>
       record.definition.key === selected.key && record.definition.version === selected.version);
     if (!selectedRecord) throw new Error("Sandbox canonical lineage is missing.");

@@ -5,8 +5,8 @@ import { readFileSync } from "node:fs";
 const source = readFileSync(new URL("./sandboxRediagnosis.ts",import.meta.url),"utf8");
 
 test("cross-mode submissions only capture after explicit protected feature activation",()=>{
- assert.match(source,/RI_SANDBOX_CROSSMODE_CAPTURE_V1/);
- assert.match(source,/process\.env\.RI_SANDBOX_CROSSMODE_CAPTURE_V1 === "true"/);
+ assert.match(source,/isSandboxCrossModeCaptureEnabled/);
+ assert.match(source,/isSandboxCrossModeCaptureEnabled\(input\.tutorId\)/);
 });
 test("refresh retries acknowledge an existing immutable turn without replacing its original submission",()=>{
  assert.match(source,/ON CONFLICT \(tutor_assignment_id,form_id\) DO NOTHING/);
@@ -20,7 +20,7 @@ test("refresh retries acknowledge an existing immutable turn without replacing i
 });
 
 test("conflicting immutable cross-mode replay cannot grant new capability evidence",()=>{
- const capture=source.indexOf('if (process.env.RI_SANDBOX_CROSSMODE_CAPTURE_V1 === "true")');
+ const capture=source.indexOf('if (isSandboxCrossModeCaptureEnabled(input.tutorId))');
  const reject=source.indexOf('The previous Sandbox evidence record conflicts with this submission');
  const grant=source.indexOf('await insertCapabilityEvidence({',capture);
  assert.ok(capture>=0&&reject>capture&&grant>reject,

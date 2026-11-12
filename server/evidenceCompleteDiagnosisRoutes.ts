@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { diagnosisContinuationContext, diagnosisDecisionWithContext, authorizeDiagnosisContinuation } from "./diagnosisContinuation";
 import { isAuthenticated } from "./supabaseAuth";
+import { isSandboxCrossModeCaptureEnabled } from "./sandboxCrossModeCapture";
 import { storage, supabase } from "./storage";
 import { pool } from "./db";
 import { isEmergencyDbMode } from "./emergencyMode";
@@ -226,7 +227,7 @@ async function loadSandboxScenarioReplayDimensions(input: {
 }>> {
   // Sandbox scenario dimensions are accepted only when the matching immutable
   // live-evidence turn and its private canonical truth were persisted server-side.
-  if (process.env.RI_SANDBOX_CROSSMODE_CAPTURE_V1 !== "true") return [];
+  if (!isSandboxCrossModeCaptureEnabled(input.tutorId)) return [];
   const result = await pool.query(
     `SELECT e.sequence_number, e.probe_id, e.specialist_submission,
             e.total_observations, t.canonical_observations
