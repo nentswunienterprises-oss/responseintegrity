@@ -207,7 +207,7 @@ function applyLongitudinalNarrativeGuard(
   if (narrativeMayClaimRecurrence(outcome, priorOutcomes)) return outcome;
   return {
     ...outcome,
-    studentBehavior: outcome.studentBehavior.replace(/\\bagain\\b/gi, ""),
+    studentBehavior: outcome.studentBehavior.replace(/\s+again\b/gi, ""),
   };
 }
 
