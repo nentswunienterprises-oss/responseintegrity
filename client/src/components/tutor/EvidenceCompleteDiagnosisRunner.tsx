@@ -201,7 +201,7 @@ function describePreviousOpportunity(
         ? { label: dimension.label, behavior: selected.label, behaviorClass: selected.behaviorClass }
         : null;
     })
-    .filter((item): item is { label: string; behavior: string; behaviorClass: string } => Boolean(item));
+    .filter((item): item is NonNullable<typeof item> => item !== null);
 
   const contaminated = previous.supportEvent === "first_step_confirmation" ||
     previous.supportEvent === "teaching";
