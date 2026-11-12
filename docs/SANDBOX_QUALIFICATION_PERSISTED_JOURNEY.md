@@ -398,3 +398,10 @@ The model commit `bbb4c958` and visible setup commit `a9fbb4db` deployed READY. 
 # Diagnosis timer replay correction — 21 October 2026
 
 A timer contract earned inside a Diagnosis run must not become inherited authority at that run's beginning during subsequent replay. Restore, submission and continuation now distinguish the contract's source epoch. Original probes and measurements remain authoritative; a later timed response is accepted only with its earned prescribed timer. A behavioral regression reproduces baseline collection, contract binding, restoration and timed placement, and retains earlier-run/Training inheritance. Focused Diagnosis/timing verification: 49/49 tests; Sandbox suite: 283/283; Preview API bundle builds. Deployed continuation still requires verification.
+
+
+## 12 November 2026 — Production cross-mode capture scope
+
+Production cross-mode Diagnosis/Handover capture is enabled only for Thendo's authenticated tutor account through the exact tutor-ID allowlist. The capture switch alone is not sufficient: Production requests must also match the allowlist. Preview retains its existing branch-scoped behavior.
+
+This enables new immutable capture only. Historical native Diagnosis runs without matching protected cross-mode turns are not backfilled or retroactively counted. The qualification policy, Sandbox phase, Deep Dive unlock rules, student-authoritative state, and other Specialists' capture access are unchanged.
