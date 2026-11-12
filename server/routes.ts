@@ -4235,7 +4235,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
         `SELECT id, accepted_at, parent_code, student_id, tutor_id,
                 topic_conditioning_topic, topic_conditioning_entry_phase,
                 topic_conditioning_stability, package_key, package_sessions,
-                planned_sessions_per_week, tutor_notes
+                planned_sessions_per_week, justification
            FROM public.onboarding_proposals
           WHERE id = $1
           FOR UPDATE`,
@@ -4366,7 +4366,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
                 package_sessions = $6,
                 planned_sessions_per_week = $7,
                 package_amount = $8,
-                tutor_notes = $9,
+                justification = $9,
                 updated_at = $2
           WHERE id = $4`,
         [
@@ -4379,7 +4379,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
           servicePackage.plannedSessionsPerWeek,
           servicePackage.amountZar.toFixed(2),
           updateDiagnosisProposalSnapshotPackage(
-            proposal.tutor_notes,
+            proposal.justification,
             servicePackage.sessionsPerMonth,
             servicePackage.plannedSessionsPerWeek,
           ),
@@ -4641,7 +4641,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
       package_sessions: servicePackage.sessionsPerMonth,
       planned_sessions_per_week: servicePackage.plannedSessionsPerWeek,
       package_amount: servicePackage.amountZar.toFixed(2),
-      tutor_notes: updateDiagnosisProposalSnapshotPackage(
+      justification: updateDiagnosisProposalSnapshotPackage(
         proposal.tutor_notes,
         servicePackage.sessionsPerMonth,
         servicePackage.plannedSessionsPerWeek,
