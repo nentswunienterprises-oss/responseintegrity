@@ -190,21 +190,44 @@ export function deduplicateSandboxDiagnosisOutcomes(
     });
 }
 
-function narrativeMayClaimRecurrence(
+function narrativeMayClaimFailureRecurrence(
   outcome: SandboxDiagnosisOutcomeDefinition,
   priorOutcomes: NonNullable<SandboxDiagnosisOutcomeSelectionContext["priorOutcomes"]>,
 ) {
   const previousSameProbe = priorOutcomes
     .filter((prior) => prior.probeId === outcome.probeId)
     .at(-1);
-  return previousSameProbe?.trajectoryClass === "breakdown";
+  if (!previousSameProbe) return false;
+
+  // A probe-level trajectory label is too coarse to establish that the same
+  // failure happened again. Require the exact failed dimension and behavior
+  // to have been observed in the immediately preceding comparable probe.
+  const currentFailures = outcome.canonicalObservations.filter((observation) =>
+    getDiagnosisObservationOption(observation.dimensionId, observation.behaviorId)?.behaviorClass === "breakdown"
+  );
+  return currentFailures.some((current) =>
+    previousSameProbe.observations.some((previous) =>
+      previous.dimensionId === current.dimensionId &&
+      previous.behaviorId === current.behaviorId &&
+      getDiagnosisObservationOption(previous.dimensionId, previous.behaviorId)?.behaviorClass === "breakdown"
+    )
+  );
 }
 
 function applyLongitudinalNarrativeGuard(
   outcome: SandboxDiagnosisOutcomeDefinition,
   priorOutcomes: NonNullable<SandboxDiagnosisOutcomeSelectionContext["priorOutcomes"]>,
 ): SandboxDiagnosisOutcomeDefinition {
-  if (narrativeMayClaimRecurrence(outcome, priorOutcomes)) return outcome;
+  // "Again" may describe a repeated opportunity (including a successful
+  // repeatability test). Only remove it when the sentence describes a failure
+  // and the immediately prior same-probe evidence does not establish that
+  // exact failure recurring.
+  const describesFailure = outcome.canonicalObservations.some((observation) =>
+    getDiagnosisObservationOption(observation.dimensionId, observation.behaviorId)?.behaviorClass === "breakdown"
+  );
+  if (!describesFailure || narrativeMayClaimFailureRecurrence(outcome, priorOutcomes)) {
+    return outcome;
+  }
   return {
     ...outcome,
     studentBehavior: outcome.studentBehavior.replace(/\s+again\b/gi, ""),
