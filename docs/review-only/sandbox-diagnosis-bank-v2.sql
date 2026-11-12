@@ -263,23 +263,7 @@ begin
     raise exception 'V2 diagnosis bank must contain all seven expected probes with 6-10 active outcomes each.';
   end if;
 
-  if exists (
-    select 1
-      from private.specialist_sandbox_diagnosis_outcomes outcome
-      cross join lateral jsonb_array_elements(outcome.definition->'canonicalObservations') observation
-     where outcome.bank_key = 'sandbox_stateful_environment'
-       and outcome.bank_version = 2 and outcome.active = true
-       and outcome.outcome_key in (
-         'stack.challenge_no_timer.pattern_8',
-         'stack.normal_independent.pattern_8',
-         'stack.timed_challenge.pattern_8'
-       )
-     group by outcome.outcome_key
-    having count(*) filter (
-      where observation->>'dimensionId' = 'clarity.method'
-        and observation->>'behaviorId' = 'confounded'
-    ) <> 1
-  ) or (
+  if (
     select count(*)
       from private.specialist_sandbox_diagnosis_outcomes
      where bank_key = 'sandbox_stateful_environment'
@@ -289,7 +273,23 @@ begin
          'stack.normal_independent.pattern_8',
          'stack.timed_challenge.pattern_8'
        )
-  ) <> 3 then
+  ) <> 3 or exists (
+    select 1
+      from private.specialist_sandbox_diagnosis_outcomes outcome
+     where outcome.bank_key = 'sandbox_stateful_environment'
+       and outcome.bank_version = 2 and outcome.active = true
+       and outcome.outcome_key in (
+         'stack.challenge_no_timer.pattern_8',
+         'stack.normal_independent.pattern_8',
+         'stack.timed_challenge.pattern_8'
+       )
+       and (
+         select count(*)
+           from jsonb_array_elements(outcome.definition->'canonicalObservations') observation
+          where observation->>'dimensionId' = 'clarity.method'
+            and observation->>'behaviorId' = 'confounded'
+       ) <> 1
+  ) then
     raise exception 'Corrected stacked narratives must map to exactly one canonical clarity.method/confounded observation each.';
   end if;
 
