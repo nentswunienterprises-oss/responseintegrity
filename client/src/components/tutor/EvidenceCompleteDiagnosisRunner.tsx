@@ -187,7 +187,7 @@ function describePreviousOpportunity(
 ): string {
   const previous = history[history.length - 1];
   if (!previous) {
-    return "This is the first opportunity in this diagnosis. There is no earlier result to explain the next step yet; this response establishes the first evidence.";
+    return "This is the first opportunity in this diagnosis. There is no earlier response to explain the next step. This opportunity establishes the first evidence.";
   }
 
   const previousProbe = DIAGNOSIS_PROBES[previous.probeId];
@@ -197,41 +197,75 @@ function describePreviousOpportunity(
     .map((observation) => {
       const dimension = DIAGNOSIS_OBSERVATION_MATRIX[observation.dimensionId];
       const selected = dimension?.options.find((option) => option.id === observation.behaviorId);
+      const confoundedNarratives: Partial<Record<DiagnosisDimensionId, string>> = {
+        "clarity.vocabulary": "The task did not give us a reliable view of whether the student could recognise the important mathematical language and symbols.",
+        "clarity.method": "The task did not give us a reliable view of whether the student could choose an appropriate method independently.",
+        "clarity.reason": "The task did not give us a reliable view of whether the student could explain why the method fits.",
+        "clarity.immediate_apply": "The response did not let us establish whether the student could turn their understanding into an independent first action.",
+        "execution.start": "The conditions did not let us establish whether the student could begin independently.",
+        "execution.step_discipline": "The response did not give us a reliable view of whether the student could maintain the method from one step to the next.",
+        "execution.repeatability": "There was not enough comparable evidence to establish whether the student could repeat the earlier method.",
+        "execution.independence": "The conditions did not let us establish whether the student could carry the work without help.",
+        "difficulty.initial_response": "The task did not give us a reliable view of how the student responded at the first point of difficulty.",
+        "difficulty.first_step_control": "The conditions did not let us establish whether the student could make a controlled first move when the work became difficult.",
+        "difficulty.tolerance": "The task did not give us a reliable view of whether the student could stay engaged and recover through difficulty.",
+        "difficulty.rescue_dependence": "We could not reliably establish whether the student would continue independently when they became stuck.",
+        "time.start": "The conditions did not let us establish whether the student could begin in a controlled way under time pressure.",
+        "time.structure": "The response did not give us a reliable view of whether the student could maintain the method under time pressure.",
+        "time.pace": "The response did not give us a reliable view of whether the student could regulate their pace under time pressure.",
+        "time.completion_integrity": "The task did not give us a reliable view of whether the student could complete the work while preserving the method."
+      };
       return selected && selected.behaviorClass !== "not_observed"
-        ? { label: dimension.label, behavior: selected.label, behaviorClass: selected.behaviorClass }
+        ? {
+            detail: selected.behaviorClass === "confounded"
+              ? confoundedNarratives[observation.dimensionId] || selected.detail
+              : selected.detail,
+            behaviorClass: selected.behaviorClass,
+          }
         : null;
     })
     .filter((item): item is NonNullable<typeof item> => item !== null);
 
   const contaminated = previous.supportEvent === "first_step_confirmation" ||
     previous.supportEvent === "teaching";
-  const findingText = findings.length
-    ? findings.map((item) => `${item.label.toLowerCase()}: ${item.behavior.toLowerCase()}`).join("; ")
-    : "the response did not produce a clean, interpretable answer";
+  const observedBehaviour = findings
+    .map((item) => item.detail.trim())
+    .filter(Boolean)
+    .join(" ");
 
   const resultMeaning = contaminated
-    ? "Because assistance or teaching changed the conditions, that result is recorded but cannot be treated as clean baseline evidence."
-    : findings.some((item) => item.behaviorClass === "breakdown")
-      ? "That is a breakdown under the condition being tested."
-      : findings.some((item) => item.behaviorClass === "conditional" || item.behaviorClass === "near_stable")
-        ? "That shows the capability is present only conditionally or with instability under the condition being tested."
-        : findings.length
-          ? "That part of the response held under the condition being tested."
-          : "The previous question remains unresolved.";
+    ? "However, assistance or teaching changed the conditions of the task. We can describe what happened, but we cannot use this response as clean evidence of how the student would have managed independently."
+    : findings.some((item) => item.behaviorClass === "confounded" || item.behaviorClass === "not_observed")
+      ? "Part of the response could not be interpreted reliably, so the previous opportunity does not yet establish whether this capability holds independently."
+      : findings.some((item) => item.behaviorClass === "breakdown")
+        ? "This indicates that the student’s response broke down under the condition being tested."
+        : findings.some((item) => item.behaviorClass === "conditional" || item.behaviorClass === "near_stable")
+          ? "The response showed some capability, but it was not yet consistent enough to conclude that the student can rely on it under this condition."
+          : findings.length
+            ? "The observed response supports the conclusion that this part of the capability held under the condition being tested."
+            : "The previous response did not provide enough interpretable evidence to resolve the question.";
 
   const nextStep = currentProbe
     ? ({
-        "stack.normal_independent": "This opportunity removes difficulty and time pressure. It checks whether the student can start and carry a familiar method independently, without the added demand that may have disrupted the previous response.",
-        "clarity.recognition": "This opportunity steps back from execution and checks the foundations directly: whether the student recognises the mathematical language, selects an appropriate method, and can explain why it fits.",
-        "stack.challenge_no_timer": "This opportunity removes the timer but keeps the work difficult. It isolates whether difficulty itself changes the student's response.",
-        "difficulty.recovery": "This opportunity presents another difficult task to see whether the same response holds, improves, or breaks again without rescue.",
-        "execution.repeatability": "This opportunity gives the student a comparable task to check whether the earlier independent method can be repeated without prompting.",
-        "stack.timed_challenge": "This opportunity adds controlled time pressure to the response, so we can see whether the structure established without that pressure remains intact.",
-        "time.consistency": "This opportunity checks whether the earlier timed response pattern holds on another comparable independent task.",
+        "stack.normal_independent": "The next opportunity removes difficulty and time pressure. This helps establish whether the student can begin and carry a familiar method independently without the added demand that may have disrupted the earlier response.",
+        "clarity.recognition": "The next opportunity steps back from execution and looks directly at whether the student understands the mathematical language, can choose an appropriate method, and can explain why it fits.",
+        "stack.challenge_no_timer": "The next opportunity removes the timer while keeping the work difficult. This helps establish whether difficulty itself is changing the student’s response.",
+        "difficulty.recovery": "The next opportunity presents another difficult task without rescue. This gives us a further chance to see whether the student can stay engaged, recover when stuck, or begins to struggle.",
+        "execution.repeatability": "The next opportunity gives the student a comparable task. This helps establish whether the earlier independent method can be repeated without prompting.",
+        "stack.timed_challenge": "The next opportunity introduces controlled time pressure. This helps establish whether the structure seen without that pressure remains intact when time becomes a demand.",
+        "time.consistency": "The next opportunity checks the timed response again on a comparable independent task, so we can see whether the earlier pattern is repeatable.",
       } as Record<DiagnosisProbeDefinition["id"], string>)[currentProbe.id]
-    : "The system will use the previous result to select the smallest remaining question needed before confirming a starting point.";
+    : "The system will use this result to identify the smallest remaining question needed before confirming a starting point.";
 
-  return `The previous opportunity asked: “${previousProbe.evidenceQuestion}” The relevant result was ${findingText}. ${resultMeaning} ${nextStep}`;
+  const previousQuestion = "The previous opportunity asked, “" + previousProbe.evidenceQuestion + "”.";
+  const resultNarrative = observedBehaviour
+    ? observedBehaviour + " " + resultMeaning
+    : resultMeaning;
+  const currentQuestion = currentProbe
+    ? " The current opportunity now asks, “" + currentProbe.evidenceQuestion + "”."
+    : "";
+
+  return previousQuestion + " " + resultNarrative + " " + nextStep + currentQuestion;
 }
 
 const createRunId = () => {
@@ -1802,7 +1836,6 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 </p>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   {previousOpportunityExplanation}
-                  {currentProbe?.evidenceQuestion ? ` The current question is: ${currentProbe.evidenceQuestion}` : ""}
                 </p>
               </div>
 
