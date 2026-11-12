@@ -29,3 +29,16 @@ export function getTrainingSessionWeekKey(
   const mondayOffset = (weekday + 6) % 7;
   return new Date(localDateUtc - mondayOffset * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
+
+/**
+ * True only when a scheduled lesson is still in the future.
+ * The stored timestamp is an absolute instant, so comparison is timezone-safe.
+ */
+export function isScheduledTrainingSessionUpcoming(
+  value: string | null | undefined,
+  now: number = Date.now(),
+): boolean {
+  if (!value) return false;
+  const scheduledAt = new Date(value).getTime();
+  return Number.isFinite(scheduledAt) && scheduledAt > now;
+}
