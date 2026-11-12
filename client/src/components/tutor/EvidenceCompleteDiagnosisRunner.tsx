@@ -5,6 +5,7 @@ import { getAuthMode } from "@/lib/authMode";
 import { supabase } from "@/lib/supabaseClient";
 import { LiveSandboxStudentResponse } from "./TrainingLiveDeliveryUi";
 import {
+  DIAGNOSIS_PROBES,
   DIAGNOSIS_PROBE_EXECUTION_PROTOCOLS,
   type DiagnosisDimensionId,
   type DiagnosisProbeDefinition,
@@ -153,31 +154,84 @@ const PHASE_ORDER: TopicPhase[] = [
   "Time Pressure Stability",
 ];
 
-function describePreviousOpportunity(history: DiagnosisProbeResult[]): string {
+const QUESTION_DIMENSIONS: Record<DiagnosisProbeResult["probeId"], DiagnosisDimensionId[]> = {
+  "stack.timed_challenge": [
+    "clarity.vocabulary", "clarity.method", "clarity.reason", "clarity.immediate_apply",
+    "execution.start", "execution.step_discipline", "execution.independence",
+    "difficulty.initial_response", "difficulty.first_step_control", "difficulty.tolerance",
+    "difficulty.rescue_dependence", "time.start", "time.structure", "time.pace",
+    "time.completion_integrity",
+  ],
+  "stack.challenge_no_timer": [
+    "difficulty.initial_response", "difficulty.first_step_control",
+    "difficulty.tolerance", "difficulty.rescue_dependence",
+  ],
+  "stack.normal_independent": [
+    "execution.start", "execution.step_discipline", "execution.independence",
+  ],
+  "clarity.recognition": [
+    "clarity.vocabulary", "clarity.method", "clarity.reason", "clarity.immediate_apply",
+  ],
+  "execution.repeatability": ["execution.repeatability"],
+  "difficulty.recovery": [
+    "difficulty.tolerance", "difficulty.rescue_dependence",
+  ],
+  "time.consistency": [
+    "time.start", "time.structure", "time.pace", "time.completion_integrity",
+  ],
+};
+
+function describePreviousOpportunity(
+  history: DiagnosisProbeResult[],
+  currentProbe: DiagnosisProbeDefinition | null,
+): string {
   const previous = history[history.length - 1];
   if (!previous) {
-    return "This is the first opportunity in this diagnosis, so there is no earlier observation to build on yet. This response establishes the first piece of evidence for the starting point.";
+    return "This is the first opportunity in this diagnosis. There is no earlier result to explain the next step yet; this response establishes the first evidence.";
   }
 
-  const observations = previous.observations.map((observation) => {
-    const dimension = DIAGNOSIS_OBSERVATION_MATRIX[observation.dimensionId];
-    const selected = dimension?.options.find((option) => option.id === observation.behaviorId);
-    return dimension && selected
-      ? `${dimension.label}: ${selected.label.toLowerCase()}`
-      : null;
-  }).filter((value): value is string => Boolean(value));
+  const previousProbe = DIAGNOSIS_PROBES[previous.probeId];
+  const relevantDimensions = new Set(QUESTION_DIMENSIONS[previous.probeId]);
+  const findings = previous.observations
+    .filter((observation) => relevantDimensions.has(observation.dimensionId))
+    .map((observation) => {
+      const dimension = DIAGNOSIS_OBSERVATION_MATRIX[observation.dimensionId];
+      const selected = dimension?.options.find((option) => option.id === observation.behaviorId);
+      return selected && selected.behaviorClass !== "not_observed"
+        ? { label: dimension.label, behavior: selected.label, behaviorClass: selected.behaviorClass }
+        : null;
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null);
 
-  const assisted = previous.supportEvent === "first_step_confirmation" ||
+  const contaminated = previous.supportEvent === "first_step_confirmation" ||
     previous.supportEvent === "teaching";
-  const finding = observations.length
-    ? observations.join("; ")
-    : "the previous response did not establish an interpretable observation";
+  const findingText = findings.length
+    ? findings.map((item) => `${item.label.toLowerCase()}: ${item.behavior.toLowerCase()}`).join("; ")
+    : "the response did not produce a clean, interpretable answer";
 
-  if (assisted) {
-    return `The previous opportunity recorded ${finding}, but assistance or teaching changed the conditions. We must preserve that record without treating it as clean baseline evidence. This opportunity checks the remaining question under clean conditions.`;
-  }
+  const resultMeaning = contaminated
+    ? "Because assistance or teaching changed the conditions, that result is recorded but cannot be treated as clean baseline evidence."
+    : findings.some((item) => item.behaviorClass === "breakdown")
+      ? "That is a breakdown under the condition being tested."
+      : findings.some((item) => item.behaviorClass === "conditional" || item.behaviorClass === "near_stable")
+        ? "That shows the capability is present only conditionally or with instability under the condition being tested."
+        : findings.length
+          ? "That part of the response held under the condition being tested."
+          : "The previous question remains unresolved.";
 
-  return `The previous opportunity established ${finding}. This next opportunity follows from that result: it checks the remaining question needed to distinguish the student's current response pattern before a starting point is confirmed.`;
+  const nextStep = currentProbe
+    ? ({
+        "stack.normal_independent": "This opportunity removes difficulty and time pressure. It checks whether the student can start and carry a familiar method independently, without the added demand that may have disrupted the previous response.",
+        "clarity.recognition": "This opportunity steps back from execution and checks the foundations directly: whether the student recognises the mathematical language, selects an appropriate method, and can explain why it fits.",
+        "stack.challenge_no_timer": "This opportunity removes the timer but keeps the work difficult. It isolates whether difficulty itself changes the student's response.",
+        "difficulty.recovery": "This opportunity presents another difficult task to see whether the same response holds, improves, or breaks again without rescue.",
+        "execution.repeatability": "This opportunity gives the student a comparable task to check whether the earlier independent method can be repeated without prompting.",
+        "stack.timed_challenge": "This opportunity adds controlled time pressure to the response, so we can see whether the structure established without that pressure remains intact.",
+        "time.consistency": "This opportunity checks whether the earlier timed response pattern holds on another comparable independent task.",
+      } as Record<DiagnosisProbeDefinition["id"], string>)[currentProbe.id]
+    : "The system will use the previous result to select the smallest remaining question needed before confirming a starting point.";
+
+  return `The previous opportunity asked: “${previousProbe.evidenceQuestion}” The relevant result was ${findingText}. ${resultMeaning} ${nextStep}`;
 }
 
 const createRunId = () => {
@@ -692,7 +746,10 @@ export default function EvidenceCompleteDiagnosisRunner() {
   const authoritativeStartingSignalPhase = apiState?.startingPhase || startingSignalPhase;
 
   const currentProbe = apiState?.nextProbe || null;
-  const previousOpportunityExplanation = describePreviousOpportunity(apiState?.probeHistory || []);
+  const previousOpportunityExplanation = describePreviousOpportunity(
+    apiState?.probeHistory || [],
+    currentProbe,
+  );
   const currentProbeDimensions = currentProbe
     ? runtimeAuthority?.operationalMode === "sandbox"
       ? sandboxSimulation?.probeId === currentProbe.id
