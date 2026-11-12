@@ -2813,14 +2813,14 @@ export default function StudentTopicConditioningDialog({
                       }}
                     />
                     {pendingTutorConfirmationSessions.length > 0 ? (
-                      <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs space-y-2">
-                        <p className="font-medium text-blue-900">Awaiting Specialist confirmation</p>
-                        <p className="text-blue-800">
+                      <div className="rounded border border-border bg-muted/40 px-3 py-2 text-xs space-y-2">
+                        <p className="font-medium text-foreground">Awaiting Specialist confirmation</p>
+                        <p className="text-muted-foreground">
                           {`The parent has proposed this week's lesson times. Confirm all ${packageWeeklySessionTarget} scheduled lessons before training can launch.`}
                         </p>
                         <div className="space-y-2">
                           {pendingTutorConfirmationSessions.map((session: any) => (
-                            <div key={session.id} className="rounded border border-blue-200 bg-background px-3 py-2 space-y-2">
+                            <div key={session.id} className="rounded border border-border bg-background px-3 py-2 space-y-2">
                               <div className="flex items-center justify-between gap-3">
                                 <div>
                                   <p className="font-medium text-foreground">{formatLessonTime(session.scheduled_time, session.timezone)}</p>
@@ -2853,7 +2853,7 @@ export default function StudentTopicConditioningDialog({
                                   </Button>
                                   <Button
                                     size="sm"
-                                    variant="ghost"
+                                    variant="outline"
                                     onClick={() => {
                                       setEditingTrainingSessionId((current) => current === session.id ? null : session.id);
                                       setAdjustedTrainingSessionTime(new Date(session.scheduled_time).toISOString().slice(0, 16));
@@ -2865,7 +2865,7 @@ export default function StudentTopicConditioningDialog({
                                 </div>
                               </div>
                               {editingTrainingSessionId === session.id ? (
-                                <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 space-y-2">
+                                <div className="rounded border border-border bg-muted/40 px-3 py-2 space-y-2">
                                   <Input
                                     type="datetime-local"
                                     value={adjustedTrainingSessionTime}
@@ -3027,16 +3027,16 @@ export default function StudentTopicConditioningDialog({
                       </div>
                     ) : null}
                     {pendingTutorConfirmationSessions.length > 0 ? (
-                      <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs space-y-2">
-                        <p className="font-medium text-blue-900">Awaiting Specialist confirmation</p>
-                        <p className="text-blue-800">
+                      <div className="rounded border border-border bg-muted/40 px-3 py-2 text-xs space-y-2">
+                        <p className="font-medium text-foreground">Awaiting Specialist confirmation</p>
+                        <p className="text-muted-foreground">
                           {isSandboxMode
                             ? `The parent has proposed this week's training lessons. Confirm all ${weeklySessionTargetLabel} before the lessons are ready.`
                             : `The parent has proposed this week's training lessons. Confirm all ${weeklySessionTargetLabel} before Meet links are created.`}
                         </p>
                         <div className="space-y-2">
                           {pendingTutorConfirmationSessions.map((session: any) => (
-                            <div key={session.id} className="rounded border border-blue-200 bg-background px-3 py-2 space-y-2">
+                            <div key={session.id} className="rounded border border-border bg-background px-3 py-2 space-y-2">
                               <div className="flex items-center justify-between gap-3">
                                 <div>
                                   <p className="font-medium text-foreground">{formatLessonTime(session.scheduled_time, session.timezone)}</p>
@@ -3067,7 +3067,7 @@ export default function StudentTopicConditioningDialog({
                                   </Button>
                                   <Button
                                     size="sm"
-                                    variant="ghost"
+                                    variant="outline"
                                     onClick={() => {
                                       setEditingTrainingSessionId((current) => current === session.id ? null : session.id);
                                       setAdjustedTrainingSessionTime(new Date(session.scheduled_time).toISOString().slice(0, 16));
@@ -3079,7 +3079,7 @@ export default function StudentTopicConditioningDialog({
                                 </div>
                               </div>
                               {editingTrainingSessionId === session.id ? (
-                                <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 space-y-2">
+                                <div className="rounded border border-border bg-muted/40 px-3 py-2 space-y-2">
                                   <Input
                                     type="datetime-local"
                                     value={adjustedTrainingSessionTime}
