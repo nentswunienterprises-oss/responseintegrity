@@ -531,7 +531,7 @@ async function plan(input: {
     bankVersion: trajectory.bank_version,
     probeId: canonicalDecision.nextProbeId,
   });
-  const history = await getSandboxEnvironmentHistory(input);
+  const history = await getSandboxEnvironmentHistory({ ...input, bankVersion: trajectory.bank_version });
   const selected = projectSandboxNativeDiagnosisOutcome(selectSandboxDiagnosisOutcome({
     seed: sandboxRediagnosisSelectionSeed({
       trajectorySeed: truth.trajectory_seed, runId: run.id,
@@ -1435,7 +1435,7 @@ export async function submitSandboxRediagnosisProbe(input: {
   }
   if (complete) await persistSandboxDiagnosisPlacement(pool, planned.trajectory.id, decisionComparison);
 
-  const history = await getSandboxEnvironmentHistory(input);
+  const history = await getSandboxEnvironmentHistory({ ...input, bankVersion: planned.trajectory.bank_version });
   return {
     studentId: planned.trajectory.student_id,
     turnId,
