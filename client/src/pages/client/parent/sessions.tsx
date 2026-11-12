@@ -766,7 +766,7 @@ export default function ParentSessions() {
                   </div>
 
                   {session.status === "cancelled" ? (
-                    <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+                    <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
                       <p className="text-sm font-medium text-foreground">Session cancelled</p>
                       {session.cancellation?.reasonNote ? (
                         <p className="text-xs text-muted-foreground">{session.cancellation.reasonNote}</p>
