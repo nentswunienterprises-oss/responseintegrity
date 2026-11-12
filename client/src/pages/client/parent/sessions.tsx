@@ -767,13 +767,13 @@ export default function ParentSessions() {
 
                   {session.status === "cancelled" ? (
                     <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3">
-                      <p className="text-sm font-medium text-amber-900">Session cancelled</p>
+                      <p className="text-sm font-medium text-foreground">Session cancelled</p>
                       {session.cancellation?.reasonNote ? (
-                        <p className="text-xs text-amber-800">{session.cancellation.reasonNote}</p>
+                        <p className="text-xs text-muted-foreground">{session.cancellation.reasonNote}</p>
                       ) : null}
                       {session.cancellation?.disposition === "replacement_required" ? (
                         <>
-                          <p className="text-sm text-amber-800">
+                          <p className="text-sm text-muted-foreground">
                             This cancellation keeps the delivery obligation open. Choose a replacement time so the weekly plan can be restored.
                           </p>
                           <Button
@@ -785,10 +785,10 @@ export default function ParentSessions() {
                             {editingSessionId === session.id ? "Hide reschedule" : "Reschedule Session"}
                           </Button>
                           {editingSessionId === session.id ? (
-                            <div className="rounded-md border border-amber-200 bg-white p-3 space-y-2">
+                            <div className="rounded-md border border-border bg-background p-3 space-y-2">
                               <Popover>
                                 <PopoverTrigger asChild>
-                                  <Button type="button" variant="outline" className="w-full justify-start text-left font-normal bg-white">
+                                  <Button type="button" variant="outline" className="w-full justify-start text-left font-normal bg-background text-foreground border-border">
                                     <CalendarDays className="mr-2 h-4 w-4" />
                                     {formatScheduleLabel(adjustedDate)}
                                   </Button>
@@ -807,7 +807,7 @@ export default function ParentSessions() {
                                 type="time"
                                 value={adjustedTime}
                                 onChange={(e) => setAdjustedTime(e.target.value)}
-                                className="bg-white"
+                                className="bg-background text-foreground border-border"
                               />
                               <p className="text-xs text-muted-foreground">
                                 {adjustedDate ? `${formatScheduleLabel(adjustedDate)} at ${adjustedTime}` : "Pick a Monday-Saturday date and time."}
@@ -825,11 +825,11 @@ export default function ParentSessions() {
                           ) : null}
                         </>
                       ) : session.cancellation?.disposition === "closed_consumed" ? (
-                        <p className="text-sm text-amber-800">
+                        <p className="text-sm text-muted-foreground">
                           This cancellation is closed under the cancellation policy and the package credit was consumed. No replacement is created automatically.
                         </p>
                       ) : (
-                        <p className="text-sm text-amber-800">
+                        <p className="text-sm text-muted-foreground">
                           The cancellation is recorded, but replacement eligibility needs operational review before another time can be created.
                         </p>
                       )}
@@ -838,7 +838,7 @@ export default function ParentSessions() {
 
                   {session.status === "pending_tutor_confirmation" ? (
                     <div className="space-y-2">
-                      <p className="text-sm text-blue-700">
+                      <p className="text-sm text-muted-foreground">
                         Waiting for Specialist confirmation. If one of the proposed times is wrong, adjust or cancel it now before your Specialist confirms.
                       </p>
                       <div className="flex flex-wrap gap-2">
@@ -860,10 +860,10 @@ export default function ParentSessions() {
                         </Button>
                       </div>
                       {editingSessionId === session.id ? (
-                        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-2">
+                        <div className="rounded-md border border-border bg-muted/40 p-3 space-y-2">
                           <Popover>
                             <PopoverTrigger asChild>
-                              <Button type="button" variant="outline" className="w-full justify-start text-left font-normal bg-white">
+                              <Button type="button" variant="outline" className="w-full justify-start text-left font-normal bg-background text-foreground border-border">
                                 <CalendarDays className="mr-2 h-4 w-4" />
                                 {formatScheduleLabel(adjustedDate)}
                               </Button>
@@ -882,7 +882,7 @@ export default function ParentSessions() {
                             type="time"
                             value={adjustedTime}
                             onChange={(e) => setAdjustedTime(e.target.value)}
-                            className="bg-white"
+                            className="bg-background text-foreground border-border"
                           />
                           <p className="text-xs text-muted-foreground">
                             {adjustedDate ? `${formatScheduleLabel(adjustedDate)} at ${adjustedTime}` : "Pick a Monday-Saturday date and time."}
@@ -904,7 +904,7 @@ export default function ParentSessions() {
 
                   {session.status === "pending_parent_confirmation" ? (
                     <div className="space-y-2">
-                      <p className="text-sm text-amber-700">
+                      <p className="text-sm text-muted-foreground">
                         Waiting for your confirmation.
                       </p>
                       <div className="flex flex-wrap gap-2">
@@ -925,10 +925,10 @@ export default function ParentSessions() {
                         </Button>
                       </div>
                       {editingSessionId === session.id ? (
-                        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-2">
+                        <div className="rounded-md border border-border bg-muted/40 p-3 space-y-2">
                           <Popover>
                             <PopoverTrigger asChild>
-                              <Button type="button" variant="outline" className="w-full justify-start text-left font-normal bg-white">
+                              <Button type="button" variant="outline" className="w-full justify-start text-left font-normal bg-background text-foreground border-border">
                                 <CalendarDays className="mr-2 h-4 w-4" />
                                 {formatScheduleLabel(adjustedDate)}
                               </Button>
@@ -947,7 +947,7 @@ export default function ParentSessions() {
                             type="time"
                             value={adjustedTime}
                             onChange={(e) => setAdjustedTime(e.target.value)}
-                            className="bg-white"
+                            className="bg-background text-foreground border-border"
                           />
                           <p className="text-xs text-muted-foreground">
                             {adjustedDate ? `${formatScheduleLabel(adjustedDate)} at ${adjustedTime}` : "Pick a Monday-Saturday date and time."}
@@ -1012,10 +1012,10 @@ export default function ParentSessions() {
                         </div>
                       </div>
                       {editingSessionId === session.id ? (
-                        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-2">
+                        <div className="rounded-md border border-border bg-muted/40 p-3 space-y-2">
                           <Popover>
                             <PopoverTrigger asChild>
-                              <Button type="button" variant="outline" className="w-full justify-start text-left font-normal bg-white">
+                              <Button type="button" variant="outline" className="w-full justify-start text-left font-normal bg-background text-foreground border-border">
                                 <CalendarDays className="mr-2 h-4 w-4" />
                                 {formatScheduleLabel(adjustedDate)}
                               </Button>
@@ -1034,7 +1034,7 @@ export default function ParentSessions() {
                             type="time"
                             value={adjustedTime}
                             onChange={(e) => setAdjustedTime(e.target.value)}
-                            className="bg-white"
+                            className="bg-background text-foreground border-border"
                           />
                           <p className="text-xs text-muted-foreground">
                             {adjustedDate ? `${formatScheduleLabel(adjustedDate)} at ${adjustedTime}` : "Pick a Monday-Saturday date and time."}
