@@ -1769,7 +1769,7 @@ test("pending parent-reported topics stay review-only in Start Session and are r
   );
 
   const launchStart = dialogSource.indexOf("const handleStartTrainingSession = async () => {");
-  const launchEnd = dialogSource.indexOf("\\n  const { data: sessions }", launchStart);
+  const launchEnd = dialogSource.indexOf("\n  const { data: sessions }", launchStart);
   const launchSource = dialogSource.slice(launchStart, launchEnd);
   assert.ok(launchStart >= 0 && launchEnd > launchStart);
   assert.match(launchSource, /pendingParentReportedTopicKeys\.has/);
