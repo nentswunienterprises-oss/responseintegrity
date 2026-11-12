@@ -1886,7 +1886,11 @@ export default function StudentTopicConditioningDialog({
         new Date(b.scheduled_time || b.updated_at || 0).getTime() -
         new Date(a.scheduled_time || a.updated_at || 0).getTime()
     )[0] || null;
-  const pendingTutorConfirmationSessions = weeklyActionableTrainingSessions.filter(
+  // Specialist confirmations are inbox work, not week-scoped training work.
+  // A parent can book sessions weeks ahead; those still require an immediate
+  // accept/decline decision even though only the active week's confirmed
+  // sessions are eligible to launch from Training.
+  const pendingTutorConfirmationSessions = actionableTrainingSessions.filter(
     (session: any) => session.status === "pending_tutor_confirmation",
   );
   const isConfirmingTrainingSession = (sessionId: string) =>
