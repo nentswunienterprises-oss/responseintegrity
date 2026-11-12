@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 const source = readFileSync(new URL("./sandboxRediagnosis.ts",import.meta.url),"utf8");
 
 test("cross-mode submissions only capture after explicit protected feature activation",()=>{
- assert.match(source,/RI_SANDBOX_CROSSMODE_CAPTURE_V1/);
+ assert.match(source,/isSandboxCrossModeCaptureEnabled/);
  assert.match(source,/isSandboxCrossModeCaptureEnabled\(input\.tutorId\)/);
 });
 test("refresh retries acknowledge an existing immutable turn without replacing its original submission",()=>{
