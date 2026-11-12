@@ -1858,7 +1858,14 @@ export default function StudentTopicConditioningDialog({
       getTrainingSessionWeekKey(session.scheduled_time, session.timezone) === activeTrainingWeekKey,
   );
   const weeklyActionableTrainingSessions = weeklyTrainingSessions.filter(
-    (session: any) => !["completed", "cancelled", "flagged"].includes(String(session.status || "")),
+    (session: any) => {
+      const status = String(session.status || "");
+      const isLaunchableLiveSession = status === "live" && session.launch?.canLaunch === true;
+      return (
+        !["completed", "cancelled", "flagged"].includes(status) &&
+        (isScheduledTrainingSessionUpcoming(session.scheduled_time) || isLaunchableLiveSession)
+      );
+    },
   );
   const confirmedTrainingSessions = weeklyActionableTrainingSessions.filter(
     (session: any) => {
@@ -1894,8 +1901,13 @@ export default function StudentTopicConditioningDialog({
   );
   const weeklyReadySessionCount = weeklyTrainingSessions.filter((session: any) => {
     const status = String(session.status || "");
-    return ["confirmed", "ready", "live", "completed"].includes(status) ||
+    const completedOrConsumed =
+      status === "completed" ||
       (status === "cancelled" && session.cancellation?.disposition === "closed_consumed");
+    const upcomingConfirmed =
+      ["confirmed", "ready"].includes(status) && isScheduledTrainingSessionUpcoming(session.scheduled_time);
+    const activeLive = status === "live" && session.launch?.canLaunch === true;
+    return completedOrConsumed || upcomingConfirmed || activeLive;
   }).length;
   const weeklyScheduleHasBlockedSession = weeklyTrainingSessions.some((session: any) => {
     const status = String(session.status || "");
