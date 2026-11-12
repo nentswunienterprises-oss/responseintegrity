@@ -153,6 +153,33 @@ const PHASE_ORDER: TopicPhase[] = [
   "Time Pressure Stability",
 ];
 
+function describePreviousOpportunity(history: DiagnosisProbeResult[]): string {
+  const previous = history[history.length - 1];
+  if (!previous) {
+    return "This is the first opportunity in this diagnosis, so there is no earlier observation to build on yet. This response establishes the first piece of evidence for the starting point.";
+  }
+
+  const observations = previous.observations.map((observation) => {
+    const dimension = DIAGNOSIS_OBSERVATION_MATRIX[observation.dimensionId];
+    const selected = dimension?.options.find((option) => option.id === observation.behaviorId);
+    return dimension && selected
+      ? `${dimension.label}: ${selected.label.toLowerCase()}`
+      : null;
+  }).filter((value): value is string => Boolean(value));
+
+  const assisted = previous.supportEvent === "first_step_confirmation" ||
+    previous.supportEvent === "teaching";
+  const finding = observations.length
+    ? observations.join("; ")
+    : "the previous response did not establish an interpretable observation";
+
+  if (assisted) {
+    return `The previous opportunity recorded ${finding}, but assistance or teaching changed the conditions. We must preserve that record without treating it as clean baseline evidence. This opportunity checks the remaining question under clean conditions.`;
+  }
+
+  return `The previous opportunity established ${finding}. This next opportunity follows from that result: it checks the remaining question needed to distinguish the student's current response pattern before a starting point is confirmed.`;
+}
+
 const createRunId = () => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   throw new Error("This browser cannot create a secure diagnosis run ID.");
@@ -665,6 +692,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
   const authoritativeStartingSignalPhase = apiState?.startingPhase || startingSignalPhase;
 
   const currentProbe = apiState?.nextProbe || null;
+  const previousOpportunityExplanation = describePreviousOpportunity(apiState?.probeHistory || []);
   const currentProbeDimensions = currentProbe
     ? runtimeAuthority?.operationalMode === "sandbox"
       ? sandboxSimulation?.probeId === currentProbe.id
@@ -1589,7 +1617,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
             <p className="mt-4 text-sm font-medium">
               {decision.continuation?.parentMessage || "Preserve the observations and continue the remaining evidence question at the next confirmed lesson."}
             </p>
-            <button type="button" className="mt-4 rounded-lg bg-primary px-4 py-2 text-primary-foreground" onClick={() => navigate("/specialist/sessions")}>Open Sessions for the next confirmed lesson</button>
+            <button type="button" className="mt-4 rounded-lg bg-primary px-4 py-2 text-primary-foreground" onClick={() => navigate("/specialist/pod")}>Back to Pod</button>
           </section>
         ) : currentProbe ? (
           !opportunityStarted ? (
@@ -1716,8 +1744,8 @@ export default function EvidenceCompleteDiagnosisRunner() {
                   Why this opportunity exists
                 </p>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {apiState?.opportunityPurpose ||
-                    "Resolve the next unanswered evidence question."}
+                  {previousOpportunityExplanation}
+                  {currentProbe?.evidenceQuestion ? ` The current question is: ${currentProbe.evidenceQuestion}` : ""}
                 </p>
               </div>
 
@@ -1784,6 +1812,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 </p>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
                   {currentProbe.evidenceQuestion}
+                </p>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  {previousOpportunityExplanation}
                 </p>
               </div>
 
@@ -2031,6 +2062,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 </p>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
                   {currentProbe.evidenceQuestion}
+                </p>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  {previousOpportunityExplanation}
                 </p>
               </div>
 
