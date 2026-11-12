@@ -12,6 +12,7 @@ import {
   buildSandboxDiagnosisProbeResult,
   compareSandboxDiagnosisDecisions,
   compareSandboxDiagnosisProbe,
+  deduplicateSandboxDiagnosisOutcomes,
   rebuildSandboxDiagnosisState,
   selectSandboxDiagnosisOutcome,
   validateSandboxDiagnosisOutcomeDefinition,
@@ -381,4 +382,53 @@ test("V2 Diagnosis evidence projections invalidate only contaminated adjacent fi
     }
     assert.ok(witnessed,"Expected at least one deliberately seeded rare exception for "+probeId);
   }
+});
+
+
+test("duplicate canonical outcome sets do not masquerade as distinct scenarios", () => {
+  const first = outcomeFor("difficulty.recovery", "difficulty.recovery.pattern_4", "breakdown");
+  const duplicate = { ...first, key: "difficulty.recovery.pattern_5", studentBehavior: "A differently worded but behaviourally identical scene." };
+  const distinct = outcomeFor("difficulty.recovery", "difficulty.recovery.pattern_6", "conditional");
+  assert.deepEqual(
+    deduplicateSandboxDiagnosisOutcomes([first, duplicate, distinct]).map((item) => item.key),
+    ["difficulty.recovery.pattern_4", "difficulty.recovery.pattern_6"],
+  );
+});
+
+test("a breakdown narrative cannot claim recurrence without a prior breakdown on that probe", () => {
+  const breakdown = outcomeFor("difficulty.recovery", "difficulty.recovery.pattern_4", "breakdown");
+  breakdown.studentBehavior = "The difficult moment breaks the response again; the student cannot recover independently.";
+  const priorConfounded = [{
+    probeId: "difficulty.recovery" as const,
+    trajectoryClass: "confounded" as const,
+    observations: [],
+  }];
+  const selected = selectSandboxDiagnosisOutcome({
+    seed: "recurrence-guard",
+    outcomes: [breakdown],
+    context: {
+      startingPhase: "Controlled Discomfort",
+      probeId: "difficulty.recovery",
+      sequenceNumber: 2,
+      priorOutcomes: priorConfounded,
+    },
+  });
+  assert.match(selected.studentBehavior, /breaks the response; the student/);
+  assert.doesNotMatch(selected.studentBehavior, /\\bagain\\b/i);
+});
+
+test("a breakdown narrative may describe recurrence when prior canonical evidence records breakdown", () => {
+  const breakdown = outcomeFor("difficulty.recovery", "difficulty.recovery.pattern_4", "breakdown");
+  breakdown.studentBehavior = "The difficult moment breaks the response again; the student cannot recover independently.";
+  const selected = selectSandboxDiagnosisOutcome({
+    seed: "recurrence-guard",
+    outcomes: [breakdown],
+    context: {
+      startingPhase: "Controlled Discomfort",
+      probeId: "difficulty.recovery",
+      sequenceNumber: 2,
+      priorOutcomes: [{ probeId: "difficulty.recovery", trajectoryClass: "breakdown", observations: [] }],
+    },
+  });
+  assert.match(selected.studentBehavior, /breaks the response again/);
 });
