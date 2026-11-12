@@ -204,11 +204,30 @@ async function loadTrajectory(input: {
   tutorAssignmentId: string;
   tutorId: string;
   studentId: string;
+  trajectoryId?: string | null;
+  rediagnosisRunId?: string | null;
 }) {
   const result = await pool.query(
     `SELECT t.*, truth.canonical_phase, truth.canonical_stability,
             truth.canonical_route, truth.canonical_targeted_rediagnosis_phase,
-            truth.trajectory_seed, truth.behavior_model_version, truth.continuity_tags
+            truth.trajectory_seed, truth.behavior_model_version, truth.continuity_tags,
+            CASE
+              WHEN $5::varchar IS NOT NULL OR $6::varchar IS NOT NULL THEN 0
+              WHEN EXISTS (
+                SELECT 1 FROM specialist_sandbox_rediagnosis_runs current_run
+                 WHERE current_run.trajectory_id = t.id
+                   AND current_run.started_session_number = t.session_number
+                   AND current_run.status IN ('active', 'blocked')
+              ) THEN 0
+              WHEN truth.canonical_route = 'targeted_rediagnosis'
+                OR (truth.canonical_route = 'normal_training'
+                    AND truth.canonical_phase IN ('Controlled Discomfort', 'Time Pressure Stability')) THEN 1
+              WHEN t.bank_version = (
+                SELECT bank_version FROM private.specialist_sandbox_environment_banks
+                 WHERE bank_key = $4 AND active = true
+              ) THEN 2
+              ELSE 3
+            END AS trajectory_resolution_priority
        FROM specialist_sandbox_trajectories t
        JOIN private.specialist_sandbox_trajectory_truth truth
          ON truth.trajectory_id = t.id
@@ -217,12 +236,24 @@ async function loadTrajectory(input: {
         AND t.student_id = $3
         AND t.bank_key = $4
         AND t.status = 'active'
-      ORDER BY t.created_at DESC
-      LIMIT 1`,
-    [input.tutorAssignmentId, input.tutorId, input.studentId, BANK_KEY],
+        AND ($5::varchar IS NULL OR t.id = $5)
+        AND ($6::varchar IS NULL OR EXISTS (
+          SELECT 1 FROM specialist_sandbox_rediagnosis_runs requested_run
+           WHERE requested_run.id = $6 AND requested_run.trajectory_id = t.id
+             AND requested_run.tutor_assignment_id = $1
+             AND requested_run.tutor_id = $2 AND requested_run.student_id = $3
+        ))
+      ORDER BY trajectory_resolution_priority ASC, t.created_at DESC
+      LIMIT 2`,
+    [input.tutorAssignmentId, input.tutorId, input.studentId, BANK_KEY,
+      input.trajectoryId || null, input.rediagnosisRunId || null],
   );
   const row = result.rows[0];
-  if (!row) throw httpError(409, "No active Sandbox trajectory is available.");
+  if (!row) throw httpError(409, "No active Sandbox trajectory matches this re-diagnosis episode.");
+  if (result.rows[1] &&
+      Number(result.rows[1].trajectory_resolution_priority) === Number(row.trajectory_resolution_priority)) {
+    throw httpError(409, "More than one Sandbox trajectory could own this re-diagnosis route. No trajectory was selected; resolve the version transition before continuing.");
+  }
   return {
     trajectory: row as TrajectoryRow,
     truth: {
@@ -457,6 +488,8 @@ async function plan(input: {
   tutorId: string;
   studentId: string;
   scheduledSessionId?: string | null;
+  trajectoryId?: string | null;
+  rediagnosisRunId?: string | null;
 }) {
   const { trajectory, truth } = await loadTrajectory(input);
   const { run, truth: diagnosisTruth } = await ensureRediagnosisRun({ trajectory, truth, scheduledSessionId: input.scheduledSessionId });
@@ -1187,7 +1220,7 @@ export async function submitSandboxRediagnosisProbe(input: {
   submission: SandboxDiagnosisSubmittedProbe;
 }) {
   await assertSandboxAccess(input);
-  const planned = await plan(input);
+  const planned = await plan({ ...input, trajectoryId: input.trajectoryId, rediagnosisRunId: input.rediagnosisRunId });
   if (planned.resolved) throw httpError(409, "Apply the recorded diagnosis result before ordinary Training.");
   if (planned.blocked) throw httpError(409, planned.canonicalDecision.reason);
   if (
@@ -1474,7 +1507,7 @@ export async function resolveSandboxRecordedDiagnosis(input: {
   scheduledSessionId?: string | null;
 }) {
   await assertSandboxAccess(input);
-  const planned = await plan(input);
+  const planned = await plan({ ...input, rediagnosisRunId: input.rediagnosisRunId });
   if (!planned.resolved || planned.run.id !== input.rediagnosisRunId) throw httpError(409, "The recorded episode does not establish a complete placement.");
   const comparison = compareSandboxDiagnosisDecisions({ canonicalState: planned.canonicalState,
     specialistState: planned.specialistState, sequenceNumber: planned.run.specialist_probe_history.length,
@@ -1499,7 +1532,7 @@ export async function continueSandboxDiagnosis(input: {
   tutorAssignmentId: string; tutorId: string; studentId: string; rediagnosisRunId: string; scheduledSessionId: string;
 }) {
   await assertSandboxAccess(input);
-  const planned = await plan(input);
+  const planned = await plan({ ...input, rediagnosisRunId: input.rediagnosisRunId });
   if (!planned.blocked || planned.run.id !== input.rediagnosisRunId) throw httpError(409, "Continue only the paused, unfinished episode.");
   const context = await authorizeDiagnosisContinuation({ tutorId: input.tutorId, studentId: input.studentId,
     scheduledSessionId: input.scheduledSessionId, context: planned.context,
