@@ -51,3 +51,45 @@ test("tutor topic-conditioning read model exposes targeted re-diagnosis authorit
   assert.match(routeSource, /prerequisiteContradictionStatus/);
   assert.match(routeSource, /prerequisiteContradictionReason/);
 });
+
+test("pending parent-reported topics stay review-only in Start Session and are revalidated at launch", () => {
+  const dialogSource = readFileSync(
+    resolve(process.cwd(), "client/src/components/tutor/StudentTopicConditioningDialog.tsx"),
+    "utf8",
+  );
+
+  assert.match(
+    dialogSource,
+    /const parentReportedTopics = topics\.filter\(\(row\) =>[\s\S]*?row\.parentReported[\s\S]*?!row\.hasObservedState[\s\S]*?!activationTopics\.some/,
+    "only unobserved parent reports without explicit activation belong to the review-only set",
+  );
+  assert.match(
+    dialogSource,
+    /const pendingParentReportedTopicKeys = new Set\([\s\S]*?parentReportedTopics\.map/,
+    "the launch boundary must use the same pending parent-report authority",
+  );
+  assert.match(
+    dialogSource,
+    /const sessionEligibleTopics = topics\.filter\([\s\S]*?pendingParentReportedTopicKeys/,
+    "session eligibility must exclude pending parent reports",
+  );
+  assert.match(
+    dialogSource,
+    /\{sessionEligibleTopics\.map\(\(topic\) => \(/,
+    "Start Session must render only eligible topics",
+  );
+
+  const launchStart = dialogSource.indexOf("const launchTrainingSession = async (sessionId?: string | null) => {");
+  const launchEnd = dialogSource.indexOf("\n  const handleStartTrainingSession", launchStart);
+  const launchSource = dialogSource.slice(launchStart, launchEnd);
+  assert.ok(launchStart >= 0 && launchEnd > launchStart);
+  assert.match(launchSource, /pendingParentReportedTopicKeys\.has/);
+  assert.match(launchSource, /noLongerEligibleTopics/);
+  assert.match(launchSource, /Parent-reported topics must be reviewed and explicitly activated/);
+
+  assert.match(
+    dialogSource,
+    /selectedSessionUnknownTopics\.length === selectedSessionPrepPlans\.length &&[\s\S]*?selectedSessionUnknownTopics\.length <= 2/,
+    "the existing two-topic sequential entry-diagnosis limit must remain intact",
+  );
+});
