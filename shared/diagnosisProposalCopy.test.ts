@@ -11,6 +11,7 @@ import {
   normalizeProposalPhaseSupportEvidence,
   normalizeProposalPlacementEvidence,
   normalizeProposalTrainingAction,
+  updateDiagnosisProposalSnapshotPackage,
 } from "./diagnosisProposalCopy";
 
 const ratiosEvidence = normalizeProposalPlacementEvidence([
@@ -307,4 +308,35 @@ test("legacy stored High actions normalize to the ordinary same-phase drill", ()
   for (const [legacy, expected] of cases) {
     assert.equal(normalizeProposalTrainingAction(legacy), expected);
   }
+});
+
+
+test("accepted package updates the persisted diagnosis proposal commitment snapshot", () => {
+  const snapshot = {
+    version: 1,
+    topic: "Percentages",
+    startingSignal: "Controlled Discomfort",
+    entryPhase: "Structured Execution",
+    stability: "High",
+    focusArea: "Training begins at Structured Execution.",
+    whyTrainingStartsHere: "The observed response needs reinforcement.",
+    firstPriority: "Run a Structured Execution drill.",
+    sessionStructure: ["Begin independently."],
+    progressSignals: ["Repeat independently."],
+    importantNote: "Training focuses on response behaviour.",
+    commitment: "Consistency and active participation are required across the selected 8-session monthly package. Students are expected to attempt before receiving guidance.",
+  };
+  const marker = "\\n\\n[[RI_DIAGNOSIS_PROPOSAL_SNAPSHOT_V1]]";
+  const stored = `Diagnosis justification.${marker}${JSON.stringify(snapshot)}`;
+
+  const updated = updateDiagnosisProposalSnapshotPackage(stored, 12, 3);
+  const markerIndex = updated.lastIndexOf(marker);
+  const parsed = JSON.parse(updated.slice(markerIndex + marker.length));
+
+  assert.match(parsed.commitment, /selected 12-session monthly package/);
+  assert.match(parsed.commitment, /3 sessions per week/);
+  assert.equal(parsed.topic, "Percentages");
+  assert.equal(parsed.entryPhase, "Structured Execution");
+  assert.match(updateDiagnosisProposalSnapshotPackage(updated, 12, 3), /12-session monthly package/);
+  assert.equal(updateDiagnosisProposalSnapshotPackage("Legacy proposal without snapshot", 12, 3), "Legacy proposal without snapshot");
 });

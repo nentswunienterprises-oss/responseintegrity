@@ -3,6 +3,7 @@ import { captureDemandParent } from "./demandCapture";
 import { normalizeScheduledInstant, normalizeScheduledTimeZone } from "./bookingTimezone";
 import { registerDemandProductionRoutes } from "./demandProduction";
 import { demandAssignmentBlock, resolveEntryType } from "../shared/demandProduction";
+import { updateDiagnosisProposalSnapshotPackage } from "@shared/diagnosisProposalCopy";
 import type { Express, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { createHash, randomUUID } from "crypto";
@@ -4234,7 +4235,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
         `SELECT id, accepted_at, parent_code, student_id, tutor_id,
                 topic_conditioning_topic, topic_conditioning_entry_phase,
                 topic_conditioning_stability, package_key, package_sessions,
-                planned_sessions_per_week
+                planned_sessions_per_week, tutor_notes
            FROM public.onboarding_proposals
           WHERE id = $1
           FOR UPDATE`,
@@ -4365,6 +4366,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
                 package_sessions = $6,
                 planned_sessions_per_week = $7,
                 package_amount = $8,
+                tutor_notes = $9,
                 updated_at = $2
           WHERE id = $4`,
         [
@@ -4376,6 +4378,11 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
           servicePackage.sessionsPerMonth,
           servicePackage.plannedSessionsPerWeek,
           servicePackage.amountZar.toFixed(2),
+          updateDiagnosisProposalSnapshotPackage(
+            proposal.tutor_notes,
+            servicePackage.sessionsPerMonth,
+            servicePackage.plannedSessionsPerWeek,
+          ),
         ],
       );
 
@@ -4515,7 +4522,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
 
   const { data: proposal } = await supabase
     .from("onboarding_proposals")
-    .select("id, accepted_at, parent_code, student_id, tutor_id, topic_conditioning_topic, topic_conditioning_entry_phase, topic_conditioning_stability, package_key, package_sessions, planned_sessions_per_week")
+    .select("id, accepted_at, parent_code, student_id, tutor_id, topic_conditioning_topic, topic_conditioning_entry_phase, topic_conditioning_stability, package_key, package_sessions, planned_sessions_per_week, tutor_notes")
     .eq("id", proposalId)
     .maybeSingle();
 
@@ -4634,6 +4641,11 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
       package_sessions: servicePackage.sessionsPerMonth,
       planned_sessions_per_week: servicePackage.plannedSessionsPerWeek,
       package_amount: servicePackage.amountZar.toFixed(2),
+      tutor_notes: updateDiagnosisProposalSnapshotPackage(
+        proposal.tutor_notes,
+        servicePackage.sessionsPerMonth,
+        servicePackage.plannedSessionsPerWeek,
+      ),
       updated_at: nowIso,
     })
     .eq("id", proposal.id);

@@ -1735,5 +1735,7 @@ test("parent-selected package remains authoritative through proposal checkout an
   assert.match(acceptSource, /getMonthlyServicePackage\(requestedPackageKey \|\| paymentProposal\.package_key\)/);
   assert.match(acceptSource, /selected package does not match the prepared checkout/);
   assert.match(finalizeSource, /package_key = \$5[\s\S]*package_sessions = \$6[\s\S]*planned_sessions_per_week = \$7/);
-  assert.match(finalizeSource, /package_key: servicePackage\.key[\s\S]*package_sessions: servicePackage\.sessionsPerMonth[\s\S]*planned_sessions_per_week: servicePackage\.plannedSessionsPerWeek/);
+  assert.match(finalizeSource, /package_key: servicePackage\\.key[\\s\\S]*package_sessions: servicePackage\\.sessionsPerMonth[\\s\\S]*planned_sessions_per_week: servicePackage\\.plannedSessionsPerWeek/);
+  assert.match(finalizeSource, /tutor_notes: updateDiagnosisProposalSnapshotPackage\\([\\s\\S]*servicePackage\\.sessionsPerMonth[\\s\\S]*servicePackage\\.plannedSessionsPerWeek/);
+  assert.match(finalizeSource, /tutor_notes = \\$9/);
 });
