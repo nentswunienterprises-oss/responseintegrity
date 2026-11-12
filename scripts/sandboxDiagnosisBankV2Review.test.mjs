@@ -47,6 +47,9 @@ test("V2 carries the complete active Training bank without changing its observat
   assert.match(sql, /insert into private\.specialist_sandbox_rep_outcomes[\s\S]*?source\.bank_version = 1[\s\S]*?source\.active = true/i);
   assert.match(sql, /copied_training_rows <> source_training_rows/);
   assert.match(sql, /source_training_groups <> 36/);
+  assert.match(sql, /outcome_key !~ '\\\\.pattern_7\$'/);
+  assert.match(sql, /trajectoryClass', ''\) <> 'not_observed'/);
+  assert.match(sql, /V2 Training has a phase\/set\/rep group outside the runtime 6-10 eligible outcome contract/i);
   assert.match(sql, /V2 Training phase\/set\/rep coverage differs/i);
 });
 
