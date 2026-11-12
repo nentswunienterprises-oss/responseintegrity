@@ -2820,7 +2820,8 @@ export async function initializeSandboxNativeEvidenceTrajectory(input: {
   if (!bank) throw httpError(404, "No active stateful Sandbox environment bank is available.");
   // Native Diagnosis can be the first operating surface a new student opens.
   // Create only its ordinary trajectory; no response or score is recorded.
-  await ensureTrajectory({ ...input, bank });
+  const bundle = await ensureTrajectory({ ...input, bank });
+  return bundle.trajectory.id;
 }
 
 export async function getSandboxEnvironmentHistory(input: {
