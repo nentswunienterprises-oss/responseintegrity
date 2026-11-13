@@ -7,6 +7,7 @@ import {
   RI_MEETING_CLOSURE,
 } from "../shared/demandProduction";
 import { updateDemandProduction } from "./demandProduction";
+import { isParentQualificationAssessmentComplete } from "../shared/demandProduction";
 
 test("Part 4 defines the approved commercial interview and all three actual RI prices", () => {
   assert.deepEqual(COMMERCIAL_PURCHASING_PRIORITIES, [
@@ -75,4 +76,54 @@ test("Part 4 UI requires branch-specific evidence, actual price exposure and mee
   assert.match(source, /meetingClosureDelivered/);
   assert.match(source, /PARENT_QUALIFICATION_SECTIONS\.filter\(sectionComplete\)/);
   assert.match(source, /Complete and save all four approved sections/);
+});
+
+
+test("terminal qualification decisions require complete, saved, question-level evidence from all four parts", async () => {
+  const complete = {
+    parentExperience: { responses: Object.fromEntries(Array.from({ length: 8 }, (_, index) => [`experience_${index + 1}`, "Recorded answer"])) },
+    supportPreferences: { responses: Object.fromEntries(Array.from({ length: 11 }, (_, index) => [`support_${index + 1}`, "Recorded answer"])) },
+    riExplanation: { scriptPresented: true, responses: { ri_parent_response: "Parent response recorded" } },
+    commercialReadiness: {
+      responses: {
+        existing_expenditure: "no",
+        no_expenditure_reason: "No suitable option found",
+        commercial_priorities: JSON.stringify(["Individual attention"]),
+        decision_authority: "Joint decision",
+        budget_considered: "no",
+        budget_information_needed: "Evidence of improvement",
+        price_response: "The price is manageable",
+        continuing_commitment: "Yes, three months",
+      },
+      pricePresentationDelivered: true,
+      meetingClosureDelivered: true,
+    },
+  };
+  assert.equal(isParentQualificationAssessmentComplete(complete), true);
+  assert.equal(isParentQualificationAssessmentComplete({
+    ...complete,
+    commercialReadiness: { ...complete.commercialReadiness, pricePresentationDelivered: false },
+  }), false);
+
+  let decisionRpcCalled = false;
+  const client = {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({ data: { qualification_assessment: { ...complete, commercialReadiness: { ...complete.commercialReadiness, meetingClosureDelivered: false } }, demand_flow_version: 1, is_sandbox_account: false, qualification_completed_at: null }, error: null }),
+        }),
+      }),
+    }),
+    rpc: async () => { decisionRpcCalled = true; return { data: {}, error: null }; },
+  };
+  await assert.rejects(
+    updateDemandProduction(client, "enrollment-1", "coo", {
+      action: "qualification",
+      status: "qualified",
+      ownerId: "coo",
+      note: "Reviewed",
+    }),
+    /Complete and save all four approved qualification sections/,
+  );
+  assert.equal(decisionRpcCalled, false);
 });
