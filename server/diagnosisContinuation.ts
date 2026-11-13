@@ -32,8 +32,9 @@ export function diagnosisDecisionWithContext(decision: EvidenceCompleteDiagnosis
 export function bindDiagnosisOpportunitySession(input: {
   context: DiagnosisContinuationContext;
   scheduledSessionId?: string | null;
+  sessionKind?: DiagnosisSessionLineage["sessionKind"];
   historyLength: number;
-  decision: EvidenceCompleteDiagnosisDecision;
+  decision: Pick<EvidenceCompleteDiagnosisDecision, "complete" | "nextProbeId">;
 }): DiagnosisContinuationContext {
   const requested = input.scheduledSessionId || null;
   if (!requested) return input.context;
@@ -45,7 +46,11 @@ export function bindDiagnosisOpportunitySession(input: {
   if (current.scheduledSessionId == null && input.historyLength === current.startProbeIndex) {
     return {
       ...input.context,
-      sessions: [...sessions.slice(0, -1), { ...current, scheduledSessionId: requested }],
+      sessions: [...sessions.slice(0, -1), {
+        ...current,
+        scheduledSessionId: requested,
+        ...(input.sessionKind ? { sessionKind: input.sessionKind } : {}),
+      }],
     };
   }
 

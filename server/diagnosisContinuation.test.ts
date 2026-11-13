@@ -38,6 +38,16 @@ test("an outstanding prescribed probe cannot be resumed under a different bookin
  assert.equal(bindDiagnosisOpportunitySession({context:activeContext,scheduledSessionId:"new",
    historyLength:2,decision:blockedDecision}),activeContext);
 });
+test("an empty unbound first opportunity binds to the confirmed Sandbox entry lesson",()=>{
+ const unbound={legacyPrefixLength:0,sessions:[{scheduledSessionId:null,startProbeIndex:0}]};
+ const bound=bindDiagnosisOpportunitySession({context:unbound,scheduledSessionId:"sandbox-entry",
+   sessionKind:"sandbox_entry_diagnosis",historyLength:0,
+   decision:{complete:false,nextProbeId:"clarity.recognition"}});
+ assert.deepEqual(bound.sessions,[{scheduledSessionId:"sandbox-entry",startProbeIndex:0,sessionKind:"sandbox_entry_diagnosis"}]);
+ assert.throws(()=>bindDiagnosisOpportunitySession({context:unbound,scheduledSessionId:"sandbox-entry",
+   sessionKind:"sandbox_entry_diagnosis",historyLength:1,decision:{complete:false,nextProbeId:"clarity.recognition"}}),
+   /Finish the prescribed diagnosis opportunity/);
+});
 test("policy reinterpretation stores the previous decision and server-owned session lineage",()=>{
  const previous={complete:false,reason:"previous conflict"};
  const restored=diagnosisContinuationContext(previous,5,"old");

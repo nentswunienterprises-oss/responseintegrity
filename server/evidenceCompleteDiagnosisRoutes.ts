@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from "express";
-import { diagnosisContinuationContext, diagnosisDecisionWithContext, authorizeDiagnosisContinuation } from "./diagnosisContinuation";
+import { diagnosisContinuationContext, diagnosisDecisionWithContext, authorizeDiagnosisContinuation, bindDiagnosisOpportunitySession } from "./diagnosisContinuation";
 import { isAuthenticated } from "./supabaseAuth";
 import { isSandboxCrossModeCaptureEnabled } from "./sandboxCrossModeCapture";
 import { storage, supabase } from "./storage";
@@ -1497,7 +1497,22 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
         }
         const storedHistoryForReplay = existingRun ? parseJsonValue<DiagnosisProbeResult[]>(existingRun.probe_history, []) : [];
         const previousDecision = existingRun ? parseJsonValue<any>(existingRun.decision, null) : null;
+        const canAdoptEmptyUnboundSandboxEntryRun = !!existingRun &&
+          existingRun.status !== "completed" &&
+          existingRun.session_context === "intro" &&
+          !existingRun.scheduled_session_id &&
+          storedHistoryForReplay.length === 0 &&
+          requestedKind === "sandbox_entry_diagnosis" &&
+          !!scheduledSessionId;
         let continuationContext = diagnosisContinuationContext(previousDecision, storedHistoryForReplay.length, existingRun?.scheduled_session_id || scheduledSessionId);
+        continuationContext = bindDiagnosisOpportunitySession({
+          context: continuationContext,
+          scheduledSessionId: !existingRun || existingRun.scheduled_session_id || canAdoptEmptyUnboundSandboxEntryRun
+            ? scheduledSessionId : null,
+          sessionKind: requestedKind,
+          historyLength: storedHistoryForReplay.length,
+          decision: previousDecision || { complete: false, nextProbeId: "clarity.recognition" },
+        });
         const currentSessionId = continuationContext.sessions.at(-1)?.scheduledSessionId || null;
         const continuingInNewSession = !!existingRun && !!scheduledSessionId && scheduledSessionId !== currentSessionId;
         // A run created by the earlier broken Sandbox entry flow may already be
@@ -1690,6 +1705,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           String(continuationContext.sessions.at(-1)?.scheduledSessionId || existingRun?.scheduled_session_id || scheduledSessionId || "").trim() || null;
         const effectiveRequestedKind =
           continuationContext.sessions.length > 1 ? (continuationContext.sessions.at(-1)?.sessionKind || requestedKind) :
+          canAdoptEmptyUnboundSandboxEntryRun ? "sandbox_entry_diagnosis" as const :
           canUpgradeEmptySandboxEntryRun || existingRun?.session_context === "sandbox_entry_diagnosis"
             ? "sandbox_entry_diagnosis" as const
             : existingRun?.session_container === "handover_session" ||
@@ -1726,7 +1742,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           topic,
           startingPhase,
           scheduledSessionId: existingRun?.scheduled_session_id || sessionResult.scheduledSessionId,
-          sessionContext: canUpgradeEmptySandboxEntryRun
+          sessionContext: canAdoptEmptyUnboundSandboxEntryRun || canUpgradeEmptySandboxEntryRun
             ? "sandbox_entry_diagnosis"
             : existingRun?.session_context || sessionResult.sessionContext,
           status: runStatus,
