@@ -18,9 +18,9 @@ test("Part 4 defines the approved commercial interview and all three actual RI p
     "Affordability",
     "Flexibility or convenience",
   ]);
-  assert.match(RI_COMMERCIAL_PRESENTATION, /8 sessions[\s\S]*R1600/);
-  assert.match(RI_COMMERCIAL_PRESENTATION, /12 sessions[\s\S]*R2400/);
-  assert.match(RI_COMMERCIAL_PRESENTATION, /16 sessions[\s\S]*R3200/);
+  assert.match(RI_COMMERCIAL_PRESENTATION, /8 sessions[\s\S]*R1,600/);
+  assert.match(RI_COMMERCIAL_PRESENTATION, /12 sessions[\s\S]*R2,400/);
+  assert.match(RI_COMMERCIAL_PRESENTATION, /16 sessions[\s\S]*R3,200/);
   assert.match(RI_COMMERCIAL_PRESENTATION, /R1,600 to R3,200/);
   assert.match(RI_MEETING_CLOSURE, /^Thank you for speaking with me/);
 });
