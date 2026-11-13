@@ -83,6 +83,8 @@ export type SandboxDiagnosisOutcomeSelectionContext = {
   behaviorModelVersion?: 1 | 2;
   continuityTags?: string[];
   developmentTopicKey?: string;
+  /** Actual canonical outcomes from earlier opportunities on this student trajectory. */
+  priorOutcomes?: Array<{ probeId: DiagnosisProbeId; trajectoryClass: DiagnosisBehaviorClass; observations: SandboxDiagnosisCanonicalObservation[] }>;
 };
 
 export type SandboxDiagnosisSubmittedProbe = {
@@ -167,6 +169,71 @@ export function validateSandboxDiagnosisOutcomeDefinition(
   // Absence is not an unsupported observation and must not be filled by quota.
 }
 
+export function deduplicateSandboxDiagnosisOutcomes(
+  outcomes: SandboxDiagnosisOutcomeDefinition[],
+): SandboxDiagnosisOutcomeDefinition[] {
+  const seen = new Set<string>();
+  return [...outcomes]
+    .sort((a, b) => a.key.localeCompare(b.key) || a.version - b.version)
+    .filter((outcome) => {
+      const signature = [
+        outcome.probeId,
+        outcome.trajectoryClass,
+        [...outcome.canonicalObservations]
+          .map((item) => `${item.dimensionId}=${item.behaviorId}`)
+          .sort()
+          .join("|")
+      ].join("::");
+      if (seen.has(signature)) return false;
+      seen.add(signature);
+      return true;
+    });
+}
+
+function narrativeMayClaimFailureRecurrence(
+  outcome: SandboxDiagnosisOutcomeDefinition,
+  priorOutcomes: NonNullable<SandboxDiagnosisOutcomeSelectionContext["priorOutcomes"]>,
+) {
+  const previousSameProbe = priorOutcomes
+    .filter((prior) => prior.probeId === outcome.probeId)
+    .at(-1);
+  if (!previousSameProbe) return false;
+
+  // A probe-level trajectory label is too coarse to establish that the same
+  // failure happened again. Require the exact failed dimension and behavior
+  // to have been observed in the immediately preceding comparable probe.
+  const currentFailures = outcome.canonicalObservations.filter((observation) =>
+    getDiagnosisObservationOption(observation.dimensionId, observation.behaviorId)?.behaviorClass === "breakdown"
+  );
+  return currentFailures.some((current) =>
+    previousSameProbe.observations.some((previous) =>
+      previous.dimensionId === current.dimensionId &&
+      previous.behaviorId === current.behaviorId &&
+      getDiagnosisObservationOption(previous.dimensionId, previous.behaviorId)?.behaviorClass === "breakdown"
+    )
+  );
+}
+
+function applyLongitudinalNarrativeGuard(
+  outcome: SandboxDiagnosisOutcomeDefinition,
+  priorOutcomes: NonNullable<SandboxDiagnosisOutcomeSelectionContext["priorOutcomes"]>,
+): SandboxDiagnosisOutcomeDefinition {
+  // "Again" may describe a repeated opportunity (including a successful
+  // repeatability test). Only remove it when the sentence describes a failure
+  // and the immediately prior same-probe evidence does not establish that
+  // exact failure recurring.
+  const describesFailure = outcome.canonicalObservations.some((observation) =>
+    getDiagnosisObservationOption(observation.dimensionId, observation.behaviorId)?.behaviorClass === "breakdown"
+  );
+  if (!describesFailure || narrativeMayClaimFailureRecurrence(outcome, priorOutcomes)) {
+    return outcome;
+  }
+  return {
+    ...outcome,
+    studentBehavior: outcome.studentBehavior.replace(/\s+again\b/gi, ""),
+  };
+}
+
 export function selectSandboxDiagnosisOutcome(input: {
   seed: string;
   /** Trajectory-level identity, independent of per-probe Handover/Diagnosis salt. */
@@ -174,7 +241,7 @@ export function selectSandboxDiagnosisOutcome(input: {
   outcomes: SandboxDiagnosisOutcomeDefinition[];
   context: SandboxDiagnosisOutcomeSelectionContext;
 }) {
-  const compatible = input.outcomes.filter((definition) => {
+  const compatible = deduplicateSandboxDiagnosisOutcomes(input.outcomes).filter((definition) => {
     validateSandboxDiagnosisOutcomeDefinition(definition);
     return (
       definition.probeId === input.context.probeId &&
@@ -244,7 +311,7 @@ export function selectSandboxDiagnosisOutcome(input: {
     // This prevents a difficult probe from manufacturing a lower-layer
     // execution breakdown after the same scenario has established intact
     // method structure and independent execution.
-    return chosen;
+    return applyLongitudinalNarrativeGuard(chosen, input.context.priorOutcomes || []);
   }
 
   const recent = new Set(input.context.recentOutcomeKeys || []);
@@ -281,9 +348,10 @@ export function selectSandboxDiagnosisOutcome(input: {
     return score(a) - score(b) || a.key.localeCompare(b.key);
   })[0];
 
-  if (input.context.behaviorModelVersion !== 2) return chosen;
+  const longitudinallyGuarded = applyLongitudinalNarrativeGuard(chosen, input.context.priorOutcomes || []);
+  if (input.context.behaviorModelVersion !== 2) return longitudinallyGuarded;
   const studentBehavior = renderSandboxDiagnosisExceptionNarrativeV2(chosen.key);
-  if (!studentBehavior) return chosen;
+  if (!studentBehavior) return longitudinallyGuarded;
   if (chosen.trajectoryClass !== "not_observed" && chosen.trajectoryClass !== "confounded") {
     throw new Error("A V2 integrity scenario cannot replace an ordinary diagnostic outcome.");
   }

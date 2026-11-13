@@ -12,6 +12,7 @@ import {
   buildSandboxDiagnosisProbeResult,
   compareSandboxDiagnosisDecisions,
   compareSandboxDiagnosisProbe,
+  deduplicateSandboxDiagnosisOutcomes,
   rebuildSandboxDiagnosisState,
   selectSandboxDiagnosisOutcome,
   validateSandboxDiagnosisOutcomeDefinition,
@@ -381,4 +382,144 @@ test("V2 Diagnosis evidence projections invalidate only contaminated adjacent fi
     }
     assert.ok(witnessed,"Expected at least one deliberately seeded rare exception for "+probeId);
   }
+});
+
+
+test("duplicate canonical outcome sets do not masquerade as distinct scenarios", () => {
+  const first = outcomeFor("difficulty.recovery", "difficulty.recovery.pattern_4", "breakdown");
+  const duplicate = { ...first, key: "difficulty.recovery.pattern_5", studentBehavior: "A differently worded but behaviourally identical scene." };
+  const distinct = outcomeFor("difficulty.recovery", "difficulty.recovery.pattern_6", "conditional");
+  assert.deepEqual(
+    deduplicateSandboxDiagnosisOutcomes([first, duplicate, distinct]).map((item) => item.key),
+    ["difficulty.recovery.pattern_4", "difficulty.recovery.pattern_6"],
+  );
+});
+
+test("a breakdown narrative cannot claim recurrence without a prior breakdown on that probe", () => {
+  const breakdown = outcomeFor("difficulty.recovery", "difficulty.recovery.pattern_4", "breakdown");
+  breakdown.studentBehavior = "The difficult moment breaks the response again; the student cannot recover independently.";
+  const priorConfounded = [{
+    probeId: "difficulty.recovery" as const,
+    trajectoryClass: "confounded" as const,
+    observations: [],
+  }];
+  const selected = selectSandboxDiagnosisOutcome({
+    seed: "recurrence-guard",
+    outcomes: [breakdown],
+    context: {
+      startingPhase: "Controlled Discomfort",
+      probeId: "difficulty.recovery",
+      sequenceNumber: 2,
+      priorOutcomes: priorConfounded,
+    },
+  });
+  assert.match(selected.studentBehavior, /breaks the response; the student/);
+  assert.doesNotMatch(selected.studentBehavior, /\bagain\b/i);
+});
+
+test("a breakdown narrative may describe recurrence when prior canonical evidence records breakdown", () => {
+  const breakdown = outcomeFor("difficulty.recovery", "difficulty.recovery.pattern_4", "breakdown");
+  breakdown.studentBehavior = "The difficult moment breaks the response again; the student cannot recover independently.";
+  const selected = selectSandboxDiagnosisOutcome({
+    seed: "recurrence-guard",
+    outcomes: [breakdown],
+    context: {
+      startingPhase: "Controlled Discomfort",
+      probeId: "difficulty.recovery",
+      sequenceNumber: 2,
+      priorOutcomes: [{
+        probeId: "difficulty.recovery",
+        trajectoryClass: "breakdown",
+        observations: breakdown.canonicalObservations,
+      }],
+    },
+  });
+  assert.match(selected.studentBehavior, /breaks the response again/);
+});
+
+
+test("recurrence wording follows the latest same-probe evidence, not an older failure", () => {
+  const breakdown = outcomeFor("difficulty.recovery", "difficulty.recovery.pattern_4", "breakdown");
+  breakdown.studentBehavior = "The difficult moment breaks the response again; the student cannot recover independently.";
+  const selected = selectSandboxDiagnosisOutcome({
+    seed: "latest-evidence-guard",
+    outcomes: [breakdown],
+    context: {
+      startingPhase: "Controlled Discomfort",
+      probeId: "difficulty.recovery",
+      sequenceNumber: 3,
+      priorOutcomes: [
+        { probeId: "difficulty.recovery", trajectoryClass: "breakdown", observations: breakdown.canonicalObservations },
+        { probeId: "difficulty.recovery", trajectoryClass: "confounded", observations: [] },
+      ],
+    },
+  });
+  assert.doesNotMatch(selected.studentBehavior, /\bagain\b/i);
+});
+
+test("a breakdown on an unrelated probe cannot establish recurrence", () => {
+  const breakdown = outcomeFor("difficulty.recovery", "difficulty.recovery.pattern_4", "breakdown");
+  breakdown.studentBehavior = "The difficult moment breaks the response again; the student cannot recover independently.";
+  const selected = selectSandboxDiagnosisOutcome({
+    seed: "unrelated-probe-recurrence",
+    outcomes: [breakdown],
+    context: {
+      startingPhase: "Controlled Discomfort",
+      probeId: "difficulty.recovery",
+      sequenceNumber: 2,
+      priorOutcomes: [{
+        probeId: "stack.challenge_no_timer",
+        trajectoryClass: "breakdown",
+        observations: breakdown.canonicalObservations,
+      }],
+    },
+  });
+  assert.doesNotMatch(selected.studentBehavior, /\bagain\b/i);
+});
+
+
+test("repeat-opportunity wording is preserved when the current response is successful", () => {
+  const repeated = outcomeFor("execution.repeatability", "execution.repeatability.pattern_1", "supported");
+  repeated.studentBehavior = "The student applies the method again and preserves the same structure independently.";
+  const selected = selectSandboxDiagnosisOutcome({
+    seed: "successful-repeat-wording",
+    outcomes: [repeated],
+    context: {
+      startingPhase: "Structured Execution",
+      probeId: "execution.repeatability",
+      sequenceNumber: 2,
+      priorOutcomes: [{
+        probeId: "execution.repeatability",
+        trajectoryClass: "breakdown",
+        observations: [],
+      }],
+    },
+  });
+  assert.match(selected.studentBehavior, /again/);
+});
+
+test("a prior breakdown on a different dimension does not establish the same failure recurring", () => {
+  const breakdown = outcomeFor("difficulty.recovery", "difficulty.recovery.pattern_4", "breakdown");
+  breakdown.studentBehavior = "The difficult moment breaks the response again; the student cannot recover independently.";
+  const currentFailures = breakdown.canonicalObservations.filter((observation) =>
+    DIAGNOSIS_OBSERVATION_MATRIX[observation.dimensionId].options.find(
+      (option) => option.id === observation.behaviorId,
+    )?.behaviorClass === "breakdown"
+  );
+  assert.ok(currentFailures.length > 1);
+  const selected = selectSandboxDiagnosisOutcome({
+    seed: "different-dimension-does-not-repeat",
+    outcomes: [breakdown],
+    context: {
+      startingPhase: "Controlled Discomfort",
+      probeId: "difficulty.recovery",
+      sequenceNumber: 2,
+      priorOutcomes: [{
+        probeId: "difficulty.recovery",
+        trajectoryClass: "breakdown",
+        observations: [currentFailures[0]],
+      }],
+    },
+  });
+  assert.doesNotMatch(selected.studentBehavior, /\\bagain\\b/i);
 });

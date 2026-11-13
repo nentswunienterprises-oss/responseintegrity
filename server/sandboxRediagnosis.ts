@@ -9,6 +9,7 @@ import {
   type DiagnosisDimensionId,
   type DiagnosisProbeId,
   type DiagnosisProbeResult,
+  type DiagnosisBehaviorClass,
   type DiagnosisSupportEvent,
 } from "@shared/evidenceCompleteDiagnosis";
 import {
@@ -24,6 +25,7 @@ import {
   validateSandboxDiagnosisOutcomeDefinition,
   type SandboxDiagnosisOutcomeDefinition,
   type SandboxDiagnosisSubmittedProbe,
+  type SandboxDiagnosisCanonicalObservation,
 } from "@shared/sandboxDiagnosisEnvironment";
 import type {
   SandboxCapabilityOccurrence,
@@ -417,6 +419,23 @@ async function loadDiagnosisOutcomes(input: {
   });
 }
 
+async function loadPriorDiagnosisOutcomes(trajectoryId: string) {
+  const result = await pool.query(
+    `SELECT turn.probe_id, truth.trajectory_class, truth.canonical_observations
+       FROM specialist_sandbox_rediagnosis_turns turn
+       JOIN private.specialist_sandbox_rediagnosis_turn_truth truth
+         ON truth.rediagnosis_turn_id = turn.id
+      WHERE turn.trajectory_id = $1
+      ORDER BY turn.completed_at ASC, turn.sequence_number ASC`,
+    [trajectoryId],
+  );
+  return result.rows.map((row) => ({
+    probeId: String(row.probe_id) as DiagnosisProbeId,
+    trajectoryClass: String(row.trajectory_class) as DiagnosisBehaviorClass,
+    observations: asArray<SandboxDiagnosisCanonicalObservation>(row.canonical_observations),
+  }));
+}
+
 async function insertCapabilityEvidence(input: {
   trajectory: TrajectoryRow;
   sourceType: "turn" | "session";
@@ -498,6 +517,7 @@ async function plan(input: {
     probeId: canonicalDecision.nextProbeId,
   });
   const history = await getSandboxEnvironmentHistory(input);
+  const priorOutcomes = await loadPriorDiagnosisOutcomes(trajectory.id);
   const selected = projectSandboxNativeDiagnosisOutcome(selectSandboxDiagnosisOutcome({
     seed: sandboxRediagnosisSelectionSeed({
       trajectorySeed: truth.trajectory_seed, runId: run.id,
@@ -517,6 +537,7 @@ async function plan(input: {
       behaviorModelVersion: truth.behavior_model_version,
       continuityTags: truth.continuity_tags,
       developmentTopicKey: trajectory.active_topic_key || "",
+      priorOutcomes,
     },
   }));
   const selectedRecord = outcomes.find(
