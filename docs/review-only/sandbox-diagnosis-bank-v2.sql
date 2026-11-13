@@ -101,7 +101,7 @@ begin
   if source_training_rows = 0
      or copied_training_rows <> source_training_rows
      or copied_training_groups <> source_training_groups
-     or source_training_groups <> 36 then
+     or source_training_groups <> 33 then
     raise exception 'V2 Training bank copy is incomplete: source rows %, V2 rows %, source groups %, V2 groups %.',
       source_training_rows, copied_training_rows, source_training_groups, copied_training_groups;
   end if;

@@ -19,6 +19,7 @@ import {
   submitSandboxRediagnosisProbe,
 } from "../sandboxRediagnosis";
 import { loadTutorOperationalModeAuthorityForTutor } from "../tutorOperationalModeAuthority";
+import { parseSandboxRediagnosisActionInput } from "../sandboxRediagnosisRouteContract";
 
 const evidenceStatusSchema = z.enum(["observed", "not_observed", "confounded"]);
 
@@ -387,9 +388,8 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
     app.post(`/api/tutor/sandbox-environment/rediagnosis/${action}`, isAuthenticated, async (req, res) => {
       try {
         const user = requireSpecialist(req, res); if (!user) return;
-        const payload = z.object({ tutorAssignmentId: z.string().min(1), studentId: z.string().min(1),
-          rediagnosisRunId: z.string().uuid(), scheduledSessionId: z.string().uuid() }).strict().parse(req.body);
-        return res.json(await handler({ ...payload, tutorId: String(user.id) }));
+        const payload = parseSandboxRediagnosisActionInput(req.body, String(user.id));
+        return res.json(await handler(payload));
       } catch (error) { return sendError(res, error, "The prescribed diagnosis continuation could not be applied."); }
     });
   }

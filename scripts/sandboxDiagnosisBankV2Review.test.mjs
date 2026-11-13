@@ -46,7 +46,7 @@ test("V2 stacked narratives identify the canonical confounded method dimension",
 test("V2 carries the complete active Training bank without changing its observation contract", () => {
   assert.match(sql, /insert into private\.specialist_sandbox_rep_outcomes[\s\S]*?source\.bank_version = 1[\s\S]*?source\.active = true/i);
   assert.match(sql, /copied_training_rows <> source_training_rows/);
-  assert.match(sql, /source_training_groups <> 36/);
+  assert.match(sql, /source_training_groups <> 33/);
   assert.ok(sql.includes("right(outcome_key, 10) <> '.pattern_7'"));
   assert.match(sql, /trajectoryClass', ''\) <> 'not_observed'/);
   assert.match(sql, /V2 Training has a phase\/set\/rep group outside the runtime 6-10 eligible outcome contract/i);
