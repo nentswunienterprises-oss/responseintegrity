@@ -89,6 +89,45 @@ test("Sandbox diagnosis selector prioritizes the earliest unsupported capability
   assert.equal(b.key, "target");
 });
 
+test("bank version 3 preserves the reviewed stacked confound narrative and observable dimensions", () => {
+  const storedNarrative = "Method understanding is confounded; the remaining recorded dimensions are observable.";
+  const scenario = {
+    ...outcomeFor("stack.challenge_no_timer", "stack.challenge_no_timer.pattern_8"),
+    trajectoryClass: "confounded" as const,
+    studentBehavior: storedNarrative,
+    canonicalObservations: outcomeFor("stack.challenge_no_timer", "stack.challenge_no_timer.pattern_8")
+      .canonicalObservations.map((observation) => observation.dimensionId === "clarity.method"
+        ? { ...observation, behaviorId: "confounded" }
+        : observation),
+  };
+  let selected: SandboxDiagnosisOutcomeDefinition | null = null;
+  for (let index = 0; index < 1000 && !selected; index += 1) {
+    try {
+      selected = selectSandboxDiagnosisOutcome({
+        seed: `v3-stacked-confound-${index}`,
+        outcomes: [scenario],
+        context: {
+          startingPhase: "Clarity",
+          probeId: "stack.challenge_no_timer",
+          sequenceNumber: 1,
+          behaviorModelVersion: 2,
+          diagnosisBankVersion: 3,
+        },
+      });
+    } catch (error) {
+      if (!(error instanceof Error) || !error.message.includes("no observable, eligible V2 outcomes")) throw error;
+    }
+  }
+  assert.ok(selected, "the controlled seed search should reach the 2% confound eligibility window");
+  assert.equal(selected.studentBehavior, storedNarrative);
+  assert.equal(selected.canonicalObservations.length, DIAGNOSIS_PROBES["stack.challenge_no_timer"].dimensions.length);
+  assert.deepEqual(
+    selected.canonicalObservations.filter((observation) => observation.behaviorId === "confounded")
+      .map((observation) => observation.dimensionId),
+    ["clarity.method"],
+  );
+});
+
 test("Sandbox diagnosis comparison separates condition and observation truth", () => {
   const outcome = outcomeFor("clarity.recognition", "clarity-clean");
   const correct = compareSandboxDiagnosisProbe({

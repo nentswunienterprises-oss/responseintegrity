@@ -514,6 +514,7 @@ async function plan(input: {
       startingPhase: run.target_phase,
       probeId: canonicalDecision.nextProbeId,
       sequenceNumber: diagnosisTruth.canonical_probe_history.length + 1,
+      diagnosisBankVersion: trajectory.bank_version,
       earliestUnsupportedCapability:
         history.readiness.policyAvailable
           ? history.readiness.earliestUnsupportedCapability
@@ -752,6 +753,7 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
       startingPhase: input.startingPhase,
       probeId,
       sequenceNumber: input.sequenceNumber,
+      diagnosisBankVersion: trajectory.bank_version,
       earliestUnsupportedCapability: null,
       recentOutcomeKeys: [],
       behaviorModelVersion: truth.behavior_model_version,
@@ -874,6 +876,7 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
       startingPhase: input.startingPhase,
       probeId: prepared.probeId as DiagnosisProbeId,
       sequenceNumber: input.sequenceNumber,
+      diagnosisBankVersion: prepared.bankVersion,
       earliestUnsupportedCapability: null,
       recentOutcomeKeys: [],
       behaviorModelVersion: truth.behavior_model_version,

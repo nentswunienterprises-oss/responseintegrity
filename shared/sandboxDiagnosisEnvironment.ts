@@ -77,6 +77,8 @@ export type SandboxDiagnosisOutcomeSelectionContext = {
   startingPhase: TopicPhase;
   probeId: DiagnosisProbeId;
   sequenceNumber: number;
+  /** Persistent diagnosis outcome bank version; not the trajectory behavior model. */
+  diagnosisBankVersion?: number;
   earliestUnsupportedCapability?: SandboxCapabilityLayer | null;
   recentOutcomeKeys?: string[];
   /** V1 preserves issued diagnostic outcomes; V2 uses the student's profile. */
@@ -287,6 +289,9 @@ export function selectSandboxDiagnosisOutcome(input: {
   if (chosen.trajectoryClass !== "not_observed" && chosen.trajectoryClass !== "confounded") {
     throw new Error("A V2 integrity scenario cannot replace an ordinary diagnostic outcome.");
   }
+  // Bank version 3 carries the reviewed narrative with the outcome definition.
+  // Do not replace it with the older shared story; retain the class guard above.
+  if (input.context.diagnosisBankVersion === 3) return chosen;
 
   // A worked model that guides the method also contaminates adjacent
   // independence/repeatability judgments. An on-screen method cue removed
