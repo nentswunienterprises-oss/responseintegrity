@@ -72,6 +72,8 @@ export interface ParentQualificationEvidence {
   followUp?: string;
   responses?: Record<string, string>;
   scriptPresented?: boolean;
+  pricePresentationDelivered?: boolean;
+  meetingClosureDelivered?: boolean;
 }
 export type ParentQualificationAssessment = Partial<Record<ParentQualificationSection, ParentQualificationEvidence>>;
 
