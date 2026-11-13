@@ -240,6 +240,32 @@ test("one execution opportunity cannot claim repeatability", () => {
   assert.equal(decision.nextProbeId, "execution.repeatability");
 });
 
+test("a difficult composite opportunity cannot substitute for the comparable normal execution baseline", () => {
+  let state = createEvidenceCompleteDiagnosisState("Controlled Discomfort");
+  state = run(state, "stack.challenge_no_timer", {
+    ...claritySupported,
+    ...executionImmediateSupported,
+    ...difficultySupported,
+  });
+
+  const decision = evaluateEvidenceCompleteDiagnosis(state);
+  assert.equal(decision.complete, false);
+  assert.equal(decision.nextProbeId, "stack.normal_independent");
+});
+
+test("a normal opportunity with missing execution behavior cannot establish a repeatability comparator", () => {
+  let state = createEvidenceCompleteDiagnosisState("Structured Execution");
+  state = run(state, "stack.normal_independent", {
+    ...claritySupported,
+    ...executionImmediateSupported,
+    "execution.independence": "not_observed",
+  });
+
+  const decision = evaluateEvidenceCompleteDiagnosis(state);
+  assert.equal(decision.complete, false);
+  assert.equal(decision.nextProbeId, "stack.normal_independent");
+});
+
 test("repeatability behavior can place Structured Execution at High", () => {
   let state = createEvidenceCompleteDiagnosisState("Structured Execution");
   state = run(state, "stack.normal_independent", {

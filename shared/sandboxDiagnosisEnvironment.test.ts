@@ -457,6 +457,26 @@ test("recurrence wording follows the latest same-probe evidence, not an older fa
   assert.doesNotMatch(selected.studentBehavior, /\bagain\b/i);
 });
 
+test("a breakdown on an unrelated probe cannot establish recurrence", () => {
+  const breakdown = outcomeFor("difficulty.recovery", "difficulty.recovery.pattern_4", "breakdown");
+  breakdown.studentBehavior = "The difficult moment breaks the response again; the student cannot recover independently.";
+  const selected = selectSandboxDiagnosisOutcome({
+    seed: "unrelated-probe-recurrence",
+    outcomes: [breakdown],
+    context: {
+      startingPhase: "Controlled Discomfort",
+      probeId: "difficulty.recovery",
+      sequenceNumber: 2,
+      priorOutcomes: [{
+        probeId: "stack.challenge_no_timer",
+        trajectoryClass: "breakdown",
+        observations: breakdown.canonicalObservations,
+      }],
+    },
+  });
+  assert.doesNotMatch(selected.studentBehavior, /\bagain\b/i);
+});
+
 
 test("repeat-opportunity wording is preserved when the current response is successful", () => {
   const repeated = outcomeFor("execution.repeatability", "execution.repeatability.pattern_1", "supported");
