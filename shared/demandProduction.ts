@@ -89,9 +89,9 @@ export const COMMERCIAL_PURCHASING_PRIORITIES = [
 
 export const RI_COMMERCIAL_PRESENTATION = `Alright. I'd like to now establish whether our normal subscription model would be realistic for your family.
 Response Integrity operates through monthly packages, with the standard options ranging from R1,600 to R3,200, depending on how frequently your child attends.
-For 8 sessions, with your child being trained and conditioned twice a week, it is R1600.
-For 12 sessions, with your child being trained and conditioned three times a week, it is R2400.
-For 16 sessions, with your child being trained and conditioned four times a week, it is R3200.
+For 8 sessions, with your child being trained and conditioned twice a week, it is R1,600.
+For 12 sessions, with your child being trained and conditioned three times a week, it is R2,400.
+For 16 sessions, with your child being trained and conditioned four times a week, it is R3,200.
 I want to understand whether, if you found the programme valuable and suitable for your child, continuing at one of these prices would be a realistic decision for your family.
 Would any of these options be manageable for you on an ongoing basis, or would the cost be a concern?`;
 
