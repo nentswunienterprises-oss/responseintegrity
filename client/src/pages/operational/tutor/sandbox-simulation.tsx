@@ -595,7 +595,8 @@ export default function SpecialistSandboxSimulation({
   const applyDiagnosisRoute = useMutation({
     mutationFn: async (action: "resolve" | "continue") => {
       const response = await apiRequest("POST", `/api/tutor/sandbox-environment/rediagnosis/${action}`, {
-        tutorAssignmentId, studentId, rediagnosisRunId: form?.rediagnosisRunId, scheduledSessionId,
+        tutorAssignmentId, studentId, trajectoryId: form?.trajectoryId,
+        rediagnosisRunId: form?.rediagnosisRunId, scheduledSessionId,
       });
       return response.json();
     },
