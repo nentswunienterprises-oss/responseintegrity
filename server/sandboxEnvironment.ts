@@ -72,10 +72,12 @@ export const DEFAULT_SANDBOX_ENVIRONMENT_BANK_KEY = "sandbox_stateful_environmen
 
 const SANDBOX_BANK_TRAINING_SCHEMA_VERSION: Record<number, number> = {
   1: 1,
-  // V2 revises the diagnosis outcome bank while retaining the approved V1
-  // Training observation contract. Its rep outcomes are copied version-for-
-  // version into the V2 environment bank by the review migration artifact.
+  // Preserve compatibility for trajectories pinned to the existing bank v2.
   2: 1,
+  // Diagnosis integrity revision V2 is staged as bank version 3 because
+  // bank version 2 already exists in Preview. It retains the approved V1
+  // Training observation contract.
+  3: 1,
 };
 
 const trainingSchemaVersionForSandboxBank = (bankVersion: number) => {
