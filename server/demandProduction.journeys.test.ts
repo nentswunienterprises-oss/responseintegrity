@@ -90,10 +90,23 @@ test('real HTTP signup → Gateway → qualification → handover → assignment
     await ok('PATCH',`/api/hr/enrollments/${e.id}/demand`,'coo',{action:'qualification',status:'contacted',ownerId:'coo',note:'Parent contacted'});
     await snapshot(user,'contacted');
     await ok('PATCH',`/api/hr/enrollments/${e.id}/demand`,'coo',{action:'assessment',assessment:{
-      parentExperience:{parentAccount:'Parent describes the learner’s current mathematics experience.'},
-      supportPreferences:{evidence:'Parent explains the support structure and communication preferences.'},
-      riExplanation:{interviewerObservation:'Parent responds to the RI explanation and describes the distinction between understanding and execution.'},
-      commercialReadiness:{evidence:'Parent discusses the available monthly service arrangements and readiness to proceed.'},
+      parentExperience:{responses:Object.fromEntries(Array.from({length:8},(_,index)=>[`experience_${index+1}`,`Parent experience response ${index+1}`]))},
+      supportPreferences:{responses:Object.fromEntries(Array.from({length:11},(_,index)=>[`support_${index+1}`,`Support preference response ${index+1}`]))},
+      riExplanation:{scriptPresented:true,responses:{ri_parent_response:'Parent understands the distinction between understanding and independent execution.'}},
+      commercialReadiness:{
+        responses:{
+          existing_expenditure:'no',
+          no_expenditure_reason:'Had not found an option that felt worthwhile.',
+          commercial_priorities:JSON.stringify(['Individual attention','Evidence of improvement']),
+          decision_authority:'Both parents decide together.',
+          budget_considered:'yes',
+          comfortable_monthly_range:'R1600-R2400',
+          price_response:'The eight-session option is manageable.',
+          continuing_commitment:'Yes, a further three months would be realistic.',
+        },
+        pricePresentationDelivered:true,
+        meetingClosureDelivered:true,
+      },
     }});
     await snapshot(user,'four-part assessment saved');
     await ok('PATCH',`/api/hr/enrollments/${e.id}/demand`,'coo',{action:'qualification',status:'qualified',ownerId:'coo',note:'Four-part assessment reviewed; fit and arrangement confirmed'});
