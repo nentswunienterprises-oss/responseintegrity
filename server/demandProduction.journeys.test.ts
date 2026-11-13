@@ -90,10 +90,11 @@ test('real HTTP signup → Gateway → qualification → handover → assignment
     await ok('PATCH',`/api/hr/enrollments/${e.id}/demand`,'coo',{action:'qualification',status:'contacted',ownerId:'coo',note:'Parent contacted'});
     await snapshot(user,'contacted');
     await ok('PATCH',`/api/hr/enrollments/${e.id}/demand`,'coo',{action:'assessment',assessment:{
-      parentExperience:{responses:Object.fromEntries(Array.from({length:8},(_,index)=>[`experience_${index+1}`,`Parent experience response ${index+1}`]))},
-      supportPreferences:{responses:Object.fromEntries(Array.from({length:11},(_,index)=>[`support_${index+1}`,`Support preference response ${index+1}`]))},
-      riExplanation:{scriptPresented:true,responses:{ri_parent_response:'Parent understands the distinction between understanding and independent execution.'}},
+      parentExperience:{parentAccount:'8 individual parent experience responses recorded.',responses:Object.fromEntries(Array.from({length:8},(_,index)=>[`experience_${index+1}`,`Parent experience response ${index+1}`]))},
+      supportPreferences:{parentAccount:'11 individual support preference responses recorded.',responses:Object.fromEntries(Array.from({length:11},(_,index)=>[`support_${index+1}`,`Support preference response ${index+1}`]))},
+      riExplanation:{parentAccount:'RI explanation presented and parent response recorded.',scriptPresented:true,responses:{ri_parent_response:'Parent understands the distinction between understanding and independent execution.'}},
       commercialReadiness:{
+        parentAccount:'Commercial readiness interview responses recorded.',
         responses:{
           existing_expenditure:'no',
           no_expenditure_reason:'Had not found an option that felt worthwhile.',
