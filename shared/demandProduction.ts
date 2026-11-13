@@ -96,3 +96,38 @@ I want to understand whether, if you found the programme valuable and suitable f
 Would any of these options be manageable for you on an ongoing basis, or would the cost be a concern?`;
 
 export const RI_MEETING_CLOSURE = "Thank you for speaking with me. My team and I will assess your information and get back to you regarding the next steps.";
+
+
+export function isCommercialReadinessEvidenceComplete(item: ParentQualificationEvidence | undefined): boolean {
+  const r = item?.responses || {};
+  let selectedPriorities: unknown[] = [];
+  try {
+    const parsed: unknown = JSON.parse(r.commercial_priorities || "[]");
+    if (Array.isArray(parsed)) selectedPriorities = parsed;
+  } catch {
+    selectedPriorities = [];
+  }
+  const expenditureComplete = r.existing_expenditure === "yes"
+    ? Boolean(r.expenditure_type?.trim() && r.expenditure_monthly_amount?.trim() && r.expenditure_worthwhile?.trim())
+    : r.existing_expenditure === "no" && Boolean(r.no_expenditure_reason?.trim());
+  const budgetComplete = r.budget_considered === "yes"
+    ? Boolean(r.comfortable_monthly_range?.trim())
+    : r.budget_considered === "no" && Boolean(r.budget_information_needed?.trim());
+  return expenditureComplete
+    && selectedPriorities.length > 0
+    && Boolean(r.decision_authority?.trim())
+    && budgetComplete
+    && Boolean(item?.pricePresentationDelivered && r.price_response?.trim())
+    && Boolean(r.continuing_commitment?.trim())
+    && Boolean(item?.meetingClosureDelivered);
+}
+
+export function isParentQualificationAssessmentComplete(assessment: ParentQualificationAssessment | null | undefined): boolean {
+  if (!assessment) return false;
+  const parentExperience = assessment.parentExperience?.responses || {};
+  const supportPreferences = assessment.supportPreferences?.responses || {};
+  return Array.from({ length: 8 }, (_, index) => Boolean(parentExperience[`experience_${index + 1}`]?.trim())).every(Boolean)
+    && Array.from({ length: 11 }, (_, index) => Boolean(supportPreferences[`support_${index + 1}`]?.trim())).every(Boolean)
+    && Boolean(assessment.riExplanation?.scriptPresented && assessment.riExplanation?.responses?.ri_parent_response?.trim())
+    && isCommercialReadinessEvidenceComplete(assessment.commercialReadiness);
+}
