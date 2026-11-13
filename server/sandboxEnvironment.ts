@@ -72,6 +72,12 @@ export const DEFAULT_SANDBOX_ENVIRONMENT_BANK_KEY = "sandbox_stateful_environmen
 
 const SANDBOX_BANK_TRAINING_SCHEMA_VERSION: Record<number, number> = {
   1: 1,
+  // Preserve compatibility for trajectories pinned to the existing bank v2.
+  2: 1,
+  // Diagnosis integrity revision V2 is staged as bank version 3 because
+  // bank version 2 already exists in Preview. It retains the approved V1
+  // Training observation contract.
+  3: 1,
 };
 
 const trainingSchemaVersionForSandboxBank = (bankVersion: number) => {
@@ -615,6 +621,34 @@ function buildSandboxResponseSnapshot(input: {
         input.authority.transitionReason || input.authority.reason || null,
     },
   });
+}
+
+async function loadEnvironmentBankVersion(
+  bankKey: string,
+  bankVersion: number,
+): Promise<SandboxEnvironmentBank | null> {
+  const result = await pool.query(
+    `SELECT bank_key, bank_version, title,
+            target_outcomes_per_rep, minimum_outcomes_per_rep, maximum_outcomes_per_rep,
+            capability_policy
+       FROM private.specialist_sandbox_environment_banks
+      WHERE bank_key = $1 AND bank_version = $2
+      LIMIT 1`,
+    [bankKey, bankVersion],
+  );
+  const row = result.rows[0];
+  if (!row) return null;
+  return {
+    bankKey: String(row.bank_key),
+    bankVersion: Number(row.bank_version),
+    title: String(row.title),
+    targetOutcomesPerRep: Number(row.target_outcomes_per_rep),
+    minimumOutcomesPerRep: Number(row.minimum_outcomes_per_rep),
+    maximumOutcomesPerRep: Number(row.maximum_outcomes_per_rep),
+    capabilityPolicy: row.capability_policy
+      ? parseSandboxCapabilityReadinessPolicy(row.capability_policy)
+      : null,
+  };
 }
 
 async function loadActiveEnvironmentBank(
@@ -2816,16 +2850,20 @@ export async function initializeSandboxNativeEvidenceTrajectory(input: {
   if (!bank) throw httpError(404, "No active stateful Sandbox environment bank is available.");
   // Native Diagnosis can be the first operating surface a new student opens.
   // Create only its ordinary trajectory; no response or score is recorded.
-  await ensureTrajectory({ ...input, bank });
+  const bundle = await ensureTrajectory({ ...input, bank });
+  return bundle.trajectory.id;
 }
 
 export async function getSandboxEnvironmentHistory(input: {
   tutorAssignmentId: string;
   tutorId: string;
   studentId: string;
+  bankVersion?: number;
 }) {
   const sandboxStudent = await assertSandboxAccess(input);
-  const bank = await loadActiveEnvironmentBank();
+  const bank = input.bankVersion == null
+    ? await loadActiveEnvironmentBank()
+    : await loadEnvironmentBankVersion(DEFAULT_SANDBOX_ENVIRONMENT_BANK_KEY, input.bankVersion);
   if (!bank) throw httpError(404, "No active stateful Sandbox environment bank is available.");
   const bundle = await ensureTrajectory({
     tutorAssignmentId: input.tutorAssignmentId,

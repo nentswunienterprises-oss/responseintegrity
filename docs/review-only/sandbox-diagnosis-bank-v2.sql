@@ -1,0 +1,331 @@
+-- REVIEW ONLY: Sandbox diagnosis integrity revision V2 (bank_version 3).
+-- Stored under docs/review-only, outside migrations/ and Production migration authority.
+-- Do not execute directly. If separately approved later, the governed migration runner
+-- owns the transaction boundary. No database is changed by this review artifact.
+-- V1 rows, the existing bank-version-2 candidate, and historical evidence are preserved unchanged.
+-- Diagnosis integrity revision V2 is inserted inactive as bank_version 3.
+
+do $$
+begin
+  if exists (
+    select 1
+    from private.specialist_sandbox_environment_banks
+    where bank_key = 'sandbox_stateful_environment'
+      and bank_version = 3
+  ) then
+    raise exception 'Sandbox diagnosis integrity revision bank_version 3 already exists; refusing to overwrite it.';
+  end if;
+
+  if (
+    select count(*)
+    from private.specialist_sandbox_diagnosis_outcomes
+    where bank_key = 'sandbox_stateful_environment'
+      and bank_version = 1
+      and active = true
+  ) <> 56 then
+    raise exception 'Expected exactly 56 active V1 diagnosis outcomes; source bank changed.';
+  end if;
+end
+$$;
+
+insert into private.specialist_sandbox_environment_banks (
+  bank_key,
+  bank_version,
+  title,
+  target_outcomes_per_rep,
+  minimum_outcomes_per_rep,
+  maximum_outcomes_per_rep,
+  capability_policy,
+  active
+)
+select
+  bank_key,
+  3,
+  'Stateful Sandbox Diagnosis Integrity V2 (bank version 3)',
+  target_outcomes_per_rep,
+  minimum_outcomes_per_rep,
+  maximum_outcomes_per_rep,
+  capability_policy || jsonb_build_object(
+    'diagnosisBankRevision',
+    2,
+    'activationStatus',
+    'review_required'
+  ),
+  false
+from private.specialist_sandbox_environment_banks
+where bank_key = 'sandbox_stateful_environment'
+  and bank_version = 1;
+
+-- V2 changes diagnosis narratives and canonical diagnosis outcomes only.
+-- Training continues under the approved V1 observation schema, so copy the
+-- complete active Training rep bank into the V2 environment version unchanged.
+insert into private.specialist_sandbox_rep_outcomes (
+  bank_key, bank_version, outcome_key, outcome_version,
+  phase, set_id, rep_number, definition, active
+)
+select
+  source.bank_key, 3, source.outcome_key, source.outcome_version,
+  source.phase, source.set_id, source.rep_number, source.definition, true
+from private.specialist_sandbox_rep_outcomes source
+where source.bank_key = 'sandbox_stateful_environment'
+  and source.bank_version = 1
+  and source.active = true;
+
+do $$
+declare
+  source_training_rows integer;
+  copied_training_rows integer;
+  source_training_groups integer;
+  copied_training_groups integer;
+begin
+  select count(*) into source_training_rows
+    from private.specialist_sandbox_rep_outcomes
+   where bank_key = 'sandbox_stateful_environment'
+     and bank_version = 1 and active = true;
+  select count(*) into copied_training_rows
+    from private.specialist_sandbox_rep_outcomes
+   where bank_key = 'sandbox_stateful_environment'
+     and bank_version = 3 and active = true;
+  select count(*) into source_training_groups
+    from (select phase, set_id, rep_number
+            from private.specialist_sandbox_rep_outcomes
+           where bank_key = 'sandbox_stateful_environment'
+             and bank_version = 1 and active = true
+           group by phase, set_id, rep_number) source_groups;
+  select count(*) into copied_training_groups
+    from (select phase, set_id, rep_number
+            from private.specialist_sandbox_rep_outcomes
+           where bank_key = 'sandbox_stateful_environment'
+             and bank_version = 3 and active = true
+           group by phase, set_id, rep_number) copied_groups;
+
+  if source_training_rows = 0
+     or copied_training_rows <> source_training_rows
+     or copied_training_groups <> source_training_groups
+     or source_training_groups <> 33 then
+    raise exception 'V2 Training bank copy is incomplete: source rows %, V2 rows %, source groups %, V2 groups %.',
+      source_training_rows, copied_training_rows, source_training_groups, copied_training_groups;
+  end if;
+
+  if exists (
+    select phase, set_id, rep_number
+      from private.specialist_sandbox_rep_outcomes
+     where bank_key = 'sandbox_stateful_environment'
+       and bank_version = 3 and active = true
+     group by phase, set_id, rep_number
+    having count(*) filter (
+      where right(outcome_key, 10) <> '.pattern_7'
+        and coalesce(definition->>'trajectoryClass', '') <> 'not_observed'
+    ) < 6 or count(*) filter (
+      where right(outcome_key, 10) <> '.pattern_7'
+        and coalesce(definition->>'trajectoryClass', '') <> 'not_observed'
+    ) > 10
+  ) then
+    raise exception 'V2 Training has a phase/set/rep group outside the runtime 6-10 eligible outcome contract.';
+  end if;
+
+  if exists (
+    select phase, set_id, rep_number, count(*) as outcomes
+      from private.specialist_sandbox_rep_outcomes
+     where bank_key = 'sandbox_stateful_environment'
+       and bank_version = 1 and active = true
+     group by phase, set_id, rep_number
+    except
+    select phase, set_id, rep_number, count(*) as outcomes
+      from private.specialist_sandbox_rep_outcomes
+     where bank_key = 'sandbox_stateful_environment'
+       and bank_version = 3 and active = true
+     group by phase, set_id, rep_number
+  ) or exists (
+    select phase, set_id, rep_number, count(*) as outcomes
+      from private.specialist_sandbox_rep_outcomes
+     where bank_key = 'sandbox_stateful_environment'
+       and bank_version = 3 and active = true
+     group by phase, set_id, rep_number
+    except
+    select phase, set_id, rep_number, count(*) as outcomes
+      from private.specialist_sandbox_rep_outcomes
+     where bank_key = 'sandbox_stateful_environment'
+       and bank_version = 1 and active = true
+     group by phase, set_id, rep_number
+  ) then
+    raise exception 'V2 Training phase/set/rep coverage differs from the approved V1 bank.';
+  end if;
+end
+$$;
+
+-- Four duplicate canonical outcome pairs are consolidated by retaining pattern_4.
+-- pattern_4 has the higher existing selection weight in each pair. The duplicate
+-- pattern_5 rows are omitted from V2 only; V1 remains untouched.
+insert into private.specialist_sandbox_diagnosis_outcomes (
+  bank_key,
+  bank_version,
+  probe_id,
+  outcome_key,
+  outcome_version,
+  definition,
+  active
+)
+select
+  source.bank_key,
+  3,
+  source.probe_id,
+  source.outcome_key,
+  2,
+  jsonb_set(
+    jsonb_set(
+      source.definition,
+      '{version}',
+      '2'::jsonb,
+      true
+    ),
+    '{studentBehavior}',
+    to_jsonb(
+      case source.outcome_key
+        when 'stack.challenge_no_timer.pattern_4' then
+          'The earlier Clarity and Structured Execution layers are intact. When difficulty is introduced, the student freezes, cannot establish a controlled first step, exits the difficult condition, and requires immediate Specialist rescue.'
+        when 'stack.challenge_no_timer.pattern_8' then
+          'The challenge is interpretable except for the method-understanding behaviour, which is confounded by a changed condition. The other recorded layers remain observable.'
+        when 'stack.normal_independent.pattern_8' then
+          'The response is interpretable except for the method-understanding behaviour, which is confounded by a changed condition. The other recorded execution observations remain observable.'
+        when 'stack.timed_challenge.pattern_8' then
+          'The timed response is interpretable except for the method-understanding behaviour, which is confounded by a changed condition. The other recorded layers, including the timed observations, remain observable.'
+        else source.definition->>'studentBehavior'
+      end
+    ),
+    true
+  ),
+  true
+from private.specialist_sandbox_diagnosis_outcomes source
+where source.bank_key = 'sandbox_stateful_environment'
+  and source.bank_version = 1
+  and source.active = true
+  and source.outcome_key not in (
+    'clarity.recognition.pattern_5',
+    'difficulty.recovery.pattern_5',
+    'execution.repeatability.pattern_5',
+    'time.consistency.pattern_5'
+  );
+
+do $$
+declare
+  inserted_rows integer;
+  duplicate_signatures integer;
+begin
+  select count(*) into inserted_rows
+  from private.specialist_sandbox_diagnosis_outcomes
+  where bank_key = 'sandbox_stateful_environment'
+    and bank_version = 3
+    and active = true;
+
+  if inserted_rows <> 52 then
+    raise exception 'Expected 52 active V2 diagnosis outcomes, inserted %.', inserted_rows;
+  end if;
+
+  with signatures as (
+    select
+      probe_id,
+      definition->>'trajectoryClass' as trajectory_class,
+      jsonb_agg(
+        jsonb_build_array(item->>'dimensionId', item->>'behaviorId')
+        order by item->>'dimensionId', item->>'behaviorId'
+      ) as observation_signature
+    from private.specialist_sandbox_diagnosis_outcomes outcome
+    cross join lateral jsonb_array_elements(outcome.definition->'canonicalObservations') item
+    where outcome.bank_key = 'sandbox_stateful_environment'
+      and outcome.bank_version = 3
+      and outcome.active = true
+    group by outcome.id, probe_id, definition->>'trajectoryClass'
+  ),
+  duplicate_groups as (
+    select probe_id, trajectory_class, observation_signature, count(*) as copies
+    from signatures
+    group by probe_id, trajectory_class, observation_signature
+    having count(*) > 1
+  )
+  select count(*) into duplicate_signatures from duplicate_groups;
+
+  if duplicate_signatures <> 0 then
+    raise exception 'V2 contains % duplicate canonical outcome signatures.', duplicate_signatures;
+  end if;
+  if (
+    select count(distinct probe_id)
+      from private.specialist_sandbox_diagnosis_outcomes
+     where bank_key = 'sandbox_stateful_environment'
+       and bank_version = 3 and active = true
+  ) <> 7 or exists (
+    select probe_id
+      from private.specialist_sandbox_diagnosis_outcomes
+     where bank_key = 'sandbox_stateful_environment'
+       and bank_version = 3 and active = true
+     group by probe_id
+    having count(*) < 6 or count(*) > 10
+  ) or exists (
+    select expected.probe_id
+      from (values
+        ('clarity.recognition'),
+        ('difficulty.recovery'),
+        ('execution.repeatability'),
+        ('time.consistency'),
+        ('stack.challenge_no_timer'),
+        ('stack.normal_independent'),
+        ('stack.timed_challenge')
+      ) expected(probe_id)
+    except
+    select distinct probe_id
+      from private.specialist_sandbox_diagnosis_outcomes
+     where bank_key = 'sandbox_stateful_environment'
+       and bank_version = 3 and active = true
+  ) then
+    raise exception 'V2 diagnosis bank must contain all seven expected probes with 6-10 active outcomes each.';
+  end if;
+
+  if (
+    select count(*)
+      from private.specialist_sandbox_diagnosis_outcomes
+     where bank_key = 'sandbox_stateful_environment'
+       and bank_version = 3 and active = true
+       and outcome_key in (
+         'stack.challenge_no_timer.pattern_8',
+         'stack.normal_independent.pattern_8',
+         'stack.timed_challenge.pattern_8'
+       )
+  ) <> 3 or exists (
+    select 1
+      from private.specialist_sandbox_diagnosis_outcomes outcome
+     where outcome.bank_key = 'sandbox_stateful_environment'
+       and outcome.bank_version = 3 and outcome.active = true
+       and outcome.outcome_key in (
+         'stack.challenge_no_timer.pattern_8',
+         'stack.normal_independent.pattern_8',
+         'stack.timed_challenge.pattern_8'
+       )
+       and (
+         select count(*)
+           from jsonb_array_elements(outcome.definition->'canonicalObservations') observation
+          where observation->>'dimensionId' = 'clarity.method'
+            and observation->>'behaviorId' = 'confounded'
+       ) <> 1
+  ) then
+    raise exception 'Corrected stacked narratives must map to exactly one canonical clarity.method/confounded observation each.';
+  end if;
+
+  if exists (
+    select 1
+    from private.specialist_sandbox_environment_banks
+    where bank_key = 'sandbox_stateful_environment'
+      and bank_version = 3
+      and active = true
+  ) then
+    raise exception 'V2 must remain inactive pending explicit activation approval.';
+  end if;
+end
+$$;
+
+
+-- Post-insert review queries (run separately after an explicitly authorized application):
+-- select bank_version, active from private.specialist_sandbox_environment_banks
+--   where bank_key = 'sandbox_stateful_environment' order by bank_version;
+-- select probe_id, count(*) from private.specialist_sandbox_diagnosis_outcomes
+--   where bank_key = 'sandbox_stateful_environment' and bank_version = 3 and active
+--   group by probe_id order by probe_id;

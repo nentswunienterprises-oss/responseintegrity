@@ -81,7 +81,7 @@ function changedMigrationFilesSinceBaseline(authority: ProductionMigrationAuthor
   try {
     const output = execFileSync(
       "git",
-      ["diff", "--name-only", authority.baseline.commit + "...HEAD", "--", "migrations"],
+      ["diff", "--name-only", "--diff-filter=ACMRT", authority.baseline.commit + "...HEAD", "--", "migrations"],
       { cwd: ROOT, encoding: "utf8" },
     );
     return output
