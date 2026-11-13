@@ -1,8 +1,9 @@
--- REVIEW ONLY: Sandbox diagnosis outcome bank V2.
+-- REVIEW ONLY: Sandbox diagnosis integrity revision V2 (bank_version 3).
 -- Stored under docs/review-only, outside migrations/ and Production migration authority.
 -- Do not execute directly. If separately approved later, the governed migration runner
 -- owns the transaction boundary. No database is changed by this review artifact.
--- V1 rows and historical evidence are preserved unchanged. V2 is inserted inactive.
+-- V1 rows, the existing bank-version-2 candidate, and historical evidence are preserved unchanged.
+-- Diagnosis integrity revision V2 is inserted inactive as bank_version 3.
 
 do $$
 begin
@@ -10,9 +11,9 @@ begin
     select 1
     from private.specialist_sandbox_environment_banks
     where bank_key = 'sandbox_stateful_environment'
-      and bank_version = 2
+      and bank_version = 3
   ) then
-    raise exception 'Sandbox diagnosis bank V2 already exists; refusing to overwrite it.';
+    raise exception 'Sandbox diagnosis integrity revision bank_version 3 already exists; refusing to overwrite it.';
   end if;
 
   if (
@@ -39,8 +40,8 @@ insert into private.specialist_sandbox_environment_banks (
 )
 select
   bank_key,
-  2,
-  'Stateful Sandbox Environment V2 - Diagnosis Integrity',
+  3,
+  'Stateful Sandbox Diagnosis Integrity V2 (bank version 3)',
   target_outcomes_per_rep,
   minimum_outcomes_per_rep,
   maximum_outcomes_per_rep,
@@ -63,7 +64,7 @@ insert into private.specialist_sandbox_rep_outcomes (
   phase, set_id, rep_number, definition, active
 )
 select
-  source.bank_key, 2, source.outcome_key, source.outcome_version,
+  source.bank_key, 3, source.outcome_key, source.outcome_version,
   source.phase, source.set_id, source.rep_number, source.definition, true
 from private.specialist_sandbox_rep_outcomes source
 where source.bank_key = 'sandbox_stateful_environment'
@@ -84,7 +85,7 @@ begin
   select count(*) into copied_training_rows
     from private.specialist_sandbox_rep_outcomes
    where bank_key = 'sandbox_stateful_environment'
-     and bank_version = 2 and active = true;
+     and bank_version = 3 and active = true;
   select count(*) into source_training_groups
     from (select phase, set_id, rep_number
             from private.specialist_sandbox_rep_outcomes
@@ -95,7 +96,7 @@ begin
     from (select phase, set_id, rep_number
             from private.specialist_sandbox_rep_outcomes
            where bank_key = 'sandbox_stateful_environment'
-             and bank_version = 2 and active = true
+             and bank_version = 3 and active = true
            group by phase, set_id, rep_number) copied_groups;
 
   if source_training_rows = 0
@@ -110,7 +111,7 @@ begin
     select phase, set_id, rep_number
       from private.specialist_sandbox_rep_outcomes
      where bank_key = 'sandbox_stateful_environment'
-       and bank_version = 2 and active = true
+       and bank_version = 3 and active = true
      group by phase, set_id, rep_number
     having count(*) filter (
       where right(outcome_key, 10) <> '.pattern_7'
@@ -133,13 +134,13 @@ begin
     select phase, set_id, rep_number, count(*) as outcomes
       from private.specialist_sandbox_rep_outcomes
      where bank_key = 'sandbox_stateful_environment'
-       and bank_version = 2 and active = true
+       and bank_version = 3 and active = true
      group by phase, set_id, rep_number
   ) or exists (
     select phase, set_id, rep_number, count(*) as outcomes
       from private.specialist_sandbox_rep_outcomes
      where bank_key = 'sandbox_stateful_environment'
-       and bank_version = 2 and active = true
+       and bank_version = 3 and active = true
      group by phase, set_id, rep_number
     except
     select phase, set_id, rep_number, count(*) as outcomes
@@ -167,7 +168,7 @@ insert into private.specialist_sandbox_diagnosis_outcomes (
 )
 select
   source.bank_key,
-  2,
+  3,
   source.probe_id,
   source.outcome_key,
   2,
@@ -214,7 +215,7 @@ begin
   select count(*) into inserted_rows
   from private.specialist_sandbox_diagnosis_outcomes
   where bank_key = 'sandbox_stateful_environment'
-    and bank_version = 2
+    and bank_version = 3
     and active = true;
 
   if inserted_rows <> 52 then
@@ -232,7 +233,7 @@ begin
     from private.specialist_sandbox_diagnosis_outcomes outcome
     cross join lateral jsonb_array_elements(outcome.definition->'canonicalObservations') item
     where outcome.bank_key = 'sandbox_stateful_environment'
-      and outcome.bank_version = 2
+      and outcome.bank_version = 3
       and outcome.active = true
     group by outcome.id, probe_id, definition->>'trajectoryClass'
   ),
@@ -251,12 +252,12 @@ begin
     select count(distinct probe_id)
       from private.specialist_sandbox_diagnosis_outcomes
      where bank_key = 'sandbox_stateful_environment'
-       and bank_version = 2 and active = true
+       and bank_version = 3 and active = true
   ) <> 7 or exists (
     select probe_id
       from private.specialist_sandbox_diagnosis_outcomes
      where bank_key = 'sandbox_stateful_environment'
-       and bank_version = 2 and active = true
+       and bank_version = 3 and active = true
      group by probe_id
     having count(*) < 6 or count(*) > 10
   ) or exists (
@@ -274,7 +275,7 @@ begin
     select distinct probe_id
       from private.specialist_sandbox_diagnosis_outcomes
      where bank_key = 'sandbox_stateful_environment'
-       and bank_version = 2 and active = true
+       and bank_version = 3 and active = true
   ) then
     raise exception 'V2 diagnosis bank must contain all seven expected probes with 6-10 active outcomes each.';
   end if;
@@ -283,7 +284,7 @@ begin
     select count(*)
       from private.specialist_sandbox_diagnosis_outcomes
      where bank_key = 'sandbox_stateful_environment'
-       and bank_version = 2 and active = true
+       and bank_version = 3 and active = true
        and outcome_key in (
          'stack.challenge_no_timer.pattern_8',
          'stack.normal_independent.pattern_8',
@@ -293,7 +294,7 @@ begin
     select 1
       from private.specialist_sandbox_diagnosis_outcomes outcome
      where outcome.bank_key = 'sandbox_stateful_environment'
-       and outcome.bank_version = 2 and outcome.active = true
+       and outcome.bank_version = 3 and outcome.active = true
        and outcome.outcome_key in (
          'stack.challenge_no_timer.pattern_8',
          'stack.normal_independent.pattern_8',
@@ -313,7 +314,7 @@ begin
     select 1
     from private.specialist_sandbox_environment_banks
     where bank_key = 'sandbox_stateful_environment'
-      and bank_version = 2
+      and bank_version = 3
       and active = true
   ) then
     raise exception 'V2 must remain inactive pending explicit activation approval.';
@@ -326,5 +327,5 @@ $$;
 -- select bank_version, active from private.specialist_sandbox_environment_banks
 --   where bank_key = 'sandbox_stateful_environment' order by bank_version;
 -- select probe_id, count(*) from private.specialist_sandbox_diagnosis_outcomes
---   where bank_key = 'sandbox_stateful_environment' and bank_version = 2 and active
+--   where bank_key = 'sandbox_stateful_environment' and bank_version = 3 and active
 --   group by probe_id order by probe_id;
