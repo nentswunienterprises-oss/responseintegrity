@@ -7,6 +7,9 @@ import {
   PARENT_QUALIFICATION_SECTIONS,
   PARENT_EXPERIENCE_QUESTIONS,
   SUPPORT_PREFERENCE_QUESTIONS,
+  COMMERCIAL_PURCHASING_PRIORITIES,
+  RI_COMMERCIAL_PRESENTATION,
+  RI_MEETING_CLOSURE,
   RI_EXPLANATION_SCRIPT,
   type ParentQualificationAssessment,
   type ParentQualificationSection,
@@ -65,7 +68,21 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
     if (section === "parentExperience") return PARENT_EXPERIENCE_QUESTIONS.every((_, index) => Boolean(item?.responses?.[`experience_${index + 1}`]?.trim()));
     if (section === "supportPreferences") return SUPPORT_PREFERENCE_QUESTIONS.every((_, index) => Boolean(item?.responses?.[`support_${index + 1}`]?.trim()));
     if (section === "riExplanation") return Boolean(item?.scriptPresented && item?.responses?.ri_parent_response?.trim());
-    return false; // Part 4 is intentionally unavailable until its approved interview guide is supplied.
+    const r = item?.responses || {};
+    const selectedPriorities = (() => { try { return JSON.parse(r.commercial_priorities || "[]"); } catch { return []; } })();
+    const expenditureComplete = r.existing_expenditure === "yes"
+      ? Boolean(r.expenditure_type?.trim() && r.expenditure_monthly_amount?.trim() && r.expenditure_worthwhile?.trim())
+      : r.existing_expenditure === "no" && Boolean(r.no_expenditure_reason?.trim());
+    const budgetComplete = r.budget_considered === "yes"
+      ? Boolean(r.comfortable_monthly_range?.trim())
+      : r.budget_considered === "no" && Boolean(r.budget_information_needed?.trim());
+    return expenditureComplete
+      && selectedPriorities.length > 0
+      && Boolean(r.decision_authority?.trim())
+      && budgetComplete
+      && Boolean(item?.pricePresentationDelivered && r.price_response?.trim())
+      && Boolean(r.continuing_commitment?.trim())
+      && Boolean(item?.meetingClosureDelivered);
   };
   const assessmentComplete = PARENT_QUALIFICATION_SECTIONS.every(sectionComplete);
   const terminalDecision = ["qualified", "not_qualified"].includes(status);
@@ -128,14 +145,18 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
           {section === "riExplanation" && <><p className="mt-2">Approved RI explanation presented: {item.scriptPresented ? "Yes" : "Not recorded"}</p><p className="whitespace-pre-wrap">Parent response: {item.responses?.ri_parent_response || "Not recorded"}</p></>}
           {item.interviewerObservation && <p className="mt-2 whitespace-pre-wrap"><strong>Interviewer observation:</strong> {item.interviewerObservation}</p>}
           {item.followUp && <p className="mt-2 whitespace-pre-wrap"><strong>Follow-up:</strong> {item.followUp}</p>}
-          {section === "commercialReadiness" && <p className="mt-2 text-muted-foreground">Part 4 evidence: {item.parentAccount || item.evidence || item.interviewerObservation || "Not yet recorded."}</p>}
+          {section === "commercialReadiness" && <div className="mt-2 space-y-2">
+            <p>RI price presentation delivered: {item.pricePresentationDelivered ? "Yes" : "Not recorded"}</p>
+            <p>Meeting closure delivered: {item.meetingClosureDelivered ? "Yes" : "Not recorded"}</p>
+            {Object.entries(item.responses || {}).map(([key, value]) => <p key={key} className="whitespace-pre-wrap"><strong>{key.replaceAll("_", " ")}:</strong> {value}</p>)}
+          </div>}
         </section>;
       })}</div>
     </details>}
     {e.handover_note && <p className="text-sm whitespace-pre-wrap">Agreed next action: {e.handover_note}</p>}
     {legacy && <p className="text-sm text-muted-foreground">Existing service remains operational. Historical qualification and handover are not inferred.</p>}
     {!legacy && !e.qualification_completed_at && <section className="border-t pt-4 space-y-4">
-      <div><h4 className="font-semibold">Parent Qualification — approved interview guide</h4><p className="text-sm text-muted-foreground">Ask the approved questions and record each answer individually. Keep the parent's account separate from interviewer observations. Save partial progress during the conversation. Part 4 remains pending until its approved questions are supplied.</p></div>
+      <div><h4 className="font-semibold">Parent Qualification — approved interview guide</h4><p className="text-sm text-muted-foreground">Ask the approved questions and record each answer individually. Keep the parent's account separate from interviewer observations. Save partial progress during the conversation.</p></div>
       <fieldset className="rounded-md border p-3 space-y-4">
         <legend className="px-1 text-sm font-semibold">1. Parent Experience · {sectionComplete("parentExperience") ? "Complete" : "In progress"}</legend>
         {renderQuestionSet("parentExperience", PARENT_EXPERIENCE_QUESTIONS, "experience")}
@@ -157,11 +178,55 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
         <label className="block text-sm">Interviewer observation<textarea className={control} rows={2} maxLength={3000} value={assessment.riExplanation?.interviewerObservation || ""} onChange={(event) => setSectionField("riExplanation", "interviewerObservation", event.target.value)} /></label>
         <label className="block text-sm">Follow-up required<textarea className={control} rows={2} maxLength={1000} value={assessment.riExplanation?.followUp || ""} onChange={(event) => setSectionField("riExplanation", "followUp", event.target.value)} /></label>
       </fieldset>
-      <fieldset className="rounded-md border border-dashed p-3 space-y-2">
-        <legend className="px-1 text-sm font-semibold">4. Commercial Readiness · Pending approval</legend>
-        <p className="text-sm text-muted-foreground">The approved Part 4 questions have not yet been provided. This section is intentionally not editable. Qualification cannot be finalized until the approved Part 4 is implemented.</p>
+      <fieldset className="rounded-md border p-3 space-y-4">
+        <legend className="px-1 text-sm font-semibold">4. Commercial Readiness · {sectionComplete("commercialReadiness") ? "Complete" : "In progress"}</legend>
+        <div className="space-y-3">
+          <p className="text-sm font-medium">1. Existing expenditure</p>
+          <p className="text-sm">Have you previously paid for additional mathematics support for your child, or considered doing so?</p>
+          <select className={control} value={responseValue("commercialReadiness","existing_expenditure")} onChange={event=>setResponse("commercialReadiness","existing_expenditure",event.target.value)}><option value="">Choose response</option><option value="yes">Yes</option><option value="no">No</option></select>
+          {responseValue("commercialReadiness","existing_expenditure")==="yes" && <>
+            <label className="block text-sm">What type of support was it?<textarea className={control} rows={2} value={responseValue("commercialReadiness","expenditure_type")} onChange={event=>setResponse("commercialReadiness","expenditure_type",event.target.value)} /></label>
+            <label className="block text-sm">Approximately how much did you spend per month?<input className={control} value={responseValue("commercialReadiness","expenditure_monthly_amount")} onChange={event=>setResponse("commercialReadiness","expenditure_monthly_amount",event.target.value)} /></label>
+            <label className="block text-sm">What made you decide that the expense was worthwhile?<textarea className={control} rows={2} value={responseValue("commercialReadiness","expenditure_worthwhile")} onChange={event=>setResponse("commercialReadiness","expenditure_worthwhile",event.target.value)} /></label>
+          </>}
+          {responseValue("commercialReadiness","existing_expenditure")==="no" && <label className="block text-sm">What has influenced your decision not to pay for additional support up to now?<textarea className={control} rows={3} value={responseValue("commercialReadiness","no_expenditure_reason")} onChange={event=>setResponse("commercialReadiness","no_expenditure_reason",event.target.value)} /></label>}
+        </div>
+        <div className="space-y-2">
+          <p className="text-sm font-medium">2. Purchasing priorities</p>
+          <p className="text-sm">When deciding whether to spend money on additional educational support, what matters most to you?</p>
+          {COMMERCIAL_PURCHASING_PRIORITIES.map(priority=><label key={priority} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={(()=>{try{return JSON.parse(responseValue("commercialReadiness","commercial_priorities")||"[]").includes(priority)}catch{return false}})()} onChange={event=>{let current:string[]=[];try{current=JSON.parse(responseValue("commercialReadiness","commercial_priorities")||"[]")}catch{};const next=event.target.checked?[...current,priority]:current.filter(value=>value!==priority);setResponse("commercialReadiness","commercial_priorities",JSON.stringify(next));}} />{priority}</label>)}
+        </div>
+        <label className="block text-sm"><span className="font-medium">3. Decision authority</span><span className="block mt-1">If you decided that your child needed regular additional support, how would that decision normally be made in your household?</span><textarea className={control} rows={3} value={responseValue("commercialReadiness","decision_authority")} onChange={event=>setResponse("commercialReadiness","decision_authority",event.target.value)} /></label>
+        <div className="space-y-2">
+          <p className="text-sm font-medium">4. Financial expectations</p>
+          <p className="text-sm">Have you already considered setting aside a monthly amount for your child's additional mathematics support?</p>
+          <select className={control} value={responseValue("commercialReadiness","budget_considered")} onChange={event=>setResponse("commercialReadiness","budget_considered",event.target.value)}><option value="">Choose response</option><option value="yes">Yes</option><option value="no">No</option></select>
+          {responseValue("commercialReadiness","budget_considered")==="yes" && <label className="block text-sm">Do you have a comfortable range in mind?<input className={control} value={responseValue("commercialReadiness","comfortable_monthly_range")} onChange={event=>setResponse("commercialReadiness","comfortable_monthly_range",event.target.value)} /></label>}
+          {responseValue("commercialReadiness","budget_considered")==="no" && <label className="block text-sm">What would you need to know before deciding whether to allocate money toward something like this?<textarea className={control} rows={3} value={responseValue("commercialReadiness","budget_information_needed")} onChange={event=>setResponse("commercialReadiness","budget_information_needed",event.target.value)} /></label>}
+        </div>
+        <div className="space-y-3 border-t pt-3">
+          <p className="text-sm font-medium">Present RI's actual subscription prices</p>
+          <p className="text-sm text-muted-foreground">Read this presentation as written before recording the parent's reaction.</p>
+          <div className="rounded-md bg-muted/40 p-4 text-sm leading-relaxed whitespace-pre-wrap">{RI_COMMERCIAL_PRESENTATION}</div>
+          <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={Boolean(assessment.commercialReadiness?.pricePresentationDelivered)} onChange={event=>{setAssessmentSaved(false);setAssessment(current=>({...current,commercialReadiness:{...current.commercialReadiness,pricePresentationDelivered:event.target.checked}}));}} />I presented all three RI monthly package options and the price question above.</label>
+          <label className="block text-sm">Parent's response to the actual prices<textarea className={control} rows={3} value={responseValue("commercialReadiness","price_response")} onChange={event=>setResponse("commercialReadiness","price_response",event.target.value)} /></label>
+          <p className="text-sm">If the parent objects, ask whether the main concern is the amount itself or whether the results would justify spending that amount.</p>
+          <label className="block text-sm">If raised, record the parent's concern<textarea className={control} rows={2} value={responseValue("commercialReadiness","price_objection")} onChange={event=>setResponse("commercialReadiness","price_objection",event.target.value)} /></label>
+        </div>
+        <div className="space-y-2 border-t pt-3">
+          <p className="text-sm font-medium">Continuing commitment</p>
+          <p className="text-sm">If you were satisfied with the progress your child was making, would maintaining that monthly commitment for the following two or three months be realistic?</p>
+          <textarea className={control} rows={3} value={responseValue("commercialReadiness","continuing_commitment")} onChange={event=>setResponse("commercialReadiness","continuing_commitment",event.target.value)} />
+        </div>
+        <div className="space-y-2 border-t pt-3">
+          <p className="text-sm font-medium">Meeting closure</p>
+          <div className="rounded-md bg-muted/40 p-3 text-sm">{RI_MEETING_CLOSURE}</div>
+          <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={Boolean(assessment.commercialReadiness?.meetingClosureDelivered)} onChange={event=>{setAssessmentSaved(false);setAssessment(current=>({...current,commercialReadiness:{...current.commercialReadiness,meetingClosureDelivered:event.target.checked}}));}} />I delivered the meeting closing statement.</label>
+        </div>
+        <label className="block text-sm">Interviewer observation<textarea className={control} rows={3} maxLength={3000} value={assessment.commercialReadiness?.interviewerObservation || ""} onChange={event=>setSectionField("commercialReadiness","interviewerObservation",event.target.value)} /></label>
+        <label className="block text-sm">Follow-up required<textarea className={control} rows={2} maxLength={1000} value={assessment.commercialReadiness?.followUp || ""} onChange={event=>setSectionField("commercialReadiness","followUp",event.target.value)} /></label>
       </fieldset>
-      <div className="flex flex-wrap items-center gap-3"><Button type="button" disabled={save.isPending} onClick={() => save.mutate({ action: "assessment", assessment })}>Save assessment</Button><span className="text-xs text-muted-foreground">{[sectionComplete("parentExperience"), sectionComplete("supportPreferences"), sectionComplete("riExplanation")].filter(Boolean).length} of 3 supplied parts complete · Part 4 pending · {!assessmentSaved ? "Unsaved changes" : e.qualification_assessment_updated_at ? `Last saved ${when(e.qualification_assessment_updated_at)}` : "Not yet saved"}</span></div>
+      <div className="flex flex-wrap items-center gap-3"><Button type="button" disabled={save.isPending} onClick={() => save.mutate({ action: "assessment", assessment })}>Save assessment</Button><span className="text-xs text-muted-foreground">{PARENT_QUALIFICATION_SECTIONS.filter(sectionComplete).length} of 4 parts complete · {!assessmentSaved ? "Unsaved changes" : e.qualification_assessment_updated_at ? `Last saved ${when(e.qualification_assessment_updated_at)}` : "Not yet saved"}</span></div>
     </section>}
     {save.error && <p role="alert" className="text-sm text-destructive">{save.error.message}</p>}
     {!legacy && !e.handover_completed_at && <div className="border-t pt-4 space-y-4">
