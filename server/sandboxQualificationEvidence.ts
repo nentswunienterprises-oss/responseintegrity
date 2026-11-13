@@ -182,9 +182,18 @@ const tags=(r:any)=>{
  if(r.canonical_prerequisite_sentinel!=null)out.push("prerequisite");
  return out;
 };
+const TRAINING_SCHEMA_VERSION_BY_SANDBOX_BANK:Record<number,number>={
+ 1:1,
+ // Diagnosis bank version 3 carries the exact V1 Training rep bank; its
+ // qualification contract remains explicit and version-pinned.
+ 3:1,
+};
+const trainingSchemaVersionForSandboxBank=(bankVersion:number)=>
+ TRAINING_SCHEMA_VERSION_BY_SANDBOX_BANK[bankVersion]||null;
 const planKeys=(phase:string,bankVersion:number)=>{
- if(bankVersion!==1)return null; // No implicit historical contract for other bank versions.
- const schema=getDrillSchemaDefinitionByVersion("training",phase as TopicPhase,1);
+ const schemaVersion=trainingSchemaVersionForSandboxBank(bankVersion);
+ if(!schemaVersion)return null; // No implicit historical contract for other bank versions.
+ const schema=getDrillSchemaDefinitionByVersion("training",phase as TopicPhase,schemaVersion);
  if(!schema)return null;
  return schema.sets.filter(set=>!set.modelingOnly).flatMap(set=>
   Array.from({length:set.reps},(_,i)=>set.setId+"::"+(i+1)));
@@ -342,8 +351,9 @@ export async function loadSandboxQualificationEvidence(
    const item=base({
      ...row,completed_at:row.first_rep_completed_at||row.recorded_at,
    },"preparation","opportunity");
-   const schema=Number(row.bank_version)===1 ?
-     getDrillSchemaDefinitionByVersion("training",String(row.phase) as TopicPhase,1) : null;
+   const schemaVersion=trainingSchemaVersionForSandboxBank(Number(row.bank_version));
+   const schema=schemaVersion ?
+     getDrillSchemaDefinitionByVersion("training",String(row.phase) as TopicPhase,schemaVersion) : null;
    const set=schema?.sets.find(candidate=>candidate.setId===row.set_id && !candidate.modelingOnly);
    const expectedHash=set?
      createHash("sha256").update(JSON.stringify(set.constraints)).digest("hex") : null;

@@ -46,6 +46,16 @@ test("exact versioned set/rep identity and canonical truth qualify as complete s
  assert.equal(r.events.find(e=>e.kind==="session")?.complete,true);
  assert.ok(r.sourceGaps.length);
 });
+test("Sandbox diagnosis bank version 3 uses its explicit V1 Training observation contract",async()=>{
+ const f=fixture();
+ f.reps=f.reps.map(row=>({...row,bank_version:3,truth_bank_version:3}));
+ f.sessions=f.sessions.map(row=>({...row,bank_version:3}));
+ const r=await loadSandboxQualificationEvidence({tutorAssignmentId:"assignment",tutorId:"specialist"},db(f));
+ const opportunities=r.events.filter(e=>e.kind==="opportunity"&&e.mode==="training");
+ assert.equal(opportunities.length,f.reps.length);
+ assert.ok(opportunities.every(e=>e.bankVersion===3&&e.technicallyValid&&e.complete));
+ assert.equal(r.events.find(e=>e.kind==="session")?.complete,true);
+});
 test("missing rep cannot qualify a session even if remaining source truth is intact",async()=>{
  const f=fixture();f.reps.pop();
  const r=await loadSandboxQualificationEvidence({tutorAssignmentId:"assignment",tutorId:"specialist"},db(f));

@@ -84,6 +84,8 @@ An initial Sandbox entry diagnosis may resume an existing in-progress run only w
 
 Sandbox diagnosis bank version 3 owns the reviewed narrative stored with each outcome. The legacy shared worked-example story renderer remains available for earlier behavior-model flows but does not overwrite the version-3 bank narrative. The outcome's canonical observations remain dimension-specific: one `confounded` dimension does not discard the other observable dimensions in the same probe.
 
+The V3 diagnosis bank also carries an unchanged copy of the V1 Training rep bank. Sandbox qualification maps bank version 3 explicitly to Training observation schema version 1, while unsupported bank versions remain unqualified until they receive a declared schema mapping.
+
 The independent normal Diagnosis probe requests independent solving and expressly prohibits eliciting mathematical vocabulary or a reason for the method. Its simulated canonical observations must therefore retain `clarity.vocabulary` and `clarity.reason` as `not_observed`; successful working alone cannot establish either. This is a prescribed observation boundary, not a fictional missing-evidence learner profile. A later recognition opportunity elicits those dimensions. Newly issued native Diagnosis/Handover simulations describe the evidence for each dimension, rather than asking an operator to infer a specific step drift or help-seeking pattern from an abstract overall judgment. Native protocol version 2 is included in the form fingerprint; stale forms fail rather than acquiring altered truth. Existing submitted evidence is preserved.
 
 ### Native Clarity Handover protocol correction — 16 October 2026
