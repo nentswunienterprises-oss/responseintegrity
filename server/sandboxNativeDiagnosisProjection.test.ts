@@ -99,3 +99,19 @@ test("stateful targeted re-diagnosis scores honest protocol boundaries and versi
   assert.match(planner, /projectSandboxNativeDiagnosisOutcome\(selectSandboxDiagnosisOutcome\(/);
   assert.match(planner, /"native-protocol-v" \+ SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION/);
 });
+
+
+test("staged bank versions cannot be selected for new Sandbox work and V4 retains V1 Training schema", () => {
+  const environment = readFileSync(new URL("./sandboxEnvironment.ts", import.meta.url), "utf8");
+  const schemaMap = environment.slice(
+    environment.indexOf("const SANDBOX_BANK_TRAINING_SCHEMA_VERSION"),
+    environment.indexOf("const trainingSchemaVersionForSandboxBank"),
+  );
+  assert.match(schemaMap, /4:\s*1/);
+  const activeLoader = environment.slice(
+    environment.indexOf("async function loadActiveEnvironmentBank"),
+    environment.indexOf("const jsonStringArray", environment.indexOf("async function loadActiveEnvironmentBank")),
+  );
+  assert.match(activeLoader, /active = true[\s\S]*runtimeEligible[\s\S]*= true/);
+  assert.match(environment, /async function loadEnvironmentBankVersion[\s\S]*WHERE bank_key = \\$1 AND bank_version = \\$2/);
+});
