@@ -60,7 +60,7 @@ import {
   resolveTrainingTabAvailability,
 } from "@shared/trainingPackageQuota";
 
-type TopicConditioningMap = {
+export type TopicConditioningMap = {
   topic?: string | null;
   entry_phase?: string | null;
   stability?: string | null;
@@ -108,7 +108,7 @@ function nextActionStabilityFor(row: Pick<TopicRow, "phase" | "stability" | "pro
   return row.stability;
 }
 
-type TutorSessionRecord = {
+export type TutorSessionRecord = {
   id: string;
   studentId?: string;
   date: string;
@@ -397,7 +397,7 @@ type SandboxMapPreparationPlan = {
   }>;
 };
 
-interface StudentTopicConditioningDialogProps {
+export interface StudentTopicConditioningDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   studentId: string;
@@ -1485,7 +1485,12 @@ export default function StudentTopicConditioningDialog({
             topic,
             phase: "Clarity",
             stability: "Low",
+            progressionAuthority: null,
             hasObservedState: false,
+            requiresTargetedRediagnosis: false,
+            targetedRediagnosisStartPhase: null,
+            systemNextAction: null,
+            prerequisiteContradictionReason: null,
             stateSource: "activated",
             lastSession: activatedAt ? formatLastUpdatedLabel(activatedAt) : "Activated",
             trend: "Stable",
