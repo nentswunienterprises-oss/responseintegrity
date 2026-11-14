@@ -113,5 +113,5 @@ test("staged bank versions cannot be selected for new Sandbox work and V4 retain
     environment.indexOf("const jsonStringArray", environment.indexOf("async function loadActiveEnvironmentBank")),
   );
   assert.match(activeLoader, /active = true[\s\S]*runtimeEligible[\s\S]*= true/);
-  assert.match(environment, /async function loadEnvironmentBankVersion[\s\S]*WHERE bank_key = \\$1 AND bank_version = \\$2/);
+  assert.match(environment, /async function loadEnvironmentBankVersion[\s\S]*WHERE bank_key = \$1 AND bank_version = \$2/);
 });
