@@ -74,10 +74,11 @@ const SANDBOX_BANK_TRAINING_SCHEMA_VERSION: Record<number, number> = {
   1: 1,
   // Preserve compatibility for trajectories pinned to the existing bank v2.
   2: 1,
-  // Diagnosis integrity revision V2 is staged as bank version 3 because
-  // bank version 2 already exists in Preview. It retains the approved V1
-  // Training observation contract.
+  // Diagnosis integrity revision V2 was staged as bank version 4 after
+  // discovering versions 2 and 3 already existed in Preview. It retains the
+  // approved V1 Training observation contract.
   3: 1,
+  4: 1,
 };
 
 const trainingSchemaVersionForSandboxBank = (bankVersion: number) => {
@@ -661,6 +662,7 @@ async function loadActiveEnvironmentBank(
        FROM private.specialist_sandbox_environment_banks
       WHERE bank_key = $1
         AND active = true
+        AND COALESCE((capability_policy->>'runtimeEligible')::boolean, true) = true
       LIMIT 1`,
     [bankKey],
   );
