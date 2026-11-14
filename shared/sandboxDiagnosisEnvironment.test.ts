@@ -161,6 +161,59 @@ test("bank version 3 preserves the reviewed stacked confound narrative and obser
   );
 });
 
+test("bank version 4 timed pattern_8 keeps the timed layers observable when method is confounded", () => {
+  const probeId = "stack.timed_challenge" as const;
+  const key = "stack.timed_challenge.pattern_8";
+  const scenario: SandboxDiagnosisOutcomeDefinition = {
+    ...outcomeFor(probeId, key, "supported"),
+    trajectoryClass: "confounded",
+    studentBehavior: renderSandboxDiagnosisExceptionNarrativeV2(key)!,
+    canonicalObservations: outcomeFor(probeId, key, "supported").canonicalObservations.map((observation) =>
+      observation.dimensionId === "clarity.method"
+        ? { ...observation, behaviorId: "confounded" }
+        : observation,
+    ),
+  };
+  let selected: SandboxDiagnosisOutcomeDefinition | null = null;
+  for (let index = 0; index < 1000 && !selected; index += 1) {
+    try {
+      selected = selectSandboxDiagnosisOutcome({
+        seed: `v4-timed-pattern-8-fixture-${index}`,
+        profileSeed: `v4-timed-pattern-8-profile-${index}`,
+        outcomes: [scenario],
+        context: {
+          startingPhase: "Time Pressure Stability",
+          probeId,
+          sequenceNumber: 1,
+          behaviorModelVersion: 2,
+          diagnosisBankVersion: 4,
+        },
+      });
+    } catch (error) {
+      if (!(error instanceof Error) || !error.message.includes("no observable, eligible V2 outcomes")) throw error;
+    }
+  }
+
+  assert.ok(selected, "the deterministic fixture search should reach the rare confound eligibility window");
+  assert.equal(selected.key, key);
+  assert.equal(selected.trajectoryClass, "confounded");
+  assert.equal(selected.studentBehavior, scenario.studentBehavior);
+  assert.equal(selected.canonicalObservations.length, DIAGNOSIS_PROBES[probeId].dimensions.length);
+  assert.deepEqual(
+    selected.canonicalObservations.filter((observation) => observation.behaviorId === "confounded")
+      .map((observation) => observation.dimensionId),
+    ["clarity.method"],
+    "the method cue must not invalidate observable timed start, structure, pace, or completion evidence",
+  );
+  for (const dimensionId of ["time.start", "time.structure", "time.pace", "time.completion_integrity"]) {
+    assert.notEqual(
+      selected.canonicalObservations.find((observation) => observation.dimensionId === dimensionId)?.behaviorId,
+      "confounded",
+      dimensionId + " remains observable despite the Clarity method confound",
+    );
+  }
+});
+
 test("Sandbox diagnosis comparison separates condition and observation truth", () => {
   const outcome = outcomeFor("clarity.recognition", "clarity-clean");
   const correct = compareSandboxDiagnosisProbe({
