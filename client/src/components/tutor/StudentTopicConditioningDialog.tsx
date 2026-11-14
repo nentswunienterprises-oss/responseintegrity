@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 44810)
-Total output lines: 3476
-
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -1019,7 +1016,1840 @@ function buildTopics(
       ),
       entryDiagnosis:
         history.length > 0
-…24810 tokens truncated…ession."
+          ? `Entered based on observed response pattern in logged sessions for ${topic.toLowerCase()}.`
+          : `Seeded from enrollment/proposal focus for ${topic.toLowerCase()}.`,
+      recentLogs,
+      timeline: history.map((h) => ({
+        date: new Date(h.date).toLocaleDateString("en-US", { day: "2-digit", month: "short" }),
+        phase: h.phase,
+        stability: h.stability,
+        kind: h.kind,
+      })),
+      parentReported: entry.parentReported === true,
+      parentReportedSymptoms: entry.parentReportedSymptoms || [],
+      parentRecommendedPhase: entry.parentRecommendedPhase || null,
+    });
+  });
+
+  return rows.sort((a, b) => a.topic.localeCompare(b.topic));
+}
+export { trendFromHistory };
+const phaseDefinition: Record<PhaseLabel, string> = {
+  Clarity:
+    [
+      "Description: The student learns to see the topic clearly. This means: naming the correct terms (Vocabulary), recognizing the problem type, knowing the steps (Method), knowing why the steps work (Reason).",
+      "Tool: Teach 3-Layer Lens.",
+      "Question: Can the student clearly see what they are dealing with in this topic? If no, this topic starts at Clarity."
+    ].join("\n\n"),
+  "Structured Execution":
+    [
+      "Description: The student must now execute inside the topic. This means: starting without delay, following steps in order, reducing guessing, repeating the method reliably.",
+      "Tool: Independent execution reps, step-order correction, and 3-Layer Lens checks.",
+      "Question: Can the student act reliably in this topic without being carried? If no, this topic sits in Structured Execution."
+    ].join("\n\n"),
+  "Controlled Discomfort":
+    [
+      "Description: Now difficulty is introduced inside the topic. This means: harder questions, unfamiliar forms, no rescue, first-step guidance only.",
+      "Tool: Boss Battles.",
+      "Question: Can the student stay stable in this topic when certainty disappears? If no, this topic sits in Controlled Discomfort."
+    ].join("\n\n"),
+  "Time Pressure Stability":
+    [
+      "Description: Now the same topic is tested under time. This means: timed attempts, process under pressure, structure maintained under urgency.",
+      "Tool: Timed Execution.",
+      "Question: Can the student stay structured in this topic when time pressure appears? If no, this topic stays in Time Pressure Stability."
+    ].join("\n\n"),
+};
+
+export default function StudentTopicConditioningDialog({
+  open,
+  onOpenChange,
+  studentId,
+  studentName,
+  studentGrade,
+  operationalMode = "training",
+  readOnly = false,
+  mapOnly = false,
+  apiBasePath = "/api/tutor",
+  parentTopics,
+  parentTopicSymptoms,
+  parentTopicRecommendations,
+  topicConditioning,
+  persistedTopicStates,
+}: StudentTopicConditioningDialogProps) {
+  const navigate = useNavigate();
+  const { data: workflow } = useStudentWorkflowState(studentId, apiBasePath, !readOnly);
+  const assignmentAccepted = workflow?.assignmentAccepted ?? true;
+  const isSandboxMode = operationalMode === "sandbox";
+  const isTrainingMode = operationalMode === "training" || isSandboxMode;
+  const canonicalTopicStateEnabled =
+    open && !!studentId && !readOnly && apiBasePath === "/api/tutor";
+  const {
+    data: canonicalTopicStateResponse,
+    isFetching: canonicalTopicStateFetching,
+    isError: canonicalTopicStateError,
+  } = useQuery({
+    queryKey: [apiBasePath, "topic-conditioning", studentId, "canonical-live-state"],
+    queryFn: async () => {
+      const res = await apiRequest(
+        "GET",
+        `${apiBasePath}/topic-conditioning/${studentId}`,
+      );
+      return res.json();
+    },
+    enabled: canonicalTopicStateEnabled,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+  });
+  const canonicalTopicStateReady =
+    !canonicalTopicStateEnabled ||
+    (!canonicalTopicStateFetching &&
+      !canonicalTopicStateError &&
+      canonicalTopicStateResponse !== undefined);
+  const effectivePersistedTopicStates = useMemo(
+    () =>
+      canonicalTopicStateEnabled
+        ? mergeAuthoritativeTopicStates(
+            persistedTopicStates,
+            canonicalTopicStateResponse,
+          )
+        : persistedTopicStates,
+    [
+      canonicalTopicStateEnabled,
+      canonicalTopicStateResponse,
+      persistedTopicStates,
+    ],
+  );
+  // Fetch topic activations for this student (must be inside component to access studentId)
+  const { data: activationsData, refetch: refetchActivations } = useQuery({
+    queryKey: [apiBasePath, "students", studentId, "topic-conditioning-activations"],
+    queryFn: async () => {
+      const res = await apiRequest(
+        "GET",
+        `${apiBasePath}/students/${studentId}/topic-conditioning-activations`
+      );
+      return res.json();
+    },
+    enabled: !!studentId && !readOnly,
+  });
+  const queryClient = useQueryClient();
+  // Mutation to add topic
+  const addTopicMutation = useMutation({
+    mutationFn: async ({ topic, reason }: { topic: string; reason: string }) => {
+      if (readOnly) {
+        throw new Error("Topic activation is disabled in read-only mode.");
+      }
+
+      const res = await apiRequest(
+        "POST",
+        `${apiBasePath}/students/${studentId}/topic-conditioning`,
+        { topic, reason }
+      );
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [apiBasePath, "pod"] });
+      queryClient.invalidateQueries({ queryKey: [apiBasePath, "students", studentId, "workflow-state"] });
+    },
+  });
+  // Activation reasons for dropdown
+  const ACTIVATION_REASONS = [
+    "Observed breakdown in class",
+    "Parent reported struggle",
+    "Exam/test focus",
+    "School topic requirement",
+    "Other (enter note)"
+  ];
+
+  // State for Activate Topic dialog
+  const [activateDialogOpen, setActivateDialogOpen] = useState(false);
+  const [newTopic, setNewTopic] = useState("");
+  const [activationReason, setActivationReason] = useState("");
+  const [activationNote, setActivationNote] = useState("");
+  const [activateError, setActivateError] = useState("");
+  const [sessionTopicsModalOpen, setSessionTopicsModalOpen] = useState(false);
+  const [selectedSessionTopics, setSelectedSessionTopics] = useState<Set<string>>(new Set());
+  const [sessionPrepChecks, setSessionPrepChecks] = useState<Record<string, boolean>>({});
+  const [sandboxPreparationPending, setSandboxPreparationPending] = useState(false);
+  const [sandboxPreparationError, setSandboxPreparationError] = useState<string | null>(null);
+  const [trainingSessionMeetMessage, setTrainingSessionMeetMessage] = useState<string | null>(null);
+  const [editingTrainingSessionId, setEditingTrainingSessionId] = useState<string | null>(null);
+  const [adjustedTrainingSessionTime, setAdjustedTrainingSessionTime] = useState("");
+  // Sandbox starts with an accepted assignment, before a simulated proposal exists.
+  // Read the server's booking/quota decision; it still controls launch eligibility.
+  const { data: trainingSessionsData } = useTrainingSessions(
+    studentId,
+    isSandboxMode ? workflow?.assignmentAccepted === true : !!workflow?.proposalAccepted,
+  );
+  const trainingPackageQuotaDecision = evaluateTrainingPackageQuota(
+    operationalMode,
+    trainingSessionsData?.monthlyQuota || null,
+  );
+  const packageQuotaBlocked =
+    trainingPackageQuotaDecision.blocked ||
+    trainingSessionsData?.commercialState?.blocked === true ||
+    trainingSessionsData?.paymentRequired === true;
+  const confirmTrainingSession = useConfirmTrainingSession(studentId);
+  const respondTrainingSession = useRespondTrainingSession(studentId);
+  const retryMeetSync = useRetryScheduledSessionMeetSync(studentId);
+
+  // Add topic handler
+  const handleActivateTopic = async () => {
+    if (!newTopic.trim()) {
+      setActivateError("Topic is required");
+      return;
+    }
+    if (!activationReason) {
+      setActivateError("Reason is required");
+      return;
+    }
+    const activationReasonFinal = activationReason === "Other (enter note)" ? activationNote.trim() : activationReason;
+    if (activationReason === "Other (enter note)" && !activationNote.trim()) {
+      setActivateError("Please enter a note for 'Other'");
+      return;
+    }
+    try {
+      await addTopicMutation.mutateAsync({ topic: newTopic.trim(), reason: activationReasonFinal });
+      await refetchActivations();
+      setActivateDialogOpen(false);
+      setNewTopic("");
+      setActivationReason("");
+      setActivationNote("");
+      setActivateError("");
+    } catch (err: any) {
+      if (err instanceof Error) {
+        setActivateError(err.message);
+      } else if (typeof err === "string") {
+        setActivateError(err);
+      } else {
+        setActivateError("Failed to activate topic (unknown error)");
+      }
+      alert("Topic activation failed: " + (err?.message || JSON.stringify(err)));
+    }
+  };
+
+  const launchTrainingSession = async (sessionId?: string | null) => {
+    const selectedTopics = Array.from(selectedSessionTopics);
+    if (selectedTopics.length === 0) return;
+
+    // Revalidate against current activation authority at the launch boundary.
+    // This also rejects stale selections retained from an earlier render.
+    const blockedParentReports = Array.from(selectedSessionTopics).filter((topic) =>
+      pendingParentReportedTopicKeys.has(normalizeTopicKey(topic) || ""),
+    );
+    const noLongerEligibleTopics = Array.from(selectedSessionTopics).filter((topic) =>
+      !sessionEligibleTopics.some((eligible) => normalizeTopicKey(eligible.topic) === normalizeTopicKey(topic)),
+    );
+    if (blockedParentReports.length > 0 || noLongerEligibleTopics.length > 0) {
+      setTrainingSessionMeetMessage(
+        blockedParentReports.length > 0
+          ? "Parent-reported topics must be reviewed and explicitly activated before they can enter a booked session."
+          : "The selected topic state has changed. Refresh the conditioning map and select eligible topics again.",
+      );
+      return;
+    }
+    const selectedTopicStates = selectedTopics
+      .map((topicName) => topics.find((topic) => topic.topic === topicName))
+      .filter((topic): topic is TopicRow => !!topic);
+    const unobservedTopics = selectedTopicStates.filter((topic) => !topic.hasObservedState);
+    const rediagnosisTopics = selectedTopicStates.filter((topic) => topic.requiresTargetedRediagnosis);
+
+    if (rediagnosisTopics.length > 0 && selectedTopicStates.length > 1) {
+      setTrainingSessionMeetMessage(
+        `${rediagnosisTopics[0].topic} requires targeted evidence-native re-diagnosis before it can return to ordinary Training. Select that topic by itself first.`,
+      );
+      return;
+    }
+
+    // Entry placement supports a two-topic Intro diagnosis batch. The runner
+    // processes each topic sequentially and persists each result before moving
+    // to the next. Do not mix unobserved topics with ordinary Training topics.
+    if (unobservedTopics.length > 1 && unobservedTopics.length !== selectedTopicStates.length) {
+      setTrainingSessionMeetMessage(
+        "Unobserved topics must complete entry diagnosis before they can be combined with observed Training topics.",
+      );
+      return;
+    }
+
+    if (unobservedTopics.length === selectedTopicStates.length && unobservedTopics.length > 2) {
+      setTrainingSessionMeetMessage("Intro diagnosis supports up to two topics in one session. Select two or fewer unobserved topics.");
+      return;
+    }
+
+    if (unobservedTopics.length === 1 && selectedTopicStates.length > 1) {
+      setTrainingSessionMeetMessage(`Training session launch blocked. ${unobservedTopics[0].topic} has no observed state yet and must complete diagnosis before mixed-topic training.`);
+      return;
+    }
+
+    const isTwoTopicEntryDiagnosis =
+      !isSandboxMode &&
+      unobservedTopics.length === selectedTopicStates.length &&
+      selectedTopicStates.length === 2;
+
+    const isSandboxEntryDiagnosisBatch =
+      isSandboxMode &&
+      unobservedTopics.length === selectedTopicStates.length &&
+      selectedTopicStates.length === 2 &&
+      rediagnosisTopics.length === 0;
+
+    if (isSandboxMode && selectedTopics.length !== 1 && !isSandboxEntryDiagnosisBatch) {
+      // Sandbox Training and targeted re-diagnosis retain one active topic.
+      // The two-topic exception is only for sequential entry placement; it
+      // does not create a multi-topic Sandbox Training evidence track.
+      setSandboxPreparationError(
+        "Sandbox Training and targeted re-diagnosis require one topic. Two unobserved entry topics may be diagnosed sequentially before Training.",
+      );
+      return;
+    }
+
+    if (selectedTopics.length === 1) {
+      const topicState = topics.find((topic) => topic.topic === selectedTopics[0]);
+      if (!topicState) return;
+
+      // The existing Map preparation checkbox is the single confirmation.
+      // The server derives phase, form, first set, bank and constraints; the
+      // browser never supplies canonical rep identifiers or answer material.
+      if (isSandboxMode && topicState.hasObservedState) {
+        const plan = sandboxMapPreparationQuery.data;
+        if (!plan || sandboxMapPreparationQuery.isError || !sessionId) {
+          setSandboxPreparationError("The current Sandbox preparation prescription could not be verified. Refresh this Map before launching.");
+          return;
+        }
+        if (plan.captureActive && plan.status !== "rep_ready" &&
+            plan.status !== "targeted_rediagnosis_required") {
+          setSandboxPreparationError("The current Sandbox session does not permit Training preparation. Review its required next action.");
+          return;
+        }
+        // A targeted re-diagnosis uses its own prescribed evidence opportunity.
+        // Otherwise persist this one Map confirmation against the actual
+        // server-authoritative phase, not a guess from a historical Map state.
+        if (plan.captureActive && plan.status === "rep_ready" && (plan.completedReps ?? 0) === 0) {
+          const attestedPhase = String(plan.prescribedPhase || "");
+          if (!plan.planFingerprint ||
+              !["Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability"].includes(attestedPhase)) {
+            setSandboxPreparationError("The current Sandbox phase is not established. Do not launch with assumed conditions.");
+            return;
+          }
+          setSandboxPreparationPending(true);
+          setSandboxPreparationError(null);
+          try {
+            await apiRequest("POST", "/api/tutor/sandbox-environment/preparation", {
+              studentId, scheduledSessionId: sessionId, topic: topicState.topic,
+              attestedPhase, planFingerprint: plan.planFingerprint, problemPrepared: true,
+              conditionsReviewed: true, evidencePlanReviewed: true,
+            });
+          } catch (error) {
+            setSandboxPreparationError(
+              error instanceof Error ? error.message : "The prescribed Sandbox preparation could not be verified.",
+            );
+            return;
+          } finally {
+            setSandboxPreparationPending(false);
+          }
+        }
+      }
+      const topicParam = encodeURIComponent(topicState.topic);
+      const phaseParam = encodeURIComponent(topicState.phase);
+      const stabilityParam = encodeURIComponent(topicState.stability);
+      const sessionParam = sessionId ? `&scheduledSessionId=${encodeURIComponent(sessionId)}` : "";
+      setSessionTopicsModalOpen(false);
+      if (!topicState.hasObservedState) {
+        // A single unobserved Sandbox topic is still an entry Diagnosis
+        // activity. Mark it explicitly so the server can bind an empty legacy
+        // run to this confirmed lesson without treating it as Training.
+        const entryActivityParam = isSandboxMode
+          ? "&sessionContextKind=sandbox_entry_diagnosis"
+          : "";
+        navigate(`/specialist/intro-session/${studentId}?topic=${topicParam}&phase=${phaseParam}&stability=${stabilityParam}&context=training${entryActivityParam}${sessionParam}`);
+        return;
+      }
+      // The stateful Sandbox runner owns both independently evaluated tracks
+      // and clears its trajectory route only after its re-diagnosis completes.
+      // General native Diagnosis updates the live topic mirror, not that lane.
+      if (topicState.requiresTargetedRediagnosis && !isSandboxMode) {
+        const rediagnosisPhaseParam = encodeURIComponent(
+          topicState.targetedRediagnosisStartPhase || topicState.phase,
+        );
+        navigate(
+          `/specialist/intro-session/${studentId}?topic=${topicParam}&phase=${rediagnosisPhaseParam}&stability=${stabilityParam}&context=training&rediagnosis=1${sessionParam}`,
+        );
+        return;
+      }
+      navigate(`/specialist/intro-session/${studentId}?mode=training&topic=${topicParam}&phase=${phaseParam}&stability=${stabilityParam}${sessionParam}`);
+      return;
+    }
+
+    const sessionParam = sessionId ? `&scheduledSessionId=${encodeURIComponent(sessionId)}` : "";
+    setSessionTopicsModalOpen(false);
+
+    if (unobservedTopics.length === selectedTopicStates.length &&
+        selectedTopicStates.length === 2 &&
+        (isTwoTopicEntryDiagnosis || isSandboxEntryDiagnosisBatch)) {
+      // Omit mode=session: the Intro Session runner's default mode is adaptive
+      // diagnosis. Passing the topic batch here makes it diagnose the selected
+      // entry topics sequentially rather than opening ordinary Training.
+      const topicsParam = encodeURIComponent(JSON.stringify(selectedTopics));
+      const topicPhasesParam = encodeURIComponent(JSON.stringify(
+        selectedTopicStates.map((topic) => topic.phase),
+      ));
+      const entryActivityParam = isSandboxEntryDiagnosisBatch
+        ? "&sessionContextKind=sandbox_entry_diagnosis"
+        : "";
+      navigate(
+        `/specialist/intro-session/${studentId}?topics=${topicsParam}&topicPhases=${topicPhasesParam}${entryActivityParam}${sessionParam}`,
+      );
+      return;
+    }
+
+    const topicsParam = selectedTopics.map((t) => encodeURIComponent(t)).join(',');
+    navigate(`/specialist/intro-session/${studentId}?mode=session&topics=${topicsParam}${sessionParam}`);
+  };
+
+  const handleStartTrainingSession = async () => {
+    if (!assignmentAccepted) return;
+    if (!canonicalTopicStateReady) {
+      setTrainingSessionMeetMessage(
+        canonicalTopicStateError
+          ? "Live topic state could not be verified. Refresh before starting this lesson."
+          : "Refreshing live topic state before this lesson can start.",
+      );
+      return;
+    }
+    if (selectedSessionTopics.size === 0 || !sessionPrepChecklistComplete || sandboxPreparationPending) return;
+    const activeSession = activeTrainingSession;
+    if (activeSession) {
+      await launchTrainingSession(activeSession.id);
+      return;
+    }
+    const pendingParentSession = trainingSessionsData?.sessions?.find((session: any) => session.status === "pending_parent_confirmation");
+    const pendingTutorSession = trainingSessionsData?.sessions?.find((session: any) => session.status === "pending_tutor_confirmation");
+    if (pendingTutorSession) {
+      setTrainingSessionMeetMessage(`The package's ${weeklySessionTargetLabel} are waiting for Specialist confirmation. Confirm them before running drills.`);
+      setSessionTopicsModalOpen(false);
+      return;
+    }
+    if (pendingParentSession) {
+      setTrainingSessionMeetMessage("A training lesson is already waiting for parent confirmation. The lesson will unlock after the parent confirms it.");
+      setSessionTopicsModalOpen(false);
+      return;
+    }
+    if (!activeSession) {
+      setTrainingSessionMeetMessage(
+        isTrainingMode
+          ? "No confirmed weekly training lesson is available yet. The parent must book the week's two training sessions in the Sessions tab first."
+          : "No launch-ready lesson is scheduled. The parent must book the week's two training sessions in the Sessions tab first."
+      );
+      return;
+    }
+  };
+  const { data: sessions } = useQuery<TutorSessionRecord[]>({
+    queryKey: [apiBasePath, "sessions"],
+    queryFn: getQueryFn({ on401: "throw" }),
+    enabled: open && !!studentId && !readOnly,
+    staleTime: 60000,
+    refetchOnMount: false,
+  });
+
+  const studentSessions = useMemo(
+    () => (sessions || []).filter((session) => session.studentId === studentId),
+    [sessions, studentId],
+  );
+
+  // Merge activations into the topic list
+  const activationTopics = useMemo(() => {
+    if (!activationsData?.activations) return [];
+    // Only include unique topic names, case-insensitively.
+    const seen = new Set<string>();
+    return activationsData.activations.filter((a: any) => {
+      const t = normalizeTopicLabel(a?.topic);
+      const topicKey = normalizeTopicKey(a?.topic);
+      if (!t || !topicKey) return false;
+      if (seen.has(topicKey)) return false;
+      seen.add(topicKey);
+      return true;
+    }).map((a: any) => ({ topic: normalizeTopicLabel(a?.topic)!, activatedAt: a.created_at }));
+  }, [activationsData]);
+
+  const topics = useMemo(
+    () => {
+      // Build the normal topics
+      const baseTopics = buildTopics(parentTopics, topicConditioning, effectivePersistedTopicStates, studentSessions, parentTopicSymptoms, parentTopicRecommendations);
+      // Add any activation topics not already present, case-insensitively.
+      const baseTopicNames = new Set(baseTopics.map((t) => normalizeTopicKey(t.topic)).filter(Boolean));
+      const merged = [...baseTopics];
+      activationTopics.forEach(({ topic, activatedAt }) => {
+        const topicKey = normalizeTopicKey(topic);
+        if (topicKey && !baseTopicNames.has(topicKey)) {
+          merged.push({
+            topic,
+            phase: "Clarity",
+            stability: "Low",
+            hasObservedState: false,
+            stateSource: "activated",
+            lastSession: activatedAt ? formatLastUpdatedLabel(activatedAt) : "Activated",
+            trend: "Stable",
+            entryDiagnosis: "Activated by Specialist.",
+            recentLogs: [],
+            timeline: [],
+          });
+          baseTopicNames.add(topicKey);
+        } else if (topicKey) {
+          const existing = merged.find((row) => normalizeTopicKey(row.topic) === topicKey);
+          if (existing) existing.parentReported = false;
+        }
+      });
+      return merged;
+    },
+    [parentTopics, parentTopicSymptoms, parentTopicRecommendations, topicConditioning, effectivePersistedTopicStates, studentSessions, activationTopics],
+  );
+  // The Map is an activation/evidence view, not a catalogue of every known
+  // topic. Persisted proposal/enrollment seeds and parent requests stay out
+  // until a Specialist activation or genuine observed session evidence exists.
+  const activeMapTopics = useMemo(() => {
+    const explicitlyActivatedKeys = new Set(
+      activationTopics.map(({ topic }) => normalizeTopicKey(topic)).filter((key): key is string => !!key),
+    );
+    return topics.filter((row) =>
+      row.hasObservedState || explicitlyActivatedKeys.has(normalizeTopicKey(row.topic) || ""),
+    );
+  }, [topics, activationTopics]);
+  const parentReportedTopics = topics.filter((row) =>
+    row.parentReported &&
+    !row.hasObservedState &&
+    !activationTopics.some(({ topic }) => normalizeTopicKey(topic) === normalizeTopicKey(row.topic)),
+  );
+  // Pending parent reports are review-only. They become session-eligible only
+  // after explicit Specialist activation or genuine observed session evidence.
+  const pendingParentReportedTopicKeys = new Set(
+    parentReportedTopics.map((row) => normalizeTopicKey(row.topic)).filter((key): key is string => !!key),
+  );
+  const sessionEligibleTopics = topics.filter(
+    (row) => !pendingParentReportedTopicKeys.has(normalizeTopicKey(row.topic) || ""),
+  );
+  const [showParentReportedTopics, setShowParentReportedTopics] = useState(false);
+  const [selectedTopic, setSelectedTopic] = useState<string>(activeMapTopics[0]?.topic || "");
+
+  const [activeTopicField, setActiveTopicField] = useState("");
+  const [manualTopicField, setManualTopicField] = useState("");
+  const [phaseObservedField, setPhaseObservedField] = useState("");
+  const [stabilityObservedField, setStabilityObservedField] = useState("");
+  // Persist in-progress selections per topic/phase for better UX
+  const [phaseSelectionsMap, setPhaseSelectionsMap] = useState<Record<string, Record<string, string>>>({});
+  const [phaseSelections, setPhaseSelections] = useState<Record<string, string>>({});
+  const [interventionUsed, setInterventionUsed] = useState("");
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
+  const [showFullSelectedTimeline, setShowFullSelectedTimeline] = useState(false);
+  const [expandedPhaseDefinitions, setExpandedPhaseDefinitions] = useState<Set<PhaseLabel>>(new Set());
+  const [isStabilityTrackerCollapsed, setIsStabilityTrackerCollapsed] = useState(true);
+  const [isPhaseProgressionCollapsed, setIsPhaseProgressionCollapsed] = useState(true);
+  const [isPhaseDefinitionsCollapsed, setIsPhaseDefinitionsCollapsed] = useState(true);
+  const [cancelTrainingSessionTarget, setCancelTrainingSessionTarget] = useState<{
+    id: string;
+    scheduledTimeLabel: string;
+  } | null>(null);
+
+  // Initialize topic selection when dialog opens
+  useEffect(() => {
+    if (!open || activeMapTopics.length === 0) return;
+    if (!selectedTopic || !activeMapTopics.some((t) => t.topic === selectedTopic)) {
+      setSelectedTopic(activeMapTopics[0].topic);
+    }
+  }, [open, activeMapTopics, selectedTopic]);
+
+  // Reset form state when dialog opens
+  useEffect(() => {
+    if (!open) return;
+    const firstTopic = activeMapTopics[0]?.topic || "";
+    setActiveTab("dashboard");
+    setActiveTopicField(firstTopic);
+    setManualTopicField("");
+    setPhaseSelections({});
+    setInterventionUsed("");
+    // Set phase and stability fields to match first topic
+    setPhaseObservedField(topics[0]?.phase || normalizePhase(topicConditioning?.entry_phase));
+    setStabilityObservedField(topics[0]?.stability || normalizeStability(topicConditioning?.stability));
+    setExpandedPhaseDefinitions(new Set());
+    setIsStabilityTrackerCollapsed(true);
+    setIsPhaseProgressionCollapsed(true);
+    setIsPhaseDefinitionsCollapsed(true);
+  }, [open]);
+
+  // When selectedTopic changes (Map tab), sync phase and stability fields
+  useEffect(() => {
+    const found = topics.find((t) => t.topic === selectedTopic);
+    if (found) {
+      setPhaseObservedField(found.phase);
+      setStabilityObservedField(found.stability);
+      setShowFullSelectedTimeline(false);
+    }
+  }, [selectedTopic, topics]);
+
+  // When activeTopicField changes (Topic Management tab), sync phase and stability fields
+  useEffect(() => {
+    if (!activeTopicField) return;
+    const found = topics.find((t) => t.topic === activeTopicField);
+    if (found) {
+      setPhaseObservedField(found.phase);
+      setStabilityObservedField(found.stability);
+      // Reset phaseSelections to last in-progress for this topic/phase, or empty
+      const phaseKey = `${found.topic}::${found.phase}`;
+      const nextPhaseSelections = phaseSelectionsMap[phaseKey] || {};
+      const currentKeys = Object.keys(phaseSelections);
+      const nextKeys = Object.keys(nextPhaseSelections);
+      const selectionsChanged =
+        currentKeys.length !== nextKeys.length ||
+        nextKeys.some((key) => phaseSelections[key] !== nextPhaseSelections[key]);
+
+      if (selectionsChanged) {
+        setPhaseSelections(nextPhaseSelections);
+      }
+    }
+  }, [activeTopicField, topics, phaseSelections, phaseSelectionsMap]);
+
+  // Always use activeTopicField as the source of truth for Topic Management tab
+  // When switching to session-form tab, ensure activeTopicField is set and in sync
+  useEffect(() => {
+    if (activeTab === "session-form") {
+      // If no topic is selected, default to first topic
+      if (!activeTopicField && topics.length > 0) {
+        setActiveTopicField(topics[0].topic);
+      }
+    }
+  }, [activeTab, activeTopicField, topics]);
+
+  const topicChoices = useMemo(() => {
+    const fromCards = topics.map((t) => t.topic);
+    const fromParent = splitTopics(parentTopics).map((t) => sanitizeTopic(t)).filter((t): t is string => !!t);
+    return Array.from(new Set([...fromCards, ...fromParent]));
+  }, [topics, parentTopics]);
+  const prioritizedTopics = useMemo(
+    () => [...activeMapTopics].sort((a, b) => topicPriorityScore(b) - topicPriorityScore(a) || a.topic.localeCompare(b.topic)),
+    [activeMapTopics],
+  );
+
+  const attentionQueue = useMemo(() => {
+    const needsAttention = prioritizedTopics.filter(
+      (row) => (row.stability !== "High" && row.stability !== "High Maintenance") || row.trend === "Regressing",
+    );
+    return (needsAttention.length > 0 ? needsAttention : prioritizedTopics).slice(0, 3);
+  }, [prioritizedTopics]);
+
+  const needsStabilizationCount = prioritizedTopics.filter((row) => row.stability === "Low").length;
+  const readyToAdvanceCount = prioritizedTopics.filter(
+    (row) => !!getNextActionData(row.phase, nextActionStabilityFor(row)).advanceTo,
+  ).length;
+
+  const selectedRow = activeMapTopics.find((row) => row.topic === selectedTopic) || prioritizedTopics[0];
+  const hasObservedSelection = !!selectedRow?.hasObservedState;
+  const selectedRediagnosisCopy = selectedRow?.requiresTargetedRediagnosis
+    ? sandboxTargetedRediagnosisCopy({ topic: selectedRow.topic, authority: {
+        route: "targeted_rediagnosis", targetPhase: selectedRow.targetedRediagnosisStartPhase,
+      } })
+    : null;
+  const phaseIx = selectedRow && hasObservedSelection ? phaseIndex(selectedRow.phase) : -1;
+  const guidance = selectedRow && hasObservedSelection
+    ? actionGuidanceFor(selectedRow.phase, nextActionStabilityFor(selectedRow)) : { doItems: [], avoidItems: [] };
+  const effectiveTopicForLog = topics.length > 0
+    ? activeTopicField || selectedRow?.topic || ""
+    : sanitizeTopic(manualTopicField) || "";
+
+  const selectedInterpretation = selectedRow && hasObservedSelection
+    ? interpretTopicState(selectedRow.phase, nextActionStabilityFor(selectedRow), selectedRow.trend, {
+        enteredMaintenanceCheckpoint: enteredMaintenanceCheckpoint(
+          selectedRow.phase,
+          selectedRow.stability,
+          selectedRow.timeline,
+        ),
+        firstObservationInCurrentPhase: isFirstObservationInCurrentPhase(
+          selectedRow.phase,
+          selectedRow.timeline,
+        ),
+      })
+    : null;
+
+  const prepPlan = selectedRow
+    ? tutorPrepPlanFor(
+        selectedRow.requiresTargetedRediagnosis
+          ? selectedRow.targetedRediagnosisStartPhase || selectedRow.phase
+          : selectedRow.phase,
+        selectedRow.requiresTargetedRediagnosis ? "Low" : nextActionStabilityFor(selectedRow),
+        selectedRow.requiresTargetedRediagnosis ? false : hasObservedSelection,
+      )
+    : null;
+  const selectedTimeline = (selectedRow?.timeline || []).map((point, index) => ({
+    ...point,
+    _renderKey: `${selectedRow?.topic || "topic"}-${point.date}-${point.phase}-${point.stability}-${index}`,
+  }));
+  const toRelativeSessionLabel = (index: number, kind: ObservationKind = "observation") => {
+    const unit =
+      kind === "training"
+        ? "training session"
+        : kind === "diagnosis"
+          ? "diagnosis"
+          : "observation";
+    if (index === 0) return `Last ${unit}`;
+    if (index === 1) return `2nd last ${unit}`;
+    if (index === 2) return `3rd last ${unit}`;
+    return `${index + 1}th last ${unit}`;
+  };
+  const hasOlderSelectedTimeline = selectedTimeline.length > 6;
+  const selectedTimelineToRender = showFullSelectedTimeline ? selectedTimeline : selectedTimeline.slice(-6);
+  const selectedTimelineBadges = selectedTimelineToRender.slice().reverse();
+
+  // Always use selectedRow for observedPhase and previousStability, fallback to safe defaults
+  const observedPhase = (selectedRow && selectedRow.phase ? selectedRow.phase : "Clarity") as PhaseLabel;
+  const previousStability = (selectedRow && selectedRow.stability ? selectedRow.stability : "Low") as StabilityLabel;
+  const phaseConfig = PHASE_OBSERVATION_CONFIG[observedPhase] || PHASE_OBSERVATION_CONFIG["Clarity"];
+
+  const sessionScore = clamp(
+    0,
+    phaseConfig.categories.reduce((sum, category) => {
+      const selectedLabel = phaseSelections[category.key];
+      const selectedOption = category.options.find((option) => option.label === selectedLabel);
+      return sum + (selectedOption?.score ?? 0);
+    }, 0),
+    100
+  );
+
+  let projectedStability: StabilityLabel = previousStability;
+  let advanceReady = false;
+
+  if (previousStability === "Low") {
+    if (sessionScore <= phaseConfig.thresholds.low.remainMax) projectedStability = "Low";
+    else if (sessionScore <= phaseConfig.thresholds.low.mediumMax) projectedStability = "Medium";
+    else projectedStability = "High";
+  }
+
+  if (previousStability === "Medium") {
+    if (sessionScore <= phaseConfig.thresholds.medium.regressMax) projectedStability = "Low";
+    else if (sessionScore <= phaseConfig.thresholds.medium.remainMax) projectedStability = "Medium";
+    else projectedStability = "High";
+  }
+
+  if (previousStability === "High") {
+    if (sessionScore <= phaseConfig.thresholds.high.regressMax) projectedStability = "Medium";
+    else if (sessionScore <= phaseConfig.thresholds.high.remainMax) projectedStability = "High";
+    else projectedStability = "High Maintenance";
+  }
+
+  if (previousStability === "High Maintenance") {
+    if (sessionScore <= phaseConfig.thresholds.maintenance.regressMax) projectedStability = "High";
+    else if (sessionScore <= phaseConfig.thresholds.maintenance.highMax) projectedStability = "High Maintenance";
+    else {
+      projectedStability = "Low";
+      advanceReady = true;
+    }
+  }
+
+  const nextPhase = getNextActionData(observedPhase, "High Maintenance").advanceTo;
+  const projectedPhase: PhaseLabel =
+    previousStability === "High Maintenance" && advanceReady && !!nextPhase
+      ? (nextPhase as PhaseLabel)
+      : observedPhase;
+
+  let phaseDecision: "remain" | "advance" | "regress" | "improve" = "remain";
+  if (projectedPhase !== observedPhase) {
+    phaseDecision = "advance";
+  } else {
+    if (stabilityToScore(projectedStability) < stabilityToScore(previousStability)) {
+      phaseDecision = "regress";
+    } else if (stabilityToScore(projectedStability) > stabilityToScore(previousStability)) {
+      phaseDecision = "improve";
+    } else {
+      phaseDecision = "remain";
+    }
+  }
+
+  const projectedInterpretation = interpretTopicState(projectedPhase, projectedStability);
+  const livePreviewConstraint = projectedInterpretation.rules[0] || "Follow phase rules and preserve structure.";
+
+  // Block submission if any observation category is missing or mismatched for the current phase
+  const foundTopic = topics.find(t => t.topic === activeTopicField);
+  const phaseForValidation = foundTopic?.phase && PHASE_OBSERVATION_CONFIG[foundTopic.phase as PhaseLabel] ? foundTopic.phase as PhaseLabel : "Clarity";
+  const configForValidation = PHASE_OBSERVATION_CONFIG[phaseForValidation];
+  const canSubmitStructuredRecord =
+    !!effectiveTopicForLog &&
+    configForValidation.categories.every((category) => !!phaseSelections[category.key] && configForValidation.categories.some(c => c.key === category.key)) &&
+    !!interventionUsed;
+
+  const selectedSessionPrepPlans = Array.from(selectedSessionTopics)
+    .map((topicName) => {
+      const topicState = topics.find((topic) => topic.topic === topicName);
+      if (!topicState) return null;
+      const requiresTargetedRediagnosis = topicState.requiresTargetedRediagnosis === true;
+      const rediagnosisStartPhase =
+        topicState.targetedRediagnosisStartPhase || topicState.phase;
+      return {
+        topic: topicName,
+        phase: topicState.hasObservedState ? topicState.phase : "Unknown",
+        stability: topicState.hasObservedState ? topicState.stability : "Unknown",
+        hasObservedState: topicState.hasObservedState,
+        requiresTargetedRediagnosis,
+        targetedRediagnosisStartPhase: requiresTargetedRediagnosis
+          ? rediagnosisStartPhase
+          : null,
+        prepPlan: tutorPrepPlanFor(
+          requiresTargetedRediagnosis ? rediagnosisStartPhase : topicState.phase,
+          requiresTargetedRediagnosis ? "Low" : nextActionStabilityFor(topicState),
+          requiresTargetedRediagnosis ? false : topicState.hasObservedState,
+        ),
+      };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => !!entry);
+  const selectedSessionUnknownTopics = selectedSessionPrepPlans.filter((entry) => !entry.hasObservedState);
+  const selectedSessionRediagnosisTopics = selectedSessionPrepPlans.filter(
+    (entry) => entry.requiresTargetedRediagnosis,
+  );
+  const selectedSessionStartLabel =
+    selectedSessionRediagnosisTopics.length === 1 && selectedSessionPrepPlans.length === 1
+      ? "Start Re-Diagnosis"
+      : selectedSessionUnknownTopics.length === selectedSessionPrepPlans.length &&
+          selectedSessionUnknownTopics.length > 1 && selectedSessionUnknownTopics.length <= 2
+        ? "Start 2-Topic Diagnosis"
+        : selectedSessionUnknownTopics.length === 1 && selectedSessionPrepPlans.length === 1
+          ? "Start Diagnosis"
+          : "Start Session";
+  const sessionPrepChecklistComplete =
+    selectedSessionPrepPlans.length > 0 &&
+    selectedSessionPrepPlans.every((entry) => !!sessionPrepChecks[`session-prep-${entry.topic}`]);
+  const actionableTrainingSessions = (trainingSessionsData?.sessions || []).filter(
+    (session: any) => !["completed", "cancelled", "flagged"].includes(String(session.status || "")),
+  );
+  const trainingTabAvailability =
+    trainingSessionsData?.commercialState ||
+    resolveTrainingTabAvailability({
+      operationalMode,
+      paymentRequired: trainingSessionsData?.paymentRequired === true,
+      monthlyQuota: trainingSessionsData?.monthlyQuota || null,
+      actionableSessionCount: actionableTrainingSessions.length,
+    });
+  const packageSessionQuota = Number(trainingSessionsData?.monthlyQuota?.session_quota);
+  // The purchased package size is authoritative. Older package records may
+  // still carry the legacy two-lessons-per-week planning field.
+  const packageWeeklySessionTarget = Math.max(
+    2,
+    Math.min(
+      4,
+      packageSessionQuota === 16
+        ? 4
+        : packageSessionQuota === 12
+          ? 3
+          : Number(trainingSessionsData?.monthlyQuota?.planned_sessions_per_week) || 2,
+    ),
+  );
+  const weeklySessionTargetLabel = `${packageWeeklySessionTarget} ${packageWeeklySessionTarget === 1 ? "lesson" : "lessons"}`;
+  // A confirmed booking in a historical week is not an active lesson.
+  // Choose the next future actionable booking; otherwise the runner can reopen
+  // a completed diagnosis by reusing an old scheduledSessionId.
+  const activeTrainingWeekCandidate = [...(trainingSessionsData?.sessions || [])]
+    .filter((session: any) => {
+      const status = String(session.status || "");
+      const isLaunchableLiveSession = status === "live" && session.launch?.canLaunch === true;
+      return (
+        (isScheduledTrainingSessionUpcoming(session.scheduled_time) || isLaunchableLiveSession) &&
+        ["confirmed", "ready", "live"].includes(status)
+      );
+    })
+    .sort(
+      (a: any, b: any) => new Date(a.scheduled_time || 0).getTime() - new Date(b.scheduled_time || 0).getTime(),
+    )[0] || null;
+  const activeTrainingWeekKey = activeTrainingWeekCandidate
+    ? getTrainingSessionWeekKey(activeTrainingWeekCandidate.scheduled_time, activeTrainingWeekCandidate.timezone)
+    : null;
+  const weeklyTrainingSessions = (trainingSessionsData?.sessions || []).filter(
+    (session: any) =>
+      !!activeTrainingWeekKey &&
+      getTrainingSessionWeekKey(session.scheduled_time, session.timezone) === activeTrainingWeekKey,
+  );
+  const weeklyActionableTrainingSessions = weeklyTrainingSessions.filter(
+    (session: any) => {
+      const status = String(session.status || "");
+      const isLaunchableLiveSession = status === "live" && session.launch?.canLaunch === true;
+      return (
+        !["completed", "cancelled", "flagged"].includes(status) &&
+        (isScheduledTrainingSessionUpcoming(session.scheduled_time) || isLaunchableLiveSession)
+      );
+    },
+  );
+  const confirmedTrainingSessions = weeklyActionableTrainingSessions.filter(
+    (session: any) => {
+      const status = String(session.status || "");
+      return (
+        ["confirmed", "ready"].includes(status) && isScheduledTrainingSessionUpcoming(session.scheduled_time) ||
+        status === "live" && session.launch?.canLaunch === true
+      );
+    },
+  );
+  const pendingConfirmedMeetSyncSessions = confirmedTrainingSessions.filter(
+    (session: any) => !session.google_meet_url,
+  );
+  const latestCompletedTrainingSession = [...(trainingSessionsData?.sessions || [])]
+    .filter((session: any) => String(session.status || "") === "completed")
+    .sort(
+      (a: any, b: any) =>
+        new Date(b.scheduled_time || b.updated_at || 0).getTime() -
+        new Date(a.scheduled_time || a.updated_at || 0).getTime()
+    )[0] || null;
+  // Specialist confirmations are inbox work, not week-scoped training work.
+  // A parent can book sessions weeks ahead; those still require an immediate
+  // accept/decline decision even though only the active week's confirmed
+  // sessions are eligible to launch from Training.
+  const pendingTutorConfirmationSessions = getPendingTutorConfirmationSessions(
+    trainingSessionsData?.sessions || [],
+  );
+  const isConfirmingTrainingSession = (sessionId: string) =>
+    confirmTrainingSession.isPending && confirmTrainingSession.variables?.sessionId === sessionId;
+  const pendingTrainingConfirmationSession = weeklyActionableTrainingSessions.find(
+    (session: any) => session.status === "pending_parent_confirmation",
+  ) || null;
+  const replacementRequiredCancelledTrainingSessions = weeklyTrainingSessions.filter(
+    (session: any) =>
+      String(session.status || "") === "cancelled" &&
+      session.cancellation?.disposition === "replacement_required",
+  );
+  const weeklyReadySessionCount = weeklyTrainingSessions.filter((session: any) => {
+    const status = String(session.status || "");
+    const completedOrConsumed =
+      status === "completed" ||
+      (status === "cancelled" && session.cancellation?.disposition === "closed_consumed");
+    const upcomingConfirmed =
+      ["confirmed", "ready"].includes(status) && isScheduledTrainingSessionUpcoming(session.scheduled_time);
+    const activeLive = status === "live" && session.launch?.canLaunch === true;
+    return completedOrConsumed || upcomingConfirmed || activeLive;
+  }).length;
+  const weeklyScheduleHasBlockedSession = weeklyTrainingSessions.some((session: any) => {
+    const status = String(session.status || "");
+    return status === "flagged" ||
+      (status === "cancelled" && session.cancellation?.disposition !== "closed_consumed");
+  });
+  const weeklyScheduleReady =
+    !packageQuotaBlocked &&
+    weeklyReadySessionCount >= packageWeeklySessionTarget &&
+    !weeklyScheduleHasBlockedSession &&
+    pendingTutorConfirmationSessions.length === 0 &&
+    !pendingTrainingConfirmationSession &&
+    replacementRequiredCancelledTrainingSessions.length === 0;
+  const activeTrainingSession = isTrainingMode
+    ? weeklyScheduleReady
+      ? confirmedTrainingSessions[0] || null
+      : null
+    : pendingTrainingConfirmationSession
+      ? null
+      : actionableTrainingSessions.find((session: any) => session.launch?.canLaunch) || null;
+  const nextTrainingSession = (isTrainingMode ? weeklyActionableTrainingSessions : actionableTrainingSessions).find(
+    (session: any) =>
+      isTrainingMode
+        ? ["confirmed", "ready", "live"].includes(String(session.status || "")) && session.id !== activeTrainingSession?.id
+        : ["confirmed", "ready", "live"].includes(String(session.status || "")) && !session.launch?.canLaunch,
+  ) || null;
+
+  const selectedSandboxPrepTopic = selectedSessionTopics.size === 1
+    ? Array.from(selectedSessionTopics)[0] : null;
+  const sandboxTrainingPreparationRequired = isSandboxMode && selectedSessionPrepPlans.length === 1 &&
+    selectedSessionUnknownTopics.length === 0;
+  const sandboxMapPreparationQuery = useQuery<SandboxMapPreparationPlan>({
+    queryKey: ["sandbox-map-preparation-plan", studentId, activeTrainingSession?.id, selectedSandboxPrepTopic],
+    enabled: sandboxTrainingPreparationRequired && sessionTopicsModalOpen && Boolean(
+      studentId && activeTrainingSession?.id && selectedSandboxPrepTopic,
+    ),
+    staleTime: 0,
+    refetchOnMount: "always",
+    retry: false,
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        studentId,
+        scheduledSessionId: String(activeTrainingSession!.id),
+        topic: String(selectedSandboxPrepTopic),
+      });
+      const response = await apiRequest(
+        "GET", `/api/tutor/sandbox-environment/preparation-plan?${params.toString()}`,
+      );
+      return response.json() as Promise<SandboxMapPreparationPlan>;
+    },
+  });
+
+  const sandboxTargetedPreparationRequired = sandboxTrainingPreparationRequired &&
+    sandboxMapPreparationQuery.data?.captureActive === true &&
+    sandboxMapPreparationQuery.data.status === "targeted_rediagnosis_required";
+  const showTopicManagement = !readOnly && !mapOnly;
+
+  const studentNameHasGrade = /\bgrade\b/i.test(studentName || "");
+  const normalizedGradeRaw = (studentGrade || "-").toString().trim();
+  const normalizedGradeValue = normalizedGradeRaw.replace(/^grade\s*/i, "").trim() || "-";
+  const studentBadgeLabel = studentNameHasGrade
+    ? studentName || "-"
+    : `${studentName || "-"} • Grade ${normalizedGradeValue}`;
+
+  const formatLessonTime = (value?: string | null, timezone?: string | null) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    let safeTimezone = timezone || "Africa/Johannesburg";
+    try {
+      new Intl.DateTimeFormat("en-ZA", { timeZone: safeTimezone }).format(date);
+    } catch {
+      safeTimezone = "Africa/Johannesburg";
+    }
+    return new Intl.DateTimeFormat("en-ZA", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+      timeZone: safeTimezone,
+    }).format(date);
+  };
+  const handleCancelConfirmedTrainingSession = async (
+    sessionId: string,
+    reasonCodes: string[],
+    reasonNote: string | null,
+  ) => {
+    const result = await respondTrainingSession.mutateAsync({
+      sessionId,
+      action: "cancel",
+      reasonCodes,
+      reasonNote: buildTrainingSessionCancellationNote(
+        "Specialist",
+        TUTOR_TRAINING_SESSION_CANCELLATION_REASONS,
+        reasonCodes,
+        reasonNote,
+      ),
+    });
+
+    setTrainingSessionMeetMessage(
+      result?.message || "Training session cancelled. The parent can reschedule the cancelled session."
+    );
+  };
+  const toggleTopicExpanded = (topic: string) => {
+    setExpandedTopics((prev) => {
+      const next = new Set(prev);
+      if (next.has(topic)) {
+        next.delete(topic);
+      } else {
+        next.add(topic);
+      }
+      return next;
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[calc(100vw-0.5rem)] sm:w-full sm:max-w-7xl max-h-[92vh] overflow-y-auto overflow-x-hidden rounded-2xl border border-primary/15 bg-background p-2 shadow-sm sm:p-6">
+        <DialogHeader />
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full overflow-x-hidden">
+          <TabsList className={`flex w-full flex-row sm:grid h-auto rounded-xl border border-primary/15 bg-muted/20 p-1 gap-1 ${showTopicManagement ? "sm:grid-cols-2" : "sm:grid-cols-1"}`}>
+            <TabsTrigger value="dashboard" className="flex-1 h-auto whitespace-normal text-xs sm:text-sm py-2 px-2">Map</TabsTrigger>
+            {showTopicManagement ? (
+              <TabsTrigger value="session-form" className="flex-1 h-auto whitespace-normal text-xs sm:text-sm py-2 px-2">
+                <span className="inline-flex items-center gap-2">
+                  <span>Training</span>
+                  {trainingSessionsData?.sessions?.some((s: any) => s?.status === "pending_tutor_confirmation") ? (
+                    <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-semibold text-white">!</span>
+                  ) : null}
+                </span>
+              </TabsTrigger>
+            ) : null}
+          </TabsList>
+
+          <TabsContent value="dashboard" className="space-y-4 sm:space-y-6 overflow-x-hidden">
+            <Card className="rounded-2xl border border-primary/15 bg-background p-3 sm:p-4 md:p-5 shadow-sm space-y-3">
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold">Active Conditioning Map</h3>
+                  <Button type="button" variant="outline" size="sm" className="h-8" onClick={() => setShowParentReportedTopics((current) => !current)}>
+                    Parent Reported Topics ({parentReportedTopics.length})
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button type="button" variant="ghost" size="sm" className="h-8 w-8 px-0">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setActivateDialogOpen(true)}>
+                        Activate Topic
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                <Badge variant="outline" className="w-full sm:w-fit max-w-full break-all">
+                  {studentBadgeLabel}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Select a topic to review observed state and next-session preparation. Activated topics stay Unknown until a scored drill/session is logged.
+              </p>
+
+              {showParentReportedTopics ? (
+                <div className="rounded-xl border border-primary/20 bg-muted/20 p-3 space-y-3">
+                  <div>
+                    <p className="text-sm font-semibold">Parent Reported Topics</p>
+                    <p className="text-xs text-muted-foreground">Review each request and explicitly activate the topic before it enters the normal booked-session diagnosis workflow.</p>
+                  </div>
+                  {parentReportedTopics.length === 0 ? <p className="text-sm text-muted-foreground">There are no pending parent-reported topics.</p> : (
+                    parentReportedTopics.map((row) => (
+                      <div key={"parent-reported-" + row.topic} className="flex flex-col gap-3 rounded-lg border bg-background p-3 sm:flex-row sm:items-start">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <p className="text-sm font-semibold">{row.topic}</p>
+                          <p className="text-xs text-muted-foreground">Recommended starting phase: {row.parentRecommendedPhase || "To be determined during diagnosis"}</p>
+                          {row.parentReportedSymptoms?.length ? <p className="text-xs text-muted-foreground">Reported symptoms: {row.parentReportedSymptoms.join(" · ")}</p> : null}
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={readOnly || addTopicMutation.isPending}
+                          onClick={() => {
+                            setNewTopic(row.topic);
+                            setActivationReason("Parent reported struggle");
+                            setActivationNote("");
+                            setActivateError("");
+                            setActivateDialogOpen(true);
+                          }}
+                        >
+                          Review &amp; Activate
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : null}
+
+              {activeMapTopics.length === 0 ? (
+                <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                  No active topics yet. Activate a topic, then run intro/training drills to update phase and stability.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+                  {prioritizedTopics.map((row) => {
+                    const topicIntel = interpretTopicState(row.phase, nextActionStabilityFor(row), row.trend, {
+                      enteredMaintenanceCheckpoint: enteredMaintenanceCheckpoint(
+                        row.phase,
+                        row.stability,
+                        row.timeline,
+                      ),
+                      firstObservationInCurrentPhase: isFirstObservationInCurrentPhase(
+                        row.phase,
+                        row.timeline,
+                      ),
+                    });
+                    const rowPrepPlan = tutorPrepPlanFor(
+                      row.requiresTargetedRediagnosis
+                        ? row.targetedRediagnosisStartPhase || row.phase
+                        : row.phase,
+                      row.requiresTargetedRediagnosis ? "Low" : nextActionStabilityFor(row),
+                      row.requiresTargetedRediagnosis ? false : row.hasObservedState,
+                    );
+                    const isExpanded = expandedTopics.has(row.topic);
+                    const phaseLabel = row.hasObservedState ? row.phase : "Unknown";
+                    const stabilityLabel = row.hasObservedState ? displayTopicStability(row.stability) : "Unknown";
+                    return (
+                      <div
+                        key={`topic-card-${row.topic}`}
+                        className={`w-full rounded-xl border p-4 text-left transition-colors space-y-3 ${
+                          selectedRow?.topic === row.topic
+                            ? "border-primary bg-primary/5"
+                            : "hover:bg-muted/40"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <button
+                            type="button"
+                            className="flex-1 text-left space-y-1"
+                            onClick={() => setSelectedTopic(row.topic)}
+                          >
+                            <p className="text-base font-semibold break-words">{row.topic}</p>
+                            <p className="text-sm text-muted-foreground">Phase: <span className="font-medium text-foreground">{phaseLabel}</span></p>
+                            <p className="text-sm text-muted-foreground">Stability: <span className="font-medium text-foreground">{stabilityLabel}</span></p>
+                            {row.hasObservedState && topicStabilityConfirmationLabel(row.stability, row.phase, row.progressionAuthority) ? (
+                              <p className="text-xs text-muted-foreground">{topicStabilityConfirmationLabel(row.stability, row.phase, row.progressionAuthority)}</p>
+                            ) : null}
+                          </button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 shrink-0"
+                            onClick={() => {
+                              setSelectedTopic(row.topic);
+                              toggleTopicExpanded(row.topic);
+                            }}
+                          >
+                            <span className="text-xs mr-1">{isExpanded ? "Hide" : "See Details"}</span>
+                            <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                          </Button>
+                        </div>
+
+                        {!isExpanded ? null : (
+                          <>
+
+                        {row.hasObservedState ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {PHASES.map((phase) => {
+                              const stepIndex = phaseIndex(phase);
+                              const currentIndex = phaseIndex(row.phase);
+                              const done = stepIndex < currentIndex;
+                              const active = stepIndex === currentIndex;
+                              const label = done ? `✓ ${phase}` : active ? `ACTIVE ${phase}` : `Locked ${phase}`;
+                              return (
+                                <span
+                                  key={`${row.topic}-${phase}`}
+                                  className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.06em] ${
+                                    done
+                                      ? "border-muted text-foreground/60 bg-muted/40"
+                                      : active
+                                      ? "border-primary/30 bg-primary/10 text-foreground"
+                                      : "border-muted text-muted-foreground bg-muted/20"
+                                  }`}
+                                >
+                                  {label}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">No observed phase progression yet. Run diagnosis/training to establish first state.</p>
+                        )}
+
+                        <div className="space-y-1">
+                          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">State Progression Timeline</p>
+                          {(row.timeline || []).length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {row.timeline.slice(-6).reverse().map((point, index) => {
+                                return (
+                                <span
+                                  key={`${row.topic}-${point.date}-${point.phase}-${index}`}
+                                  className="rounded-md border border-border/60 bg-muted/20 px-2 py-0.5 text-[11px] text-muted-foreground"
+                                >
+                                  {toRelativeSessionLabel(index, point.kind)} · {point.phase} · {displayTopicStability(point.stability)}
+                          {topicStabilityConfirmationLabel(point.stability, point.phase) ? " · Confirmation checkpoint" : ""}
+                                </span>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">No timeline events yet.</p>
+                          )}
+                        </div>
+
+                        <p className="text-sm text-muted-foreground">
+                          <span className="font-medium text-foreground">Specialist Meaning:</span> {row.requiresTargetedRediagnosis ? "The recorded checkpoint needs fresh prerequisite evidence before Training resumes." : row.hasObservedState ? topicIntel.tutorMeaning : "Topic is active but not yet observed in a scored drill/session."}
+                        </p>
+
+                        <p className="text-sm text-foreground font-medium">
+                          Next Move: {row.requiresTargetedRediagnosis
+                            ? row.systemNextAction || "Run targeted evidence-native re-diagnosis before ordinary Training resumes."
+                            : row.hasObservedState
+                              ? topicIntel.nextAction
+                              : "Run evidence-complete diagnosis to establish first placement."}
+                        </p>
+
+                        <p className="text-sm text-muted-foreground">
+                          Constraint: {row.requiresTargetedRediagnosis
+                            ? "Ordinary Training is locked for this topic until re-diagnosis restores a trustworthy entry state."
+                            : row.hasObservedState
+                              ? (topicIntel.rules[0] || "Follow phase constraints")
+                              : "Do not assume phase or stability before first observed state."}
+                        </p>
+
+                        <div className="rounded-md border border-primary/20 bg-primary/5 p-2.5 space-y-1.5">
+                          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Specialist Prep For Next Session</p>
+                          {row.requiresTargetedRediagnosis ? (
+                            <p className="text-xs">Prepare only the system-selected re-diagnosis opportunity in the runner and preserve its displayed conditions.</p>
+                          ) : <>
+                          <p className="text-xs text-foreground/80">{rowPrepPlan.drillType}</p>
+                          <div className="space-y-1">
+                            {rowPrepPlan.setPlans.map((setPlan) => (
+                              <p key={`${row.topic}-${setPlan.label}`} className="text-xs text-muted-foreground">
+                                {setPlan.label}: {setPlan.problems} problems · {setPlan.difficulty}
+                              </p>
+                            ))}
+                          </div>
+                          <div className="pt-1">
+                            <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Prep Rules</p>
+                            <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                              {rowPrepPlan.prepNotes.map((note) => (
+                                <li key={`${row.topic}-prep-note-${note}`} className="flex items-start gap-1.5">
+                                  <span className="mt-0.5 shrink-0 text-foreground/40">•</span>
+                                  <span>{note}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          </>}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="outline" className="border-primary/20 bg-muted/20 text-foreground">
+                            {row.hasObservedState ? topicIntel.transitionStatus : "Awaiting Observation"}
+                          </Badge>
+                          {row.requiresTargetedRediagnosis && (
+                            <Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-900">
+                              Re-Diagnosis Required
+                            </Badge>
+                          )}
+                          {row.hasObservedState && (
+                            <Badge className={stabilityTone(row.stability)}>
+                              <span
+                                className={`inline-block w-2 h-2 rounded-full mr-1.5 ${
+                                  row.stability === "High Maintenance"
+                                    ? "bg-blue-500"
+                                    : row.stability === "High"
+                                    ? "bg-green-500"
+                                    : row.stability === "Medium"
+                                    ? "bg-amber-500"
+                                    : "bg-red-400"
+                                }`}
+                              />
+                              {displayTopicStability(row.stability)}
+                            </Badge>
+                          )}
+                          {row.hasObservedState && topicStabilityConfirmationLabel(row.stability, row.phase, row.progressionAuthority) ? (
+                            <Badge variant="outline" className="border-primary/20 text-muted-foreground">
+                              {topicStabilityConfirmationLabel(row.stability, row.phase, row.progressionAuthority)}
+                            </Badge>
+                          ) : null}
+                        </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
+
+            <Dialog open={activateDialogOpen} onOpenChange={setActivateDialogOpen}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Activate New Topic</DialogTitle>
+                  <DialogDescription>
+                    Select a topic and provide a reason for activation. This will add the topic to the active list and log the reason.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3 mt-2">
+                  <Input
+                    placeholder="Topic name (e.g. Linear equations)"
+                    value={newTopic}
+                    onChange={e => setNewTopic(e.target.value)}
+                  />
+                  <Select value={activationReason} onValueChange={setActivationReason}>
+                    <SelectTrigger className="w-full">{activationReason || "Select reason"}</SelectTrigger>
+                    <SelectContent>
+                      {ACTIVATION_REASONS.map(r => (
+                        <SelectItem key={r} value={r}>{r}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {activationReason === "Other (enter note)" && (
+                    <Textarea
+                      placeholder="Enter activation note"
+                      value={activationNote}
+                      onChange={e => setActivationNote(e.target.value)}
+                    />
+                  )}
+                  {activateError && <p className="text-xs text-red-500">{activateError}</p>}
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" onClick={() => setActivateDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleActivateTopic}>Activate</Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {selectedRow && (
+              <Card className="rounded-2xl border border-primary/15 bg-background p-3 sm:p-4 md:p-5 shadow-sm space-y-4">
+                <h3 className="font-semibold">Selected Topic Intelligence</h3>
+                <div className="grid lg:grid-cols-2 gap-4">
+                  <div className="space-y-2 text-sm">
+                    <p><span className="font-medium">Topic Name:</span> {selectedRow.topic}</p>
+                    <p><span className="font-medium">Current Phase:</span> {hasObservedSelection ? selectedRow.phase : "Unknown"}</p>
+                    <p><span className="font-medium">Current Stability:</span> {hasObservedSelection ? displayTopicStability(selectedRow.stability) : "Unknown"}</p>
+                    {hasObservedSelection && topicStabilityConfirmationExplanation(selectedRow.stability, selectedRow.phase, selectedRow.progressionAuthority) ? (
+                      <p className="text-xs text-muted-foreground">{topicStabilityConfirmationExplanation(selectedRow.stability, selectedRow.phase, selectedRow.progressionAuthority)}</p>
+                    ) : null}
+                    <p><span className="font-medium">Trend:</span> {selectedRow.trend}</p>
+                    <p><span className="font-medium">Transition Status:</span> {selectedRediagnosisCopy ? "Re-diagnosis required" : selectedInterpretation?.transitionStatus || "Awaiting Observation"}</p>
+                    <p><span className="font-medium">Specialist Meaning:</span> {selectedRediagnosisCopy ? "The recorded checkpoint needs fresh prerequisite evidence before Training resumes." : selectedInterpretation?.tutorMeaning || "Topic is active but not yet observed."}</p>
+                    <p><span className="font-medium">Parent Meaning:</span> {selectedRediagnosisCopy ? "A follow-up check will establish the right starting point for the next lesson." : selectedInterpretation?.parentMeaning || "Observed state will appear after first scored drill/session."}</p>
+                    <p><span className="font-medium">Direction:</span> {selectedRediagnosisCopy?.nextFocus || selectedInterpretation?.direction || "Run evidence-complete diagnosis first."}</p>
+                    <p><span className="font-medium">Constraint:</span> {selectedRediagnosisCopy?.nextConstraint || selectedInterpretation?.rules[0] || "Do not infer phase movement without observations."}</p>
+                    <p><span className="font-medium">Entry Diagnosis:</span> {selectedRow.entryDiagnosis}</p>
+                  </div>
+                  <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-3">
+                    <p className="text-sm font-medium">Specialist Prep For Next Session</p>
+                    {selectedRediagnosisCopy ? (
+                      <p className="text-sm">Prepare only the system-selected re-diagnosis opportunity in the runner and preserve its displayed conditions.</p>
+                    ) : prepPlan && (
+                      <>
+                        <p className="text-xs text-muted-foreground">Drill type: {prepPlan.drillType}</p>
+                        <div className="space-y-1.5">
+                          {prepPlan.setPlans.map((setPlan) => (
+                            <div key={`${selectedRow.topic}-${setPlan.label}`} className="rounded border border-primary/20 bg-background/70 px-2 py-1.5 text-xs">
+                              <p className="font-medium text-foreground">{setPlan.label}</p>
+                              <p className="text-muted-foreground">Problems: {setPlan.problems}</p>
+                              <p className="text-muted-foreground">Difficulty: {setPlan.difficulty}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Prep Rules</p>
+                          <ul className="text-xs text-muted-foreground space-y-0.5">
+                            {prepPlan.prepNotes.map((note) => (
+                              <li key={note} className="flex items-start gap-1.5">
+                                <span className="shrink-0 text-foreground/40">-</span>
+                                <span>{note}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="font-medium text-sm">Topic Progress Timeline</p>
+                  <div
+                    key={`${selectedRow?.topic || "topic"}-${showFullSelectedTimeline ? "full" : "latest"}`}
+                    className="rounded-md border p-2 space-y-2"
+                  >
+                    <div className="flex flex-col items-start gap-1.5">
+                      {selectedTimelineBadges.map((point, index) => (
+                        <span
+                          key={point._renderKey}
+                          className="inline-flex rounded-md border border-border/60 bg-muted/20 px-2 py-0.5 text-[11px] text-muted-foreground"
+                        >
+                          {toRelativeSessionLabel(index, point.kind)} · {point.phase} · {displayTopicStability(point.stability)}
+                          {topicStabilityConfirmationLabel(point.stability, point.phase) ? " · Confirmation checkpoint" : ""}
+                        </span>
+                      ))}
+                    </div>
+                    {hasOlderSelectedTimeline && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => setShowFullSelectedTimeline((prev) => !prev)}
+                      >
+                        {showFullSelectedTimeline
+                          ? "Show Latest 6"
+                          : `Show ${selectedTimeline.length - 6} Older ${selectedTimeline.length - 6 === 1 ? "Entry" : "Entries"}`}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Removed Topics Tracked, Needs Stabilization, Ready To Advance cards as requested */}
+
+            <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
+              <Card className="rounded-2xl border border-primary/15 bg-background p-3 sm:p-4 md:p-5 shadow-sm space-y-4">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between text-left"
+                  onClick={() => setIsStabilityTrackerCollapsed((prev) => !prev)}
+                >
+                  <h3 className="font-semibold">Stability Tracker</h3>
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isStabilityTrackerCollapsed ? "" : "rotate-180"}`} />
+                </button>
+                {!isStabilityTrackerCollapsed && (
+                  <>
+                    {selectedRow ? (
+                      <>
+                        {hasObservedSelection ? (
+                          <>
+                            <p className="text-sm text-muted-foreground">
+                              Stability: {displayTopicStability(selectedRow.stability)}
+                            </p>
+                            <Progress value={stabilityPercent(selectedRow.stability)} />
+                            {topicStabilityConfirmationLabel(selectedRow.stability, selectedRow.phase, selectedRow.progressionAuthority) ? (
+                              <p className="text-xs text-muted-foreground">{topicStabilityConfirmationLabel(selectedRow.stability, selectedRow.phase, selectedRow.progressionAuthority)}</p>
+                            ) : null}
+                            <div className="space-y-1.5">
+                              <p className="text-sm font-medium">Recent Logs (Last 3 Observations)</p>
+                              {(selectedRow.recentLogs || []).length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No observations recorded yet for this topic.</p>
+                              ) : (
+                                <ul className="text-sm text-muted-foreground space-y-1">
+                                  {(selectedRow.recentLogs || []).map((log) => (
+                                    <li key={log}>{log}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                            <div className="grid sm:grid-cols-2 gap-4">
+                              <div className="rounded-md border p-3 bg-primary/5 border-primary/20">
+                                <p className="text-xs uppercase font-semibold text-primary mb-2">Do</p>
+                                <ul className="text-sm text-foreground space-y-1">
+                                  {guidance.doItems.map((item) => (
+                                    <li key={item}>{item}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                              <div className="rounded-md border p-3 bg-muted/50 border-muted">
+                                <p className="text-xs uppercase font-semibold text-foreground/60 mb-2">Do Not</p>
+                                <ul className="text-sm text-muted-foreground space-y-1">
+                                  {guidance.avoidItems.map((item) => (
+                                    <li key={item}>{item}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                            Stability tracking unlocks after the first scored diagnosis or training drill. Until then, this topic remains unplaced.
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                        No active topics in Map yet. Stability tracking will appear after a topic is activated.
+                      </div>
+                    )}
+                  </>
+                )}
+              </Card>
+
+              <Card className="rounded-2xl border border-primary/15 bg-background p-3 sm:p-4 md:p-5 shadow-sm space-y-4">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between text-left"
+                  onClick={() => setIsPhaseProgressionCollapsed((prev) => !prev)}
+                >
+                  <h3 className="font-semibold">Phase Progression</h3>
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isPhaseProgressionCollapsed ? "" : "rotate-180"}`} />
+                </button>
+                {!isPhaseProgressionCollapsed && (
+                  <>
+                    <p className="text-sm text-muted-foreground">Clarity to Structured Execution to Controlled Discomfort to Time Pressure Stability</p>
+                    {hasObservedSelection ? (
+                      <div className="flex flex-wrap gap-2">
+                        {PHASES.map((phase, idx) => {
+                          const state = idx < phaseIx ? "completed" : idx === phaseIx ? "current" : "locked";
+                          return (
+                            <Badge
+                              key={phase}
+                              variant="outline"
+                              className={
+                                state === "completed"
+                                  ? "bg-muted/60 border-muted text-foreground/50 text-[11px] sm:text-xs whitespace-normal"
+                                  : state === "current"
+                                  ? "bg-primary/10 border-primary/30 text-foreground font-medium text-[11px] sm:text-xs whitespace-normal"
+                                  : "bg-muted/30 border-muted text-muted-foreground text-[11px] sm:text-xs whitespace-normal"
+                              }
+                            >
+                              {phase}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                        Observed phase is Unknown for this topic. Progression tracking unlocks after first scored observation.
+                      </div>
+                    )}
+
+                    <div className="rounded-md border p-3 space-y-3">
+                      <p className="text-sm font-medium">NEXT ACTION</p>
+                      {selectedRow ? (
+                        <>
+                          {hasObservedSelection ? (
+                            <>
+                              <ul className="text-sm text-muted-foreground space-y-1">
+                                {getNextActionData(selectedRow.phase, nextActionStabilityFor(selectedRow)).nextActions.map((a) => (
+                                  <li key={a} className="flex items-start gap-1.5">
+                                    <span className="mt-0.5 shrink-0 text-foreground/40">›</span>
+                                    <span>{a}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Rules</p>
+                                <ul className="text-xs text-muted-foreground space-y-0.5">
+                                  {getNextActionData(selectedRow.phase, nextActionStabilityFor(selectedRow)).rules.map((r) => (
+                                    <li key={r} className="flex items-start gap-1.5">
+                                      <span className="shrink-0 text-foreground/40">-</span>
+                                      <span>{r}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">Run adaptive diagnosis first to generate deterministic next actions.</p>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Select a topic to see engine output.</p>
+                      )}
+                    </div>
+                  </>
+                )}
+              </Card>
+            </div>
+
+            <Card className="rounded-2xl border border-primary/15 bg-background p-3 sm:p-4 md:p-5 shadow-sm space-y-4">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between text-left"
+                onClick={() => setIsPhaseDefinitionsCollapsed((prev) => !prev)}
+              >
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold">Phase Definitions</h3>
+                  <AlertCircle className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isPhaseDefinitionsCollapsed ? "" : "rotate-180"}`} />
+              </button>
+              {!isPhaseDefinitionsCollapsed && (
+                <div className="grid md:grid-cols-2 gap-3">
+                  {PHASES.map((phase) => {
+                    // Split the definition into Description, Tool, Question
+                    const [desc, tool, question] = phaseDefinition[phase].split(/\n\n/);
+                    const phaseNumber = PHASES.indexOf(phase) + 1;
+                    const isPhaseExpanded = expandedPhaseDefinitions.has(phase);
+                    return (
+                      <div key={phase} className="rounded-md border p-3 flex flex-col items-start gap-2 bg-muted/10">
+                        <div className="w-full flex items-center justify-between gap-2">
+                          <p className="font-medium text-sm">{phaseNumber}. {phase}</p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() =>
+                              setExpandedPhaseDefinitions((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(phase)) next.delete(phase);
+                                else next.add(phase);
+                                return next;
+                              })
+                            }
+                          >
+                            {isPhaseExpanded ? "Collapse" : "Expand"}
+                            <ChevronDown className={`w-3.5 h-3.5 ml-1 transition-transform ${isPhaseExpanded ? "rotate-180" : ""}`} />
+                          </Button>
+                        </div>
+                        <div className="w-full flex flex-col gap-2">
+                          {isPhaseExpanded && (
+                            <>
+                              <div className="bg-background rounded px-2 py-1 border border-primary/10">
+                                <span className="font-semibold text-foreground text-xs">Description:</span>
+                                <span className="ml-1 text-muted-foreground text-[11px]">{desc?.replace('Description: ', '')}</span>
+                              </div>
+                              <div className="bg-background rounded px-2 py-1 border border-primary/10">
+                                <span className="font-semibold text-foreground text-xs">Tool:</span>
+                                <span className="ml-1 text-muted-foreground text-[11px]">{tool?.replace('Tool: ', '')}</span>
+                              </div>
+                              <div className="bg-background rounded px-2 py-1 border border-primary/10">
+                                <span className="font-semibold text-foreground text-xs">Question:</span>
+                                <span className="ml-1 text-muted-foreground text-[11px]">{question?.replace('Question: ', '')}</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
+          </TabsContent>
+
+          {showTopicManagement ? (
+          <TabsContent value="session-form" className="space-y-4 sm:space-y-6">
+            <Card className="rounded-2xl border border-primary/15 bg-background p-3 sm:p-4 md:p-5 shadow-sm space-y-4">
+              {topics.length > 0 ? (
+                isTrainingMode ? (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-medium">{isSandboxMode ? "Sandbox Operations" : "Training Operations"}</h4>
+                  </div>
+                  <div className="rounded-md border border-primary/20 bg-primary/5 p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium">{isSandboxMode ? "Sandbox Mode" : "Training Mode"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Weekly Response Integrity scheduling still applies. Google Meet links and live launch windows do not.
+                        </p>
+                      </div>
+                      <div className="text-right text-xs text-muted-foreground">
+                        {trainingTabAvailability.code === "PAYMENT_REQUIRED"
+                          ? "No sessions can be booked until the parent completes payment."
+                          : trainingTabAvailability.code === "RENEWAL_REQUIRED"
+                            ? "No more sessions can be booked until the parent renews/pays."
+                            : trainingTabAvailability.code === "NO_SESSIONS_BOOKED"
+                              ? "Package capacity is available, but the parent has not booked a current lesson."
+                              : packageQuotaBlocked
+                                ? "Start Session is locked until the family's package quota can be verified."
+                                : `Start Session unlocks after all ${weeklySessionTargetLabel} are confirmed by both parent and Specialist.`}
+                      </div>
+                    </div>
+                    <div className="rounded border border-primary/20 bg-background px-3 py-2 text-xs space-y-2">
+                      <p className="font-medium text-foreground">
+                        {trainingTabAvailability.code === "PAYMENT_REQUIRED" ||
+                        trainingTabAvailability.code === "RENEWAL_REQUIRED" ||
+                        trainingTabAvailability.code === "NO_SESSIONS_BOOKED" ||
+                        trainingTabAvailability.code === "QUOTA_UNAVAILABLE"
+                          ? trainingTabAvailability.title
+                          : weeklyScheduleReady
+                            ? "Confirmed weekly schedule ready"
+                            : "Awaiting complete weekly schedule"}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {trainingTabAvailability.code === "PAYMENT_REQUIRED" ||
+                        trainingTabAvailability.code === "RENEWAL_REQUIRED" ||
+                        trainingTabAvailability.code === "NO_SESSIONS_BOOKED" ||
+                        trainingTabAvailability.code === "QUOTA_UNAVAILABLE"
+                          ? trainingTabAvailability.message
+                          : weeklyScheduleReady
+                            ? "Use Start Session to choose topics and enter the runner for a confirmed weekly lesson."
+                            : `Training launch stays locked until all ${weeklySessionTargetLabel} are scheduled and fully confirmed.`}
+                      </p>
+                    </div>
+                    {replacementRequiredCancelledTrainingSessions.length > 0 ? (
+                      <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs space-y-1">
+                        <p className="font-medium text-amber-900">Weekly schedule needs a replacement</p>
+                        <p className="text-amber-800">
+                          A confirmed session was cancelled. Training launch stays locked until the parent proposes a replacement time and the Specialist confirms it.
+                        </p>
+                        {replacementRequiredCancelledTrainingSessions.map((session: any) => (
+                          <p key={session.id} className="text-amber-800">
+                            Cancelled: {formatLessonTime(session.scheduled_time, session.timezone)}
+                          </p>
+                        ))}
+                      </div>
+                    ) : null}
+                    {confirmedTrainingSessions.length > 0 ? (
+                      <div className="rounded border border-primary/20 bg-background px-3 py-2 text-xs space-y-2">
+                        <p className="font-medium text-foreground">Confirmed lessons</p>
+                        <div className="space-y-2">
+                          {confirmedTrainingSessions.map((session: any) => (
+                            <div key={session.id} className="rounded border border-primary/20 bg-muted/10 px-3 py-2 space-y-2">
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="font-medium text-foreground">{formatLessonTime(session.scheduled_time, session.timezone)}</p>
+                                  <p className="text-muted-foreground">Status: {String(session.status || "").replaceAll("_", " ")}</p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      if (activeTrainingSession?.id !== session.id) {
+                                        setTrainingSessionMeetMessage(
+                                          "Start Session will launch the earliest confirmed weekly lesson first. Complete it before opening the next confirmed slot."
+                                        );
+                                        return;
+                                      }
+                                      setSessionPrepChecks({});
+                                      setSessionTopicsModalOpen(true);
+                                    }}
+                                    disabled={!assignmentAccepted || packageQuotaBlocked}
+                                    title={
+                                      !assignmentAccepted
+                                        ? "Accept the assignment before running training sessions."
+                                        : packageQuotaBlocked
+                                          ? trainingPackageQuotaDecision.code === "PACKAGE_QUOTA_EXHAUSTED"
+                                            ? "Package exhausted - awaiting renewal."
+                                            : "Package quota is unavailable."
+                                          : undefined
+                                    }
+                                  >
+                                    Start Session
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => {
+                                      setCancelTrainingSessionTarget({
+                                        id: session.id,
+                                        scheduledTimeLabel: formatLessonTime(session.scheduled_time, session.timezone),
+                                      });
+                                    }}
+                                    disabled={respondTrainingSession.isPending || confirmTrainingSession.isPending || !assignmentAccepted}
+                                    title={!assignmentAccepted ? "Accept the assignment before cancelling lessons." : undefined}
+                                  >
+                                    Cancel Lesson
+                                  </Button>
+                                </div>
+                              </div>
+                              <p className="text-muted-foreground">
+                                Training mode runs this lesson inside the platform without depending on Meet generation or the live lesson window.
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    <TrainingSessionCancellationDialog
+                      open={!!cancelTrainingSessionTarget}
+                      onOpenChange={(nextOpen) => {
+                        if (!nextOpen) {
+                          setCancelTrainingSessionTarget(null);
+                        }
+                      }}
+                      title="Cancel Confirmed Lesson"
+                      description={
+                        cancelTrainingSessionTarget
+                          ? `You are cancelling ${cancelTrainingSessionTarget.scheduledTimeLabel}. Select the cancellation reason so the parent-facing and billing trail stays accurate.`
+                          : "Select the cancellation reason so the parent-facing and billing trail stays accurate."
+                      }
+                      confirmLabel="Cancel Lesson"
+                      isSubmitting={respondTrainingSession.isPending}
+                      reasonOptions={TUTOR_TRAINING_SESSION_CANCELLATION_REASONS}
+                      notePlaceholder="Add any extra operational context the parent or internal billing trail should keep."
+                      onConfirm={async ({ reasonCodes, reasonNote }) => {
+                        if (!cancelTrainingSessionTarget) {
+                          throw new Error("No confirmed lesson selected.");
+                        }
+                        await handleCancelConfirmedTrainingSession(
+                          cancelTrainingSessionTarget.id,
+                          reasonCodes,
+                          reasonNote,
+                        );
+                      }}
+                    />
+                    {pendingTutorConfirmationSessions.length > 0 ? (
+                      <div className="rounded border border-border bg-muted/40 px-3 py-2 text-xs space-y-2">
+                        <p className="font-medium text-foreground">Awaiting Specialist confirmation</p>
+                        <p className="text-muted-foreground">
+                          {`The parent has proposed this week's lesson times. Confirm all ${packageWeeklySessionTarget} scheduled lessons before training can launch.`}
+                        </p>
+                        <div className="space-y-2">
+                          {pendingTutorConfirmationSessions.map((session: any) => (
+                            <div key={session.id} className="rounded border border-border bg-background px-3 py-2 space-y-2">
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="font-medium text-foreground">{formatLessonTime(session.scheduled_time, session.timezone)}</p>
+                                  <p className="text-muted-foreground">Status: waiting for Specialist confirmation</p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={async () => {
+                                      try {
+                                        const result = await confirmTrainingSession.mutateAsync({ sessionId: session.id });
+                                        setTrainingSessionMeetMessage(
+                                          isSandboxMode
+                                            ? "Specialist confirmed the lesson."
+                                            : result?.googleMeetError ||
+                                              (result?.googleMeetSync === "google_calendar"
+                                                ? "Specialist confirmed. Google Meet attached to the lesson."
+                                                : "Specialist confirmed the lesson.")
+                                        );
+                                      } catch (error) {
+                                        setTrainingSessionMeetMessage(
+                                          error instanceof Error ? error.message : "Failed to confirm training session."
                                         );
                                       }
                                     }}
