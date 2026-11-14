@@ -144,7 +144,7 @@ type SandboxTrajectoryBundle = {
   truth: SandboxTruthRow;
 };
 
-type SandboxRepSubmission = {
+export type SandboxRepSubmission = {
   interventionEvent: TrainingInterventionEvent;
   observations: Record<string, {
     optionId: string;
@@ -945,6 +945,7 @@ async function ensureTrajectory(input: {
         canonical_phase: "Clarity",
         canonical_stability: "Low",
         canonical_progression_authority: "building",
+        canonical_topic_states: {},
         canonical_route: "normal_training",
         canonical_targeted_rediagnosis_phase: null,
         trajectory_seed: trajectorySeed,
@@ -2364,6 +2365,11 @@ async function finalizeSandboxRecordedSession(input: {
     completedAt: string;
     parentId: string;
     enrollmentId: string | null;
+    programProgress: {
+      sessionQuota: number;
+      sessionsUsed: number;
+      sessionsRemaining: number;
+    } | null;
   } | null = null;
 
     const refreshedBundle = await ensureTrajectory({
