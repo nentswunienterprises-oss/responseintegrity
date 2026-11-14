@@ -14,9 +14,17 @@ test("V2 diagnosis bank SQL remains a review artifact outside executable migrati
 
 test("V2 draft preserves V1 and refuses unexpected source state", () => {
   assert.match(sql, /bank_version = 1[\s\S]*?active = true[\s\S]*?\) <> 56/);
-  assert.match(sql, /select\s+bank_key,\s+3,[\s\S]*?false\s+from private\.specialist_sandbox_environment_banks/i);
+  assert.match(sql, /select\s+bank_key,\s*4,[\s\S]*?false[\s\S]*?from private\.specialist_sandbox_environment_banks/i);
   assert.doesNotMatch(sql, /(?:update|delete\s+from)\s+private\.specialist_sandbox_(?:environment_banks|diagnosis_outcomes)/i);
   assert.match(sql, /V2 must remain inactive/i);
+});
+
+test("V2 draft uses the next unused Preview bank version without overwriting V3", () => {
+  assert.match(sql, /bank_version 4/i);
+  assert.match(sql, /bank_version\s*=\s*4[\s\S]*?refusing to overwrite/i);
+  assert.match(sql, /select\s+bank_key,\s*4,[\s\S]*?false[\s\S]*?from private\.specialist_sandbox_environment_banks/i);
+  assert.match(sql, /source\.bank_key,\s*4,\s*source\.outcome_key/i);
+  assert.doesNotMatch(sql, /bank_version\s*=\s*3|source\.bank_key,\s*3,/i);
 });
 
 test("V2 draft consolidates the four known duplicate outcome keys only in the new version", () => {
