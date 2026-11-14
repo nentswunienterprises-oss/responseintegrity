@@ -235,7 +235,7 @@ function describePreviousOpportunity(
 
   const resultMeaning = contaminated
     ? "However, assistance or teaching changed the conditions of the task. We can describe what happened, but we cannot use this response as clean evidence of how the student would have managed independently."
-    : findings.some((item) => item.behaviorClass === "confounded" || item.behaviorClass === "not_observed")
+    : findings.some((item) => item.behaviorClass === "confounded")
       ? "Part of the response could not be interpreted reliably, so the previous opportunity does not yet establish whether this capability holds independently."
       : findings.some((item) => item.behaviorClass === "breakdown")
         ? "This indicates that the student’s response broke down under the condition being tested."
