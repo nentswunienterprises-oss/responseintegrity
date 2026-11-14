@@ -89,6 +89,39 @@ test("Sandbox diagnosis selector prioritizes the earliest unsupported capability
   assert.equal(b.key, "target");
 });
 
+test("identical canonical diagnosis outcomes are one selectable evidence signature", () => {
+  const pattern4 = outcomeFor("clarity.recognition", "clarity.recognition.pattern_4");
+  const pattern5 = { ...pattern4, key: "clarity.recognition.pattern_5" };
+  const distinct = outcomeFor(
+    "clarity.recognition",
+    "clarity.recognition.pattern_3",
+    "near_stable",
+  );
+  const context = {
+    startingPhase: "Clarity" as const,
+    probeId: "clarity.recognition" as const,
+    sequenceNumber: 3,
+  };
+
+  for (let index = 0; index < 100; index += 1) {
+    const selected = selectSandboxDiagnosisOutcome({
+      seed: `canonical-signature-${index}`,
+      outcomes: [pattern4, pattern5],
+      context,
+    });
+    assert.equal(selected.key, pattern4.key,
+      "a duplicate canonical row must not create another selectable outcome");
+  }
+
+  const afterPattern5 = selectSandboxDiagnosisOutcome({
+    seed: "canonical-signature-recent-alias",
+    outcomes: [pattern4, pattern5, distinct],
+    context: { ...context, recentOutcomeKeys: [pattern5.key] },
+  });
+  assert.equal(afterPattern5.key, distinct.key,
+    "seeing one alias must suppress the whole canonical signature while another signature is available");
+});
+
 test("bank version 3 preserves the reviewed stacked confound narrative and observable dimensions", () => {
   const storedNarrative = "Method understanding is confounded; the remaining recorded dimensions are observable.";
   const scenario = {
