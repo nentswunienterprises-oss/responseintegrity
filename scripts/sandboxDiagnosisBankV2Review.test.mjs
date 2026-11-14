@@ -80,3 +80,9 @@ test("Corrected stacked narratives are tied to canonical clarity.method confound
   assert.match(sql, /observation->>'behaviorId' = 'confounded'/);
   assert.match(sql, /exactly one canonical clarity\.method\/confounded observation each/i);
 });
+
+
+test("V2 draft is runtime-fenced until separately authorized", () => {
+  assert.match(sql, /'runtimeEligible',[\s\S]*?false/);
+  assert.match(sql, /activationStatus'[\s\S]*?'review_required'/);
+});
