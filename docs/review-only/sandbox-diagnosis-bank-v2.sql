@@ -4,6 +4,8 @@
 -- owns the transaction boundary. No database is changed by this review artifact.
 -- V1 rows, the existing bank-version-2 candidate, and historical evidence are preserved unchanged.
 -- Diagnosis integrity revision V2 is inserted inactive as bank_version 4.
+-- The runtime requires both bank activation and runtimeEligible=true. Keep the
+-- candidate fenced off until independent review and an explicit acceptance.
 
 do $$
 begin
@@ -49,7 +51,9 @@ select
     'diagnosisBankRevision',
     2,
     'activationStatus',
-    'review_required'
+    'review_required',
+    'runtimeEligible',
+    false
   ),
   false
 from private.specialist_sandbox_environment_banks
