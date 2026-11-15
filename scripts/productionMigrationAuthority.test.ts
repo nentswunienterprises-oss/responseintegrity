@@ -136,4 +136,8 @@ test("V4 production activation is separately guarded and preserves the V1 bank",
   assert.match(activation, /When difficulty is introduced/);
   assert.match(activation, /update private\.specialist_sandbox_environment_banks[\s\S]*?bank_version=4/i);
   assert.doesNotMatch(activation, /update\s+private\.specialist_sandbox_(?:diagnosis_outcomes|rep_outcomes)/i);
+  assert.match(activation, /where bank_key='sandbox_stateful_environment' and active=true[\s\S]*?Expected V1 to be the sole active bank/);
+  assert.match(activation, /set active=false,[\s\S]*?bank_version=1 and active=true/);
+  assert.match(activation, /retired_at=coalesce\(retired_at, now\(\)\)/);
+  assert.match(activation, /activationStatus','superseded','runtimeEligible',false/);
 });
