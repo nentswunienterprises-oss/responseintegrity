@@ -125,3 +125,9 @@ test("trajectory preference ignores active banks fenced off from runtime selecti
   assert.match(activeVersion, /active = true/);
   assert.match(activeVersion, /COALESCE\(\(capability_policy->>'runtimeEligible'\)::boolean, true\) = true/);
 });
+ 
+test("TPS Sandbox planning fails closed when trajectory topic authority is absent", () => {
+  const environment = readFileSync(new URL("./sandboxEnvironment.ts", import.meta.url), "utf8");
+  const planner = environment.slice(environment.indexOf("async function planNextRep("));
+  assert.match(planner, /const activeTopicKey = input\\.bundle\\.trajectory\\.active_topic_key;[\\s\\S]*?if \\(!activeTopicKey\\)[\\s\\S]*?targetPhase: "Structured Execution"[\\s\\S]*?topic: activeTopicKey/);
+});
