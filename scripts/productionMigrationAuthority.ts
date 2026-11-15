@@ -39,7 +39,8 @@ function fail(message: string): never {
 }
 
 export function selectManagedMigrations(authority: ProductionMigrationAuthority, batchName?: string) {
-  if (!batchName) return authority.managedMigrations;
+  if (batchName === undefined) return authority.managedMigrations;
+  if (!batchName.trim()) fail("Production migration batch must not be empty.");
   const paths = authority.migrationBatches?.[batchName];
   if (!Array.isArray(paths) || paths.length === 0) fail("Unknown or empty production migration batch: " + batchName);
   if (new Set(paths).size !== paths.length) fail("Production migration batch contains duplicate paths: " + batchName);
