@@ -81,10 +81,19 @@ begin
          'stack.timed_challenge.pattern_8'
        )
        and (
-         select count(*) from jsonb_array_elements(definition->'canonicalObservations') observation
-          where observation->>'dimensionId'='clarity.method'
-            and observation->>'behaviorId'='confounded'
-       ) <> 1
+         definition->>'studentBehavior' not ilike '%confounded%'
+         or definition->>'studentBehavior' not ilike '%observable%'
+         or (
+           select count(*) from jsonb_array_elements(definition->'canonicalObservations') observation
+            where observation->>'dimensionId'='clarity.method'
+              and observation->>'behaviorId'='confounded'
+         ) <> 1
+         or exists (
+           select 1 from jsonb_array_elements(definition->'canonicalObservations') observation
+            where observation->>'behaviorId'='confounded'
+              and observation->>'dimensionId'<>'clarity.method'
+         )
+       )
   ) or (
     select count(*) from private.specialist_sandbox_diagnosis_outcomes
      where bank_key='sandbox_stateful_environment' and bank_version=4 and active=true
@@ -103,6 +112,8 @@ begin
      where bank_key='sandbox_stateful_environment' and bank_version=4 and active=true
        and outcome_key='stack.challenge_no_timer.pattern_4'
        and definition->>'studentBehavior' ilike '%earlier Clarity and Structured Execution layers are intact%'
+       and definition->>'studentBehavior' ilike '%When difficulty is introduced%'
+       and definition->>'studentBehavior' ilike '%freezes%'
        and (select count(*) from jsonb_array_elements(definition->'canonicalObservations')) = 11
        and not exists (
          select expected.dimension_id, expected.behavior_id
