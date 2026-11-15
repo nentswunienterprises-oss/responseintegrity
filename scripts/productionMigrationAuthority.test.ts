@@ -122,3 +122,18 @@ test("production apply batches are explicit and exclude unrelated pending migrat
   assert.throws(() => selectManagedMigrations(authority, "all"), /Unknown or empty/);
   assert.throws(() => selectManagedMigrations(authority, ""), /Unknown or empty/);
 });
+
+test("V4 production activation is separately guarded and preserves the V1 bank", () => {
+  const seed = fs.readFileSync(path.resolve(process.cwd(), "migrations/20261115143000_sandbox_diagnosis_bank_v2_seed.sql"), "utf8");
+  const activation = fs.readFileSync(path.resolve(process.cwd(), "migrations/20261115144000_sandbox_diagnosis_bank_v2_activate.sql"), "utf8");
+  assert.match(seed, /bank_version = 1[\s\S]*?active = true[\s\S]*?\) <> 56/);
+  assert.match(seed, /'runtimeEligible',[\s\S]*?false/);
+  assert.match(seed, /V2 must remain inactive/);
+  assert.doesNotMatch(seed, /update\s+private\.specialist_sandbox_(?:environment_banks|diagnosis_outcomes|rep_outcomes)/i);
+  assert.match(activation, /bank_version=1[\s\S]*?<> 56[\s\S]*?bank_version=1[\s\S]*?<> 264/);
+  assert.match(activation, /bank_version=4[\s\S]*?<> 52[\s\S]*?bank_version=4[\s\S]*?<> 264/);
+  assert.match(activation, /clarity\.method/);
+  assert.match(activation, /When difficulty is introduced/);
+  assert.match(activation, /update private\.specialist_sandbox_environment_banks[\s\S]*?bank_version=4/i);
+  assert.doesNotMatch(activation, /update\s+private\.specialist_sandbox_(?:diagnosis_outcomes|rep_outcomes)/i);
+});
