@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   assertProductionDatabaseTarget,
   loadProductionMigrationAuthority,
+  selectManagedMigrations,
   verifyProductionMigrationAuthority,
 } from "./productionMigrationAuthority";
 
@@ -14,7 +15,7 @@ test("production DB authority locks the verified The Hub baseline", () => {
   assert.equal(result.authority.productionProjectRef, "yzcnavucvwgmulcxgxvw");
   assert.equal(result.authority.baseline.commit, "a8c1aab29b230ce523c0353cfcc4eb4b1ae07627");
   assert.equal(result.baselineCount, 15);
-  assert.equal(result.managedCount, 25);
+  assert.equal(result.managedCount, 27);
   assert.deepEqual(result.authority.previewOnlyMigrations?.map((migration) => migration.path), [
     "migrations/20261011_practicals_shared_video_benchmarks_v1.sql",
     "migrations/20261110_practicals_shared_video_benchmarks_v1_preview_compat.sql",
@@ -48,7 +49,9 @@ test("production DB authority locks the verified The Hub baseline", () => {
         "migrations/20261109_scheduled_session_timezone_instants.sql",
         "migrations/20261110100000_parent_qualification_assessment.sql",
         "migrations/20261110101000_enforce_four_part_parent_qualification.sql",
-        "migrations/20261111120000_sandbox_behavior_model_v2_default.sql"
+        "migrations/20261111120000_sandbox_behavior_model_v2_default.sql",
+        "migrations/20261115143000_sandbox_diagnosis_bank_v2_seed.sql",
+        "migrations/20261115144000_sandbox_diagnosis_bank_v2_activate.sql"
     ],
   );
 });
@@ -88,6 +91,8 @@ test("production promotion workflow is manual-only", () => {
   assert.match(workflow, /NODE_EXTRA_CA_CERTS/);
   assert.doesNotMatch(workflow, /NODE_TLS_REJECT_UNAUTHORIZED/);
   assert.match(workflow, /RI_PRODUCTION_MIGRATION_CONFIRMATION/);
+  assert.match(workflow, /RI_PRODUCTION_MIGRATION_BATCH/);
+  assert.match(workflow, /sandbox_diagnosis_v2_activate/);
 });
 
 test("production target guard rejects weaker TLS modes", () => {
@@ -100,4 +105,20 @@ test("production target guard rejects weaker TLS modes", () => {
       ),
     /sslmode=verify-full/,
   );
+});
+
+
+test("production apply batches are explicit and exclude unrelated pending migrations", () => {
+  const authority = loadProductionMigrationAuthority();
+  const seed = selectManagedMigrations(authority, "sandbox_diagnosis_v2_seed");
+  const activate = selectManagedMigrations(authority, "sandbox_diagnosis_v2_activate");
+  assert.deepEqual(seed.map((item) => item.path), [
+    "migrations/20261115143000_sandbox_diagnosis_bank_v2_seed.sql",
+  ]);
+  assert.deepEqual(activate.map((item) => item.path), [
+    "migrations/20261115143000_sandbox_diagnosis_bank_v2_seed.sql",
+    "migrations/20261115144000_sandbox_diagnosis_bank_v2_activate.sql",
+  ]);
+  assert.throws(() => selectManagedMigrations(authority, "all"), /Unknown or empty/);
+  assert.throws(() => selectManagedMigrations(authority, ""), /Unknown or empty/);
 });
