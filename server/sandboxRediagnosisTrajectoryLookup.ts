@@ -26,7 +26,9 @@ export function buildSandboxRediagnosisTrajectoryLookup(input: SandboxTrajectory
                     AND truth.canonical_phase IN ('Controlled Discomfort', 'Time Pressure Stability')) THEN 1
               WHEN t.bank_version = (
                 SELECT bank_version FROM private.specialist_sandbox_environment_banks
-                 WHERE bank_key = $4 AND active = true
+                 WHERE bank_key = $4
+                   AND active = true
+                   AND COALESCE((capability_policy->>'runtimeEligible')::boolean, true) = true
               ) THEN 2
               ELSE 3
             END AS trajectory_resolution_priority
