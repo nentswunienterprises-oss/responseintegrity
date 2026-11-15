@@ -663,6 +663,7 @@ async function loadActiveEnvironmentBank(
       WHERE bank_key = $1
         AND active = true
         AND COALESCE((capability_policy->>'runtimeEligible')::boolean, true) = true
+      ORDER BY bank_version DESC
       LIMIT 1`,
     [bankKey],
   );
