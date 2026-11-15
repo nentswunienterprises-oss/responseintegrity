@@ -197,6 +197,16 @@
       "path": "migrations/20261111120000_sandbox_behavior_model_v2_default.sql",
       "description": "Set the default Behaviour Model version for newly created Sandbox trajectories to V2 while preserving all existing version-pinned trajectories. Reviewed in PR #334; pending separate Preview/Production promotion and explicit Production authorization.",
       "risk": "additive"
+    },
+    {
+      "path": "migrations/20261115143000_sandbox_diagnosis_bank_v2_seed.sql",
+      "description": "Seed diagnosis bank V4 and its unchanged V1 Training outcomes as inactive and runtime-ineligible, with canonical signature and coverage guards.",
+      "risk": "additive"
+    },
+    {
+      "path": "migrations/20261115144000_sandbox_diagnosis_bank_v2_activate.sql",
+      "description": "Activate Sandbox diagnosis bank V4 only after guarded canonical observations, narrative integrity, coverage and duplicate-signature checks pass.",
+      "risk": "destructive"
     }
   ],
   "previewOnlyMigrations": [
@@ -212,5 +222,14 @@
       "path": "migrations/20261111043902_reconcile_scheduled_sessions_view_security.sql",
       "description": "Restore Capability Proof's scheduled_sessions_with_names view to the The Hub security contract: security_invoker=true, no PUBLIC/anon/authenticated privileges, service_role SELECT only. Applied only to Preview because The Hub already has the intended configuration; explicitly excluded from Production promotion."
     }
-  ]
+  ],
+  "migrationBatches": {
+    "sandbox_diagnosis_v2_seed": [
+      "migrations/20261115143000_sandbox_diagnosis_bank_v2_seed.sql"
+    ],
+    "sandbox_diagnosis_v2_activate": [
+      "migrations/20261115143000_sandbox_diagnosis_bank_v2_seed.sql",
+      "migrations/20261115144000_sandbox_diagnosis_bank_v2_activate.sql"
+    ]
+  }
 }
