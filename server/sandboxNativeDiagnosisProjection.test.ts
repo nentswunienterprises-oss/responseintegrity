@@ -124,7 +124,15 @@ test("trajectory preference ignores active banks fenced off from runtime selecti
   );
   assert.match(activeVersion, /active = true/);
   assert.match(activeVersion, /COALESCE\(\(capability_policy->>'runtimeEligible'\)::boolean, true\) = true/);
-  assert.match(activeVersion, /ORDER BY bank_version DESC/);
+});
+
+test("new Sandbox trajectories select the highest active runtime-eligible bank", () => {
+  const environment = readFileSync(new URL("./sandboxEnvironment.ts", import.meta.url), "utf8");
+  const activeBank = environment.slice(
+    environment.indexOf("async function loadActiveEnvironmentBank"),
+    environment.indexOf("const jsonStringArray", environment.indexOf("async function loadActiveEnvironmentBank")),
+  );
+  assert.match(activeBank, /active = true[\s\S]*runtimeEligible[\s\S]*ORDER BY bank_version DESC[\s\S]*LIMIT 1/);
 });
  
 test("TPS Sandbox planning fails closed when trajectory topic authority is absent", () => {
