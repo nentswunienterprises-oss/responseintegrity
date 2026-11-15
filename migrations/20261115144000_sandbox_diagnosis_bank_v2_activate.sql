@@ -3,6 +3,7 @@
 do $$
 declare
   updated_rows integer;
+  deactivated_rows integer;
   duplicate_signatures integer;
 begin
   if (
@@ -136,6 +137,29 @@ begin
        )
   ) then
     raise exception 'Stacked challenge_no_timer pattern_4 narrative/canonical sequence is incomplete.';
+  end if;
+
+  if (
+    select count(*) from private.specialist_sandbox_environment_banks
+     where bank_key='sandbox_stateful_environment' and active=true
+  ) <> 1 or not exists (
+    select 1 from private.specialist_sandbox_environment_banks
+     where bank_key='sandbox_stateful_environment' and bank_version=1 and active=true
+  ) then
+    raise exception 'Expected V1 to be the sole active bank before switching production to V4.';
+  end if;
+
+  -- Switch the active pointer under the migration runner's transaction so the
+  -- one-active-bank index remains satisfied and any later failure rolls back.
+  update private.specialist_sandbox_environment_banks
+     set active=false,
+         retired_at=coalesce(retired_at, now()),
+         capability_policy=coalesce(capability_policy,'{}'::jsonb) ||
+           jsonb_build_object('activationStatus','superseded','runtimeEligible',false)
+   where bank_key='sandbox_stateful_environment' and bank_version=1 and active=true;
+  get diagnostics deactivated_rows = row_count;
+  if deactivated_rows <> 1 then
+    raise exception 'Expected to retire exactly one active V1 bank row; changed %.', deactivated_rows;
   end if;
 
   update private.specialist_sandbox_environment_banks
