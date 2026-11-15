@@ -123,5 +123,5 @@ test("trajectory preference ignores active banks fenced off from runtime selecti
     lookup.indexOf(") THEN 2"),
   );
   assert.match(activeVersion, /active = true/);
-  assert.match(activeVersion, /COALESCE\\(\\(capability_policy->>'runtimeEligible'\\)::boolean, true\\) = true/);
+  assert.match(activeVersion, /COALESCE\(\(capability_policy->>'runtimeEligible'\)::boolean, true\) = true/);
 });
