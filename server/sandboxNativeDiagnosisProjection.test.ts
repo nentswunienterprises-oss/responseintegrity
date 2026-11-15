@@ -138,5 +138,5 @@ test("new Sandbox trajectories select the highest active runtime-eligible bank",
 test("TPS Sandbox planning fails closed when trajectory topic authority is absent", () => {
   const environment = readFileSync(new URL("./sandboxEnvironment.ts", import.meta.url), "utf8");
   const planner = environment.slice(environment.indexOf("async function planNextRep("));
-  assert.match(planner, /const activeTopicKey = input\\.bundle\\.trajectory\\.active_topic_key;[\\s\\S]*?if \\(!activeTopicKey\\)[\\s\\S]*?targetPhase: "Structured Execution"[\\s\\S]*?topic: activeTopicKey/);
+  assert.match(planner, /const activeTopicKey = input\.bundle\.trajectory\.active_topic_key;[\s\S]*?if \(!activeTopicKey\) \{[\s\S]*?blockedByRoute: true[\s\S]*?targetPhase: "Structured Execution"[\s\S]*?const timerContract = await loadLatestTpsTimerContract\(\{[\s\S]*?topic: activeTopicKey/);
 });
