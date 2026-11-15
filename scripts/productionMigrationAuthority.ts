@@ -188,6 +188,23 @@ export function verifyProductionMigrationAuthority() {
     assertTransactionCompatible(safePath, sql);
   }
 
+  const batchNames = new Set<string>();
+  for (const [batchName, paths] of Object.entries(authority.migrationBatches || {})) {
+    if (!/^[a-z0-9_]+$/.test(batchName) || batchNames.has(batchName)) {
+      fail("Invalid or duplicate production migration batch name: " + batchName);
+    }
+    batchNames.add(batchName);
+    if (!Array.isArray(paths) || paths.length === 0 || new Set(paths).size !== paths.length) {
+      fail("Production migration batch is empty or has duplicate paths: " + batchName);
+    }
+    for (const batchPath of paths) {
+      const safePath = migrationPath(batchPath);
+      if (!managedPaths.has(safePath)) {
+        fail("Production migration batch references an unmanaged migration: " + safePath);
+      }
+    }
+  }
+
   const previewOnlyPaths = new Set<string>();
   for (const migration of authority.previewOnlyMigrations || []) {
     const safePath = migrationPath(migration.path);
@@ -383,7 +400,7 @@ async function plan() {
           verification.authority.baseline.commit +
           ", but the RI ledger has not been bootstrapped yet.",
       );
-      console.log("[DB AUTHORITY] Managed migrations pending after baseline: " + verification.managedCount);
+      console.log("[DB AUTHORITY] Migrations in selected plan after baseline: " + selected.length);
       return;
     }
 
