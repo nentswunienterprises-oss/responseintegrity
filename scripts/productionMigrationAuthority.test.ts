@@ -120,7 +120,7 @@ test("production apply batches are explicit and exclude unrelated pending migrat
     "migrations/20261115144000_sandbox_diagnosis_bank_v2_activate.sql",
   ]);
   assert.throws(() => selectManagedMigrations(authority, "all"), /Unknown or empty/);
-  assert.throws(() => selectManagedMigrations(authority, ""), /Unknown or empty/);
+  assert.throws(() => selectManagedMigrations(authority, ""), /must not be empty/);
 });
 
 test("V4 production activation is separately guarded and preserves the V1 bank", () => {
