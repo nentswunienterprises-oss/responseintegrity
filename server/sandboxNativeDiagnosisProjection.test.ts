@@ -124,6 +124,7 @@ test("trajectory preference ignores active banks fenced off from runtime selecti
   );
   assert.match(activeVersion, /active = true/);
   assert.match(activeVersion, /COALESCE\(\(capability_policy->>'runtimeEligible'\)::boolean, true\) = true/);
+  assert.match(activeVersion, /ORDER BY bank_version DESC/);
 });
  
 test("TPS Sandbox planning fails closed when trajectory topic authority is absent", () => {
