@@ -115,3 +115,13 @@ test("staged bank versions cannot be selected for new Sandbox work and V4 retain
   assert.match(activeLoader, /active = true[\s\S]*runtimeEligible[\s\S]*= true/);
   assert.match(environment, /async function loadEnvironmentBankVersion[\s\S]*WHERE bank_key = \$1 AND bank_version = \$2/);
 });
+
+test("trajectory preference ignores active banks fenced off from runtime selection", () => {
+  const lookup = readFileSync(new URL("./sandboxRediagnosisTrajectoryLookup.ts", import.meta.url), "utf8");
+  const activeVersion = lookup.slice(
+    lookup.indexOf("SELECT bank_version FROM private.specialist_sandbox_environment_banks"),
+    lookup.indexOf(") THEN 2"),
+  );
+  assert.match(activeVersion, /active = true/);
+  assert.match(activeVersion, /COALESCE\\(\\(capability_policy->>'runtimeEligible'\\)::boolean, true\\) = true/);
+});
