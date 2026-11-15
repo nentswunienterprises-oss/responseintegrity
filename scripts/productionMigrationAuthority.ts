@@ -25,6 +25,7 @@ export type ProductionMigrationAuthority = {
     migrations: BaselineMigration[];
   };
   managedMigrations: ManagedMigration[];
+  migrationBatches?: Record<string, string[]>;
   // Staged for isolated Preview validation only; never considered by Production plan/apply.
   previewOnlyMigrations?: Array<{ path: string; description: string }>;
 };
@@ -35,6 +36,19 @@ const LEDGER_TABLE = "private.ri_production_schema_migrations";
 
 function fail(message: string): never {
   throw new Error(message);
+}
+
+export function selectManagedMigrations(authority: ProductionMigrationAuthority, batchName?: string) {
+  if (!batchName) return authority.managedMigrations;
+  const paths = authority.migrationBatches?.[batchName];
+  if (!Array.isArray(paths) || paths.length === 0) fail("Unknown or empty production migration batch: " + batchName);
+  if (new Set(paths).size !== paths.length) fail("Production migration batch contains duplicate paths: " + batchName);
+  const managedByPath = new Map(authority.managedMigrations.map((item) => [item.path, item]));
+  return paths.map((migrationPath) => {
+    const migration = managedByPath.get(migrationPath);
+    if (!migration) fail("Production migration batch references an unmanaged migration: " + migrationPath);
+    return migration;
+  });
 }
 
 function migrationPath(value: string) {
@@ -356,6 +370,10 @@ async function plan() {
   );
   assertProductionDatabaseTarget(databaseUrl, verification.authority);
 
+  const selected = selectManagedMigrations(
+    verification.authority,
+    String(process.env.RI_PRODUCTION_MIGRATION_BATCH || "") || undefined,
+  );
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
   try {
@@ -370,11 +388,11 @@ async function plan() {
     }
 
     const ledger = await verifyLedgerAgainstFiles(client, verification.authority);
-    const pending = verification.authority.managedMigrations.filter(
+    const pending = selected.filter(
       (item) => !ledger.has(item.path),
     );
     console.log("[DB AUTHORITY] Verified baseline entries: " + verification.baselineCount);
-    console.log("[DB AUTHORITY] Managed migrations pending: " + pending.length);
+    console.log("[DB AUTHORITY] Managed migrations in selected plan: " + pending.length);
     for (const item of pending) {
       console.log(" - " + item.path + " [" + item.risk + "] " + item.description);
     }
@@ -386,6 +404,9 @@ async function plan() {
 async function apply() {
   const verification = verifyProductionMigrationAuthority();
   const authority = verification.authority;
+  const batchName = String(process.env.RI_PRODUCTION_MIGRATION_BATCH || "");
+  if (!batchName) fail("Production apply requires an explicit RI_PRODUCTION_MIGRATION_BATCH.");
+  const selected = selectManagedMigrations(authority, batchName);
   const confirmation = String(process.env.RI_PRODUCTION_MIGRATION_CONFIRMATION || "");
   if (confirmation !== authority.confirmationPhrase) {
     fail(
@@ -417,7 +438,7 @@ async function apply() {
     }
 
     let ledger = await verifyLedgerAgainstFiles(client, authority);
-    for (const item of authority.managedMigrations) {
+    for (const item of selected) {
       const content = readMigration(item.path);
       const record = migrationRecord(item.path, content, sourceCommit, "migration");
       if (ledger.has(item.path)) {
