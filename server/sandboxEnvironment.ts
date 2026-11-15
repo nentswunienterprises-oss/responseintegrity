@@ -1731,9 +1731,16 @@ async function planNextRep(input: {
 
   const phase = input.bundle.truth.canonical_phase;
   if (phase === "Controlled Discomfort" || phase === "Time Pressure Stability") {
+    const activeTopicKey = input.bundle.trajectory.active_topic_key;
+    if (!activeTopicKey) {
+      return {
+        blockedByRoute: true as const,
+        targetPhase: "Structured Execution" as const,
+      };
+    }
     const timerContract = await loadLatestTpsTimerContract({
       studentId: input.bundle.trajectory.student_id,
-      topic: input.bundle.trajectory.active_topic_key,
+      topic: activeTopicKey,
     });
     if (!timerContract) {
       return {
