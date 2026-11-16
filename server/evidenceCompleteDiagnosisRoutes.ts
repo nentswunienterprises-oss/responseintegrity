@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from "express";
-import { diagnosisContinuationContext, diagnosisDecisionWithContext, authorizeDiagnosisContinuation, bindDiagnosisOpportunitySession } from "./diagnosisContinuation";
+import { diagnosisContinuationContext, diagnosisDecisionWithContext, diagnosisSessionKindForPendingRun, authorizeDiagnosisContinuation, bindDiagnosisOpportunitySession } from "./diagnosisContinuation";
 import { isAuthenticated } from "./supabaseAuth";
 import { isSandboxCrossModeCaptureEnabled } from "./sandboxCrossModeCapture";
 import { storage, supabase } from "./storage";
@@ -1355,7 +1355,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
       if (!studentId || !topic) return res.status(400).json({ message: "Student and topic are required." });
       const authority = await loadParentDiagnosisAuthority({ studentId, tutorId, topic });
       if (!authority) return res.status(409).json({ message: "The current parent-reported topic symptoms and starting recommendation could not be found. Refresh the student record before starting diagnosis." });
-      const result = await pool.query(`SELECT id, decision FROM ${RUN_TABLE}
+      const result = await pool.query(`SELECT id, decision, session_context, activity_kind, scheduled_session_id, probe_history FROM ${RUN_TABLE}
         WHERE tutor_id::text=$1 AND student_id::text=$2 AND lower(topic)=lower($3)
           AND status IN ('in_progress','blocked') ORDER BY created_at ASC LIMIT 1`, [tutorId,studentId,topic]);
       const pendingRun = result.rows[0];
@@ -1364,8 +1364,21 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
         await pool.query(`UPDATE ${RUN_TABLE} SET status='superseded', updated_at=NOW()
           WHERE id=$1 AND status IN ('in_progress','blocked')`, [pendingRun.id]);
       }
+      const pendingHistory = pendingRun
+        ? parseJsonValue<DiagnosisProbeResult[]>(pendingRun.probe_history, [])
+        : [];
+      const pendingSessionContextKind = pendingRun && !parentReportChanged
+        ? diagnosisSessionKindForPendingRun({
+            decision: parseJsonValue(pendingRun.decision, null),
+            historyLength: pendingHistory.length,
+            scheduledSessionId: pendingRun.scheduled_session_id || null,
+            sessionContext: pendingRun.session_context,
+          })
+        : null;
       return res.json({
         runId: parentReportChanged ? null : pendingRun?.id || null,
+        sessionContextKind: pendingSessionContextKind,
+        activityKind: parentReportChanged ? null : pendingRun?.activity_kind || null,
         startingPhase: authority.startingPhase,
         topicSymptoms: authority.symptoms,
         parentReportChanged,
