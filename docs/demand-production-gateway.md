@@ -41,7 +41,7 @@ Both assignment APIs check the Demand gate before creating students/Trial placem
 
 ## Database changes
 
-Apply the migrations in timestamp order **before** deploying the application. The existing Demand Gateway migration establishes the original gate; `20261110100000_parent_qualification_assessment.sql` adds persisted four-part assessment evidence, `20261110101000_enforce_four_part_parent_qualification.sql` prevents terminal decisions without all four sections, and the Part 3 rubric migration enforces its single answer and criterion review at the database layer. These additions are transactional and repeatable; none backfills historical records.
+Apply the migrations in timestamp order **before** deploying the application. The existing Demand Gateway migration establishes the original gate; `20261110100000_parent_qualification_assessment.sql` adds persisted four-part assessment evidence, `20261110101000_enforce_four_part_parent_qualification.sql` prevents terminal decisions without all four sections, and `20261116110000_enforce_part3_understanding_rubric.sql` enforces the approved single answer and five criterion reviews at the database layer. These additions are transactional and repeatable; none backfills historical records.
 
 | Table / column | Purpose | New default | Existing rows / migration |
 |---|---|---|---|
