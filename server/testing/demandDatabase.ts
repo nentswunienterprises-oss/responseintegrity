@@ -9,10 +9,12 @@ export async function createDemandDatabase() {
   const migration = await readFile(new URL('../../migrations/20260916191307_demand_production_gateway.sql', import.meta.url), 'utf8');
   const assessmentMigration = await readFile(new URL('../../migrations/20261110100000_parent_qualification_assessment.sql', import.meta.url), 'utf8');
   const completionMigration = await readFile(new URL('../../migrations/20261110101000_enforce_four_part_parent_qualification.sql', import.meta.url), 'utf8');
+  const part3RubricMigration = await readFile(new URL('../../migrations/20261116110000_enforce_part3_understanding_rubric.sql', import.meta.url), 'utf8');
   await db.exec(migration);
   await db.exec(assessmentMigration);
   await db.exec(completionMigration);
-  return { db, migration, assessmentMigration, completionMigration };
+  await db.exec(part3RubricMigration);
+  return { db, migration, assessmentMigration, completionMigration, part3RubricMigration };
 }
 
 // Minimal PostgREST transport for real Supabase clients against isolated PostgreSQL.
