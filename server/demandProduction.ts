@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { QUALIFICATION_STATUSES, handoverSla, isParentQualificationAssessmentComplete } from "../shared/demandProduction";
+import { QUALIFICATION_STATUSES, RI_UNDERSTANDING_DISPOSITIONS, handoverSla, isParentQualificationAssessmentComplete } from "../shared/demandProduction";
 
 const evidenceSchema = z.object({
   parentAccount: z.string().max(3000).optional(),
@@ -9,6 +9,11 @@ const evidenceSchema = z.object({
   responses: z.record(z.string(), z.string().max(3000)).optional(),
   scriptPresented: z.boolean().optional(),
   explanationVersion: z.string().max(80).optional(),
+  understandingReviewVersion: z.string().max(80).optional(),
+  understandingReview: z.record(z.string(), z.object({
+    disposition: z.enum(RI_UNDERSTANDING_DISPOSITIONS),
+    note: z.string().max(1000).optional(),
+  }).strict()).optional(),
   pricePresentationDelivered: z.boolean().optional(),
   meetingClosureDelivered: z.boolean().optional(),
 }).strict();
