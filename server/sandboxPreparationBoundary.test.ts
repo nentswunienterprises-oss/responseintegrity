@@ -45,6 +45,13 @@ test("existing Map is the only preparation confirmation; Sandbox runner never re
  assert.doesNotMatch(sql,/GRANT SELECT ON .*specialist_sandbox_preparation_events TO authenticated/);
 });
 
+test("single unobserved Sandbox topic launches the explicit entry Diagnosis context",()=>{
+ const entryBranch=map.slice(map.indexOf("if (!topicState.hasObservedState)"),
+  map.indexOf("// The stateful Sandbox runner owns both independently evaluated tracks"));
+ assert.match(entryBranch,/isSandboxMode[\s\S]*sessionContextKind=sandbox_entry_diagnosis/);
+ assert.match(entryBranch,/context=training\$\{entryActivityParam\}\$\{sessionParam\}/);
+});
+
 test("Map preparation receipt requires assigned Sandbox mode and rejects browser-supplied rep lineage",()=>{
  assert.match(route,/authority\.mode !== "sandbox"/);
  assert.match(route,/tutorAssignmentId: authority\.assignmentId/);

@@ -27,6 +27,39 @@ export function diagnosisDecisionWithContext(decision: EvidenceCompleteDiagnosis
     ...(previous && previous.decisionPolicyVersion !== 2
       ? { previousDecision: previous } : previous?.previousDecision ? { previousDecision: previous.previousDecision } : {}) };
 }
+
+/** An unfinished prescribed opportunity stays bound to its lesson until formal continuation is allowed. */
+export function bindDiagnosisOpportunitySession(input: {
+  context: DiagnosisContinuationContext;
+  scheduledSessionId?: string | null;
+  sessionKind?: DiagnosisSessionLineage["sessionKind"];
+  historyLength: number;
+  decision: Pick<EvidenceCompleteDiagnosisDecision, "complete" | "nextProbeId">;
+}): DiagnosisContinuationContext {
+  const requested = input.scheduledSessionId || null;
+  if (!requested) return input.context;
+  const sessions = input.context.sessions;
+  const current = sessions.at(-1);
+  if (!current) throw Object.assign(new Error("The persisted diagnosis session lineage is invalid."), { status: 409 });
+  if (current.scheduledSessionId === requested) return input.context;
+
+  if (current.scheduledSessionId == null && input.historyLength === current.startProbeIndex) {
+    return {
+      ...input.context,
+      sessions: [...sessions.slice(0, -1), {
+        ...current,
+        scheduledSessionId: requested,
+        ...(input.sessionKind ? { sessionKind: input.sessionKind } : {}),
+      }],
+    };
+  }
+
+  if (!input.decision.complete && input.decision.nextProbeId) {
+    throw Object.assign(new Error("Finish the prescribed diagnosis opportunity in its bound lesson before starting another session."), { status: 409 });
+  }
+  return input.context;
+}
+
 export async function authorizeDiagnosisContinuation(input: {
   tutorId: string; studentId: string; scheduledSessionId: string;
   context: DiagnosisContinuationContext; historyLength: number;

@@ -38,3 +38,17 @@ export function resolveSandboxRediagnosisEpisodeRun<T extends EpisodeRun>(
   return current.find(row => row.status === "blocked") ||
     current.find(row => row.status === "active") || null;
 }
+
+
+/** Select one trajectory without allowing bank-version recency to override an episode. */
+export function selectSandboxRediagnosisTrajectoryCandidate<T extends {
+  trajectory_resolution_priority: number | string;
+}>(rows: readonly T[]): T | null {
+  if (!rows.length) return null;
+  const priority = Number(rows[0].trajectory_resolution_priority);
+  if (!Number.isInteger(priority) || priority < 0 || priority > 3)
+    throw new Error("Invalid Sandbox trajectory resolution priority");
+  if (rows[1] && Number(rows[1].trajectory_resolution_priority) === priority)
+    throw new Error("Ambiguous Sandbox trajectory version transition");
+  return rows[0];
+}

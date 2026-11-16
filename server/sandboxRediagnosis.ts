@@ -1,6 +1,6 @@
 import { createHmac } from "crypto";
 import { isSandboxCrossModeCaptureEnabled } from "./sandboxCrossModeCapture";
-import { diagnosisContinuationContext, diagnosisDecisionWithContext, authorizeDiagnosisContinuation } from "./diagnosisContinuation";
+import { diagnosisContinuationContext, diagnosisDecisionWithContext, authorizeDiagnosisContinuation, bindDiagnosisOpportunitySession } from "./diagnosisContinuation";
 import { pool } from "./db";
 import { loadTutorOperationalModeAuthority } from "./tutorOperationalModeAuthority";
 import {
@@ -42,10 +42,11 @@ import {
   type PersistedTpsTimerContract,
 } from "./tpsTimingAuthority";
 import { getSandboxEnvironmentHistory, initializeSandboxNativeEvidenceTrajectory } from "./sandboxEnvironment";
-import { resolveSandboxRediagnosisEpisodeRun, canRetireSupersededEmptySandboxEpisode, sandboxRediagnosisSelectionSeed } from "./sandboxRediagnosisEpisode";
+import { resolveSandboxRediagnosisEpisodeRun, canRetireSupersededEmptySandboxEpisode, sandboxRediagnosisSelectionSeed, selectSandboxRediagnosisTrajectoryCandidate } from "./sandboxRediagnosisEpisode";
 import { SANDBOX_DIAGNOSIS_EXCEPTION_NARRATIVE_VERSION } from "@shared/sandboxDiagnosisExceptionNarrativesV2";
 
 import { projectSandboxNativeDiagnosisOutcome, SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION } from "./sandboxNativeDiagnosisProjection";
+import { buildSandboxRediagnosisTrajectoryLookup } from "./sandboxRediagnosisTrajectoryLookup";
 
 const BANK_KEY = "sandbox_stateful_environment";
 
@@ -206,25 +207,21 @@ async function loadTrajectory(input: {
   tutorAssignmentId: string;
   tutorId: string;
   studentId: string;
+  trajectoryId?: string | null;
+  rediagnosisRunId?: string | null;
 }) {
-  const result = await pool.query(
-    `SELECT t.*, truth.canonical_phase, truth.canonical_stability,
-            truth.canonical_route, truth.canonical_targeted_rediagnosis_phase,
-            truth.trajectory_seed, truth.behavior_model_version, truth.continuity_tags
-       FROM specialist_sandbox_trajectories t
-       JOIN private.specialist_sandbox_trajectory_truth truth
-         ON truth.trajectory_id = t.id
-      WHERE t.tutor_assignment_id = $1
-        AND t.tutor_id = $2
-        AND t.student_id = $3
-        AND t.bank_key = $4
-        AND t.status = 'active'
-      ORDER BY t.created_at DESC
-      LIMIT 1`,
-    [input.tutorAssignmentId, input.tutorId, input.studentId, BANK_KEY],
-  );
-  const row = result.rows[0];
-  if (!row) throw httpError(409, "No active Sandbox trajectory is available.");
+  const lookup = buildSandboxRediagnosisTrajectoryLookup({
+    ...input,
+    bankKey: BANK_KEY,
+  });
+  const result = await pool.query(lookup.sql, lookup.values);
+  let row: any;
+  try {
+    row = selectSandboxRediagnosisTrajectoryCandidate(result.rows);
+  } catch {
+    throw httpError(409, "More than one Sandbox trajectory could own this re-diagnosis route. No trajectory was selected; resolve the version transition before continuing.");
+  }
+  if (!row) throw httpError(409, "No active Sandbox trajectory matches this re-diagnosis episode.");
   return {
     trajectory: row as TrajectoryRow,
     truth: {
@@ -476,11 +473,13 @@ async function plan(input: {
   tutorId: string;
   studentId: string;
   scheduledSessionId?: string | null;
+  trajectoryId?: string | null;
+  rediagnosisRunId?: string | null;
 }) {
   const { trajectory, truth } = await loadTrajectory(input);
   const { run, truth: diagnosisTruth } = await ensureRediagnosisRun({ trajectory, truth, scheduledSessionId: input.scheduledSessionId });
 
-  const context = diagnosisContinuationContext(run.specialist_decision, run.specialist_probe_history.length, input.scheduledSessionId || null);
+  let context = diagnosisContinuationContext(run.specialist_decision, run.specialist_probe_history.length, input.scheduledSessionId || null);
   const sessionStartProbeIndex = context.sessions.at(-1)!.startProbeIndex;
   const canonicalState = rebuildSandboxDiagnosisState({
     sessionStartProbeIndex,
@@ -493,6 +492,12 @@ async function plan(input: {
     history: run.specialist_probe_history,
   });
   const canonicalDecision = evaluateEvidenceCompleteDiagnosis(canonicalState);
+  context = bindDiagnosisOpportunitySession({
+    context,
+    scheduledSessionId: input.scheduledSessionId,
+    historyLength: run.specialist_probe_history.length,
+    decision: canonicalDecision,
+  });
 
   if (canonicalDecision.complete) {
     return { trajectory, truth, run, diagnosisTruth, canonicalState, specialistState, canonicalDecision,
@@ -516,7 +521,7 @@ async function plan(input: {
     bankVersion: trajectory.bank_version,
     probeId: canonicalDecision.nextProbeId,
   });
-  const history = await getSandboxEnvironmentHistory(input);
+  const history = await getSandboxEnvironmentHistory({ ...input, bankVersion: trajectory.bank_version });
   const priorOutcomes = await loadPriorDiagnosisOutcomes(trajectory.id);
   const selected = projectSandboxNativeDiagnosisOutcome(selectSandboxDiagnosisOutcome({
     seed: sandboxRediagnosisSelectionSeed({
@@ -529,6 +534,7 @@ async function plan(input: {
       startingPhase: run.target_phase,
       probeId: canonicalDecision.nextProbeId,
       sequenceNumber: diagnosisTruth.canonical_probe_history.length + 1,
+      diagnosisBankVersion: trajectory.bank_version,
       earliestUnsupportedCapability:
         history.readiness.policyAvailable
           ? history.readiness.earliestUnsupportedCapability
@@ -717,8 +723,13 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
   probeId?: DiagnosisProbeId | null;
 }) {
   await assertSandboxAccess(input);
-  if (input.scope === "diagnosis") await initializeSandboxNativeEvidenceTrajectory(input);
-  const { trajectory, truth } = await loadTrajectory(input);
+  const initializedTrajectoryId = input.scope === "diagnosis"
+    ? await initializeSandboxNativeEvidenceTrajectory(input)
+    : null;
+  const { trajectory, truth } = await loadTrajectory({
+    ...input,
+    trajectoryId: initializedTrajectoryId,
+  });
 
   const timerContract =
     input.scope === "handover" &&
@@ -763,6 +774,7 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
       startingPhase: input.startingPhase,
       probeId,
       sequenceNumber: input.sequenceNumber,
+      diagnosisBankVersion: trajectory.bank_version,
       earliestUnsupportedCapability: null,
       recentOutcomeKeys: [],
       behaviorModelVersion: truth.behavior_model_version,
@@ -870,7 +882,10 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
     bankVersion: prepared.bankVersion,
     probeId: prepared.probeId as DiagnosisProbeId,
   });
-  const { trajectory, truth } = await loadTrajectory(input);
+  const { trajectory, truth } = await loadTrajectory({
+    ...input,
+    trajectoryId: prepared.trajectoryId,
+  });
   // Preparation and submission must select the *same* versioned outcome.
   // Re-evaluating a V2 Profile through V1 weighting can silently score the
   // Specialist against a student response they were never shown.
@@ -882,6 +897,7 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
       startingPhase: input.startingPhase,
       probeId: prepared.probeId as DiagnosisProbeId,
       sequenceNumber: input.sequenceNumber,
+      diagnosisBankVersion: prepared.bankVersion,
       earliestUnsupportedCapability: null,
       recentOutcomeKeys: [],
       behaviorModelVersion: truth.behavior_model_version,
@@ -1208,7 +1224,7 @@ export async function submitSandboxRediagnosisProbe(input: {
   submission: SandboxDiagnosisSubmittedProbe;
 }) {
   await assertSandboxAccess(input);
-  const planned = await plan(input);
+  const planned = await plan({ ...input, trajectoryId: input.trajectoryId, rediagnosisRunId: input.rediagnosisRunId });
   if (planned.resolved) throw httpError(409, "Apply the recorded diagnosis result before ordinary Training.");
   if (planned.blocked) throw httpError(409, planned.canonicalDecision.reason);
   if (
@@ -1414,7 +1430,7 @@ export async function submitSandboxRediagnosisProbe(input: {
   }
   if (complete) await persistSandboxDiagnosisPlacement(pool, planned.trajectory.id, decisionComparison);
 
-  const history = await getSandboxEnvironmentHistory(input);
+  const history = await getSandboxEnvironmentHistory({ ...input, bankVersion: planned.trajectory.bank_version });
   return {
     studentId: planned.trajectory.student_id,
     turnId,
@@ -1491,12 +1507,12 @@ async function persistSandboxDiagnosisPlacement(db: Pick<typeof pool, "query">, 
 }
 
 export async function resolveSandboxRecordedDiagnosis(input: {
-  tutorAssignmentId: string; tutorId: string; studentId: string; rediagnosisRunId: string;
+  tutorAssignmentId: string; tutorId: string; studentId: string; trajectoryId: string; rediagnosisRunId: string;
   scheduledSessionId?: string | null;
 }) {
   await assertSandboxAccess(input);
-  const planned = await plan(input);
-  if (!planned.resolved || planned.run.id !== input.rediagnosisRunId) throw httpError(409, "The recorded episode does not establish a complete placement.");
+  const planned = await plan({ ...input, trajectoryId: input.trajectoryId, rediagnosisRunId: input.rediagnosisRunId });
+  if (planned.trajectory.id !== input.trajectoryId || !planned.resolved || planned.run.id !== input.rediagnosisRunId) throw httpError(409, "The recorded episode does not establish a complete placement for this trajectory.");
   const comparison = compareSandboxDiagnosisDecisions({ canonicalState: planned.canonicalState,
     specialistState: planned.specialistState, sequenceNumber: planned.run.specialist_probe_history.length,
     sessionNumber: planned.trajectory.session_number, phase: planned.run.target_phase,
@@ -1517,11 +1533,11 @@ export async function resolveSandboxRecordedDiagnosis(input: {
 }
 
 export async function continueSandboxDiagnosis(input: {
-  tutorAssignmentId: string; tutorId: string; studentId: string; rediagnosisRunId: string; scheduledSessionId: string;
+  tutorAssignmentId: string; tutorId: string; studentId: string; trajectoryId: string; rediagnosisRunId: string; scheduledSessionId: string;
 }) {
   await assertSandboxAccess(input);
-  const planned = await plan(input);
-  if (!planned.blocked || planned.run.id !== input.rediagnosisRunId) throw httpError(409, "Continue only the paused, unfinished episode.");
+  const planned = await plan({ ...input, trajectoryId: input.trajectoryId, rediagnosisRunId: input.rediagnosisRunId });
+  if (planned.trajectory.id !== input.trajectoryId || !planned.blocked || planned.run.id !== input.rediagnosisRunId) throw httpError(409, "Continue only the paused, unfinished episode on this trajectory.");
   const context = await authorizeDiagnosisContinuation({ tutorId: input.tutorId, studentId: input.studentId,
     scheduledSessionId: input.scheduledSessionId, context: planned.context,
     historyLength: planned.run.specialist_probe_history.length, decision: planned.canonicalDecision }, pool);

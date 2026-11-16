@@ -77,6 +77,8 @@ export type SandboxDiagnosisOutcomeSelectionContext = {
   startingPhase: TopicPhase;
   probeId: DiagnosisProbeId;
   sequenceNumber: number;
+  /** Persistent diagnosis outcome bank version; not the trajectory behavior model. */
+  diagnosisBankVersion?: number;
   earliestUnsupportedCapability?: SandboxCapabilityLayer | null;
   recentOutcomeKeys?: string[];
   /** V1 preserves issued diagnostic outcomes; V2 uses the student's profile. */
@@ -289,6 +291,30 @@ export function selectSandboxDiagnosisOutcome(input: {
   if (!eligible.length) {
     throw new Error("Sandbox diagnosis has no observable, eligible V2 outcomes; preserve evidence and do not fabricate one.");
   }
+
+  // Historical V1 trajectories may still read their pinned outcome bank after
+  // that bank is no longer active. Collapse aliases with the same canonical
+  // observations and trajectory class so they cannot be counted as distinct
+  // evidence or increase a scenario's selection weight. Keep the lexical
+  // first key as the stable representative, and retain all aliases for recent
+  // outcome exclusion below.
+  const groupedByCanonicalSignature = new Map<
+    string,
+    SandboxDiagnosisOutcomeDefinition[]
+  >();
+  for (const definition of eligible) {
+    const observationSignature = definition.canonicalObservations
+      .map(({ dimensionId, behaviorId }) => `${dimensionId}=${behaviorId}`)
+      .sort()
+      .join("|");
+    const signature = `${definition.trajectoryClass}::${observationSignature}`;
+    const group = groupedByCanonicalSignature.get(signature) || [];
+    group.push(definition);
+    groupedByCanonicalSignature.set(signature, group);
+  }
+  const eligibleGroups = [...groupedByCanonicalSignature.values()]
+    .map((group) => [...group].sort((a, b) => a.key.localeCompare(b.key)));
+
   if (hasSandboxDevelopmentPlan(input.context.continuityTags)) {
     if (input.context.behaviorModelVersion !== 2 || !input.profileSeed || !input.context.developmentTopicKey) {
       throw new Error("Sandbox development Diagnosis requires versioned, owned topic context.");
@@ -297,13 +323,13 @@ export function selectSandboxDiagnosisOutcome(input: {
     const lessons = sandboxDevelopmentLessons(input.context.continuityTags!, input.context.developmentTopicKey, phase);
     const weak = sandboxProfileDifficultyPhase(resolveSandboxBehaviorProfile(input.profileSeed)) === phase;
     const desired = weak && lessons === 0 && input.context.probeId !== "stack.normal_independent" ? "conditional" : "supported";
-    const scenes = eligible.filter(item => item.trajectoryClass === desired);
+    const scenes = eligibleGroups.filter(group => group[0].trajectoryClass === desired);
     if (!scenes.length) throw new Error(`Sandbox development Diagnosis has no compatible ${desired} response; preserve evidence for scenario repair.`);
-    const score = (item: SandboxDiagnosisOutcomeDefinition) => -Math.log(sandboxDevelopmentDraw([
+    const score = (group: SandboxDiagnosisOutcomeDefinition[]) => -Math.log(sandboxDevelopmentDraw([
       "sandbox-development-diagnosis-v1", input.seed, input.context.sequenceNumber,
-      input.context.probeId, item.key, item.version,
-    ].join(":"))) / Math.max(0.05, item.weight);
-    const chosen = [...scenes].sort((a,b) => score(a)-score(b) || a.key.localeCompare(b.key))[0];
+      input.context.probeId, group[0].key, group[0].version,
+    ].join(":"))) / Math.max(0.05, group[0].weight);
+    const chosen = [...scenes].sort((a,b) => score(a)-score(b) || a[0].key.localeCompare(b[0].key))[0][0];
     // The selected outcome is a complete learner-response scenario authored
     // for this probe. Preserve its narrative and its cross-layer observations:
     // a development phase may influence which coherent scenario is selected,
@@ -315,15 +341,17 @@ export function selectSandboxDiagnosisOutcome(input: {
   }
 
   const recent = new Set(input.context.recentOutcomeKeys || []);
-  const nonRepeated = eligible.filter((definition) => !recent.has(definition.key));
-  const repetitionEligible = nonRepeated.length ? nonRepeated : eligible;
+  const nonRepeated = eligibleGroups.filter(
+    (group) => !group.some((definition) => recent.has(definition.key)),
+  );
+  const repetitionEligible = nonRepeated.length ? nonRepeated : eligibleGroups;
   const target = input.context.earliestUnsupportedCapability || null;
   const targeted = target
-    ? repetitionEligible.filter((definition) =>
-        definition.challengeCapabilities?.includes(target)
+    ? repetitionEligible.filter((group) =>
+        group.some((definition) => definition.challengeCapabilities?.includes(target))
       )
     : [];
-  const candidates = targeted.length ? targeted : repetitionEligible;
+  const candidates = (targeted.length ? targeted : repetitionEligible).map((group) => group[0]);
 
   const chosen = [...candidates].sort((a, b) => {
     const score = (definition: SandboxDiagnosisOutcomeDefinition) =>
@@ -355,6 +383,9 @@ export function selectSandboxDiagnosisOutcome(input: {
   if (chosen.trajectoryClass !== "not_observed" && chosen.trajectoryClass !== "confounded") {
     throw new Error("A V2 integrity scenario cannot replace an ordinary diagnostic outcome.");
   }
+  // Bank version 3 carries the reviewed narrative with the outcome definition.
+  // Do not replace it with the older shared story; retain the class guard above.
+  if (input.context.diagnosisBankVersion === 3) return chosen;
 
   // A worked model that guides the method also contaminates adjacent
   // independence/repeatability judgments. An on-screen method cue removed

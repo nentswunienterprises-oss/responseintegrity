@@ -68,12 +68,19 @@ test("prepare and submit share projected truth and invalidate older issued forms
 test("first native Diagnosis initializes only an owned Sandbox trajectory before loading it", () => {
   const source = readFileSync(new URL("./sandboxRediagnosis.ts", import.meta.url), "utf8");
   const native = source.slice(source.indexOf("export async function prepareSandboxLiveEvidenceSimulation"));
-  assert.match(native, /await assertSandboxAccess\(input\);\s+if \(input.scope === "diagnosis"\) await initializeSandboxNativeEvidenceTrajectory\(input\);\s+const \{ trajectory, truth \} = await loadTrajectory\(input\)/);
+  assert.match(native, /await assertSandboxAccess\(input\);[\s\S]*?const initializedTrajectoryId = input.scope === "diagnosis"[\s\S]*?await initializeSandboxNativeEvidenceTrajectory\(input\)[\s\S]*?loadTrajectory\(\{[\s\S]*?trajectoryId: initializedTrajectoryId/);
+  assert.match(native, /trajectoryId: prepared.trajectoryId/);
   const environment = readFileSync(new URL("./sandboxEnvironment.ts", import.meta.url), "utf8");
+  const history = environment.slice(environment.indexOf("export async function getSandboxEnvironmentHistory"));
+  assert.match(history, /bankVersion\?: number/);
+  assert.match(history, /loadEnvironmentBankVersion\(DEFAULT_SANDBOX_ENVIRONMENT_BANK_KEY, input.bankVersion\)/);
+  const planner = source.slice(source.indexOf("async function plan("), source.indexOf("function projectProbe("));
+  assert.match(planner, /getSandboxEnvironmentHistory\(\{ \.\.\.input, bankVersion: trajectory.bank_version \}\)/);
   const initialize = environment.slice(environment.indexOf("export async function initializeSandboxNativeEvidenceTrajectory"), environment.indexOf("export async function getSandboxEnvironmentHistory"));
   assert.match(initialize, /await assertSandboxAccess\(input\)/);
   assert.match(initialize, /loadActiveEnvironmentBank/);
-  assert.match(initialize, /await ensureTrajectory\(\{ \.\.\.input, bank \}\)/);
+  assert.match(initialize, /const bundle = await ensureTrajectory\(\{ \.\.\.input, bank \}\)/);
+  assert.match(initialize, /return bundle\.trajectory\.id/);
   assert.ok(!/INSERT|UPDATE|DELETE|recordSandbox|submitSandbox/.test(initialize));
 });
 
@@ -91,4 +98,45 @@ test("stateful targeted re-diagnosis scores honest protocol boundaries and versi
   const planner = source.slice(source.indexOf("async function plan("), source.indexOf("function projectProbe("));
   assert.match(planner, /projectSandboxNativeDiagnosisOutcome\(selectSandboxDiagnosisOutcome\(/);
   assert.match(planner, /"native-protocol-v" \+ SANDBOX_NATIVE_DIAGNOSIS_PROTOCOL_VERSION/);
+});
+
+
+test("staged bank versions cannot be selected for new Sandbox work and V4 retains V1 Training schema", () => {
+  const environment = readFileSync(new URL("./sandboxEnvironment.ts", import.meta.url), "utf8");
+  const schemaMap = environment.slice(
+    environment.indexOf("const SANDBOX_BANK_TRAINING_SCHEMA_VERSION"),
+    environment.indexOf("const trainingSchemaVersionForSandboxBank"),
+  );
+  assert.match(schemaMap, /4:\s*1/);
+  const activeLoader = environment.slice(
+    environment.indexOf("async function loadActiveEnvironmentBank"),
+    environment.indexOf("const jsonStringArray", environment.indexOf("async function loadActiveEnvironmentBank")),
+  );
+  assert.match(activeLoader, /active = true[\s\S]*runtimeEligible[\s\S]*= true/);
+  assert.match(environment, /async function loadEnvironmentBankVersion[\s\S]*WHERE bank_key = \$1 AND bank_version = \$2/);
+});
+
+test("trajectory preference ignores active banks fenced off from runtime selection", () => {
+  const lookup = readFileSync(new URL("./sandboxRediagnosisTrajectoryLookup.ts", import.meta.url), "utf8");
+  const activeVersion = lookup.slice(
+    lookup.indexOf("SELECT bank_version FROM private.specialist_sandbox_environment_banks"),
+    lookup.indexOf(") THEN 2"),
+  );
+  assert.match(activeVersion, /active = true/);
+  assert.match(activeVersion, /COALESCE\(\(capability_policy->>'runtimeEligible'\)::boolean, true\) = true/);
+});
+
+test("new Sandbox trajectories select the highest active runtime-eligible bank", () => {
+  const environment = readFileSync(new URL("./sandboxEnvironment.ts", import.meta.url), "utf8");
+  const activeBank = environment.slice(
+    environment.indexOf("async function loadActiveEnvironmentBank"),
+    environment.indexOf("const jsonStringArray", environment.indexOf("async function loadActiveEnvironmentBank")),
+  );
+  assert.match(activeBank, /active = true[\s\S]*runtimeEligible[\s\S]*ORDER BY bank_version DESC[\s\S]*LIMIT 1/);
+});
+ 
+test("TPS Sandbox planning fails closed when trajectory topic authority is absent", () => {
+  const environment = readFileSync(new URL("./sandboxEnvironment.ts", import.meta.url), "utf8");
+  const planner = environment.slice(environment.indexOf("async function planNextRep("));
+  assert.match(planner, /const activeTopicKey = input\.bundle\.trajectory\.active_topic_key;[\s\S]*?if \(!activeTopicKey\) \{[\s\S]*?blockedByRoute: true[\s\S]*?targetPhase: "Structured Execution"[\s\S]*?const timerContract = await loadLatestTpsTimerContract\(\{[\s\S]*?topic: activeTopicKey/);
 });

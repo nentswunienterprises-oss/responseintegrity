@@ -7,6 +7,7 @@ import {
   persistSandboxSimulationAttempt,
   prepareSandboxSimulation,
 } from "../sandboxSimulation";
+import type { SandboxSimulationSubmission } from "@shared/sandboxSimulation";
 
 const fieldSchema = z.object({
   optionId: z.string().trim().min(1),
@@ -80,7 +81,9 @@ export function registerSandboxSimulationRoutes(app: Express) {
         tutorId: String(user.id),
         bankVersion: payload.bankVersion,
         scenarioFormId: payload.scenarioFormId,
-        submission: payload.submission,
+        // Zod has validated each nested field as required; its inferred output
+        // type is wider than the domain type under the installed Zod version.
+        submission: payload.submission as SandboxSimulationSubmission,
       });
       return res.status(201).json(result);
     } catch (error) {

@@ -3,7 +3,6 @@ import { z } from "zod";
 import { parseSandboxPreparationQuery } from "../sandboxPreparationQuery";
 import { isAuthenticated } from "../supabaseAuth";
 import {
-  armSandboxTimingRediagnosis,
   getSandboxEnvironmentHistory,
   prepareSandboxEnvironment,
   recordSandboxPreparation,
@@ -19,6 +18,7 @@ import {
   submitSandboxRediagnosisProbe,
 } from "../sandboxRediagnosis";
 import { loadTutorOperationalModeAuthorityForTutor } from "../tutorOperationalModeAuthority";
+import { parseSandboxRediagnosisActionInput } from "../sandboxRediagnosisRouteContract";
 
 const evidenceStatusSchema = z.enum(["observed", "not_observed", "confounded"]);
 
@@ -241,7 +241,10 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
         probeId: payload.probeId || null,
         formId: payload.formId,
         supportEvent: payload.supportEvent,
-        observations: payload.observations,
+        observations: payload.observations.map((observation) => ({
+          dimensionId: observation.dimensionId as string,
+          behaviorId: observation.behaviorId as string,
+        })),
       }));
     } catch (error) {
       return sendError(res, error, "Failed to record Sandbox simulated evidence.");
@@ -330,6 +333,9 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
       res.setHeader("Cache-Control", "no-store, max-age=0");
       return res.json(await getSandboxSessionPreparationPreview({
         ...payload,
+        studentId: payload.studentId as string,
+        scheduledSessionId: payload.scheduledSessionId as string,
+        topic: payload.topic as string,
         tutorAssignmentId: authority.assignmentId,
         tutorId: String(user.id),
       }));
@@ -349,6 +355,14 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
       }
       const result = await recordSandboxPreparation({
         ...payload,
+        studentId: payload.studentId as string,
+        scheduledSessionId: payload.scheduledSessionId as string,
+        topic: payload.topic as string,
+        attestedPhase: payload.attestedPhase as string,
+        planFingerprint: payload.planFingerprint as string,
+        problemPrepared: payload.problemPrepared as boolean,
+        conditionsReviewed: payload.conditionsReviewed as boolean,
+        evidencePlanReviewed: payload.evidencePlanReviewed as boolean,
         tutorAssignmentId: authority.assignmentId,
         tutorId: String(user.id),
       });
@@ -374,7 +388,7 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
         eventFormId: payload.eventFormId,
         scheduledSessionId: payload.scheduledSessionId || null,
         topic: payload.topic || null,
-        submission: payload.submission,
+        submission: payload.submission as import("../sandboxEnvironment").SandboxRepSubmission,
       });
       return res.status(201).json(result);
     } catch (error) {
@@ -387,9 +401,8 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
     app.post(`/api/tutor/sandbox-environment/rediagnosis/${action}`, isAuthenticated, async (req, res) => {
       try {
         const user = requireSpecialist(req, res); if (!user) return;
-        const payload = z.object({ tutorAssignmentId: z.string().min(1), studentId: z.string().min(1),
-          rediagnosisRunId: z.string().uuid(), scheduledSessionId: z.string().uuid() }).strict().parse(req.body);
-        return res.json(await handler({ ...payload, tutorId: String(user.id) }));
+        const payload = parseSandboxRediagnosisActionInput(req.body, String(user.id));
+        return res.json(await handler(payload));
       } catch (error) { return sendError(res, error, "The prescribed diagnosis continuation could not be applied."); }
     });
   }

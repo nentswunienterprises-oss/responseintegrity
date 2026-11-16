@@ -11,6 +11,14 @@ on:
         options:
           - plan
           - apply
+      batch:
+        description: "Select the exact isolated production migration batch"
+        required: true
+        type: choice
+        default: sandbox_diagnosis_v2_seed
+        options:
+          - sandbox_diagnosis_v2_seed
+          - sandbox_diagnosis_v2_activate
       confirmation:
         description: "For apply, type THE_HUB exactly"
         required: false
@@ -42,6 +50,7 @@ jobs:
       RI_PRODUCTION_DATABASE_URL: ${{ secrets.RI_PRODUCTION_DATABASE_URL }}
       RI_PRODUCTION_MIGRATION_ACTOR: github:${{ github.actor }}
       RI_PRODUCTION_MIGRATION_CONFIRMATION: ${{ inputs.confirmation }}
+      RI_PRODUCTION_MIGRATION_BATCH: ${{ inputs.batch }}
     steps:
       - uses: actions/checkout@v4
         with:
