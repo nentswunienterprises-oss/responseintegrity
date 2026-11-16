@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createDemandDatabase } from './testing/demandDatabase';
-import { demandAssignmentBlock, handoverSla, PARENT_EXPERIENCE_QUESTIONS, SUPPORT_PREFERENCE_QUESTIONS, RI_EXPLANATION_SCRIPT } from '../shared/demandProduction';
+import { demandAssignmentBlock, handoverSla, PARENT_EXPERIENCE_QUESTIONS, SUPPORT_PREFERENCE_QUESTIONS, RI_EXPLANATION_SCRIPT, RI_EXPLANATION_QUESTIONS, RI_EXPLANATION_VERSION, isRiExplanationEvidenceComplete } from '../shared/demandProduction';
 import { buildProductionEconomy } from './productionEconomy';
 
 test('Demand migration, compatibility and database integrity boundaries', async (t) => {
@@ -209,6 +209,23 @@ test('approved Parent Qualification interview guide remains complete and individ
   assert.equal(SUPPORT_PREFERENCE_QUESTIONS.length, 11);
   assert.match(PARENT_EXPERIENCE_QUESTIONS[0], /^Tell me about your child/);
   assert.match(SUPPORT_PREFERENCE_QUESTIONS[10], /marks improved more slowly/);
-  assert.match(RI_EXPLANATION_SCRIPT, /^Thank you for sharing your experience with me/);
-  assert.match(RI_EXPLANATION_SCRIPT, /Diagnosis/);
+  assert.match(RI_EXPLANATION_SCRIPT, /^Thank you for explaining your child's experience with mathematics/);
+  assert.match(RI_EXPLANATION_SCRIPT, /planned sets of mathematical attempts/);
+  assert.match(RI_EXPLANATION_SCRIPT, /Progression is not based simply on finishing an exercise/);
+  assert.match(RI_EXPLANATION_SCRIPT, /athletic training/);
+  assert.equal(RI_EXPLANATION_QUESTIONS.length, 2);
+  assert.match(RI_EXPLANATION_QUESTIONS[0].question, /actually be doing during these sessions/);
+  assert.match(RI_EXPLANATION_QUESTIONS[1].question, /if your child gets stuck/);
+  const recorded = {
+    scriptPresented: true,
+    explanationVersion: RI_EXPLANATION_VERSION,
+    responses: {
+      ri_session_expectation: "Practising structured responses to mathematical questions.",
+      ri_stuck_expectation: "Observes the difficulty before correcting it.",
+    },
+  };
+  assert.equal(isRiExplanationEvidenceComplete(recorded), true);
+  assert.equal(isRiExplanationEvidenceComplete({ ...recorded, responses: { ...recorded.responses, ri_stuck_expectation: "" } }), false);
+  assert.equal(isRiExplanationEvidenceComplete({ ...recorded, explanationVersion: "legacy" }), false);
+  assert.equal(isRiExplanationEvidenceComplete({ scriptPresented: true, responses: { ri_parent_response: "Legacy single answer" } }), false);
 });
