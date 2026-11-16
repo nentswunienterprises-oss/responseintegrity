@@ -7,7 +7,7 @@ import { demandAssignmentBlock, handoverSla, PARENT_EXPERIENCE_QUESTIONS, SUPPOR
 import { buildProductionEconomy } from './productionEconomy';
 
 test('Demand migration, compatibility and database integrity boundaries', async (t) => {
-  const { db, migration, assessmentMigration, completionMigration } = await createDemandDatabase();
+  const { db, migration, assessmentMigration, completionMigration, part3RubricMigration } = await createDemandDatabase();
   t.after(() => db.close());
   const row = async (user: string) => (await db.query('SELECT * FROM parent_enrollments WHERE user_id=$1',[user])).rows[0];
   const command = (id: string, action: string, status: string | null = null, owner: string | null = null, entry: string | null = null, note: string | null = null, actor = 'coo') =>
@@ -22,6 +22,7 @@ test('Demand migration, compatibility and database integrity boundaries', async 
     await db.exec(migration);
     await db.exec(assessmentMigration);
     await db.exec(completionMigration);
+    await db.exec(part3RubricMigration);
     const legacy = await row('legacy');
     assert.equal(legacy.demand_flow_version,0); assert.equal(legacy.qualification_status,null);
     assert.equal(legacy.qualification_completed_at,null); assert.equal(legacy.handover_completed_at,null);
