@@ -92,7 +92,17 @@ test('real HTTP signup → Gateway → qualification → handover → assignment
     await ok('PATCH',`/api/hr/enrollments/${e.id}/demand`,'coo',{action:'assessment',assessment:{
       parentExperience:{parentAccount:'8 individual parent experience responses recorded.',responses:Object.fromEntries(Array.from({length:8},(_,index)=>[`experience_${index+1}`,`Parent experience response ${index+1}`]))},
       supportPreferences:{parentAccount:'11 individual support preference responses recorded.',responses:Object.fromEntries(Array.from({length:11},(_,index)=>[`support_${index+1}`,`Support preference response ${index+1}`]))},
-      riExplanation:{parentAccount:'RI explanation presented and parent response recorded.',scriptPresented:true,responses:{ri_parent_response:'Parent understands the distinction between understanding and independent execution.'}},
+      riExplanation:{
+        parentAccount:'RI explanation presented and both understanding checks recorded.',
+        scriptPresented:true,
+        explanationVersion:'conditioning-mechanism-v2',
+        responses:{
+          ri_session_expectation:'The learner practises structured independent mathematical responses using planned repetitions and evidence-led progression.',
+          ri_stuck_expectation:'The Specialist observes the breakdown, then targets the response with appropriately structured practice and correction.',
+        },
+        interviewerObservation:'Parent distinguishes repeated conditioned execution from an explanation-only tutoring session.',
+        followUp:'',
+      },
       commercialReadiness:{
         parentAccount:'Commercial readiness interview responses recorded.',
         responses:{
