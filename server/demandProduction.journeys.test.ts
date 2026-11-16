@@ -93,13 +93,20 @@ test('real HTTP signup → Gateway → qualification → handover → assignment
       parentExperience:{parentAccount:'8 individual parent experience responses recorded.',responses:Object.fromEntries(Array.from({length:8},(_,index)=>[`experience_${index+1}`,`Parent experience response ${index+1}`]))},
       supportPreferences:{parentAccount:'11 individual support preference responses recorded.',responses:Object.fromEntries(Array.from({length:11},(_,index)=>[`support_${index+1}`,`Support preference response ${index+1}`]))},
       riExplanation:{
-        parentAccount:'RI explanation presented and both understanding checks recorded.',
+        parentAccount:'RI explanation presented, one understanding response recorded, and five criteria reviewed.',
         scriptPresented:true,
         explanationVersion:'conditioning-mechanism-v2',
+        understandingReviewVersion:'conditioning-understanding-rubric-v1',
         responses:{
           ri_session_expectation:'The learner practises structured independent mathematical responses using planned repetitions and evidence-led progression.',
-          ri_stuck_expectation:'The Specialist observes the breakdown, then targets the response with appropriately structured practice and correction.',
         },
+        understandingReview:Object.fromEntries([
+          ['observe_independent_work',{disposition:'parent_articulated'}],
+          ['planned_repetitions',{disposition:'parent_articulated'}],
+          ['evidence_led_training',{disposition:'specialist_clarified',note:'Clarified that the Specialist records performance and repeats targeted practice.'}],
+          ['progressive_challenge',{disposition:'parent_articulated'}],
+          ['weekly_conditioning',{disposition:'parent_articulated'}],
+        ]),
         interviewerObservation:'Parent distinguishes repeated conditioned execution from an explanation-only tutoring session.',
         followUp:'',
       },
