@@ -11,6 +11,9 @@ import {
   RI_COMMERCIAL_PRESENTATION,
   RI_MEETING_CLOSURE,
   RI_EXPLANATION_SCRIPT,
+  RI_EXPLANATION_VERSION,
+  RI_EXPLANATION_QUESTIONS,
+  isRiExplanationEvidenceComplete,
   type ParentQualificationAssessment,
   type ParentQualificationSection,
 } from "@shared/demandProduction";
@@ -61,13 +64,13 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
   };
   const markScriptPresented = (presented: boolean) => {
     setAssessmentSaved(false);
-    setAssessment((current) => ({ ...current, riExplanation: { ...current.riExplanation, scriptPresented: presented } }));
+    setAssessment((current) => ({ ...current, riExplanation: { ...current.riExplanation, scriptPresented: presented, explanationVersion: presented ? RI_EXPLANATION_VERSION : undefined } }));
   };
   const sectionComplete = (section: ParentQualificationSection) => {
     const item = assessment[section];
     if (section === "parentExperience") return PARENT_EXPERIENCE_QUESTIONS.every((_, index) => Boolean(item?.responses?.[`experience_${index + 1}`]?.trim()));
     if (section === "supportPreferences") return SUPPORT_PREFERENCE_QUESTIONS.every((_, index) => Boolean(item?.responses?.[`support_${index + 1}`]?.trim()));
-    if (section === "riExplanation") return Boolean(item?.scriptPresented && item?.responses?.ri_parent_response?.trim());
+    if (section === "riExplanation") return isRiExplanationEvidenceComplete(item);
     const r = item?.responses || {};
     const selectedPriorities = (() => { try { return JSON.parse(r.commercial_priorities || "[]"); } catch { return []; } })();
     const expenditureComplete = r.existing_expenditure === "yes"
@@ -142,7 +145,12 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
         return <section key={section}><h4 className="font-semibold">{sectionLabels[section]}</h4>
           {section === "parentExperience" && PARENT_EXPERIENCE_QUESTIONS.map((question, index) => <p key={index} className="mt-2 whitespace-pre-wrap"><strong>{index + 1}. {question}</strong><br />{item.responses?.[`experience_${index + 1}`] || "Not recorded"}</p>)}
           {section === "supportPreferences" && SUPPORT_PREFERENCE_QUESTIONS.map((question, index) => <p key={index} className="mt-2 whitespace-pre-wrap"><strong>{index + 1}. {question}</strong><br />{item.responses?.[`support_${index + 1}`] || "Not recorded"}</p>)}
-          {section === "riExplanation" && <><p className="mt-2">Approved RI explanation presented: {item.scriptPresented ? "Yes" : "Not recorded"}</p><p className="whitespace-pre-wrap">Parent response: {item.responses?.ri_parent_response || "Not recorded"}</p></>}
+          {section === "riExplanation" && <>
+            <p className="mt-2">Approved RI explanation presented: {item.scriptPresented ? "Yes" : "Not recorded"}</p>
+            <p className="mt-2">Explanation version: {item.explanationVersion || "Legacy / not recorded"}</p>
+            {RI_EXPLANATION_QUESTIONS.map(({ id, question }) => <p key={id} className="mt-2 whitespace-pre-wrap"><strong>{question}</strong> {item.responses?.[id] || "Not recorded"}</p>)}
+            {item.responses?.ri_parent_response && <p className="mt-2 whitespace-pre-wrap"><strong>Legacy parent response:</strong> {item.responses.ri_parent_response}</p>}
+          </>
           {item.interviewerObservation && <p className="mt-2 whitespace-pre-wrap"><strong>Interviewer observation:</strong> {item.interviewerObservation}</p>}
           {item.followUp && <p className="mt-2 whitespace-pre-wrap"><strong>Follow-up:</strong> {item.followUp}</p>}
           {section === "commercialReadiness" && <div className="mt-2 space-y-2">
@@ -171,10 +179,16 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
       </fieldset>
       <fieldset className="rounded-md border p-3 space-y-4">
         <legend className="px-1 text-sm font-semibold">3. Response Integrity Explanation · {sectionComplete("riExplanation") ? "Complete" : "In progress"}</legend>
-        <p className="text-sm text-muted-foreground">Present this explanation as written. Do not paraphrase or replace it with a generic description.</p>
+        <p className="text-sm text-muted-foreground">Read the approved explanation. Personalise only the bracketed reference using the parent's earlier response. Ask both understanding questions naturally, and clarify misunderstandings without examining the parent.</p>
         <div className="rounded-md bg-muted/40 p-4 text-sm leading-relaxed whitespace-pre-wrap">{RI_EXPLANATION_SCRIPT}</div>
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={Boolean(assessment.riExplanation?.scriptPresented)} onChange={(event) => markScriptPresented(event.target.checked)} />I presented the approved explanation to the parent.</label>
-        <label className="block text-sm">Parent's response / questions after the explanation<textarea className={control} rows={4} maxLength={3000} value={responseValue("riExplanation", "ri_parent_response")} onChange={(event) => setResponse("riExplanation", "ri_parent_response", event.target.value)} placeholder="Record the parent's reaction, understanding, questions, or concerns." /></label>
+        {RI_EXPLANATION_QUESTIONS.map(({ id, question }) => <label key={id} className="block text-sm">
+          <span className="font-medium">{question}</span>
+          <textarea className={control} rows={3} maxLength={3000} value={responseValue("riExplanation", id)}
+            onChange={(event) => setResponse("riExplanation", id, event.target.value)}
+            placeholder="Record the parent's own answer, not the interviewer's interpretation." />
+        </label>)}
+        <p className="text-sm text-muted-foreground">If the parent misunderstands the method, explain the distinction, record the clarification in interviewer observations and any outstanding concerns under follow-up. Do not mark the parent as unsuitable merely for needing clarification.</p>
         <label className="block text-sm">Interviewer observation<textarea className={control} rows={2} maxLength={3000} value={assessment.riExplanation?.interviewerObservation || ""} onChange={(event) => setSectionField("riExplanation", "interviewerObservation", event.target.value)} /></label>
         <label className="block text-sm">Follow-up required<textarea className={control} rows={2} maxLength={1000} value={assessment.riExplanation?.followUp || ""} onChange={(event) => setSectionField("riExplanation", "followUp", event.target.value)} /></label>
       </fieldset>
