@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createDemandDatabase } from './testing/demandDatabase';
-import { demandAssignmentBlock, handoverSla, PARENT_EXPERIENCE_QUESTIONS, SUPPORT_PREFERENCE_QUESTIONS, RI_EXPLANATION_SCRIPT, RI_EXPLANATION_QUESTIONS, RI_EXPLANATION_VERSION, isRiExplanationEvidenceComplete } from '../shared/demandProduction';
+import { demandAssignmentBlock, handoverSla, PARENT_EXPERIENCE_QUESTIONS, SUPPORT_PREFERENCE_QUESTIONS, RI_EXPLANATION_SCRIPT, RI_EXPLANATION_QUESTIONS, RI_EXPLANATION_VERSION, RI_UNDERSTANDING_CRITERIA, RI_UNDERSTANDING_REVIEW_VERSION, isRiExplanationEvidenceComplete } from '../shared/demandProduction';
 import { buildProductionEconomy } from './productionEconomy';
 
 test('Demand migration, compatibility and database integrity boundaries', async (t) => {
@@ -15,7 +15,14 @@ test('Demand migration, compatibility and database integrity boundaries', async 
   const completeAssessment = (id: string) => db.query('SELECT save_parent_qualification_assessment($1,$2,$3::jsonb)', [id,'coo',JSON.stringify({
     parentExperience:{parentAccount:'Parent describes recurring difficulty with fractions.'},
     supportPreferences:{evidence:'Parent prefers structured weekly support.'},
-    riExplanation:{interviewerObservation:'Parent can explain the distinction between understanding and execution.'},
+    riExplanation:{
+      interviewerObservation:'Parent can explain the distinction between understanding and execution.',
+      scriptPresented:true,
+      explanationVersion:RI_EXPLANATION_VERSION,
+      understandingReviewVersion:RI_UNDERSTANDING_REVIEW_VERSION,
+      responses:{ri_session_expectation:'Learner practises specific mathematical responses through planned repetitions.'},
+      understandingReview:Object.fromEntries(RI_UNDERSTANDING_CRITERIA.map(({id})=>[id,{disposition:'parent_articulated'}])),
+    },
     commercialReadiness:{evidence:'Parent has reviewed the available monthly arrangements.'},
   })]);
   await t.test('migration is repeatable; legacy evidence stays unknown and live Pilot remains usable', async () => {
