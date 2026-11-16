@@ -204,7 +204,7 @@ test('Specialist assignment surfaces require current enrollment authority', () =
 });
 
 
-test('approved Parent Qualification interview guide remains complete and individually addressable', () => {
+test('approved Parent Qualification interview guide uses one understanding question and fixed criterion recording', () => {
   assert.equal(PARENT_EXPERIENCE_QUESTIONS.length, 8);
   assert.equal(SUPPORT_PREFERENCE_QUESTIONS.length, 11);
   assert.match(PARENT_EXPERIENCE_QUESTIONS[0], /^Tell me about your child/);
@@ -213,19 +213,19 @@ test('approved Parent Qualification interview guide remains complete and individ
   assert.match(RI_EXPLANATION_SCRIPT, /planned sets of mathematical attempts/);
   assert.match(RI_EXPLANATION_SCRIPT, /Progression is not based simply on finishing an exercise/);
   assert.match(RI_EXPLANATION_SCRIPT, /athletic training/);
-  assert.equal(RI_EXPLANATION_QUESTIONS.length, 2);
+  assert.equal(RI_EXPLANATION_QUESTIONS.length, 1);
   assert.match(RI_EXPLANATION_QUESTIONS[0].question, /actually be doing during these sessions/);
-  assert.match(RI_EXPLANATION_QUESTIONS[1].question, /if your child gets stuck/);
   const recorded = {
     scriptPresented: true,
     explanationVersion: RI_EXPLANATION_VERSION,
-    responses: {
-      ri_session_expectation: "Practising structured responses to mathematical questions.",
-      ri_stuck_expectation: "Observes the difficulty before correcting it.",
-    },
+    understandingReviewVersion: "conditioning-understanding-rubric-v1",
+    responses: { ri_session_expectation: "Practising structured responses to mathematical questions." },
+    understandingReview: Object.fromEntries([
+      "observe_independent_work", "planned_repetitions", "evidence_led_training", "progressive_challenge", "weekly_conditioning",
+    ].map((id) => [id, { disposition: "parent_articulated" }])),
   };
   assert.equal(isRiExplanationEvidenceComplete(recorded), true);
-  assert.equal(isRiExplanationEvidenceComplete({ ...recorded, responses: { ...recorded.responses, ri_stuck_expectation: "" } }), false);
-  assert.equal(isRiExplanationEvidenceComplete({ ...recorded, explanationVersion: "legacy" }), false);
+  assert.equal(isRiExplanationEvidenceComplete({ ...recorded, responses: { ri_session_expectation: "" } }), false);
+  assert.equal(isRiExplanationEvidenceComplete({ ...recorded, understandingReviewVersion: "legacy" }), false);
   assert.equal(isRiExplanationEvidenceComplete({ scriptPresented: true, responses: { ri_parent_response: "Legacy single answer" } }), false);
 });
