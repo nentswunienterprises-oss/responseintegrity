@@ -5,6 +5,9 @@ import {
   COMMERCIAL_PURCHASING_PRIORITIES,
   RI_COMMERCIAL_PRESENTATION,
   RI_MEETING_CLOSURE,
+  RI_EXPLANATION_VERSION,
+  RI_EXPLANATION_QUESTIONS,
+  isRiExplanationEvidenceComplete,
 } from "../shared/demandProduction";
 import { updateDemandProduction } from "./demandProduction";
 import { isParentQualificationAssessmentComplete } from "../shared/demandProduction";
@@ -83,7 +86,7 @@ test("terminal qualification decisions require complete, saved, question-level e
   const complete = {
     parentExperience: { responses: Object.fromEntries(Array.from({ length: 8 }, (_, index) => [`experience_${index + 1}`, "Recorded answer"])) },
     supportPreferences: { responses: Object.fromEntries(Array.from({ length: 11 }, (_, index) => [`support_${index + 1}`, "Recorded answer"])) },
-    riExplanation: { scriptPresented: true, responses: { ri_parent_response: "Parent response recorded" } },
+    riExplanation: { scriptPresented: true, explanationVersion: RI_EXPLANATION_VERSION, responses: { ri_session_expectation: "They practise responses through reps.", ri_stuck_expectation: "The Specialist observes and trains the breakdown." } },
     commercialReadiness: {
       responses: {
         existing_expenditure: "no",
@@ -126,4 +129,26 @@ test("terminal qualification decisions require complete, saved, question-level e
     /Complete and save all four approved qualification sections/,
   );
   assert.equal(decisionRpcCalled, false);
+});
+
+test("Part 3 requires both separately recorded understanding answers and approved script delivery", () => {
+  const responses = {
+    ri_session_expectation: "My child practises specific responses through repeated mathematical attempts.",
+    ri_stuck_expectation: "The Specialist first observes the difficulty rather than just supplying an answer.",
+  };
+  const base = { scriptPresented: true, explanationVersion: RI_EXPLANATION_VERSION, responses };
+  assert.equal(RI_EXPLANATION_QUESTIONS.length, 2);
+  assert.equal(isRiExplanationEvidenceComplete(base), true);
+  assert.equal(isRiExplanationEvidenceComplete({ ...base, scriptPresented: false }), false);
+  assert.equal(isRiExplanationEvidenceComplete({ ...base, responses: { ...responses, ri_stuck_expectation: "" } }), false);
+  assert.equal(isRiExplanationEvidenceComplete({ scriptPresented: true, responses: { ri_parent_response: "Legacy answer" } }), false);
+});
+
+test("Part 3 UI has distinct response capture, explanation provenance and historical record visibility", async () => {
+  const source = await readFile(new URL("../client/src/components/executive/DemandReview.tsx", import.meta.url), "utf8");
+  assert.match(source, /RI_EXPLANATION_QUESTIONS\.map/);
+  assert.match(source, /isRiExplanationEvidenceComplete\(item\)/);
+  assert.match(source, /explanationVersion: presented \? RI_EXPLANATION_VERSION/);
+  assert.match(source, /Legacy parent response/);
+  assert.match(source, /clarify misunderstandings without examining the parent/);
 });
