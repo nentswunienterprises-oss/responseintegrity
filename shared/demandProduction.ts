@@ -63,7 +63,20 @@ export const SUPPORT_PREFERENCE_QUESTIONS = [
   "Imagine your child's marks improved, but they still needed considerable help to start and complete unfamiliar questions on their own. Would you consider that successful support? What if they become more independent, but their marks improved more slowly?",
 ] as const;
 
-export const RI_EXPLANATION_SCRIPT = `Thank you for sharing your experience with me. I'd like to explain what Response Integrity actually does, so you can decide whether it's something that would be relevant to your child's situation. Response Integrity is an online one-on-one mathematics response training program. We're a little different from traditional tutoring. In traditional tutoring, the focus is generally on helping a learner understand mathematical topics, complete exercises, and improve their academic performance. At Response Integrity, we also care about understanding mathematics, but we focus particularly on something else: how the learner responds when they have to work independently, encounter unfamiliar questions, make mistakes, or experience pressure. For example, a child might understand everything while the teacher is explaining, but struggle when they are expected to work through a question alone. Another child might understand the method but rush through calculations, skip important steps, or become frustrated when something does not work. Sometimes the underlying problem is simply missing mathematical knowledge. That's why we don't assume that every child needs the same intervention. Our approach begins with understanding the learner's actual difficulties through Diagnosis. Rather than relying only on their marks or what parents tell us, we observe how they work through mathematics and how they respond under different conditions in actual sessions. From there, our training follows a structured progression. We work on helping learners approach questions clearly, follow a reliable process, and eventually maintain that process when questions become unfamiliar or time pressure increases. The idea is to introduce difficulty progressively rather than expecting a learner to perform well under examination pressure without enough preparation.`;
+export const RI_EXPLANATION_VERSION = "conditioning-mechanism-v2" as const;
+
+export const RI_EXPLANATION_QUESTIONS = [
+  {
+    "id": "ri_session_expectation",
+    "question": "From what I've explained, what do you understand your child would actually be doing during these sessions?"
+  },
+  {
+    "id": "ri_stuck_expectation",
+    "question": "And if your child gets stuck on a question, what would you expect the Specialist to do?"
+  }
+] as const;
+
+export const RI_EXPLANATION_SCRIPT = "Thank you for explaining your child's experience with mathematics.\n\nEarlier, you mentioned [briefly refer to the difficulty the parent described]. I'd like to explain how Response Integrity approaches difficulties like these, so you can understand what your child would actually experience with us.\n\nResponse Integrity is an online, one-on-one mathematics response-conditioning programme.\n\nWhen a child struggles with mathematics, the solution is not always another explanation. Sometimes they lack mathematical understanding. Other times, they understand something while being helped but struggle to use it independently, especially when questions become unfamiliar, mistakes happen or time is limited.\n\nWe begin by observing the learner's actual work. We look at what they understand, what they can do without assistance and where their response breaks down.\n\nThen we train what the evidence identifies.\n\nFor example, imagine your child knows how to solve an equation but loses their steps when the question looks different.\n\nInstead of simply explaining the answer and moving on, we identify what went wrong and give them structured opportunities to practise the response they need.\n\nThey complete planned sets of mathematical attempts, which we call reps. We observe how they perform, record what happens, provide appropriate correction and repeat the training. As their execution becomes more reliable, we introduce greater difficulty and eventually time pressure.\n\nProgression is not based simply on finishing an exercise or feeling more confident. It depends on what the learner demonstrates independently.\n\nYou can compare this to athletic training. Understanding a skill is important, but consistent performance is developed through preparation, deliberate practice and repeated exposure to appropriate challenges.\n\nThat is why we have a structured weekly training rhythm. One successful session is not the same as developing a dependable response.\n\nThroughout the programme, we aim to show you what your child can now do independently, what still needs work and what we are training next.\n\nImproved school performance is an important outcome we are working towards. But the foundation of our approach is building the understanding and reliable execution needed to support that performance.";
 
 export interface ParentQualificationEvidence {
   parentAccount?: string;
@@ -72,10 +85,18 @@ export interface ParentQualificationEvidence {
   followUp?: string;
   responses?: Record<string, string>;
   scriptPresented?: boolean;
+  explanationVersion?: string;
   pricePresentationDelivered?: boolean;
   meetingClosureDelivered?: boolean;
 }
 export type ParentQualificationAssessment = Partial<Record<ParentQualificationSection, ParentQualificationEvidence>>;
+
+export function isRiExplanationEvidenceComplete(item: ParentQualificationEvidence | undefined): boolean {
+  return Boolean(item?.scriptPresented
+    && item.explanationVersion === RI_EXPLANATION_VERSION
+    && RI_EXPLANATION_QUESTIONS.every(({ id }) => item.responses?.[id]?.trim()));
+}
+
 
 
 export const COMMERCIAL_PURCHASING_PRIORITIES = [
@@ -128,6 +149,6 @@ export function isParentQualificationAssessmentComplete(assessment: ParentQualif
   const supportPreferences = assessment.supportPreferences?.responses || {};
   return Array.from({ length: 8 }, (_, index) => Boolean(parentExperience[`experience_${index + 1}`]?.trim())).every(Boolean)
     && Array.from({ length: 11 }, (_, index) => Boolean(supportPreferences[`support_${index + 1}`]?.trim())).every(Boolean)
-    && Boolean(assessment.riExplanation?.scriptPresented && assessment.riExplanation?.responses?.ri_parent_response?.trim())
+    && isRiExplanationEvidenceComplete(assessment.riExplanation)
     && isCommercialReadinessEvidenceComplete(assessment.commercialReadiness);
 }
