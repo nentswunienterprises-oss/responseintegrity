@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   assertProductionDatabaseTarget,
   loadProductionMigrationAuthority,
+  selectManagedMigrations,
   verifyProductionMigrationAuthority,
 } from "./productionMigrationAuthority";
 
@@ -14,7 +15,7 @@ test("production DB authority locks the verified The Hub baseline", () => {
   assert.equal(result.authority.productionProjectRef, "yzcnavucvwgmulcxgxvw");
   assert.equal(result.authority.baseline.commit, "a8c1aab29b230ce523c0353cfcc4eb4b1ae07627");
   assert.equal(result.baselineCount, 15);
-  assert.equal(result.managedCount, 26);
+  assert.equal(result.managedCount, 28);
   assert.deepEqual(result.authority.previewOnlyMigrations?.map((migration) => migration.path), [
     "migrations/20261011_practicals_shared_video_benchmarks_v1.sql",
     "migrations/20261110_practicals_shared_video_benchmarks_v1_preview_compat.sql",
@@ -49,6 +50,8 @@ test("production DB authority locks the verified The Hub baseline", () => {
         "migrations/20261110100000_parent_qualification_assessment.sql",
         "migrations/20261110101000_enforce_four_part_parent_qualification.sql",
         "migrations/20261111120000_sandbox_behavior_model_v2_default.sql",
+        "migrations/20261115143000_sandbox_diagnosis_bank_v2_seed.sql",
+        "migrations/20261115144000_sandbox_diagnosis_bank_v2_activate.sql",
         "migrations/20261116110000_enforce_part3_understanding_rubric.sql"
     ],
   );
@@ -59,7 +62,7 @@ test("production target guard accepts only a URL carrying The Hub project ref", 
 
   assert.doesNotThrow(() =>
     assertProductionDatabaseTarget(
-      "postgresql://postgres.yzcnavucvwgmulcxgxvw:secret@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?sslmode=verify-full",
+      `postgresql://${authority.productionProjectRef}.invalid/postgres?sslmode=verify-full`,
       authority,
     ),
   );
@@ -67,7 +70,7 @@ test("production target guard accepts only a URL carrying The Hub project ref", 
   assert.throws(
     () =>
       assertProductionDatabaseTarget(
-        "postgresql://postgres.jftlxeacphvbnhbsbpxc:secret@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?sslmode=verify-full",
+        "postgresql://jftlxeacphvbnhbsbpxc.invalid/postgres?sslmode=verify-full",
         authority,
       ),
     /Refusing to connect to a different database/,
@@ -89,6 +92,9 @@ test("production promotion workflow is manual-only", () => {
   assert.match(workflow, /NODE_EXTRA_CA_CERTS/);
   assert.doesNotMatch(workflow, /NODE_TLS_REJECT_UNAUTHORIZED/);
   assert.match(workflow, /RI_PRODUCTION_MIGRATION_CONFIRMATION/);
+  assert.match(workflow, /RI_PRODUCTION_MIGRATION_BATCH/);
+  assert.match(workflow, /sandbox_diagnosis_v2_activate/);
+  assert.match(workflow, /parent_qualification_part3_understanding/);
 });
 
 test("production target guard rejects weaker TLS modes", () => {
@@ -96,9 +102,48 @@ test("production target guard rejects weaker TLS modes", () => {
   assert.throws(
     () =>
       assertProductionDatabaseTarget(
-        "postgresql://postgres.yzcnavucvwgmulcxgxvw:secret@aws-1-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require",
+        `postgresql://${authority.productionProjectRef}.invalid/postgres?sslmode=require`,
         authority,
       ),
     /sslmode=verify-full/,
   );
+});
+
+
+test("production apply batches are explicit and exclude unrelated pending migrations", () => {
+  const authority = loadProductionMigrationAuthority();
+  const seed = selectManagedMigrations(authority, "sandbox_diagnosis_v2_seed");
+  const activate = selectManagedMigrations(authority, "sandbox_diagnosis_v2_activate");
+  const part3 = selectManagedMigrations(authority, "parent_qualification_part3_understanding");
+  assert.deepEqual(seed.map((item) => item.path), [
+    "migrations/20261115143000_sandbox_diagnosis_bank_v2_seed.sql",
+  ]);
+  assert.deepEqual(activate.map((item) => item.path), [
+    "migrations/20261115143000_sandbox_diagnosis_bank_v2_seed.sql",
+    "migrations/20261115144000_sandbox_diagnosis_bank_v2_activate.sql",
+  ]);
+  assert.deepEqual(part3.map((item) => item.path), [
+    "migrations/20261116110000_enforce_part3_understanding_rubric.sql",
+  ]);
+  assert.throws(() => selectManagedMigrations(authority, "all"), /Unknown or empty/);
+  assert.throws(() => selectManagedMigrations(authority, ""), /must not be empty/);
+});
+
+test("V4 production activation is separately guarded and preserves the V1 bank", () => {
+  const seed = fs.readFileSync(path.resolve(process.cwd(), "migrations/20261115143000_sandbox_diagnosis_bank_v2_seed.sql"), "utf8");
+  const activation = fs.readFileSync(path.resolve(process.cwd(), "migrations/20261115144000_sandbox_diagnosis_bank_v2_activate.sql"), "utf8");
+  assert.match(seed, /bank_version = 1[\s\S]*?active = true[\s\S]*?\) <> 56/);
+  assert.match(seed, /'runtimeEligible',[\s\S]*?false/);
+  assert.match(seed, /V2 must remain inactive/);
+  assert.doesNotMatch(seed, /update\s+private\.specialist_sandbox_(?:environment_banks|diagnosis_outcomes|rep_outcomes)/i);
+  assert.match(activation, /bank_version=1[\s\S]*?<> 56[\s\S]*?bank_version=1[\s\S]*?<> 264/);
+  assert.match(activation, /bank_version=4[\s\S]*?<> 52[\s\S]*?bank_version=4[\s\S]*?<> 264/);
+  assert.match(activation, /clarity\.method/);
+  assert.match(activation, /When difficulty is introduced/);
+  assert.match(activation, /update private\.specialist_sandbox_environment_banks[\s\S]*?bank_version=4/i);
+  assert.doesNotMatch(activation, /update\s+private\.specialist_sandbox_(?:diagnosis_outcomes|rep_outcomes)/i);
+  assert.match(activation, /where bank_key='sandbox_stateful_environment' and active=true[\s\S]*?Expected V1 to be the sole active bank/);
+  assert.match(activation, /set active=false,[\s\S]*?bank_version=1 and active=true/);
+  assert.match(activation, /retired_at=coalesce\(retired_at, now\(\)\)/);
+  assert.match(activation, /activationStatus','superseded','runtimeEligible',false/);
 });

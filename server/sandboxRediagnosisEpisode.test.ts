@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { resolveSandboxRediagnosisEpisodeRun, canRetireSupersededEmptySandboxEpisode, sandboxRediagnosisSelectionSeed } from "./sandboxRediagnosisEpisode";
+import { resolveSandboxRediagnosisEpisodeRun, canRetireSupersededEmptySandboxEpisode, sandboxRediagnosisSelectionSeed, selectSandboxRediagnosisTrajectoryCandidate } from "./sandboxRediagnosisEpisode";
 
 const run = (id: string, status: string, session = 2, minute = 0) => ({
   id, status, started_session_number: session,
@@ -47,4 +47,31 @@ test("episode selection preserves legacy streams and separates reproducible new 
   assert.notEqual(sandboxRediagnosisSelectionSeed(episode),sandboxRediagnosisSelectionSeed({...episode,runId:"new-b"}));
   assert.notEqual(sandboxRediagnosisSelectionSeed(episode),trajectorySeed);
   assert.throws(()=>sandboxRediagnosisSelectionSeed({...episode,runId:""}),/lineage/);
+});
+
+
+test("an in-flight V1 episode remains pinned when V2 is the active bank", () => {
+  const v1Episode = { id: "trajectory-v1", bank_version: 1, trajectory_resolution_priority: 0 };
+  const v2Active = { id: "trajectory-v2", bank_version: 2, trajectory_resolution_priority: 2 };
+  assert.equal(selectSandboxRediagnosisTrajectoryCandidate([v1Episode, v2Active]), v1Episode);
+});
+
+test("an outstanding re-diagnosis route outranks a newly active bank trajectory", () => {
+  const v1Pending = { id: "trajectory-v1", bank_version: 1, trajectory_resolution_priority: 1 };
+  const v2Active = { id: "trajectory-v2", bank_version: 2, trajectory_resolution_priority: 2 };
+  assert.equal(selectSandboxRediagnosisTrajectoryCandidate([v1Pending, v2Active]), v1Pending);
+});
+
+test("ambiguous same-priority trajectories fail closed instead of selecting the newest bank", () => {
+  const candidates = [
+    { id: "v1", bank_version: 1, trajectory_resolution_priority: 0 },
+    { id: "v2", bank_version: 2, trajectory_resolution_priority: 0 },
+  ];
+  assert.throws(() => selectSandboxRediagnosisTrajectoryCandidate(candidates), /Ambiguous Sandbox trajectory/);
+});
+
+test("new work selects the active bank trajectory when no older episode is pending", () => {
+  const v2Active = { id: "trajectory-v2", bank_version: 2, trajectory_resolution_priority: 2 };
+  const retiredOrNonDiagnosisV1 = { id: "trajectory-v1", bank_version: 1, trajectory_resolution_priority: 3 };
+  assert.equal(selectSandboxRediagnosisTrajectoryCandidate([v2Active, retiredOrNonDiagnosisV1]), v2Active);
 });

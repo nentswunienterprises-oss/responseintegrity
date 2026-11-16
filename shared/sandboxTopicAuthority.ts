@@ -91,19 +91,23 @@ export function normalizeSandboxTopicLane(value: unknown): SandboxTopicLane | nu
   if (!isPhase(source.phase) || !isStability(source.stability)) return null;
   const progression = source.progressionAuthority;
   if (progression != null && !isProgression(progression)) return null;
+  const normalizedProgression: ProgressionAuthority | null =
+    isProgression(progression) ? progression : null;
   const route = source.route == null ? "normal_training" : source.route;
   if (route !== "normal_training" && route !== "targeted_rediagnosis") return null;
+  const normalizedRoute: SandboxTopicLane["route"] = route;
   const target = source.targetedRediagnosisPhase;
   if (target != null && !isPhase(target)) return null;
+  const normalizedTarget: TopicPhase | null = isPhase(target) ? target : null;
   try {
     return {
       ...normalizeCapabilityProgressionState({
         phase: source.phase,
         stability: source.stability,
-        progression: progression ?? null,
+        progression: normalizedProgression,
       }),
-      route,
-      targetedRediagnosisPhase: target ?? null,
+      route: normalizedRoute,
+      targetedRediagnosisPhase: normalizedTarget,
     };
   } catch {
     return null;

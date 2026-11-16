@@ -60,7 +60,7 @@ import {
   resolveTrainingTabAvailability,
 } from "@shared/trainingPackageQuota";
 
-type TopicConditioningMap = {
+export type TopicConditioningMap = {
   topic?: string | null;
   entry_phase?: string | null;
   stability?: string | null;
@@ -108,7 +108,7 @@ function nextActionStabilityFor(row: Pick<TopicRow, "phase" | "stability" | "pro
   return row.stability;
 }
 
-type TutorSessionRecord = {
+export type TutorSessionRecord = {
   id: string;
   studentId?: string;
   date: string;
@@ -397,7 +397,7 @@ type SandboxMapPreparationPlan = {
   }>;
 };
 
-interface StudentTopicConditioningDialogProps {
+export interface StudentTopicConditioningDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   studentId: string;
@@ -1355,7 +1355,13 @@ export default function StudentTopicConditioningDialog({
       const sessionParam = sessionId ? `&scheduledSessionId=${encodeURIComponent(sessionId)}` : "";
       setSessionTopicsModalOpen(false);
       if (!topicState.hasObservedState) {
-        navigate(`/specialist/intro-session/${studentId}?topic=${topicParam}&phase=${phaseParam}&stability=${stabilityParam}&context=training${sessionParam}`);
+        // A single unobserved Sandbox topic is still an entry Diagnosis
+        // activity. Mark it explicitly so the server can bind an empty legacy
+        // run to this confirmed lesson without treating it as Training.
+        const entryActivityParam = isSandboxMode
+          ? "&sessionContextKind=sandbox_entry_diagnosis"
+          : "";
+        navigate(`/specialist/intro-session/${studentId}?topic=${topicParam}&phase=${phaseParam}&stability=${stabilityParam}&context=training${entryActivityParam}${sessionParam}`);
         return;
       }
       // The stateful Sandbox runner owns both independently evaluated tracks
@@ -1479,7 +1485,12 @@ export default function StudentTopicConditioningDialog({
             topic,
             phase: "Clarity",
             stability: "Low",
+            progressionAuthority: null,
             hasObservedState: false,
+            requiresTargetedRediagnosis: false,
+            targetedRediagnosisStartPhase: null,
+            systemNextAction: null,
+            prerequisiteContradictionReason: null,
             stateSource: "activated",
             lastSession: activatedAt ? formatLastUpdatedLabel(activatedAt) : "Activated",
             trend: "Stable",

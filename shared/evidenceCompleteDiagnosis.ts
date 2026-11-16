@@ -781,6 +781,7 @@ const dim = (state: DiagnosisPhaseState, id: DiagnosisDimensionId) =>
 function resolutionProbe(
   phase: TopicPhase,
   state: DiagnosisPhaseState,
+  history: DiagnosisProbeResult[],
 ): DiagnosisProbeId {
   if (phase === "Clarity") return "clarity.recognition";
 
@@ -794,9 +795,14 @@ function resolutionProbe(
       const hasAnyImmediateEvidence = immediate.some(
         (item) => item && item.behaviorHistory.length > 0,
       );
-      return hasAnyImmediateEvidence ? "execution.repeatability" : "stack.normal_independent";
+      if (!hasAnyImmediateEvidence) return "stack.normal_independent";
+      return hasComparableExecutionOpportunity(history)
+        ? "execution.repeatability"
+        : "stack.normal_independent";
     }
-    return "execution.repeatability";
+    return hasComparableExecutionOpportunity(history)
+      ? "execution.repeatability"
+      : "stack.normal_independent";
   }
 
   if (phase === "Controlled Discomfort") {
@@ -819,6 +825,40 @@ function resolutionProbe(
     return "stack.timed_challenge";
   }
   return "time.consistency";
+}
+
+/**
+ * A repeatability comparison requires a prior clean, same-form independent
+ * execution. A difficult or timed composite probe can expose execution
+ * behavior, but it is not the normal-condition comparator promised by the
+ * repeatability protocol.
+ */
+function hasComparableExecutionOpportunity(
+  history: DiagnosisProbeResult[],
+): boolean {
+  const requiredDimensions: DiagnosisDimensionId[] = [
+    "execution.start",
+    "execution.step_discipline",
+    "execution.independence",
+  ];
+  return history.some((result) => {
+    if (
+      (result.probeId !== "stack.normal_independent" &&
+        result.probeId !== "execution.repeatability") ||
+      contaminated(result.supportEvent || "none")
+    ) return false;
+
+    const observations = new Map(
+      result.observations.map((observation) => [observation.dimensionId, observation.behaviorId]),
+    );
+    return requiredDimensions.every((dimensionId) => {
+      const behaviorId = observations.get(dimensionId);
+      const behavior = behaviorId
+        ? getDiagnosisObservationOption(dimensionId, behaviorId)
+        : null;
+      return Boolean(behavior && behavior.behaviorClass !== "not_observed" && behavior.behaviorClass !== "confounded");
+    });
+  });
 }
 
 function safeNextProbe(
@@ -962,7 +1002,7 @@ export function evaluateEvidenceCompleteDiagnosis(
     if (firstEarlierNotSupported) {
       const nextProbeId = safeNextProbe(
         state,
-        resolutionProbe(firstEarlierNotSupported.phase, firstEarlierNotSupported),
+        resolutionProbe(firstEarlierNotSupported.phase, firstEarlierNotSupported, state.probeHistory),
       );
       return {
         ...base,
@@ -974,7 +1014,7 @@ export function evaluateEvidenceCompleteDiagnosis(
         reason: nextProbeId
           ? `${phase} cannot be interpreted yet because ${firstEarlierNotSupported.phase} is not cleanly supported. The system is stripping constraints or requesting the smallest confirmation needed to resolve that earlier layer.`
           : `${firstEarlierNotSupported.phase} remains unresolved after the permitted clean probes. Do not guess a placement. Continue the named evidence question at the next confirmed session.`,
-        ...(!nextProbeId ? { continuation: { nextProbeId: resolutionProbe(firstEarlierNotSupported.phase, firstEarlierNotSupported), parentMessage: "We need another focused observation before confirming the starting point. The next session will check the earlier response layer without added pressure." } } : {}),
+        ...(!nextProbeId ? { continuation: { nextProbeId: resolutionProbe(firstEarlierNotSupported.phase, firstEarlierNotSupported, state.probeHistory), parentMessage: "We need another focused observation before confirming the starting point. The next session will check the earlier response layer without added pressure." } } : {}),
         placementEvidence: [],
       };
     }
@@ -1016,7 +1056,7 @@ export function evaluateEvidenceCompleteDiagnosis(
     }
 
     if (current.status === "unresolved" || current.status === "confounded") {
-      const nextProbeId = safeNextProbe(state, resolutionProbe(phase, current));
+      const nextProbeId = safeNextProbe(state, resolutionProbe(phase, current, state.probeHistory));
       return {
         ...base,
         complete: false,
@@ -1027,7 +1067,7 @@ export function evaluateEvidenceCompleteDiagnosis(
         reason: nextProbeId
           ? `${phase} is still ${current.status}. The next probe exists only to answer the remaining behavioral evidence question.`
           : `${phase} remains ${current.status} after the permitted clean probes. Do not convert missing or contaminated evidence into a score. Continue the named evidence question at the next confirmed session.`,
-        ...(!nextProbeId ? { continuation: { nextProbeId: resolutionProbe(phase, current), parentMessage: "We need another focused observation before confirming the starting point. The next session will address the remaining response question." } } : {}),
+        ...(!nextProbeId ? { continuation: { nextProbeId: resolutionProbe(phase, current, state.probeHistory), parentMessage: "We need another focused observation before confirming the starting point. The next session will address the remaining response question." } } : {}),
         placementEvidence: [],
       };
     }

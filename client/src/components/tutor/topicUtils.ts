@@ -1,5 +1,8 @@
 // Shared topic utilities for StudentCard and StudentTopicConditioningDialog
-import { PhaseLabel, StabilityLabel, TopicTrend, TutorSessionRecord, TopicConditioningMap, StudentTopicConditioningDialogProps, parseObservation, normalizePhase, normalizeStability, sanitizeTopic, formatLastUpdatedLabel, trendFromHistory } from "./StudentTopicConditioningDialog";
+import type { PhaseLabel, StabilityLabel, TopicTrend } from "./topicConditioningEngine";
+import type { TutorSessionRecord, TopicConditioningMap, StudentTopicConditioningDialogProps } from "./StudentTopicConditioningDialog";
+import { parseObservation, normalizePhase, normalizeStability, sanitizeTopic, formatLastUpdatedLabel } from "./StudentTopicConditioningDialog";
+import { trendFromHistory } from "./topicConditioningEngine";
 
 export function buildTopics(
   parentTopics: string | null | undefined,

@@ -671,6 +671,7 @@ export function StudentCard({
           topic,
           phase: "Clarity",
           stability: "Low",
+          progressionAuthority: null,
           hasObservedState: false,
           lastUpdated: activatedAt || null,
           lastSession: activatedAt ? formatRelativeTime(new Date(activatedAt)) : "Activated",
@@ -685,7 +686,7 @@ export function StudentCard({
   }, [persistedTopics, student.topicConditioning, reportedTopics, studentSessions, activationTopics]);
 
   const topicsInConditioning = useMemo(() => {
-    const byTopic = new Map<string, { topic: string; phase: string; stability: string }>();
+    const byTopic = new Map<string, { topic: string; phase: string; stability: string; progressionAuthority?: "building" | "exit_confirmation_eligible" | "transfer_maintenance" | null }>();
 
     allTopics.forEach((entry) => {
       const topic = normalizeTopicLabel(entry?.topic);
@@ -708,6 +709,7 @@ export function StudentCard({
         stability: entry?.hasObservedState
           ? (normalizeStabilityLabel(entry.stability) || "Low")
           : "Unknown",
+        progressionAuthority: entry?.progressionAuthority ?? null,
       };
 
       const existing = byTopic.get(topicKey);
@@ -1638,7 +1640,11 @@ function IntroDiagnosticTopicSection({
 }) {
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const topicOptions = Array.from(new Set((reportedTopics || []).map((topic) => String(topic || "").trim()).filter(Boolean)));
+  const topicOptions = Array.from(new Set<string>(
+    (Array.isArray(reportedTopics) ? reportedTopics : [])
+      .map((topic: unknown) => String(topic || "").trim())
+      .filter((topic: string) => Boolean(topic)),
+  ));
   const [selectedDiagnosticTopics, setSelectedDiagnosticTopics] = useState<string[]>([]);
   const [activationError, setActivationError] = useState("");
   const directDrillLaunch = usesDirectDrillLaunch(operationalMode);
