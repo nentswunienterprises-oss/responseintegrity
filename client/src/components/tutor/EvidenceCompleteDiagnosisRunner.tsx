@@ -373,16 +373,17 @@ export default function EvidenceCompleteDiagnosisRunner() {
         : requestedSessionContext === "training"
           ? "training"
           : "intro";
-  const isTargetedHandoverRediagnosis = sessionContextKind === "handover";
-  const isEntryDiagnosisActivity =
-    sessionContextKind === "intro" || sessionContextKind === "sandbox_entry_diagnosis";
-
   const storageKey = useMemo(
     () => buildStorageKey(studentId, topic, scheduledSessionId),
     [studentId, topic, scheduledSessionId],
   );
 
   const [runId, setRunId] = useState<string | null>(null);
+  const [effectiveSessionContextKind, setEffectiveSessionContextKind] = useState(sessionContextKind);
+  const sessionContextKindRef = useRef(sessionContextKind);
+  const isTargetedHandoverRediagnosis = effectiveSessionContextKind === "handover";
+  const isEntryDiagnosisActivity =
+    effectiveSessionContextKind === "intro" || effectiveSessionContextKind === "sandbox_entry_diagnosis";
   const [apiState, setApiState] = useState<DiagnosisApiResponse | null>(null);
   const [parentReportedSymptoms, setParentReportedSymptoms] = useState<string[]>(topicReportedSymptoms);
   const [runtimeAuthority, setRuntimeAuthority] =
@@ -553,7 +554,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
           topic,
           startingPhase: effectiveStartingPhase,
           scheduledSessionId,
-          sessionContextKind,
+          sessionContextKind: sessionContextKindRef.current,
           probeHistory,
         }),
       },
@@ -645,6 +646,13 @@ export default function EvidenceCompleteDiagnosisRunner() {
           { headers, credentials: "include" });
         if (!pendingResponse.ok) throw new Error("The existing evidence process could not be checked. Retry before starting a new diagnosis.");
         const pending = await pendingResponse.json();
+        const allowedPendingContexts = ["intro", "training", "handover", "sandbox_entry_diagnosis"];
+        const restoredContext = pending.runId &&
+          allowedPendingContexts.includes(String(pending.sessionContextKind || ""))
+          ? String(pending.sessionContextKind)
+          : sessionContextKind;
+        sessionContextKindRef.current = restoredContext as typeof sessionContextKind;
+        if (!cancelled) setEffectiveSessionContextKind(restoredContext as typeof sessionContextKind);
         const parentStartingPhase = tryParsePhase(String(pending.startingPhase || "")) || startingPhase;
         const parentSymptoms = Array.isArray(pending.topicSymptoms)
           ? getResponseSymptomLabels(pending.topicSymptoms.map(String))
