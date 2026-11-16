@@ -72,5 +72,62 @@ export interface ParentQualificationEvidence {
   followUp?: string;
   responses?: Record<string, string>;
   scriptPresented?: boolean;
+  pricePresentationDelivered?: boolean;
+  meetingClosureDelivered?: boolean;
 }
 export type ParentQualificationAssessment = Partial<Record<ParentQualificationSection, ParentQualificationEvidence>>;
+
+
+export const COMMERCIAL_PURCHASING_PRIORITIES = [
+  "Improved marks",
+  "Individual attention",
+  "A dependable person",
+  "Evidence of improvement",
+  "Affordability",
+  "Flexibility or convenience",
+] as const;
+
+export const RI_COMMERCIAL_PRESENTATION = `Alright. I'd like to now establish whether our normal subscription model would be realistic for your family.
+Response Integrity operates through monthly packages, with the standard options ranging from R1,600 to R3,200, depending on how frequently your child attends.
+For 8 sessions, with your child being trained and conditioned twice a week, it is R1,600.
+For 12 sessions, with your child being trained and conditioned three times a week, it is R2,400.
+For 16 sessions, with your child being trained and conditioned four times a week, it is R3,200.
+I want to understand whether, if you found the programme valuable and suitable for your child, continuing at one of these prices would be a realistic decision for your family.
+Would any of these options be manageable for you on an ongoing basis, or would the cost be a concern?`;
+
+export const RI_MEETING_CLOSURE = "Thank you for speaking with me. My team and I will assess your information and get back to you regarding the next steps.";
+
+
+export function isCommercialReadinessEvidenceComplete(item: ParentQualificationEvidence | undefined): boolean {
+  const r = item?.responses || {};
+  let selectedPriorities: unknown[] = [];
+  try {
+    const parsed: unknown = JSON.parse(r.commercial_priorities || "[]");
+    if (Array.isArray(parsed)) selectedPriorities = parsed;
+  } catch {
+    selectedPriorities = [];
+  }
+  const expenditureComplete = r.existing_expenditure === "yes"
+    ? Boolean(r.expenditure_type?.trim() && r.expenditure_monthly_amount?.trim() && r.expenditure_worthwhile?.trim())
+    : r.existing_expenditure === "no" && Boolean(r.no_expenditure_reason?.trim());
+  const budgetComplete = r.budget_considered === "yes"
+    ? Boolean(r.comfortable_monthly_range?.trim())
+    : r.budget_considered === "no" && Boolean(r.budget_information_needed?.trim());
+  return expenditureComplete
+    && selectedPriorities.length > 0
+    && Boolean(r.decision_authority?.trim())
+    && budgetComplete
+    && Boolean(item?.pricePresentationDelivered && r.price_response?.trim())
+    && Boolean(r.continuing_commitment?.trim())
+    && Boolean(item?.meetingClosureDelivered);
+}
+
+export function isParentQualificationAssessmentComplete(assessment: ParentQualificationAssessment | null | undefined): boolean {
+  if (!assessment) return false;
+  const parentExperience = assessment.parentExperience?.responses || {};
+  const supportPreferences = assessment.supportPreferences?.responses || {};
+  return Array.from({ length: 8 }, (_, index) => Boolean(parentExperience[`experience_${index + 1}`]?.trim())).every(Boolean)
+    && Array.from({ length: 11 }, (_, index) => Boolean(supportPreferences[`support_${index + 1}`]?.trim())).every(Boolean)
+    && Boolean(assessment.riExplanation?.scriptPresented && assessment.riExplanation?.responses?.ri_parent_response?.trim())
+    && isCommercialReadinessEvidenceComplete(assessment.commercialReadiness);
+}

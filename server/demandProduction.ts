@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { QUALIFICATION_STATUSES, handoverSla } from "../shared/demandProduction";
+import { QUALIFICATION_STATUSES, handoverSla, isParentQualificationAssessmentComplete } from "../shared/demandProduction";
 
 const evidenceSchema = z.object({
   parentAccount: z.string().max(3000).optional(),
@@ -8,6 +8,8 @@ const evidenceSchema = z.object({
   followUp: z.string().max(1000).optional(),
   responses: z.record(z.string(), z.string().max(3000)).optional(),
   scriptPresented: z.boolean().optional(),
+  pricePresentationDelivered: z.boolean().optional(),
+  meetingClosureDelivered: z.boolean().optional(),
 }).strict();
 
 const commandSchema = z.object({
@@ -21,6 +23,20 @@ const commandSchema = z.object({
 
 export async function updateDemandProduction(client: any, enrollmentId: string, actorId: string, input: unknown) {
   const command = commandSchema.parse(input);
+  if (command.action === "qualification" && (command.status === "qualified" || command.status === "not_qualified")) {
+    const { data: enrollment, error: readError } = await client
+      .from("parent_enrollments")
+      .select("qualification_assessment,demand_flow_version,is_sandbox_account,qualification_completed_at")
+      .eq("id", enrollmentId)
+      .maybeSingle();
+    if (readError) throw new Error(readError.message);
+    if (!enrollment || enrollment.demand_flow_version !== 1 || enrollment.is_sandbox_account || enrollment.qualification_completed_at) {
+      throw new Error("This application is not eligible for a new qualification decision");
+    }
+    if (!isParentQualificationAssessmentComplete(enrollment.qualification_assessment)) {
+      throw new Error("Complete and save all four approved qualification sections before recording a terminal decision");
+    }
+  }
   if (command.action === "assessment") {
     if (!command.assessment || Object.keys(command.assessment).some((key) => !["parentExperience", "supportPreferences", "riExplanation", "commercialReadiness"].includes(key))) {
       throw new Error("Provide evidence under the four approved qualification sections");
