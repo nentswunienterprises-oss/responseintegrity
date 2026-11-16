@@ -197,6 +197,11 @@
       "path": "migrations/20261111120000_sandbox_behavior_model_v2_default.sql",
       "description": "Set the default Behaviour Model version for newly created Sandbox trajectories to V2 while preserving all existing version-pinned trajectories. Reviewed in PR #334; pending separate Preview/Production promotion and explicit Production authorization.",
       "risk": "additive"
+    },
+    {
+      "path": "migrations/20261116110000_enforce_part3_understanding_rubric.sql",
+      "description": "Require the single approved Part 3 understanding response and all five versioned criterion dispositions before terminal qualification; clarified or still-unclear criteria require notes. Pending Preview validation; not authorized for Production promotion.",
+      "risk": "additive"
     }
   ],
   "previewOnlyMigrations": [
