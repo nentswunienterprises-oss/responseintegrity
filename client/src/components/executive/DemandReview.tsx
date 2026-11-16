@@ -11,6 +11,12 @@ import {
   RI_COMMERCIAL_PRESENTATION,
   RI_MEETING_CLOSURE,
   RI_EXPLANATION_SCRIPT,
+  RI_EXPLANATION_VERSION,
+  RI_EXPLANATION_QUESTIONS,
+  RI_UNDERSTANDING_CRITERIA,
+  RI_UNDERSTANDING_REVIEW_VERSION,
+  isRiExplanationEvidenceComplete,
+  type RiUnderstandingDisposition,
   type ParentQualificationAssessment,
   type ParentQualificationSection,
 } from "@shared/demandProduction";
@@ -61,13 +67,33 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
   };
   const markScriptPresented = (presented: boolean) => {
     setAssessmentSaved(false);
-    setAssessment((current) => ({ ...current, riExplanation: { ...current.riExplanation, scriptPresented: presented } }));
+    setAssessment((current) => ({ ...current, riExplanation: { ...current.riExplanation, scriptPresented: presented, explanationVersion: presented ? RI_EXPLANATION_VERSION : undefined } }));
+  };
+  const setUnderstandingReview = (criterionId: string, disposition: RiUnderstandingDisposition | "", note?: string) => {
+    setAssessmentSaved(false);
+    setAssessment((current) => {
+      const understandingReview = { ...current.riExplanation?.understandingReview };
+      if (!disposition) {
+        delete understandingReview[criterionId];
+      } else {
+        const previous = understandingReview[criterionId];
+        understandingReview[criterionId] = { disposition, ...(note !== undefined ? { note } : previous?.note ? { note: previous.note } : {}) };
+      }
+      return {
+        ...current,
+        riExplanation: {
+          ...current.riExplanation,
+          understandingReviewVersion: RI_UNDERSTANDING_REVIEW_VERSION,
+          understandingReview,
+        },
+      };
+    });
   };
   const sectionComplete = (section: ParentQualificationSection) => {
     const item = assessment[section];
     if (section === "parentExperience") return PARENT_EXPERIENCE_QUESTIONS.every((_, index) => Boolean(item?.responses?.[`experience_${index + 1}`]?.trim()));
     if (section === "supportPreferences") return SUPPORT_PREFERENCE_QUESTIONS.every((_, index) => Boolean(item?.responses?.[`support_${index + 1}`]?.trim()));
-    if (section === "riExplanation") return Boolean(item?.scriptPresented && item?.responses?.ri_parent_response?.trim());
+    if (section === "riExplanation") return isRiExplanationEvidenceComplete(item);
     const r = item?.responses || {};
     const selectedPriorities = (() => { try { return JSON.parse(r.commercial_priorities || "[]"); } catch { return []; } })();
     const expenditureComplete = r.existing_expenditure === "yes"
@@ -142,7 +168,18 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
         return <section key={section}><h4 className="font-semibold">{sectionLabels[section]}</h4>
           {section === "parentExperience" && PARENT_EXPERIENCE_QUESTIONS.map((question, index) => <p key={index} className="mt-2 whitespace-pre-wrap"><strong>{index + 1}. {question}</strong><br />{item.responses?.[`experience_${index + 1}`] || "Not recorded"}</p>)}
           {section === "supportPreferences" && SUPPORT_PREFERENCE_QUESTIONS.map((question, index) => <p key={index} className="mt-2 whitespace-pre-wrap"><strong>{index + 1}. {question}</strong><br />{item.responses?.[`support_${index + 1}`] || "Not recorded"}</p>)}
-          {section === "riExplanation" && <><p className="mt-2">Approved RI explanation presented: {item.scriptPresented ? "Yes" : "Not recorded"}</p><p className="whitespace-pre-wrap">Parent response: {item.responses?.ri_parent_response || "Not recorded"}</p></>}
+          {section === "riExplanation" && <>
+            <p className="mt-2">Approved RI explanation presented: {item.scriptPresented ? "Yes" : "Not recorded"}</p>
+            <p className="mt-2">Explanation version: {item.explanationVersion || "Legacy / not recorded"}</p>
+            {RI_EXPLANATION_QUESTIONS.map(({ id, question }) => <p key={id} className="mt-2 whitespace-pre-wrap"><strong>{question}</strong> {item.responses?.[id] || "Not recorded"}</p>)}
+            {item.responses?.ri_parent_response && <p className="mt-2 whitespace-pre-wrap"><strong>Legacy parent response:</strong> {item.responses.ri_parent_response}</p>}
+            {item.responses?.ri_stuck_expectation && <p className="mt-2 whitespace-pre-wrap"><strong>Retired legacy question — stuck response:</strong> {item.responses.ri_stuck_expectation}</p>}
+            <h5 className="mt-3 font-semibold">Understanding criteria review</h5>
+            {RI_UNDERSTANDING_CRITERIA.map(({ id, label }) => {
+              const review = item.understandingReview?.[id];
+              return <p key={id} className="mt-2 whitespace-pre-wrap"><strong>{label}</strong><br />{review ? words(review.disposition) : "Not recorded"}{review?.note ? ` — ${review.note}` : ""}</p>;
+            })}
+          </>}
           {item.interviewerObservation && <p className="mt-2 whitespace-pre-wrap"><strong>Interviewer observation:</strong> {item.interviewerObservation}</p>}
           {item.followUp && <p className="mt-2 whitespace-pre-wrap"><strong>Follow-up:</strong> {item.followUp}</p>}
           {section === "commercialReadiness" && <div className="mt-2 space-y-2">
@@ -171,10 +208,34 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
       </fieldset>
       <fieldset className="rounded-md border p-3 space-y-4">
         <legend className="px-1 text-sm font-semibold">3. Response Integrity Explanation · {sectionComplete("riExplanation") ? "Complete" : "In progress"}</legend>
-        <p className="text-sm text-muted-foreground">Present this explanation as written. Do not paraphrase or replace it with a generic description.</p>
+        <p className="text-sm text-muted-foreground">Read the approved explanation, personalising only the bracketed reference. Ask the single understanding question, then assess the parent's answer against each fixed criterion below. Record whether the parent articulated the point, you clarified it, or it remains unclear.</p>
         <div className="rounded-md bg-muted/40 p-4 text-sm leading-relaxed whitespace-pre-wrap">{RI_EXPLANATION_SCRIPT}</div>
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={Boolean(assessment.riExplanation?.scriptPresented)} onChange={(event) => markScriptPresented(event.target.checked)} />I presented the approved explanation to the parent.</label>
-        <label className="block text-sm">Parent's response / questions after the explanation<textarea className={control} rows={4} maxLength={3000} value={responseValue("riExplanation", "ri_parent_response")} onChange={(event) => setResponse("riExplanation", "ri_parent_response", event.target.value)} placeholder="Record the parent's reaction, understanding, questions, or concerns." /></label>
+        {RI_EXPLANATION_QUESTIONS.map(({ id, question }) => <label key={id} className="block text-sm">
+          <span className="font-medium">{question}</span>
+          <textarea className={control} rows={3} maxLength={3000} value={responseValue("riExplanation", id)}
+            onChange={(event) => setResponse("riExplanation", id, event.target.value)}
+            placeholder="Record the parent's own answer, not the interviewer's interpretation." />
+        </label>)}
+        <div className="space-y-3 rounded-md border p-3">
+          <h5 className="font-medium">Understanding criteria</h5>
+          <p className="text-xs text-muted-foreground">Assess what the parent expressed in their answer. Clarification is recorded as evidence; it does not by itself make the parent unsuitable.</p>
+          {RI_UNDERSTANDING_CRITERIA.map(({ id, label }) => {
+            const review = assessment.riExplanation?.understandingReview?.[id];
+            return <div key={id} className="space-y-2 border-t pt-3">
+              <p className="text-sm">{label}</p>
+              <select className={control} value={review?.disposition || ""} onChange={(event) => setUnderstandingReview(id, event.target.value as RiUnderstandingDisposition | "")}>
+                <option value="">Choose assessment</option>
+                <option value="parent_articulated">Parent articulated</option>
+                <option value="specialist_clarified">Specialist clarified</option>
+                <option value="still_unclear">Still unclear</option>
+              </select>
+              {(review?.disposition === "specialist_clarified" || review?.disposition === "still_unclear") && <label className="block text-sm">What was clarified or remains unclear?
+                <textarea className={control} rows={2} maxLength={1000} value={review.note || ""} onChange={(event) => setUnderstandingReview(id, review.disposition, event.target.value)} placeholder="Record the specific point and the clarification or remaining question." />
+              </label>}
+            </div>;
+          })}
+        </div>
         <label className="block text-sm">Interviewer observation<textarea className={control} rows={2} maxLength={3000} value={assessment.riExplanation?.interviewerObservation || ""} onChange={(event) => setSectionField("riExplanation", "interviewerObservation", event.target.value)} /></label>
         <label className="block text-sm">Follow-up required<textarea className={control} rows={2} maxLength={1000} value={assessment.riExplanation?.followUp || ""} onChange={(event) => setSectionField("riExplanation", "followUp", event.target.value)} /></label>
       </fieldset>

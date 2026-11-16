@@ -19,6 +19,7 @@ on:
         options:
           - sandbox_diagnosis_v2_seed
           - sandbox_diagnosis_v2_activate
+          - parent_qualification_part3_understanding
       confirmation:
         description: "For apply, type THE_HUB exactly"
         required: false

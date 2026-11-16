@@ -207,6 +207,11 @@
       "path": "migrations/20261115144000_sandbox_diagnosis_bank_v2_activate.sql",
       "description": "Activate Sandbox diagnosis bank V4 only after guarded canonical observations, narrative integrity, coverage and duplicate-signature checks pass.",
       "risk": "destructive"
+    },
+    {
+      "path": "migrations/20261116110000_enforce_part3_understanding_rubric.sql",
+      "description": "Add an additive Part 3 understanding-rubric guard. Applied and read-back verified in Proof Preview; pending isolated Production promotion through its explicit batch.",
+      "risk": "additive"
     }
   ],
   "previewOnlyMigrations": [
@@ -230,6 +235,9 @@
     "sandbox_diagnosis_v2_activate": [
       "migrations/20261115143000_sandbox_diagnosis_bank_v2_seed.sql",
       "migrations/20261115144000_sandbox_diagnosis_bank_v2_activate.sql"
+    ],
+    "parent_qualification_part3_understanding": [
+      "migrations/20261116110000_enforce_part3_understanding_rubric.sql"
     ]
   }
 }

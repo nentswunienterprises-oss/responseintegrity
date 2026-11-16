@@ -5,6 +5,11 @@ import {
   COMMERCIAL_PURCHASING_PRIORITIES,
   RI_COMMERCIAL_PRESENTATION,
   RI_MEETING_CLOSURE,
+  RI_EXPLANATION_VERSION,
+  RI_EXPLANATION_QUESTIONS,
+  RI_UNDERSTANDING_CRITERIA,
+  RI_UNDERSTANDING_REVIEW_VERSION,
+  isRiExplanationEvidenceComplete,
 } from "../shared/demandProduction";
 import { updateDemandProduction } from "./demandProduction";
 import { isParentQualificationAssessmentComplete } from "../shared/demandProduction";
@@ -83,7 +88,7 @@ test("terminal qualification decisions require complete, saved, question-level e
   const complete = {
     parentExperience: { responses: Object.fromEntries(Array.from({ length: 8 }, (_, index) => [`experience_${index + 1}`, "Recorded answer"])) },
     supportPreferences: { responses: Object.fromEntries(Array.from({ length: 11 }, (_, index) => [`support_${index + 1}`, "Recorded answer"])) },
-    riExplanation: { scriptPresented: true, responses: { ri_parent_response: "Parent response recorded" } },
+    riExplanation: { scriptPresented: true, explanationVersion: RI_EXPLANATION_VERSION, understandingReviewVersion: RI_UNDERSTANDING_REVIEW_VERSION, understandingReview: Object.fromEntries(RI_UNDERSTANDING_CRITERIA.map(({ id }) => [id, { disposition: "parent_articulated" as const }])), responses: { ri_session_expectation: "They practise responses through reps." } },
     commercialReadiness: {
       responses: {
         existing_expenditure: "no",
@@ -126,4 +131,37 @@ test("terminal qualification decisions require complete, saved, question-level e
     /Complete and save all four approved qualification sections/,
   );
   assert.equal(decisionRpcCalled, false);
+});
+
+test("Part 3 requires one parent answer and a complete criterion-by-criterion understanding review", () => {
+  const base = {
+    scriptPresented: true,
+    explanationVersion: RI_EXPLANATION_VERSION,
+    understandingReviewVersion: RI_UNDERSTANDING_REVIEW_VERSION,
+    responses: { ri_session_expectation: "My child practises specific responses through repeated mathematical attempts." },
+    understandingReview: Object.fromEntries(RI_UNDERSTANDING_CRITERIA.map(({ id }) => [id, { disposition: "parent_articulated" as const }])),
+  };
+  assert.equal(RI_EXPLANATION_QUESTIONS.length, 1);
+  assert.match(RI_EXPLANATION_QUESTIONS[0].question, /what do you understand your child would actually be doing during these sessions/);
+  assert.equal(RI_UNDERSTANDING_CRITERIA.length, 5);
+  assert.equal(isRiExplanationEvidenceComplete(base), true);
+  assert.equal(isRiExplanationEvidenceComplete({ ...base, scriptPresented: false }), false);
+  assert.equal(isRiExplanationEvidenceComplete({ ...base, responses: { ri_session_expectation: "" } }), false);
+  assert.equal(isRiExplanationEvidenceComplete({ ...base, understandingReview: { ...base.understandingReview, planned_repetitions: { disposition: "specialist_clarified" } } }), false);
+  assert.equal(isRiExplanationEvidenceComplete({ ...base, understandingReview: { ...base.understandingReview, planned_repetitions: { disposition: "specialist_clarified", note: "Clarified that the learner completes repeated attempts." } } }), true);
+  assert.equal(isRiExplanationEvidenceComplete({ ...base, understandingReview: { ...base.understandingReview, planned_repetitions: { disposition: "still_unclear", note: "Parent remains unsure about repeated practice." } } }), true);
+  assert.equal(isRiExplanationEvidenceComplete({ ...base, understandingReviewVersion: "legacy" }), false);
+  assert.equal(isRiExplanationEvidenceComplete({ scriptPresented: true, responses: { ri_parent_response: "Legacy answer" } }), false);
+});
+
+test("Part 3 UI has distinct response capture, explanation provenance and historical record visibility", async () => {
+  const source = await readFile(new URL("../client/src/components/executive/DemandReview.tsx", import.meta.url), "utf8");
+  assert.match(source, /RI_EXPLANATION_QUESTIONS\.map/);
+  assert.match(source, /isRiExplanationEvidenceComplete\(item\)/);
+  assert.match(source, /explanationVersion: presented \? RI_EXPLANATION_VERSION/);
+  assert.match(source, /Legacy parent response/);
+  assert.match(source, /RI_UNDERSTANDING_CRITERIA\.map/);
+  assert.match(source, /understandingReviewVersion: RI_UNDERSTANDING_REVIEW_VERSION/);
+  assert.match(source, /Retired legacy question — stuck response/);
+  assert.match(source, /Clarification is recorded as evidence/);
 });
