@@ -67,14 +67,27 @@ export const RI_EXPLANATION_VERSION = "conditioning-mechanism-v2" as const;
 
 export const RI_EXPLANATION_QUESTIONS = [
   {
-    "id": "ri_session_expectation",
-    "question": "From what I've explained, what do you understand your child would actually be doing during these sessions?"
+    id: "ri_session_expectation",
+    question: "From what I've explained, what do you understand your child would actually be doing during these sessions?",
   },
-  {
-    "id": "ri_stuck_expectation",
-    "question": "And if your child gets stuck on a question, what would you expect the Specialist to do?"
-  }
 ] as const;
+
+export const RI_UNDERSTANDING_REVIEW_VERSION = "conditioning-understanding-rubric-v1" as const;
+export const RI_UNDERSTANDING_DISPOSITIONS = ["parent_articulated", "specialist_clarified", "still_unclear"] as const;
+export type RiUnderstandingDisposition = typeof RI_UNDERSTANDING_DISPOSITIONS[number];
+
+export const RI_UNDERSTANDING_CRITERIA = [
+  { id: "observe_independent_work", label: "The Specialist observes what the learner understands and can do independently, including where the response breaks down." },
+  { id: "planned_repetitions", label: "The learner actively completes planned sets of mathematical attempts (reps), rather than only receiving explanations." },
+  { id: "evidence_led_training", label: "The Specialist observes and records performance, gives appropriate correction, and repeats targeted practice." },
+  { id: "progressive_challenge", label: "Greater difficulty and time pressure are introduced as the learner demonstrates more reliable independent execution." },
+  { id: "weekly_conditioning", label: "A structured weekly rhythm and repeated exposure build dependable responses; one successful session alone is not enough." },
+] as const;
+
+export interface RiUnderstandingAssessment {
+  disposition: RiUnderstandingDisposition;
+  note?: string;
+}
 
 export const RI_EXPLANATION_SCRIPT = "Thank you for explaining your child's experience with mathematics.\n\nEarlier, you mentioned [briefly refer to the difficulty the parent described]. I'd like to explain how Response Integrity approaches difficulties like these, so you can understand what your child would actually experience with us.\n\nResponse Integrity is an online, one-on-one mathematics response-conditioning programme.\n\nWhen a child struggles with mathematics, the solution is not always another explanation. Sometimes they lack mathematical understanding. Other times, they understand something while being helped but struggle to use it independently, especially when questions become unfamiliar, mistakes happen or time is limited.\n\nWe begin by observing the learner's actual work. We look at what they understand, what they can do without assistance and where their response breaks down.\n\nThen we train what the evidence identifies.\n\nFor example, imagine your child knows how to solve an equation but loses their steps when the question looks different.\n\nInstead of simply explaining the answer and moving on, we identify what went wrong and give them structured opportunities to practise the response they need.\n\nThey complete planned sets of mathematical attempts, which we call reps. We observe how they perform, record what happens, provide appropriate correction and repeat the training. As their execution becomes more reliable, we introduce greater difficulty and eventually time pressure.\n\nProgression is not based simply on finishing an exercise or feeling more confident. It depends on what the learner demonstrates independently.\n\nYou can compare this to athletic training. Understanding a skill is important, but consistent performance is developed through preparation, deliberate practice and repeated exposure to appropriate challenges.\n\nThat is why we have a structured weekly training rhythm. One successful session is not the same as developing a dependable response.\n\nThroughout the programme, we aim to show you what your child can now do independently, what still needs work and what we are training next.\n\nImproved school performance is an important outcome we are working towards. But the foundation of our approach is building the understanding and reliable execution needed to support that performance.";
 
@@ -86,15 +99,23 @@ export interface ParentQualificationEvidence {
   responses?: Record<string, string>;
   scriptPresented?: boolean;
   explanationVersion?: string;
+  understandingReviewVersion?: string;
+  understandingReview?: Record<string, RiUnderstandingAssessment>;
   pricePresentationDelivered?: boolean;
   meetingClosureDelivered?: boolean;
 }
 export type ParentQualificationAssessment = Partial<Record<ParentQualificationSection, ParentQualificationEvidence>>;
 
 export function isRiExplanationEvidenceComplete(item: ParentQualificationEvidence | undefined): boolean {
-  return Boolean(item?.scriptPresented
-    && item.explanationVersion === RI_EXPLANATION_VERSION
-    && RI_EXPLANATION_QUESTIONS.every(({ id }) => item.responses?.[id]?.trim()));
+  if (!item?.scriptPresented || item.explanationVersion !== RI_EXPLANATION_VERSION
+    || item.understandingReviewVersion !== RI_UNDERSTANDING_REVIEW_VERSION
+    || !RI_EXPLANATION_QUESTIONS.every(({ id }) => item.responses?.[id]?.trim())) return false;
+
+  return RI_UNDERSTANDING_CRITERIA.every(({ id }) => {
+    const review = item.understandingReview?.[id];
+    if (!review || !RI_UNDERSTANDING_DISPOSITIONS.includes(review.disposition)) return false;
+    return review.disposition === "parent_articulated" || Boolean(review.note?.trim());
+  });
 }
 
 
