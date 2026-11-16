@@ -150,7 +150,7 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
             <p className="mt-2">Explanation version: {item.explanationVersion || "Legacy / not recorded"}</p>
             {RI_EXPLANATION_QUESTIONS.map(({ id, question }) => <p key={id} className="mt-2 whitespace-pre-wrap"><strong>{question}</strong> {item.responses?.[id] || "Not recorded"}</p>)}
             {item.responses?.ri_parent_response && <p className="mt-2 whitespace-pre-wrap"><strong>Legacy parent response:</strong> {item.responses.ri_parent_response}</p>}
-          </>
+          </>}
           {item.interviewerObservation && <p className="mt-2 whitespace-pre-wrap"><strong>Interviewer observation:</strong> {item.interviewerObservation}</p>}
           {item.followUp && <p className="mt-2 whitespace-pre-wrap"><strong>Follow-up:</strong> {item.followUp}</p>}
           {section === "commercialReadiness" && <div className="mt-2 space-y-2">
