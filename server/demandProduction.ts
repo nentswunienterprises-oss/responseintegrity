@@ -8,6 +8,7 @@ const evidenceSchema = z.object({
   followUp: z.string().max(1000).optional(),
   responses: z.record(z.string(), z.string().max(3000)).optional(),
   scriptPresented: z.boolean().optional(),
+  explanationVersion: z.string().max(80).optional(),
   pricePresentationDelivered: z.boolean().optional(),
   meetingClosureDelivered: z.boolean().optional(),
 }).strict();
