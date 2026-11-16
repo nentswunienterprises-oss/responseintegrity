@@ -224,7 +224,7 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
             const review = assessment.riExplanation?.understandingReview?.[id];
             return <div key={id} className="space-y-2 border-t pt-3">
               <p className="text-sm">{label}</p>
-              <select className={control} value={review?.disposition || ""} onChange={(event) => setUnderstandingReview(id, event.target.value)}>
+              <select className={control} value={review?.disposition || ""} onChange={(event) => setUnderstandingReview(id, event.target.value as RiUnderstandingDisposition | "")}>
                 <option value="">Choose assessment</option>
                 <option value="parent_articulated">Parent articulated</option>
                 <option value="specialist_clarified">Specialist clarified</option>
