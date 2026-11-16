@@ -16,6 +16,7 @@ import {
   RI_UNDERSTANDING_CRITERIA,
   RI_UNDERSTANDING_REVIEW_VERSION,
   isRiExplanationEvidenceComplete,
+  type RiUnderstandingDisposition,
   type ParentQualificationAssessment,
   type ParentQualificationSection,
 } from "@shared/demandProduction";
@@ -68,19 +69,22 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
     setAssessmentSaved(false);
     setAssessment((current) => ({ ...current, riExplanation: { ...current.riExplanation, scriptPresented: presented, explanationVersion: presented ? RI_EXPLANATION_VERSION : undefined } }));
   };
-  const setUnderstandingReview = (criterionId: string, disposition: string, note?: string) => {
+  const setUnderstandingReview = (criterionId: string, disposition: RiUnderstandingDisposition | "", note?: string) => {
     setAssessmentSaved(false);
     setAssessment((current) => {
-      const previous = current.riExplanation?.understandingReview?.[criterionId];
+      const understandingReview = { ...current.riExplanation?.understandingReview };
+      if (!disposition) {
+        delete understandingReview[criterionId];
+      } else {
+        const previous = understandingReview[criterionId];
+        understandingReview[criterionId] = { disposition, ...(note !== undefined ? { note } : previous?.note ? { note: previous.note } : {}) };
+      }
       return {
         ...current,
         riExplanation: {
           ...current.riExplanation,
           understandingReviewVersion: RI_UNDERSTANDING_REVIEW_VERSION,
-          understandingReview: {
-            ...current.riExplanation?.understandingReview,
-            [criterionId]: { disposition, ...(note !== undefined ? { note } : previous?.note ? { note: previous.note } : {}) },
-          },
+          understandingReview,
         },
       };
     });
