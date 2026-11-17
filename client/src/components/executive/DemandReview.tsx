@@ -192,7 +192,7 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
     {e.handover_note && <p className="text-sm whitespace-pre-wrap">Agreed next action: {e.handover_note}</p>}
     {legacy && <p className="text-sm text-muted-foreground">Existing service remains operational. Historical qualification and handover are not inferred.</p>}
     {!legacy && !e.qualification_completed_at && <section className="border-t pt-4 space-y-4">
-      <div><h4 className="font-semibold">Parent Qualification — approved interview guide</h4><p className="text-sm text-muted-foreground">Ask the approved questions and record each answer individually. Keep the parent's account separate from interviewer observations. Save partial progress during the conversation.</p></div>
+      <div><h4 className="font-semibold">Parent Qualification: approved interview guide</h4><p className="text-sm text-muted-foreground">Ask the approved questions and record each answer individually. Keep the parent's account separate from interviewer observations. Save partial progress during the conversation.</p></div>
       <fieldset className="rounded-md border p-3 space-y-4">
         <legend className="px-1 text-sm font-semibold">1. Parent Experience · {sectionComplete("parentExperience") ? "Complete" : "In progress"}</legend>
         {renderQuestionSet("parentExperience", PARENT_EXPERIENCE_QUESTIONS, "experience")}
