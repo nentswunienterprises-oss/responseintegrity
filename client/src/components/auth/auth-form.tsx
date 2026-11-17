@@ -195,19 +195,32 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
             title: "Welcome!",
             description: "Your specialist account is ready and you are signed in.",
           });
-        } else {
-          redirectUrl = data.redirectUrl || getDefaultDashboardRoute(role);
+        } else if (data.sessionEstablished) {
+          // Supabase returned a valid session, so complete signup as a signed-in
+          // parent instead of leaving them at the signup form.
+          clearAllCache();
+          if (data.dbUser) {
+            queryClient.setQueryData(["/api/auth/user"], data.dbUser);
+            if (data.dbUser.id) {
+              setCurrentUserId(data.dbUser.id);
+            }
+          }
 
+          redirectUrl = data.redirectUrl || getDefaultDashboardRoute(role);
           toast({
             title: "Welcome!",
-            description: "Your account has been created successfully. You may log in now.",
+            description: "Your account is ready and you are signed in.",
           });
-          
-          // Wait for session to fully propagate before redirecting
-          // Increased from 100ms to 500ms to ensure cookies are properly set
+
+          // Allow the session cookie to reach the browser before loading the portal.
           await new Promise(resolve => setTimeout(resolve, 500));
-          
-          // Normal Supabase signup keeps the production email-verification contract.
+        } else {
+          // Supabase requires email confirmation for this signup. Do not imply
+          // that the parent is authenticated until a real session is available.
+          toast({
+            title: "Verify your email",
+            description: "Your account has been created. Verify your email before logging in.",
+          });
           setLoading(false);
           return;
         }

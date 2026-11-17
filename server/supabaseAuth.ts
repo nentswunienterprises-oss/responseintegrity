@@ -492,10 +492,20 @@ export async function setupAuth(app: Express) {
         });
       }
 
-      // Set session with user data and token
-      (req.session as any).userId = authData.user.id;
-      (req.session as any).email = authData.user.email;
-      (req.session as any).accessToken = authData.session?.access_token;
+      // Only establish an authenticated session when Supabase returned a valid
+      // session. With email confirmation enabled, signUp returns no session and
+      // the parent must verify their email before logging in.
+      const sessionEstablished = Boolean(authData.session?.access_token);
+      // Do not leave a prior account authenticated when this signup requires
+      // email verification and Supabase did not issue a new session.
+      delete (req.session as any).userId;
+      delete (req.session as any).email;
+      delete (req.session as any).accessToken;
+      if (sessionEstablished) {
+        (req.session as any).userId = authData.user.id;
+        (req.session as any).email = authData.user.email;
+        (req.session as any).accessToken = authData.session.access_token;
+      }
       
       // Force session to be marked as modified so cookie will be sent
       req.session.touch();
@@ -532,6 +542,8 @@ export async function setupAuth(app: Express) {
         
         res.json({
           user: authData.user,
+          dbUser: user,
+          sessionEstablished,
           redirectUrl,
           message: "Signup successful",
         });
