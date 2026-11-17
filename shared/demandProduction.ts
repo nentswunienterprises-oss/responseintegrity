@@ -135,7 +135,7 @@ For 8 sessions, with your child being trained and conditioned twice a week, it i
 For 12 sessions, with your child being trained and conditioned three times a week, it is R2,400.
 For 16 sessions, with your child being trained and conditioned four times a week, it is R3,200.
 I want to understand whether, if you found the programme valuable and suitable for your child, continuing at one of these prices would be a realistic decision for your family.
-Would any of these options be manageable for you on an ongoing basis, or would the cost be a concern?`;
+Would any of these options be manageable for you on an ongoing basis?`;
 
 export const RI_MEETING_CLOSURE = "Thank you for speaking with me. My team and I will assess your information and get back to you regarding the next steps.";
 
