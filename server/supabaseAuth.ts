@@ -496,6 +496,11 @@ export async function setupAuth(app: Express) {
       // session. With email confirmation enabled, signUp returns no session and
       // the parent must verify their email before logging in.
       const sessionEstablished = Boolean(authData.session?.access_token);
+      // Do not leave a prior account authenticated when this signup requires
+      // email verification and Supabase did not issue a new session.
+      delete (req.session as any).userId;
+      delete (req.session as any).email;
+      delete (req.session as any).accessToken;
       if (sessionEstablished) {
         (req.session as any).userId = authData.user.id;
         (req.session as any).email = authData.user.email;
