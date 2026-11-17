@@ -18,7 +18,7 @@ import {
 } from "@shared/productionLinks";
 import { getDefaultDashboardRoute } from "@shared/portals";
 import { getAllowedOdEmailList, isAllowedOdEmail, normalizeEmail } from "@shared/odAccess";
-import { isEmergencyDbMode, isProofDbAuthMode } from "./emergencyMode";
+import { isEmergencyDbMode, isProofDbAuthMode, shouldUseEmergencyDbAuthForRole } from "./emergencyMode";
 import {
   authenticateEmergencyUser,
   createEmergencyTutorAccount,
@@ -287,12 +287,9 @@ export async function setupAuth(app: Express) {
       }
 
       const proofTutorDbAuth = role === "tutor" && isProofDbAuthMode();
-      const directTutorDbAuth = isEmergencyDbMode() || proofTutorDbAuth;
+      const directTutorDbAuth = shouldUseEmergencyDbAuthForRole(role, isEmergencyDbMode()) || proofTutorDbAuth;
 
       if (directTutorDbAuth) {
-        if (isEmergencyDbMode() && role !== "tutor") {
-          return res.status(503).json({ message: "New account creation is temporarily available for specialists only." });
-        }
         if (password.length < 6) {
           return res.status(400).json({ message: "Password must be at least 6 characters" });
         }
@@ -570,7 +567,7 @@ export async function setupAuth(app: Express) {
 
       const proofTutorDbAuth =
         expectedRole === "tutor" && isProofDbAuthMode();
-      const directTutorDbAuth = isEmergencyDbMode() || proofTutorDbAuth;
+      const directTutorDbAuth = shouldUseEmergencyDbAuthForRole(expectedRole, isEmergencyDbMode()) || proofTutorDbAuth;
 
       if (directTutorDbAuth) {
         const result = await authenticateEmergencyUser(pool, email, password, req.ip || "unknown");

@@ -147,10 +147,6 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
         const authMode = await getAuthMode();
         const directSpecialistSession =
           role === "tutor" && (authMode.emergencyDbMode || authMode.proofDbAuthMode);
-        if (authMode.emergencyDbMode && role !== "tutor") {
-          throw new Error("New account creation is temporarily available for specialists only.");
-        }
-
         // Determine tracking_source: 'affiliate' if code present, else 'organic'
         let trackingSource = urlTrackingSource;
         if (!trackingSource) {

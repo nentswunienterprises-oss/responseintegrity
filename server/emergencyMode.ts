@@ -67,3 +67,7 @@ export function isTheHubDatabaseRuntime(
   const supabaseRef = supabaseProjectRef(env.SUPABASE_URL);
   return supabaseRef === HUB_PROJECT_REF;
 }
+
+export function shouldUseEmergencyDbAuthForRole(role: string, emergencyDbMode: boolean) {
+  return emergencyDbMode && role === "tutor";
+}
