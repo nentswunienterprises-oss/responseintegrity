@@ -61,7 +61,7 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
       return { ...current, [section]: { ...current[section], responses, parentAccount: count ? `${count} individual question response(s) recorded.` : "" } };
     });
   };
-  const setSectionField = (section: ParentQualificationSection, field: "interviewerObservation" | "followUp", value: string) => {
+  const setSectionField = (section: ParentQualificationSection, field: "interviewerObservation", value: string) => {
     setAssessmentSaved(false);
     setAssessment((current) => ({ ...current, [section]: { ...current[section], [field]: value } }));
   };
@@ -181,7 +181,6 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
             })}
           </>}
           {item.interviewerObservation && <p className="mt-2 whitespace-pre-wrap"><strong>Interviewer observation:</strong> {item.interviewerObservation}</p>}
-          {item.followUp && <p className="mt-2 whitespace-pre-wrap"><strong>Follow-up:</strong> {item.followUp}</p>}
           {section === "commercialReadiness" && <div className="mt-2 space-y-2">
             <p>RI price presentation delivered: {item.pricePresentationDelivered ? "Yes" : "Not recorded"}</p>
             <p>Meeting closure delivered: {item.meetingClosureDelivered ? "Yes" : "Not recorded"}</p>
@@ -198,13 +197,11 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
         <legend className="px-1 text-sm font-semibold">1. Parent Experience · {sectionComplete("parentExperience") ? "Complete" : "In progress"}</legend>
         {renderQuestionSet("parentExperience", PARENT_EXPERIENCE_QUESTIONS, "experience")}
         <label className="block text-sm">Interviewer observation<textarea className={control} rows={2} maxLength={3000} value={assessment.parentExperience?.interviewerObservation || ""} onChange={(event) => setSectionField("parentExperience", "interviewerObservation", event.target.value)} /></label>
-        <label className="block text-sm">Follow-up required<textarea className={control} rows={2} maxLength={1000} value={assessment.parentExperience?.followUp || ""} onChange={(event) => setSectionField("parentExperience", "followUp", event.target.value)} /></label>
       </fieldset>
       <fieldset className="rounded-md border p-3 space-y-4">
         <legend className="px-1 text-sm font-semibold">2. Understanding Support Preferences · {sectionComplete("supportPreferences") ? "Complete" : "In progress"}</legend>
         {renderQuestionSet("supportPreferences", SUPPORT_PREFERENCE_QUESTIONS, "support")}
         <label className="block text-sm">Interviewer observation<textarea className={control} rows={2} maxLength={3000} value={assessment.supportPreferences?.interviewerObservation || ""} onChange={(event) => setSectionField("supportPreferences", "interviewerObservation", event.target.value)} /></label>
-        <label className="block text-sm">Follow-up required<textarea className={control} rows={2} maxLength={1000} value={assessment.supportPreferences?.followUp || ""} onChange={(event) => setSectionField("supportPreferences", "followUp", event.target.value)} /></label>
       </fieldset>
       <fieldset className="rounded-md border p-3 space-y-4">
         <legend className="px-1 text-sm font-semibold">3. Response Integrity Explanation · {sectionComplete("riExplanation") ? "Complete" : "In progress"}</legend>
@@ -237,7 +234,6 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
           })}
         </div>
         <label className="block text-sm">Interviewer observation<textarea className={control} rows={2} maxLength={3000} value={assessment.riExplanation?.interviewerObservation || ""} onChange={(event) => setSectionField("riExplanation", "interviewerObservation", event.target.value)} /></label>
-        <label className="block text-sm">Follow-up required<textarea className={control} rows={2} maxLength={1000} value={assessment.riExplanation?.followUp || ""} onChange={(event) => setSectionField("riExplanation", "followUp", event.target.value)} /></label>
       </fieldset>
       <fieldset className="rounded-md border p-3 space-y-4">
         <legend className="px-1 text-sm font-semibold">4. Commercial Readiness · {sectionComplete("commercialReadiness") ? "Complete" : "In progress"}</legend>
@@ -285,7 +281,6 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
           <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={Boolean(assessment.commercialReadiness?.meetingClosureDelivered)} onChange={event=>{setAssessmentSaved(false);setAssessment(current=>({...current,commercialReadiness:{...current.commercialReadiness,meetingClosureDelivered:event.target.checked}}));}} />I delivered the meeting closing statement.</label>
         </div>
         <label className="block text-sm">Interviewer observation<textarea className={control} rows={3} maxLength={3000} value={assessment.commercialReadiness?.interviewerObservation || ""} onChange={event=>setSectionField("commercialReadiness","interviewerObservation",event.target.value)} /></label>
-        <label className="block text-sm">Follow-up required<textarea className={control} rows={2} maxLength={1000} value={assessment.commercialReadiness?.followUp || ""} onChange={event=>setSectionField("commercialReadiness","followUp",event.target.value)} /></label>
       </fieldset>
       <div className="flex flex-wrap items-center gap-3"><Button type="button" disabled={save.isPending} onClick={() => save.mutate({ action: "assessment", assessment })}>Save assessment</Button><span className="text-xs text-muted-foreground">{PARENT_QUALIFICATION_SECTIONS.filter(sectionComplete).length} of 4 parts complete · {!assessmentSaved ? "Unsaved changes" : e.qualification_assessment_updated_at ? `Last saved ${when(e.qualification_assessment_updated_at)}` : "Not yet saved"}</span></div>
     </section>}
