@@ -28,7 +28,7 @@ import {
   buildPayfastCheckoutSignature,
   withPayfastSignature,
 } from "./payfast";
-import { isProofDbAuthMode } from "./emergencyMode";
+import { isProofDbAuthMode, shouldUseEmergencyDbAuthForRole } from "./emergencyMode";
 
 test("emergency topic activation stays on direct PostgreSQL and never falls through to Supabase", () => {
   const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
@@ -306,9 +306,19 @@ test("Proof DB auth is selected by the local Proof database target", () => {
   }), false);
 });
 
-test("non-tutor emergency signup is rejected", () => {
+test("emergency mode preserves Supabase parent signup and signin while specialists use DB sessions", () => {
+  assert.equal(shouldUseEmergencyDbAuthForRole("tutor", true), true);
+  assert.equal(shouldUseEmergencyDbAuthForRole("parent", true), false);
+  assert.equal(shouldUseEmergencyDbAuthForRole("parent", false), false);
+
   const authSource = readFileSync(resolve(process.cwd(), "server/supabaseAuth.ts"), "utf8");
-  assert.match(authSource, /if \(isEmergencyDbMode\(\) && role !== "tutor"\) \{[\s\S]*?status\(503\)/);
+  assert.match(authSource, /shouldUseEmergencyDbAuthForRole\(role, isEmergencyDbMode\(\)\) \|\| proofTutorDbAuth/);
+  assert.match(authSource, /shouldUseEmergencyDbAuthForRole\(expectedRole, isEmergencyDbMode\(\)\) \|\| proofTutorDbAuth/);
+  assert.doesNotMatch(authSource, /New account creation is temporarily available for specialists only/);
+
+  const clientSource = readFileSync(resolve(process.cwd(), "client/src/components/auth/auth-form.tsx"), "utf8");
+  assert.doesNotMatch(clientSource, /authMode\.emergencyDbMode && role !== "tutor"/);
+  assert.match(clientSource, /role === "tutor" && \(authMode\.emergencyDbMode \|\| authMode\.proofDbAuthMode\)/);
 });
 
 test("direct Specialist DB-session signup cannot invoke Supabase Auth", () => {
