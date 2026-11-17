@@ -2454,7 +2454,27 @@ async function upsertMembershipMonth(options: {
     .eq("is_sandbox", !!options.isSandbox)
     .maybeSingle();
 
-  if (existing) return existing;
+  if (existing) {
+    const existingEnrollmentId = String(existing.enrollment_id || "").trim();
+    const requestedEnrollmentId = String(options.enrollmentId || "").trim();
+    if (!existingEnrollmentId && requestedEnrollmentId) {
+      const { data: linked, error: linkError } = await supabase
+        .from("membership_months")
+        .update({ enrollment_id: requestedEnrollmentId, updated_at: nowIso })
+        .eq("id", existing.id)
+        .is("enrollment_id", null)
+        .select("*")
+        .maybeSingle();
+
+      if (linkError) {
+        console.error("Failed to attach enrollment to membership month:", linkError);
+        return null;
+      }
+
+      return linked || existing;
+    }
+    return existing;
+  }
 
   const servicePackage = await resolveEnrollmentServicePackage({
     enrollmentId: options.enrollmentId,
@@ -3819,6 +3839,7 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
     const month = await upsertMembershipMonth({
       parentId,
       studentId,
+      enrollmentId: enrollmentId || null,
       monthStartIso,
       isSandbox: isSandboxTransaction,
       packageKey: servicePackage.key,
