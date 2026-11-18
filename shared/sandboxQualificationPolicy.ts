@@ -25,7 +25,7 @@ export const SANDBOX_QUALIFICATION_V2 = {
   diagnosisPhases:["Clarity","Structured Execution","Controlled Discomfort","Time Pressure Stability"],
   profileOpportunityMinimum:0,
 } as const;
-export type SandboxQualificationMode=typeof policy.modes[number];
+export type SandboxQualificationMode=typeof SANDBOX_QUALIFICATION_V1.modes[number];
 export type SandboxQualificationEvidence={
   id:string;occurredAt:string;kind:"opportunity"|"session";mode:SandboxQualificationMode;
   studentId:string;trajectoryId:string;phase:string|null;profile:string|null;
