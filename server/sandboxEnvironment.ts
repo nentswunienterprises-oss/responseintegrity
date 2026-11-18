@@ -1451,15 +1451,15 @@ async function readinessFor(input: {
   const capability = evaluateSandboxCapabilityReadiness({
     policy: input.bank.capabilityPolicy, evidence, exposure,
   });
-  // Founder approved Policy V1. Production remains dormant until controlled
-  // acceptance + protected evidence migration/native-mode proof are complete.
+  // Sandbox qualification V2 removes Behaviour signatures and Handover from current
+  // development coverage. Production remains dormant until separately authorized.
   // The isolated Proof Preview is deliberately fail-closed, but its guarded
   // cross-mode capture flag is already scoped to the acceptance database.
   // Keep qualification active for this one controlled Specialist if a
   // deployment omitted the separate activation variable; never elsewhere.
   const activated = process.env.RI_SANDBOX_QUALIFICATION_V2_ACTIVE === "true" ||
     (isCapabilityProofPreview(process.env) &&
-      process.env.RI_SANDBOX_CROSSMODE_CAPTURE_V2 === "true");
+      process.env.RI_SANDBOX_CROSSMODE_CAPTURE_V1 === "true");
   let qualification = evaluateSandboxQualification([], { activated: false });
   let qualificationSourceGaps: string[] = [];
   let evidenceFingerprint: string | null = null;
