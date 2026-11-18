@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { SandboxReadinessAssessmentCard } from "@/components/sandbox/SandboxReadinessAssessmentCard";
+import { SandboxReadinessAssessmentCard, type CapabilityReadiness } from "@/components/sandbox/SandboxReadinessAssessmentCard";
 import { TdPracticalsCompletion } from "@/components/sandbox/TdPracticalsCompletion";
 
 type CapabilityAssessment = {
@@ -139,29 +139,8 @@ type DevelopmentRecord = {
     };
   };
   sandbox: {
-    readiness: {
-      policyAvailable: boolean;
-      evidenceReady: boolean;
-      practicalsReady: boolean;
-      earliestUnsupportedCapability: string | null;
-      breadthReady: boolean;
-      longitudinalReady: boolean;
-      reason: string;
-      layers: Array<{
-        layer: string;
-        state: string;
-        validOpportunityCount: number;
-        minimumValidOpportunities: number;
-      }>;
-      exposure?: {
-        distinctPhases: number;
-        distinctSets: number;
-        distinctRepPositions: number;
-        completedSessions: number;
-        stateChangeObserved: boolean;
-        breakdownRecoveryObserved: boolean;
-      };
-    };
+    readiness: CapabilityReadiness;
+
     latestAssessment: {
       decision: "passed" | "remediation_required";
       evidenceNote: string;
@@ -728,6 +707,8 @@ export default function SpecialistDevelopmentRecordPage() {
               operationalMode={record.assignment.operationalMode}
               apiBasePath={isCooView ? "/api/coo" : "/api/td"}
               readOnly={isCooView}
+              initialReadiness={isCooView ? record.sandbox.readiness : undefined}
+              initialLatestAssessment={isCooView ? record.sandbox.latestAssessment : undefined}
             />
           </section>
         ) : null}
