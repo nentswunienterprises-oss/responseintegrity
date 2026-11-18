@@ -37,6 +37,7 @@ test("Specialist Development Record selects TD or COO read authority from the ro
   assert.match(page, /const isCooView/);
   assert.match(page, /const recordApiBase = isCooView \? "\/api\/coo" : "\/api\/td"/);
   assert.match(page, /record\.assignment\.operationalMode === "sandbox"/);
+  assert.match(page, /initialReadiness=\{isCooView \? record\.sandbox\.readiness : undefined\}/);
   assert.match(page, /apiBasePath=\{isCooView \? "\/api\/coo" : "\/api\/td"\}/);
   assert.match(page, /readOnly=\{isCooView\}/);
   assert.match(app, /executive\/coo\/pods\/:podId\/specialists\/:tutorId\/development/);
