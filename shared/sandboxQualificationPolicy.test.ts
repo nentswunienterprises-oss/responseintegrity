@@ -21,9 +21,10 @@ function coverage():E[]{let n=0;const a:E[]=[];
 function final(n:number){const phases=Object.keys(p.phaseMinimums);return Array.from({length:8},(_,i)=>
  event(n+i,{kind:"session",phase:phases[Math.floor(i/2)]}));}
 test("count alone never graduates",()=>assert.equal(evaluateSandboxQualification(final(1),{activated:true}).qualificationReady,false));
-test("Diagnosis operating-mode coverage requires all four phases",()=>{const a=coverage();
- const diagnosis=evaluateSandboxQualification(a,{activated:true}).requirements.find(r=>r.key==="mode:diagnosis");
- assert.equal(diagnosis?.required,4); assert.equal(diagnosis?.distinctCorrect,4); assert.equal(diagnosis?.met,true);
+test("Diagnosis is covered under preparation contexts, not duplicated as an operating mode",()=>{
+ const requirements=evaluateSandboxQualification(coverage(),{activated:true}).requirements;
+ assert.equal(requirements.some(r=>r.key==="mode:diagnosis"),false);
+ for(const phase of p.diagnosisPhases)assert.equal(requirements.find(r=>r.key==="preparation:diagnosis:"+phase)?.met,true);
 });
 test("coverage then eight clean sessions qualifies only when activated",()=>{const a=coverage(),data=[...a,...final(a.length+1)];
  assert.equal(evaluateSandboxQualification(data).qualificationReady,false);
