@@ -322,7 +322,7 @@ try{
  const readiness=async()=>{
   const {loaded,status}=await project();
   return {
-   practicalsReady:status.qualificationReady,policyStatus:"approved",policyVersion:1,
+   practicalsReady:status.qualificationReady,policyStatus:"approved",policyVersion:2,
    bankKey:"sandbox_stateful_environment",bankVersion:1,
    qualification:{policyId:status.policyId,policyVersion:status.policyVersion,
     qualificationReady:status.qualificationReady,
