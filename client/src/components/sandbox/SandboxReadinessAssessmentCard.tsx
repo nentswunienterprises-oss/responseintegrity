@@ -856,7 +856,7 @@ export function SandboxReadinessAssessmentCard({
                 </section>
               </div>
             ) : null}
-          </div>
+          </div> : null}
 
           {readiness?.reason ? (
             <div className="rounded-lg border border-sky-500/25 bg-sky-500/10 px-3 py-2 text-sm text-foreground">
