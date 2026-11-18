@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {evaluateSandboxQualification,SANDBOX_QUALIFICATION_V1 as p,type SandboxQualificationEvidence as E} from "./sandboxQualificationPolicy";
+import {evaluateSandboxQualification,SANDBOX_QUALIFICATION_V1 as historical,SANDBOX_QUALIFICATION_V2 as p,type SandboxQualificationEvidence as E} from "./sandboxQualificationPolicy";
 const when=(n:number)=>new Date(Date.UTC(2026,9,15,0,0,n)).toISOString();
 const event=(n:number,patch:Partial<E>={}):E=>({id:"event-"+n,occurredAt:when(n),kind:"opportunity",mode:"training",
  studentId:"student-"+n%3,trajectoryId:"trajectory-"+n%3,phase:"Clarity",profile:"quietly_strong",
@@ -35,21 +35,24 @@ test("cross-student Handover error interrupts clean run",()=>{const a=coverage()
 test("missing truth is not attributed to Specialist but fails closed",()=>{const a=coverage(),f=final(a.length+1);f[3].canonicalPresent=false;
  const x=evaluateSandboxQualification([...a,...f],{activated:true});
  assert.equal(x.qualificationReady,false);assert.equal(x.materialErrorsSinceCoverage,0);assert.ok(x.technicalBlockers.length);});
-test("unobserved or incorrectly handled profile does not count",()=>{const a=coverage();a.filter(x=>x.profile==="fast_recovery").forEach((e,i)=>{e.observed=i===0;e.observationExact=i!==0;});
- assert.equal(evaluateSandboxQualification([...a,...final(a.length+1)],{activated:true}).developmentCoverageReady,false);});
+test("V2 development coverage removes behaviour-signature and Handover requirements",()=>{
+ const requirements=evaluateSandboxQualification(coverage(),{activated:true}).requirements;
+ assert.equal(requirements.some(r=>r.key.startsWith("profile:")),false);
+ assert.equal(requirements.some(r=>r.key==="mode:handover"),false);
+ assert.equal(requirements.some(r=>r.key==="preparation:handover"),false);
+});
+test("historical V1 keeps its original behaviour-signature and Handover requirements",()=>{
+ const requirements=evaluateSandboxQualification(coverage(),{activated:true,policyVersion:1}).requirements;
+ assert.ok(requirements.some(r=>r.key.startsWith("profile:")));
+ assert.ok(requirements.some(r=>r.key==="mode:handover"));
+ assert.ok(requirements.some(r=>r.key==="preparation:handover"));
+});
 test("two clean sessions in each phase mandatory",()=>{const a=coverage(),f=final(a.length+1);f[0].phase="Structured Execution";
  assert.equal(evaluateSandboxQualification([...a,...f],{activated:true}).qualificationReady,false);});
 test("duplicate immutable records cannot count",()=>{const a=coverage(),f=final(a.length+1);f[1].id=f[0].id;
  assert.equal(evaluateSandboxQualification([...a,...f],{activated:true}).qualificationReady,false);});
 test("genuine student breakdown handled correctly remains clean",()=>{const a=coverage(),f=final(a.length+1);f[2].situationTags=["breakdown"];
  assert.equal(evaluateSandboxQualification([...a,...f],{activated:true}).qualificationReady,true);});
-
-test("mere profile identity without actual observable signature is not coverage",()=>{
- const a=coverage();
- a.filter(e=>e.profile==="pressure_fragile").forEach(e=>e.situationTags=[]);
- const result=evaluateSandboxQualification([...a,...final(a.length+1)],{activated:true});
- assert.equal(result.developmentCoverageReady,false);
-});
 
 test("older incomplete evidence blocks qualification after full coverage and eight fresh clean sessions",()=>{
  const a=coverage(), f=final(a.length+1);
