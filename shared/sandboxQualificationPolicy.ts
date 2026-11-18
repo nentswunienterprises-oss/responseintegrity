@@ -18,7 +18,7 @@ export const SANDBOX_QUALIFICATION_V2 = {
   id:"ri-sandbox-qualification",version:2,status:"approved" as const,
   minConsecutiveSessions:8,
   phaseMinimums:{"Clarity":2,"Structured Execution":2,"Controlled Discomfort":2,"Time Pressure Stability":2},
-  modes:["preparation","diagnosis","training","session_closure","continuity","targeted_rediagnosis"],
+  modes:["preparation","training","session_closure","continuity","targeted_rediagnosis"],
   profiles:[] as const,
   situationMinimums:{independent_execution:2,conditional:2,breakdown:2,recovery:2,prerequisite:2,routing:2,state_change:2,timed_pressure:2},
   preparationContexts:["training","targeted_rediagnosis"],
