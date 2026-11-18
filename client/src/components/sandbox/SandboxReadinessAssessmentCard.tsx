@@ -21,7 +21,7 @@ type CapabilityLayer = {
   authoritative?: boolean;
 };
 
-type CapabilityReadiness = {
+export type CapabilityReadiness = {
   policyAvailable: boolean;
   bankKey?: string | null;
   bankVersion?: number | null;
@@ -256,12 +256,16 @@ export function SandboxReadinessAssessmentCard({
   operationalMode,
   apiBasePath = "/api/td",
   readOnly = false,
+  initialReadiness,
+  initialLatestAssessment,
 }: {
   tutorId: string;
   tutorName: string;
   operationalMode?: string | null;
   apiBasePath?: "/api/td" | "/api/coo";
   readOnly?: boolean;
+  initialReadiness?: CapabilityReadiness;
+  initialLatestAssessment?: SandboxReadinessPayload["latestAssessment"];
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -281,7 +285,7 @@ export function SandboxReadinessAssessmentCard({
       );
       return response.json();
     },
-    enabled: !!tutorId && isSandbox,
+    enabled: !!tutorId && isSandbox && !initialReadiness,
     refetchOnWindowFocus: true,
   });
 
@@ -332,7 +336,7 @@ export function SandboxReadinessAssessmentCard({
   const [showDossier, setShowDossier] = useState(false);
   const { data: dossier, isFetching: dossierLoading, isError: dossierError } = useQuery<SandboxDossier>({
     queryKey: [apiBasePath, "tutors", tutorId, "sandbox-evidence-dossier"],
-    enabled: !!tutorId && showDossier && isSandbox,
+    enabled: !!tutorId && showDossier && isSandbox && !readOnly,
     gcTime: 0,
     staleTime: 0,
     networkMode: "always",
@@ -344,8 +348,9 @@ export function SandboxReadinessAssessmentCard({
 
   if (!isSandbox) return null;
 
-  const readiness = data?.capabilityReadiness;
-  const latestDecision = data?.latestAssessment?.decision || null;
+  const readiness = initialReadiness || data?.capabilityReadiness;
+  const latestAssessment = data?.latestAssessment || initialLatestAssessment || null;
+  const latestDecision = latestAssessment?.decision || null;
   const canOpenPracticals =
     readiness?.practicalsReady === true &&
     (data?.gate.preparationBlockers?.length || 0) === 0 &&
@@ -410,7 +415,7 @@ export function SandboxReadinessAssessmentCard({
             <div className="flex items-center justify-between gap-2">
               <div>
                 <p className="text-sm font-semibold">Development coverage</p>
-                <p className="text-xs text-muted-foreground">Inspect the exact operating modes, behaviour signatures and response situations still required.</p>
+                <p className="text-xs text-muted-foreground">Inspect the required operating modes, preparation contexts and response situations.</p>
               </div>
               <Button variant="outline" size="sm" onClick={() => setShowCoverage(true)}>
                 Inspect coverage
@@ -507,7 +512,7 @@ export function SandboxReadinessAssessmentCard({
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                {["Operating modes", "Preparation contexts", "Behaviour signatures", "Response situations"].map((category) => (
+                {["Operating modes", "Preparation contexts", "Response situations"].map((category) => (
                   <section key={category} className="rounded-md border p-3">
                     <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">{category}</h3>
                     <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -541,7 +546,7 @@ export function SandboxReadinessAssessmentCard({
             </DialogContent>
           </Dialog>
 
-          <div className="rounded-lg border bg-background p-3 space-y-3">
+          {!readOnly ? <div className="rounded-lg border bg-background p-3 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <div>
                 <p className="text-sm font-semibold">Sandbox evidence</p>
