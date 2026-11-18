@@ -3,7 +3,7 @@ import {createHash} from "node:crypto";
 import {readFileSync} from "node:fs";
 import pg from "pg";
 import {loadSandboxQualificationEvidence} from "../server/sandboxQualificationEvidence";
-import {evaluateSandboxQualification,SANDBOX_QUALIFICATION_V1} from "../shared/sandboxQualificationPolicy";
+import {evaluateSandboxQualification,SANDBOX_QUALIFICATION_V2} from "../shared/sandboxQualificationPolicy";
 import {getDrillSchemaDefinitionByVersion} from "../shared/responseIntegrityDrillRegistry";
 import {resolveSandboxBehaviorProfile} from "../shared/sandboxBehaviorProfiles";
 import {DIAGNOSIS_OBSERVATION_MATRIX} from "../shared/diagnosisObservationMatrix";
@@ -60,8 +60,8 @@ const tables=[
  ["public.scheduled_sessions","id varchar PRIMARY KEY,tutor_id varchar,student_id varchar,type varchar,status varchar"],
  ["public.intro_session_drills","id varchar PRIMARY KEY,tutor_id varchar,student_id varchar,scheduled_session_id varchar,drill jsonb,submitted_at timestamptz"],
 ];
-const phases=Object.keys(SANDBOX_QUALIFICATION_V1.phaseMinimums);
-const fixtureProfiles=SANDBOX_QUALIFICATION_V1.profiles;
+const phases=Object.keys(SANDBOX_QUALIFICATION_V2.phaseMinimums);
+const fixtureProfiles=["clarity_fragile","reassurance_seeker","pressure_fragile","fast_recovery","uneven_performer","quietly_strong"] as const;
 type Traj={id:string;student:string;profile:string};
 const trajectories:Traj[]=[];
 async function session(tr:Traj,phase:string,n:number,development=false){
