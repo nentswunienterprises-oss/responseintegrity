@@ -85,7 +85,7 @@ export default function Landing() {
             <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full" style={{ backgroundColor: "#FFF0F0" }}>
               <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: "#E63946" }} />
               <span className="text-xs sm:text-sm font-medium" style={{ color: "#E63946" }}>
-                Response Training for Grades 6-9
+                Response Training for Grades 6–10
               </span>
             </div>
             
@@ -97,7 +97,7 @@ export default function Landing() {
             
             <p className="text-base sm:text-lg md:text-xl leading-relaxed" style={{ color: "#5A5A5A" }}>
               At Response Integrity, math is the training area.
-              Our tutors work with <span className="font-semibold" style={{ color: "#1A1A1A" }}>Grade 6–9 students</span> to 
+              Our tutors work with <span className="font-semibold" style={{ color: "#1A1A1A" }}>Grade 6–10 students</span> to 
               build calm, repeatable execution when work gets hard.
             </p>
 
@@ -356,7 +356,7 @@ export default function Landing() {
                 Parents & Students
               </h3>
               <p className="text-sm sm:text-base mb-4 sm:mb-6" style={{ color: "#5A5A5A" }}>
-                Enroll your Grade 6–9 child in our response-conditioning programme.
+                Enroll your Grade 6–10 child in our response-conditioning programme.
               </p>
               <ul className="space-y-2 sm:space-y-3 mb-6 sm:mb-8">
                 {["Access to trained tutors", "Track response stability", "Weekly progress updates", "Parent dashboard"].map((item, i) => (
