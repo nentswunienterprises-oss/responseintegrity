@@ -1409,7 +1409,7 @@ export default function ParentGateway() {
                   <div>
                     <label className="block text-xs sm:text-sm font-medium mb-2" style={{ color: "#1A1A1A" }}>Grade in 2026 *</label>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {["Grade 6", "Grade 7", "Grade 8", "Grade 9"].map((grade) => (
+                      {["Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10"].map((grade) => (
                         <button
                           key={grade}
                           onClick={() => handleInputChange("studentGrade", grade)}

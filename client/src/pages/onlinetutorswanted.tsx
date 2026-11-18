@@ -79,7 +79,7 @@ export default function OnlineTutorsWantedPlain() {
         <Card className="p-6 mb-6" style={{ backgroundColor: "white" }}>
           <h2 className="text-lg font-bold mb-3">What You're Stepping Into</h2>
           <p style={{ color: "#5A5A5A" }}>
-            Response Integrity runs a structured online response-conditioning programme for Grades 6-9.
+            Response Integrity runs a structured online response-conditioning programme for Grades 6-10.
           </p>
           <p>We rely on clear systems, repetition, and standards.</p>
           <p className="mt-2">As a tutor, your job is to run that system precisely - every session, every student.</p>
@@ -103,7 +103,7 @@ export default function OnlineTutorsWantedPlain() {
           <h3 className="text-lg font-bold mb-3">Who This Is For</h3>
           <p className="mb-3" style={{ color: "#5A5A5A" }}>This opportunity is for you if you:</p>
           <ul className="list-disc pl-5 space-y-2 text-sm sm:text-base" style={{ color: "#5A5A5A" }}>
-            <li>Are strong in Grades 6-9 Mathematics</li>
+            <li>Are strong in Grades 6-10 Mathematics</li>
             <li>Have completed matric or are a young adult ready for structured tutor training</li>
             <li>Follow structure well</li>
             <li>Take correction without ego</li>

@@ -50,7 +50,7 @@ const LEARNING_IDS = [
   "Engineer",
 ];
 
-const GRADES = ["6", "7", "8", "9"];
+const GRADES = ["6", "7", "8", "9", "10"];
 
 const CONFIDENCE_TRIGGERS = [
   "Accuracy",

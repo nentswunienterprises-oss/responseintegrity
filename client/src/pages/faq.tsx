@@ -10,7 +10,7 @@ const faqs = [
       <>
         <p>Response Integrity is not a tutoring company.</p>
         <p>
-          It is a performance-conditioning system for students in Grades 6-9.
+          It is a performance-conditioning system for students in Grades 6–10.
           <br />
           Math is the area.
           <br />

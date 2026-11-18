@@ -203,7 +203,7 @@ function PortalLanding() {
           <div className="space-y-5 sm:space-y-8 max-w-[calc(100vw-32px)]">
             <div className="mx-auto flex w-fit items-center gap-2 rounded-full px-3 py-1.5 sm:mx-0 sm:px-4 sm:py-2" style={{ backgroundColor: "var(--ri-blush)" }}>
               <span className="text-xs sm:text-sm font-medium" style={{ color: "var(--ri-red)" }}>
-                For Parents of Grades 6-9 Students
+                For Parents of Grades 6–10 Students
               </span>
             </div>
 

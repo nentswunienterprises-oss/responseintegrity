@@ -68,7 +68,7 @@ export default function OnlineTutorsWanted() {
             <div className="mt-6">
               <h3 className="font-semibold">THE ROLE</h3>
               <p className="text-sm mt-2" style={{ color: "#5A5A5A" }}>
-                As a Response Integrity Online Math Tutor, you are responsible for delivering structured, high-quality 1-on-1 math sessions to students in Grades 6-9.
+                As a Response Integrity Online Math Tutor, you are responsible for delivering structured, high-quality 1-on-1 math sessions to students in Grades 6-10.
                 This is not casual tutoring. You will be trained to follow a clear operating system that prioritizes:
               </p>
 
@@ -103,7 +103,7 @@ export default function OnlineTutorsWanted() {
           <Card className="p-6" style={{ backgroundColor: "white" }}>
             <h3 className="text-lg font-bold mb-3">FOR APPLICANTS WHO:</h3>
             <ul className="space-y-3 text-sm" style={{ color: "#5A5A5A" }}>
-              <li> Are strong in Grades 6-9 Mathematics</li>
+              <li> Are strong in Grades 6-10 Mathematics</li>
               <li> Can explain concepts clearly when the phase calls for it</li>
               <li> Are comfortable following a structured system</li>
               <li> Take feedback seriously and apply it quickly</li>

@@ -68,7 +68,7 @@ export const routeSeoDefinitions: RouteSeoDefinition[] = [
     path: "/faq",
     title: "Frequently Asked Questions | Response Integrity",
     description:
-      "Frequently asked questions about Response Integrity's response-conditioning system for Grades 6-9 students.",
+      "Frequently asked questions about Response Integrity's response-conditioning system for Grades 6-10 students.",
     injectInSpa: true,
     includeInSitemap: true,
   },

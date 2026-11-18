@@ -28476,6 +28476,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Missing required fields" });
       }
 
+      if (!["Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10"].includes(String(studentGrade).trim())) {
+        return res.status(400).json({ message: "Response Integrity currently enrolls students in Grades 6–10." });
+      }
+
 
       if (process.env.VERCEL_ENV === "preview") {
         const existingEnrollmentResult = await pool.query(
