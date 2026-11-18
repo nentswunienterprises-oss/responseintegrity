@@ -720,7 +720,7 @@ export default function SpecialistDevelopmentRecordPage() {
             )}
           </DialogContent>
         </Dialog>
-        {!isCooView && record.assignment.operationalMode === "sandbox" ? (
+        {record.assignment.operationalMode === "sandbox" ? (
           <section className="space-y-4">
             <SandboxReadinessAssessmentCard
               tutorId={record.specialist.id}
