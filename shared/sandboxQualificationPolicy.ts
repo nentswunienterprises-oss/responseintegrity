@@ -11,6 +11,20 @@ export const SANDBOX_QUALIFICATION_V1 = {
   diagnosisPhases:["Clarity","Structured Execution","Controlled Discomfort","Time Pressure Stability"],
   profileOpportunityMinimum:2,
 } as const;
+/** RI Sandbox qualification V2 — founder-approved November 18, 2026.
+ * Current development coverage no longer requires behaviour signatures or Handover opportunities.
+ * The eight-session, two-per-phase final graduation standard is unchanged. */
+export const SANDBOX_QUALIFICATION_V2 = {
+  id:"ri-sandbox-qualification",version:2,status:"approved" as const,
+  minConsecutiveSessions:8,
+  phaseMinimums:{"Clarity":2,"Structured Execution":2,"Controlled Discomfort":2,"Time Pressure Stability":2},
+  modes:["preparation","training","session_closure","continuity","targeted_rediagnosis"],
+  profiles:[] as const,
+  situationMinimums:{independent_execution:2,conditional:2,breakdown:2,recovery:2,prerequisite:2,routing:2,state_change:2,timed_pressure:2},
+  preparationContexts:["training","targeted_rediagnosis"],
+  diagnosisPhases:["Clarity","Structured Execution","Controlled Discomfort","Time Pressure Stability"],
+  profileOpportunityMinimum:0,
+} as const;
 export type SandboxQualificationMode=typeof SANDBOX_QUALIFICATION_V1.modes[number];
 export type SandboxQualificationEvidence={
   id:string;occurredAt:string;kind:"opportunity"|"session";mode:SandboxQualificationMode;
@@ -34,11 +48,11 @@ export type SandboxQualificationStatus={
   technicalBlockers:string[];materialErrorsSinceCoverage:number;pendingPlacements?:number;
   firstCoverageEventId:string|null;reason:string;
 };
-const phases=Object.keys(SANDBOX_QUALIFICATION_V1.phaseMinimums);
+const phases=Object.keys(SANDBOX_QUALIFICATION_V2.phaseMinimums);
 const exact=(e:SandboxQualificationEvidence)=>e.technicallyValid&&e.complete&&
   e.canonicalPresent&&e.conditionKept&&e.observationExact&&e.evidenceExact&&
   e.authorityAligned&&e.stateAligned&&!e.materialError;
-const getCoverage=(events:SandboxQualificationEvidence[])=>{
+const getCoverage=(events:SandboxQualificationEvidence[],policy:typeof SANDBOX_QUALIFICATION_V1|typeof SANDBOX_QUALIFICATION_V2)=>{
  const result:QualificationRequirement[]=[];
  const add=(key:string,required:number,match:(e:SandboxQualificationEvidence)=>boolean)=>{
   const observed=events.filter(e=>e.kind==="opportunity"&&e.observed&&match(e));
@@ -50,20 +64,20 @@ const getCoverage=(events:SandboxQualificationEvidence[])=>{
   result.push({key,required,encountered:observed.length,correct:clean.length,
     distinctCorrect:unique,priorErrors,recoveredAfterError,met:unique>=required});
  };
- for(const mode of SANDBOX_QUALIFICATION_V1.modes){
-  const required=mode==="diagnosis"?SANDBOX_QUALIFICATION_V1.diagnosisPhases.length:1;
+ for(const mode of policy.modes){
+  const required=mode==="diagnosis"?policy.diagnosisPhases.length:1;
   add("mode:"+mode,required,e=>e.mode===mode);
 }
- for(const context of SANDBOX_QUALIFICATION_V1.preparationContexts)
+ for(const context of policy.preparationContexts)
   add("preparation:"+context,1,e=>e.mode==="preparation"&&e.preparationContext===context);
- for(const phase of SANDBOX_QUALIFICATION_V1.diagnosisPhases)
+ for(const phase of policy.diagnosisPhases)
   add("preparation:diagnosis:"+phase,1,e=>e.mode==="preparation"&&e.preparationContext==="diagnosis:"+phase);
- for(const profile of SANDBOX_QUALIFICATION_V1.profiles)add("profile:"+profile,2,e=>e.profile===profile&&e.situationTags.includes("profile_signature"));
- for(const [tag,min] of Object.entries(SANDBOX_QUALIFICATION_V1.situationMinimums))add("situation:"+tag,min,e=>e.situationTags.includes(tag));
+ for(const profile of policy.profiles)add("profile:"+profile,policy.profileOpportunityMinimum,e=>e.profile===profile&&e.situationTags.includes("profile_signature"));
+ for(const [tag,min] of Object.entries(policy.situationMinimums))add("situation:"+tag,min,e=>e.situationTags.includes(tag));
  return result;
 };
-export function evaluateSandboxQualification(events:SandboxQualificationEvidence[],options:{activated:boolean}={activated:false}):SandboxQualificationStatus{
- const policy=SANDBOX_QUALIFICATION_V1,blockers:string[]=[];const ids=new Set<string>();
+export function evaluateSandboxQualification(events:SandboxQualificationEvidence[],options:{activated:boolean;policyVersion?:1|2}={activated:false}):SandboxQualificationStatus{
+ const policy=options.policyVersion===1?SANDBOX_QUALIFICATION_V1:SANDBOX_QUALIFICATION_V2,blockers:string[]=[];const ids=new Set<string>();
  for(const e of events){
   if(!e.id||ids.has(e.id))blockers.push("Duplicate/missing immutable evidence ID");
   ids.add(e.id);
@@ -75,9 +89,9 @@ export function evaluateSandboxQualification(events:SandboxQualificationEvidence
   (a.kind===b.kind?a.id.localeCompare(b.id):a.kind==="opportunity"?-1:1));
  let boundary=-1;
  for(let i=0;i<ordered.length;i++){
-  if(getCoverage(ordered.slice(0,i+1)).every(r=>r.met)){boundary=i;break;}
+  if(getCoverage(ordered.slice(0,i+1),policy).every(r=>r.met)){boundary=i;break;}
  }
- const requirements=getCoverage(ordered);
+ const requirements=getCoverage(ordered,policy);
  let clean:SandboxQualificationEvidence[]=[];let materialErrors=0;
  if(boundary>=0)for(const e of ordered.slice(boundary+1)){
   if(e.materialError){materialErrors++;clean=[];continue;}
@@ -95,7 +109,7 @@ export function evaluateSandboxQualification(events:SandboxQualificationEvidence
   :boundary<0?"Sandbox development coverage is incomplete."
   :!phaseReady||clean.length<policy.minConsecutiveSessions?"Clean final qualification run or phase repetition is incomplete."
   :"Approved coverage and clean-run evidence established; assigned TD approval still required.";
- return {policyId:policy.id,policyVersion:policy.version,approved:true,activated:options.activated,
+ return {policyId:policy.id,policyVersion:policy.version,approved:policy.status==="approved",activated:options.activated,
   developmentCoverageReady:boundary>=0,qualificationReady,qualifyingSessions:clean.length,
   requiredSessions:policy.minConsecutiveSessions,cleanSessionIds:clean.map(e=>e.id),
   phaseCounts,requirements,pendingPlacements,technicalBlockers:[...new Set(blockers)],

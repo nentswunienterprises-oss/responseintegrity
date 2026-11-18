@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { authorizeDiagnosisContinuation, bindDiagnosisOpportunitySession, diagnosisContinuationContext, diagnosisDecisionWithContext } from "./diagnosisContinuation";
+import { authorizeDiagnosisContinuation, bindDiagnosisOpportunitySession, diagnosisContinuationContext, diagnosisDecisionWithContext, diagnosisSessionKindForPendingRun } from "./diagnosisContinuation";
 import { createEvidenceCompleteDiagnosisState, evaluateEvidenceCompleteDiagnosis, recordEvidenceCompleteDiagnosisProbe, DIAGNOSIS_PROBES } from "../shared/evidenceCompleteDiagnosis";
 import { DIAGNOSIS_OBSERVATION_MATRIX } from "../shared/diagnosisObservationMatrix";
 const history=Array.from({length:2},()=>({probeId:"clarity.recognition" as const, observations:DIAGNOSIS_PROBES["clarity.recognition"].dimensions.map(d=>({dimensionId:d,behaviorId:"not_observed"}))}));
@@ -65,4 +65,23 @@ test("Sandbox episode selection version survives a later lesson and decision rec
  assert.equal(diagnosisContinuationContext(saved,2,"different-booking").sandboxSelectionVersion,2);
  assert.equal(diagnosisContinuationContext({},0,"old").sandboxSelectionVersion,undefined);
  assert.throws(()=>diagnosisContinuationContext({_diagnosisContext:{...versioned,sandboxSelectionVersion:99}},0,"old"),/lineage is invalid/);
+});
+
+test("pending diagnosis restoration uses the persisted current lesson context",()=>{
+ const saved=diagnosisDecisionWithContext(decision,{
+   legacyPrefixLength:0,
+   sessions:[
+     {scheduledSessionId:"old",startProbeIndex:0},
+     {scheduledSessionId:"current",startProbeIndex:6,sessionKind:"training"},
+   ],
+ });
+ assert.equal(diagnosisSessionKindForPendingRun({
+   decision:saved,historyLength:6,scheduledSessionId:"old",sessionContext:"active_training",
+ }),"training");
+ assert.equal(diagnosisSessionKindForPendingRun({
+   decision:{},historyLength:0,scheduledSessionId:"lesson",sessionContext:"sandbox_entry_diagnosis",
+ }),"sandbox_entry_diagnosis");
+ assert.equal(diagnosisSessionKindForPendingRun({
+   decision:{},historyLength:0,scheduledSessionId:"lesson",sessionContext:"handover_verification",
+ }),"handover");
 });

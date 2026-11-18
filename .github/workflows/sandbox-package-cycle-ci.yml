@@ -33,7 +33,7 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - name: Sandbox package-cycle unit regressions
-        run: node --import tsx --test server/sandboxPackageCycle.test.ts server/sandboxPackageCycleRoutes.test.ts
+        run: node --import tsx --test server/sandboxPackageCycle.test.ts server/sandboxPackageCycleRoutes.test.ts server/diagnosisContinuation.test.ts
       - name: Compile backend
         run: npm run build:backend
       - name: Compile Vercel API

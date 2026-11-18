@@ -35,10 +35,10 @@ export function createTdSandboxQualificationReview(db?:DB){
      [tutorAssignmentId,tutorId],
     ),
    ]);
-   const activated=process.env.RI_SANDBOX_QUALIFICATION_V1_ACTIVE==="true" ||
+   const activated=process.env.RI_SANDBOX_QUALIFICATION_V2_ACTIVE==="true" ||
     (isCapabilityProofPreview(process.env) &&
       process.env.RI_SANDBOX_CROSSMODE_CAPTURE_V1==="true");
-   let qualification=evaluateSandboxQualification(history.events,{activated});
+   let qualification=evaluateSandboxQualification(history.events,{activated,policyVersion:2});
    if(history.sourceGaps.length)qualification={
      ...qualification,qualificationReady:false,
      technicalBlockers:[...qualification.technicalBlockers,...history.sourceGaps],

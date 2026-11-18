@@ -21,6 +21,20 @@ export function diagnosisContinuationContext(decision: any, historyLength: numbe
   return saved || { legacyPrefixLength: decision?.decisionPolicyVersion === 2 ? 0 : historyLength,
     sessions: [{ scheduledSessionId: originalSessionId, startProbeIndex: 0 }] };
 }
+export function diagnosisSessionKindForPendingRun(input: {
+  decision: any;
+  historyLength: number;
+  scheduledSessionId: string | null;
+  sessionContext: "intro" | "active_training" | "handover_verification" | "sandbox_entry_diagnosis";
+}): DiagnosisSessionLineage["sessionKind"] {
+  const context = diagnosisContinuationContext(input.decision, input.historyLength, input.scheduledSessionId);
+  const persistedKind = context.sessions.at(-1)?.sessionKind;
+  if (persistedKind) return persistedKind;
+  if (input.sessionContext === "active_training") return "training";
+  if (input.sessionContext === "handover_verification") return "handover";
+  return input.sessionContext;
+}
+
 export function diagnosisDecisionWithContext(decision: EvidenceCompleteDiagnosisDecision, context: DiagnosisContinuationContext, previous?: any) {
   return { ...decision, _diagnosisContext: context,
     // Record a policy reinterpretation without changing a single observation.

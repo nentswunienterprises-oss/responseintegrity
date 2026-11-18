@@ -1451,13 +1451,13 @@ async function readinessFor(input: {
   const capability = evaluateSandboxCapabilityReadiness({
     policy: input.bank.capabilityPolicy, evidence, exposure,
   });
-  // Founder approved Policy V1. Production remains dormant until controlled
-  // acceptance + protected evidence migration/native-mode proof are complete.
+  // Sandbox qualification V2 removes Behaviour signatures and Handover from current
+  // development coverage. Production remains dormant until separately authorized.
   // The isolated Proof Preview is deliberately fail-closed, but its guarded
   // cross-mode capture flag is already scoped to the acceptance database.
   // Keep qualification active for this one controlled Specialist if a
   // deployment omitted the separate activation variable; never elsewhere.
-  const activated = process.env.RI_SANDBOX_QUALIFICATION_V1_ACTIVE === "true" ||
+  const activated = process.env.RI_SANDBOX_QUALIFICATION_V2_ACTIVE === "true" ||
     (isCapabilityProofPreview(process.env) &&
       process.env.RI_SANDBOX_CROSSMODE_CAPTURE_V1 === "true");
   let qualification = evaluateSandboxQualification([], { activated: false });
@@ -1466,7 +1466,7 @@ async function readinessFor(input: {
   if (activated) {
     const evidenceTimeline = await loadSandboxQualificationEvidence(input);
     qualificationSourceGaps = evidenceTimeline.sourceGaps;
-    qualification = evaluateSandboxQualification(evidenceTimeline.events, { activated: true });
+    qualification = evaluateSandboxQualification(evidenceTimeline.events, { activated: true, policyVersion: 2 });
     // Bound TD approval to the exact immutable evidence readback, not only
     // a numeric session total. New errors/evidence invalidate old approvals.
     evidenceFingerprint = sandboxQualificationEvidenceFingerprint(
@@ -1483,7 +1483,6 @@ async function readinessFor(input: {
   const coverageCategories = [
     { key: "operating_modes", label: "Operating modes", prefix: "mode:" },
     { key: "preparation_contexts", label: "Preparation contexts", prefix: "preparation:" },
-    { key: "behaviour_signatures", label: "Behaviour signatures", prefix: "profile:" },
     { key: "response_situations", label: "Response situations", prefix: "situation:" },
   ].map((category) => {
     const requirements = qualification.requirements.filter((item) => item.key.startsWith(category.prefix));

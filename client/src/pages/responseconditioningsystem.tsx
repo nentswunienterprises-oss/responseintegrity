@@ -185,6 +185,7 @@ type SpecialistDevelopmentPathway = {
   sandbox?: {
     readiness?: {
       qualification?: {
+        activated?: boolean;
         developmentCoverageReady?: boolean;
         qualificationReady?: boolean;
         sourceStatus?: "available" | "unavailable";
@@ -567,6 +568,15 @@ export default function ResponseConditioningSystem() {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
+              {sandboxQualification?.activated === false ? (
+                <div role="status" className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
+                  <p className="font-semibold">Sandbox coverage evaluation is inactive</p>
+                  <p className="mt-1 text-muted-foreground">
+                    Coverage counts are not being evaluated in this environment. Do not use the displayed counts to make a Specialist progression decision.
+                  </p>
+                </div>
+              ) : null}
+
               {sandboxQualification?.sourceStatus === "unavailable" ? (
                 <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm">
                   <p className="font-semibold">Coverage evidence source unavailable</p>
