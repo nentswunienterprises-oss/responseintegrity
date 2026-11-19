@@ -187,6 +187,8 @@ const TRAINING_SCHEMA_VERSION_BY_SANDBOX_BANK:Record<number,number>={
  // Diagnosis bank version 3 carries the exact V1 Training rep bank; its
  // qualification contract remains explicit and version-pinned.
  3:1,
+ // Diagnosis bank version 4 retains the same approved V1 Training schema.
+ 4:1,
 };
 const trainingSchemaVersionForSandboxBank=(bankVersion:number)=>
  TRAINING_SCHEMA_VERSION_BY_SANDBOX_BANK[bankVersion]||null;
