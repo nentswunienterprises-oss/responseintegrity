@@ -295,7 +295,8 @@ try{
   assert.equal(r.status.developmentCoverageReady,false);assert.equal(r.status.qualificationReady,false);
  });
  await negative("MISMATCHED_NATIVE_HANDOVER","UPDATE public.intro_session_drills SET drill=jsonb_set(drill,'{sets,0,observations,0,observation}',to_jsonb('wrong'::text))",r=>{
-  assert.equal(r.status.developmentCoverageReady,false);assert.equal(r.status.qualificationReady,false);
+  const evidence=r.loaded.events.find(e=>e.id==="ci-cross-handover");
+  assert.equal(evidence?.complete,false);assert.equal(r.status.qualificationReady,false);
  });
  await negative("PREPARATION_LINEAGE","UPDATE public.specialist_sandbox_preparation_events SET condition_contract_sha256=repeat('0',64)",r=>{
   assert.equal(r.status.qualificationReady,false);assert.ok(r.status.technicalBlockers.length);
