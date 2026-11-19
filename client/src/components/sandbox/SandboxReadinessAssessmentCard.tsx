@@ -74,6 +74,10 @@ export type CapabilityReadiness = {
   };
 };
 
+type SandboxCoverageReviewPayload = {
+  qualification: NonNullable<CapabilityReadiness["qualification"]>;
+};
+
 type SandboxReadinessPayload = {
   tutorId: string;
   tutorAssignmentId: string;
@@ -332,6 +336,21 @@ export function SandboxReadinessAssessmentCard({
       }),
   });
 
+  const { data: cooCoverage, isLoading: cooCoverageLoading, isError: cooCoverageError } =
+    useQuery<SandboxCoverageReviewPayload>({
+      queryKey: [apiBasePath, "tutors", tutorId, "sandbox-qualification-review"],
+      queryFn: async () => {
+        const response = await apiRequest(
+          "GET",
+          `${apiBasePath}/tutors/${encodeURIComponent(tutorId)}/sandbox-qualification-review`,
+        );
+        return response.json();
+      },
+      enabled: !!tutorId && isSandbox && readOnly,
+      staleTime: 0,
+      refetchOnWindowFocus: true,
+    });
+
   const [showCoverage, setShowCoverage] = useState(false);
   const [showDossier, setShowDossier] = useState(false);
   const { data: dossier, isFetching: dossierLoading, isError: dossierError } = useQuery<SandboxDossier>({
@@ -355,7 +374,7 @@ export function SandboxReadinessAssessmentCard({
     readiness?.practicalsReady === true &&
     (data?.gate.preparationBlockers?.length || 0) === 0 &&
     !!evidenceNote.trim();
-  const qualification = readiness?.qualification;
+  const qualification = readOnly ? cooCoverage?.qualification : readiness?.qualification;
   const graduationPhases = [
     "Clarity",
     "Structured Execution",
@@ -512,6 +531,13 @@ export function SandboxReadinessAssessmentCard({
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
+                {readOnly && cooCoverageLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading persisted coverage evidence...</p>
+                ) : null}
+                {readOnly && cooCoverageError ? (
+                  <p className="text-sm text-destructive">Coverage evidence is unavailable. Counts are withheld.</p>
+                ) : null}
+                {(!readOnly || cooCoverage) ? <>
                 {["Operating modes", "Preparation contexts", "Response situations"].map((category) => (
                   <section key={category} className="rounded-md border p-3">
                     <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">{category}</h3>
@@ -542,6 +568,7 @@ export function SandboxReadinessAssessmentCard({
                 <p className="rounded-md border border-sky-500/25 bg-sky-500/10 p-3 text-xs text-muted-foreground">
                   A single opportunity may contribute to more than one requirement. Earlier development evidence is retained, but it does not become graduation-run evidence retroactively.
                 </p>
+                </> : null}
               </div>
             </DialogContent>
           </Dialog>
