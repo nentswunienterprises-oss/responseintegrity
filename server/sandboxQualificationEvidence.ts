@@ -71,6 +71,25 @@ const CONTEXT_PREPARATION=[
  "WHERE p.tutor_assignment_id=$1 AND p.tutor_id=$2",
  "ORDER BY p.recorded_at ASC,p.id ASC LIMIT 5000",
 ].join(" ");
+
+// Diagnosis preparation receipts point directly to a native diagnosis run.
+// Verify against that canonical run so this evidence remains available even
+// when the optional cross-mode projection has no matching mirror row.
+const CONTEXT_DIAGNOSIS_PROOF=[
+ "SELECT p.source_context_id,p.phase,p.preparation_context,p.probe_id,",
+ "CASE WHEN native_run.status='completed'",
+ " AND native_run.session_context IN ('intro','active_training','sandbox_entry_diagnosis')",
+ " AND EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE(native_run.probe_history,'[]'::jsonb)) native_probe",
+ "   WHERE native_probe->>'probeId'=p.probe_id)",
+ " THEN true ELSE false END AS native_proof_verified",
+ "FROM public.specialist_sandbox_context_preparation_events p",
+ "JOIN public.response_integrity_diagnosis_runs native_run",
+ " ON native_run.id::text=p.source_context_id",
+ " AND native_run.tutor_id::text=p.tutor_id::text",
+ " AND native_run.student_id::text=p.student_id::text",
+ "WHERE p.tutor_assignment_id=$1 AND p.tutor_id=$2",
+ " AND p.preparation_context='diagnosis:'||p.phase",
+].join(" ");
 const TRAINING_REPS=[
  "SELECT r.*, t.outcome_key,t.outcome_version,t.outcome_ref AS truth_outcome_ref,",
  "t.trajectory_class,t.canonical_observations,t.canonical_prerequisite_sentinel,",
@@ -391,14 +410,19 @@ export async function loadSandboxQualificationEvidence(
      sourceGaps.push("Context-specific Sandbox preparation evidence schema not applied.");
    else throw error;
  }
- const verifiedDiagnosisSources=new Set(cross
-  .filter((row:any)=>row.scope==="diagnosis"&&row.native_proof_verified===true)
-  .map((row:any)=>[String(row.source_context_id),String(row.phase)].join(":")));
+ const hasDiagnosisPreparationReceipts=savedContextPreparations.some((row:any)=>
+  String(row.preparation_context||"").startsWith("diagnosis:"));
+ const contextDiagnosisProofRows=hasDiagnosisPreparationReceipts
+  ? (await sourceDb.query(CONTEXT_DIAGNOSIS_PROOF,params)).rows
+  : [];
+ const verifiedDiagnosisSources=new Set(contextDiagnosisProofRows
+  .filter((row:any)=>row.native_proof_verified===true)
+  .map((row:any)=>[String(row.source_context_id),String(row.phase),String(row.probe_id)].join(":")));
  const contextPreparations=savedContextPreparations.map(row=>{
    const item=base({...row,completed_at:row.recorded_at},"preparation","opportunity");
    item.observed=true;
    const diagnosisSourceValid=!String(row.preparation_context||"").startsWith("diagnosis:")||
-    verifiedDiagnosisSources.has([String(row.source_context_id),String(row.phase)].join(":"));
+    verifiedDiagnosisSources.has([String(row.source_context_id),String(row.phase),String(row.probe_id)].join(":"));
    item.canonicalPresent=true;
    item.technicallyValid=diagnosisSourceValid;
    item.conditionKept=true;
