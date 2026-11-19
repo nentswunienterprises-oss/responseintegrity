@@ -72,3 +72,68 @@ export function createTdSandboxQualificationReview(db?:DB){
   }
  };
 }
+
+
+/** COO coverage-only view: same persisted qualification counts as TD, without raw evidence. */
+export function createCooSandboxQualificationReview(db?:DB){
+ return async (req:Request,res:Response)=>{
+  try {
+   const coo=(req as any).dbUser;
+   if(!coo?.id)return res.status(401).json({message:"Authentication required."});
+   if(String(coo.role||"").toLowerCase()!=="coo")
+    return res.status(403).json({message:"COO access required."});
+   const tutorId=String(req.params.tutorId||"").trim();
+   if(!tutorId)return res.status(400).json({message:"tutorId is required."});
+   const sourceDb=db ?? (await import("./db")).pool;
+   const assignment=await sourceDb.query(
+    "SELECT id FROM public.tutor_assignments WHERE tutor_id=$1 ORDER BY created_at DESC LIMIT 1",
+    [tutorId],
+   );
+   if(!assignment.rows[0])return res.status(404).json({message:"Specialist assignment not found."});
+   const tutorAssignmentId=String(assignment.rows[0].id);
+   res.setHeader("Cache-Control","private,no-store,max-age=0");
+   const history=await loadSandboxQualificationEvidence({tutorAssignmentId,tutorId},sourceDb);
+   const activated=process.env.RI_SANDBOX_QUALIFICATION_V2_ACTIVE==="true" ||
+    (isCapabilityProofPreview(process.env) &&
+      process.env.RI_SANDBOX_CROSSMODE_CAPTURE_V1==="true");
+   let status=evaluateSandboxQualification(history.events,{activated,policyVersion:2});
+   if(history.sourceGaps.length)status={
+    ...status,qualificationReady:false,
+    technicalBlockers:[...status.technicalBlockers,...history.sourceGaps],
+    reason:"Qualification cannot be accepted without complete historical source coverage.",
+   };
+   const groups=[
+    {key:"operating_modes",label:"Operating modes",prefix:"mode:"},
+    {key:"preparation_contexts",label:"Preparation contexts",prefix:"preparation:"},
+    {key:"response_situations",label:"Response situations",prefix:"situation:"},
+   ].map(group=>{
+    const requirements=status.requirements.filter(item=>item.key.startsWith(group.prefix));
+    return {key:group.key,label:group.label,met:requirements.filter(item=>item.met).length,
+     required:requirements.length,
+     completedOpportunities:requirements.reduce((sum,item)=>sum+Math.min(item.distinctCorrect,item.required),0),
+     requiredOpportunities:requirements.reduce((sum,item)=>sum+item.required,0)};
+   });
+   const coverageRequirements=status.requirements.map(item=>{
+    const [prefix]=item.key.split(":");
+    const category=prefix==="mode"?"Operating modes":prefix==="preparation"?"Preparation contexts":"Response situations";
+    const label=item.key.split(":").slice(1).join(": ").replace(/_/g," ")
+     .replace(/\b\w/g,letter=>letter.toUpperCase());
+    return {key:item.key,category,label,required:item.required,distinctCorrect:item.distinctCorrect,
+     encountered:item.encountered,met:item.met};
+   });
+   return res.json({
+    tutorId,qualification:{
+     policyId:status.policyId,policyVersion:status.policyVersion,approved:status.approved,activated:status.activated,
+     developmentCoverageReady:status.developmentCoverageReady,qualificationReady:status.qualificationReady,
+     qualifyingSessions:status.qualifyingSessions,requiredSessions:status.requiredSessions,
+     phaseCounts:status.phaseCounts,coverageCategories:groups,coverageRequirements,
+     sourceStatus:history.sourceGaps.length?"unavailable":"available",
+     sourceGaps:history.sourceGaps,reason:status.reason,
+    },
+   });
+  } catch(error){
+   console.error("COO Sandbox qualification coverage unavailable",error);
+   return res.status(500).json({message:"Sandbox coverage data unavailable."});
+  }
+ };
+}

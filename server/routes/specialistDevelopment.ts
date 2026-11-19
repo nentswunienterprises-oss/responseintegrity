@@ -5,7 +5,7 @@ import { createSandboxEvidenceDossierHandler } from "../sandboxEvidenceDossier";
 import { getSpecialistCapabilityTrainingState } from "../capabilitySequencing";
 import { getSandboxCapabilityReadiness } from "../sandboxEnvironment";
 import { getLatestSandboxReadinessAssessment } from "../sandboxReadiness";
-import { createTdSandboxQualificationReview } from "../sandboxQualificationReview";
+import { createCooSandboxQualificationReview, createTdSandboxQualificationReview } from "../sandboxQualificationReview";
 import { getSpecialistDevelopmentPathway } from "../specialistDevelopmentPathway";
 import { getTrialCaseById } from "../trialCertification";
 
@@ -590,6 +590,11 @@ export function registerSpecialistDevelopmentRoutes(app: Express) {
     "/api/td/tutors/:tutorId/sandbox-qualification-review",
     isAuthenticated,
     createTdSandboxQualificationReview(),
+  );
+  app.get(
+    "/api/coo/tutors/:tutorId/sandbox-qualification-review",
+    isAuthenticated,
+    createCooSandboxQualificationReview(),
   );
   app.get("/api/td/tutors/:tutorId/sandbox-evidence-dossier", isAuthenticated,
     createSandboxEvidenceDossierHandler(pool),

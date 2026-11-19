@@ -187,6 +187,8 @@ const TRAINING_SCHEMA_VERSION_BY_SANDBOX_BANK:Record<number,number>={
  // Diagnosis bank version 3 carries the exact V1 Training rep bank; its
  // qualification contract remains explicit and version-pinned.
  3:1,
+ // Diagnosis bank version 4 retains the same approved V1 Training schema.
+ 4:1,
 };
 const trainingSchemaVersionForSandboxBank=(bankVersion:number)=>
  TRAINING_SCHEMA_VERSION_BY_SANDBOX_BANK[bankVersion]||null;
@@ -389,11 +391,16 @@ export async function loadSandboxQualificationEvidence(
      sourceGaps.push("Context-specific Sandbox preparation evidence schema not applied.");
    else throw error;
  }
+ const verifiedDiagnosisSources=new Set(cross
+  .filter((row:any)=>row.scope==="diagnosis"&&row.native_proof_verified===true)
+  .map((row:any)=>[String(row.source_context_id),String(row.phase)].join(":")));
  const contextPreparations=savedContextPreparations.map(row=>{
    const item=base({...row,completed_at:row.recorded_at},"preparation","opportunity");
    item.observed=true;
+   const diagnosisSourceValid=!String(row.preparation_context||"").startsWith("diagnosis:")||
+    verifiedDiagnosisSources.has([String(row.source_context_id),String(row.phase)].join(":"));
    item.canonicalPresent=true;
-   item.technicallyValid=true;
+   item.technicallyValid=diagnosisSourceValid;
    item.conditionKept=true;
    item.observationExact=true;
    item.evidenceExact=true;

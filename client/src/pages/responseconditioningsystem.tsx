@@ -306,7 +306,6 @@ export default function ResponseConditioningSystem() {
   const coverageGroups = [
     "Operating modes",
     "Preparation contexts",
-    "Behaviour signatures",
     "Response situations",
   ];
   const developmentPathwayBlocked = isDeepDiveModuleBlocked(
@@ -564,15 +563,15 @@ export default function ResponseConditioningSystem() {
                     </div>
                     <DialogTitle>Inspect Coverage</DialogTitle>
                     <DialogDescription>
-                      Review each required operating mode, preparation context, behaviour signature and response situation. Only valid, distinct opportunities count toward development coverage.
+                      Review each required operating mode, preparation context and response situation. Only valid, distinct opportunities count toward development coverage.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
               {sandboxQualification?.activated === false ? (
                 <div role="status" className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
-                  <p className="font-semibold">Sandbox coverage evaluation is inactive</p>
+                  <p className="font-semibold">Final Sandbox graduation evaluation is inactive</p>
                   <p className="mt-1 text-muted-foreground">
-                    Coverage counts are not being evaluated in this environment. Do not use the displayed counts to make a Specialist progression decision.
+                    Current development coverage is still counted from persisted evidence. The separate eight-session graduation decision remains inactive.
                   </p>
                 </div>
               ) : null}
