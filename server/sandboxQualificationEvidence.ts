@@ -417,12 +417,12 @@ export async function loadSandboxQualificationEvidence(
   : [];
  const verifiedDiagnosisSources=new Set(contextDiagnosisProofRows
   .filter((row:any)=>row.native_proof_verified===true)
-  .map((row:any)=>[String(row.source_context_id),String(row.phase)].join(":")));
+  .map((row:any)=>[String(row.source_context_id),String(row.phase),String(row.probe_id)].join(":")));
  const contextPreparations=savedContextPreparations.map(row=>{
    const item=base({...row,completed_at:row.recorded_at},"preparation","opportunity");
    item.observed=true;
    const diagnosisSourceValid=!String(row.preparation_context||"").startsWith("diagnosis:")||
-    verifiedDiagnosisSources.has([String(row.source_context_id),String(row.phase)].join(":"));
+    verifiedDiagnosisSources.has([String(row.source_context_id),String(row.phase),String(row.probe_id)].join(":"));
    item.canonicalPresent=true;
    item.technicallyValid=diagnosisSourceValid;
    item.conditionKept=true;
