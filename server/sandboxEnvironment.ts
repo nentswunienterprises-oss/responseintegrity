@@ -1460,25 +1460,23 @@ async function readinessFor(input: {
   const activated = process.env.RI_SANDBOX_QUALIFICATION_V2_ACTIVE === "true" ||
     (isCapabilityProofPreview(process.env) &&
       process.env.RI_SANDBOX_CROSSMODE_CAPTURE_V1 === "true");
-  let qualification = evaluateSandboxQualification([], { activated: false });
-  let qualificationSourceGaps: string[] = [];
-  let evidenceFingerprint: string | null = null;
-  if (activated) {
-    const evidenceTimeline = await loadSandboxQualificationEvidence(input);
-    qualificationSourceGaps = evidenceTimeline.sourceGaps;
-    qualification = evaluateSandboxQualification(evidenceTimeline.events, { activated: true, policyVersion: 2 });
-    // Bound TD approval to the exact immutable evidence readback, not only
-    // a numeric session total. New errors/evidence invalidate old approvals.
-    evidenceFingerprint = sandboxQualificationEvidenceFingerprint(
-      qualification.policyId, qualification.policyVersion, evidenceTimeline.events,
-    );
-    if (qualificationSourceGaps.length) {
-      qualification = {
-        ...qualification, qualificationReady: false,
-        technicalBlockers: [...qualification.technicalBlockers, ...qualificationSourceGaps],
-        reason: "Sandbox qualification is blocked by incomplete persisted source coverage.",
-      };
-    }
+  // Always read persisted evidence to populate current development coverage.
+  // The activation flag controls only the separate final graduation decision.
+  const evidenceTimeline = await loadSandboxQualificationEvidence(input);
+  const qualificationSourceGaps = evidenceTimeline.sourceGaps;
+  let qualification = evaluateSandboxQualification(evidenceTimeline.events, {
+    activated, policyVersion: 2,
+  });
+  // Bind any later TD approval to the exact immutable evidence readback.
+  const evidenceFingerprint = sandboxQualificationEvidenceFingerprint(
+    qualification.policyId, qualification.policyVersion, evidenceTimeline.events,
+  );
+  if (qualificationSourceGaps.length) {
+    qualification = {
+      ...qualification, qualificationReady: false,
+      technicalBlockers: [...qualification.technicalBlockers, ...qualificationSourceGaps],
+      reason: "Sandbox qualification is blocked by incomplete persisted source coverage.",
+    };
   }
   const coverageCategories = [
     { key: "operating_modes", label: "Operating modes", prefix: "mode:" },
