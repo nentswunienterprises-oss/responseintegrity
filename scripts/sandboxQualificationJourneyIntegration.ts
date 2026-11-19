@@ -301,8 +301,10 @@ try{
  await negative("PREPARATION_LINEAGE","UPDATE public.specialist_sandbox_preparation_events SET condition_contract_sha256=repeat('0',64)",r=>{
   assert.equal(r.status.qualificationReady,false);assert.ok(r.status.technicalBlockers.length);
  });
- await negative("MISSING_OBSERVED_PROFILE","UPDATE private.specialist_sandbox_trajectory_truth SET trajectory_seed=(SELECT trajectory_seed FROM private.specialist_sandbox_trajectory_truth WHERE trajectory_id='ci-trajectory-5') WHERE trajectory_id='ci-trajectory-1'",r=>{
-  assert.equal(r.status.developmentCoverageReady,false);assert.equal(r.status.qualificationReady,false);
+ await negative("PROFILE_SIGNATURE_NOT_REQUIRED","UPDATE private.specialist_sandbox_trajectory_truth SET trajectory_seed=(SELECT trajectory_seed FROM private.specialist_sandbox_trajectory_truth WHERE trajectory_id='ci-trajectory-5') WHERE trajectory_id='ci-trajectory-1'",r=>{
+  assert.equal(r.status.developmentCoverageReady,true);
+  assert.equal(r.status.qualificationReady,qualified.status.qualificationReady);
+  assert.equal(r.status.requirements.some(item=>item.key.startsWith("profile:")),false);
  });
  await db.query("ROLLBACK");
  // Execute the real TD route against PostgreSQL, with only request/response transport faked.
