@@ -410,7 +410,11 @@ export async function loadSandboxQualificationEvidence(
      sourceGaps.push("Context-specific Sandbox preparation evidence schema not applied.");
    else throw error;
  }
- const contextDiagnosisProofRows=(await sourceDb.query(CONTEXT_DIAGNOSIS_PROOF,params)).rows;
+ const hasDiagnosisPreparationReceipts=savedContextPreparations.some((row:any)=>
+  String(row.preparation_context||"").startsWith("diagnosis:"));
+ const contextDiagnosisProofRows=hasDiagnosisPreparationReceipts
+  ? (await sourceDb.query(CONTEXT_DIAGNOSIS_PROOF,params)).rows
+  : [];
  const verifiedDiagnosisSources=new Set(contextDiagnosisProofRows
   .filter((row:any)=>row.native_proof_verified===true)
   .map((row:any)=>[String(row.source_context_id),String(row.phase)].join(":")));
