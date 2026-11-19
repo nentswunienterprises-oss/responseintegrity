@@ -413,6 +413,34 @@ export async function loadSandboxQualificationEvidence(
    item.situationTags=["prepared_conditions",row.preparation_context];
    return item;
  });
+ // Older qualifying Diagnosis opportunities predate persisted context-preparation receipts.
+ // Re-project only evidence tied to a completed native Diagnosis run, so moving
+ // the requirement from Operating modes preserves verified historical progress.
+ const diagnosisPreparationSources=new Set(savedContextPreparations
+  .filter((row:any)=>String(row.preparation_context||"").startsWith("diagnosis:"))
+  .map((row:any)=>[String(row.preparation_context),String(row.source_context_id),String(row.phase)].join(":")));
+ const historicalDiagnosisPreparations:Event[]=[];
+ for(let index=0;index<cross.length;index++){
+  const row=cross[index];
+  if(row.scope!=="diagnosis"||row.native_proof_verified!==true)continue;
+  const phase=String(row.phase||"");
+  if(!phase)continue;
+  const preparationContext="diagnosis:"+phase;
+  const sourceKey=[preparationContext,String(row.source_context_id),phase].join(":");
+  if(diagnosisPreparationSources.has(sourceKey))continue;
+  const evidence=crossEvents[index];
+  if(!evidence?.technicallyValid||!evidence.complete)continue;
+  diagnosisPreparationSources.add(sourceKey);
+  historicalDiagnosisPreparations.push({
+   ...evidence,
+   id:"preparation-diagnosis:"+evidence.id,
+   mode:"preparation",
+   sourceType:"verified_native_diagnosis",
+   preparationContext,
+   opportunityKey:["context-prepared",preparationContext,String(row.source_context_id),phase].join(":"),
+   situationTags:[...evidence.situationTags,"prepared_conditions",preparationContext],
+  });
+ }
  const billing=billingResult.rows;
  const closure:Event[]=[];const continuity:Event[]=[];
  for(const session of sessions){
@@ -448,5 +476,5 @@ export async function loadSandboxQualificationEvidence(
  // An unstarted, abandoned preparation is not an observed opportunity.
  // Preserve its audit receipt in the protected table, but do not permanently
  // poison the Specialist's future clean evidence with an unattempted rep.
- return {events:[...preparations.filter(e=>e.observed),...contextPreparations,...reps,...sessions,...rediagnoses,...crossEvents,...closure,...continuity],sourceGaps};
+ return {events:[...preparations.filter(e=>e.observed),...contextPreparations,...historicalDiagnosisPreparations,...reps,...sessions,...rediagnoses,...crossEvents,...closure,...continuity],sourceGaps};
 }
