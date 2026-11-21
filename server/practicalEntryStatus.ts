@@ -1,4 +1,5 @@
 import { evaluatePracticalEntryGate, type PracticalReadinessSnapshot } from "../shared/practicalEntryGate";
+import { isCapabilityProofPreview } from "./proofTrainingBooking";
 
 type Query = { query(sql: string, params: unknown[]): Promise<{ rows: any[] }> };
 type LoadReadiness = (input: { tutorAssignmentId: string; tutorId: string }) => Promise<PracticalReadinessSnapshot>;
@@ -33,15 +34,55 @@ export async function loadPracticalEntryStatus(
       ORDER BY assessed_at DESC, id DESC LIMIT 1`,
     [tutorAssignmentId, tutorId, String(assignment.td_id || "")],
   );
-  const signoff = result.rows[0] || null;
+  let signoff = result.rows[0] || null;
+  let readiness = await loadReadiness({ tutorAssignmentId, tutorId });
+  let proofSyntheticPath = false;
+
+  // A synthetic readiness fixture is a separate, clearly identified acceptance
+  // lane. It exists only in the isolated Capability Proof Preview and never
+  // writes into genuine Sandbox evidence or the real TD assessment ledger.
+  if (isCapabilityProofPreview(process.env) &&
+      process.env.RI_PROOF_SYNTHETIC_PRACTICALS_V1 === "true") {
+    const fixture = await db.query(
+      `SELECT id, tutor_id, tutor_assignment_id, td_id, fixture_label, expires_at
+         FROM private.proof_synthetic_practical_readiness_fixtures
+        WHERE tutor_assignment_id=$1 AND tutor_id=$2 AND td_id=$3
+          AND fixture_label='PROOF SYNTHETIC PRACTICALS ACCEPTANCE'
+          AND expires_at > now()
+        ORDER BY created_at DESC LIMIT 1`,
+      [tutorAssignmentId, tutorId, String(assignment.td_id || "")],
+    );
+    if (fixture.rows[0]) {
+      const fixtureId = String(fixture.rows[0].id);
+      const snapshot: PracticalReadinessSnapshot = {
+        practicalsReady: true,
+        policyStatus: "approved",
+        policyVersion: Number(readiness.policyVersion) || 1,
+        bankKey: String(readiness.bankKey || "sandbox_stateful_environment"),
+        bankVersion: Number(readiness.bankVersion) || 1,
+        qualification: {
+          policyId: String(readiness.qualification?.policyId || "ri-sandbox-qualification"),
+          policyVersion: Number(readiness.qualification?.policyVersion) || 2,
+          qualificationReady: true,
+          evidenceFingerprint: `proof-synthetic:${fixtureId}`,
+        },
+      };
+      signoff = {
+        decision: "passed",
+        capabilitySnapshot: snapshot,
+      };
+      readiness = snapshot;
+      proofSyntheticPath = true;
+    }
+  }
   const gate = evaluatePracticalEntryGate({
     operationalMode: assignment.operational_mode,
     assignedTdId: String(assignment.td_id || "") || null,
     latestAssignedTdSignoff: signoff ? {
       decision: signoff.decision,
-      capabilitySnapshot: signoff.checklist?.capability_snapshot || null,
+      capabilitySnapshot: signoff.capabilitySnapshot || signoff.checklist?.capability_snapshot || null,
     } : null,
-    currentReadiness: await loadReadiness({ tutorAssignmentId, tutorId }),
+    currentReadiness: readiness,
   });
-  return { ...gate, signoffId: signoff?.id || null };
+  return { ...gate, signoffId: proofSyntheticPath ? null : signoff?.id || null, proofSyntheticPath };
 }
