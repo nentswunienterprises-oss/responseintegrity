@@ -1490,7 +1490,7 @@ async function readinessFor(input: {
         developmentCoverageReady: true,
         qualificationReady: true,
         qualifyingSessions: SANDBOX_QUALIFICATION_V1.requiredSessions,
-        phaseCounts: { clarity: 2, structured_execution: 2, controlled_discomfort: 2, time_pressure_stability: 2 },
+        phaseCounts: { Clarity: 2, "Structured Execution": 2, "Controlled Discomfort": 2, "Time Pressure Stability": 2 },
         cleanSessionIds: [],
         reason: "Proof synthetic readiness fixture is active; this is not Specialist performance or TD sign-off.",
         requirements: qualification.requirements.map((item) => ({
