@@ -1467,11 +1467,46 @@ async function readinessFor(input: {
   let qualification = evaluateSandboxQualification(evidenceTimeline.events, {
     activated, policyVersion: 2,
   });
+  // Proof-only lane: unlock progression with a clearly synthetic fixture while
+  // leaving the persisted evidence timeline and TD assessment ledger untouched.
+  let proofSyntheticPath = false;
+  let proofSyntheticFixtureId: string | null = null;
+  if (isCapabilityProofPreview(process.env) &&
+      process.env.RI_PROOF_SYNTHETIC_PRACTICALS_V1 === "true") {
+    const fixture = await pool.query(
+      `SELECT id
+         FROM private.proof_synthetic_practical_readiness_fixtures
+        WHERE tutor_assignment_id=$1 AND tutor_id=$2
+          AND fixture_label='PROOF SYNTHETIC PRACTICALS ACCEPTANCE'
+          AND expires_at > now()
+        ORDER BY created_at DESC LIMIT 1`,
+      [input.tutorAssignmentId, input.tutorId],
+    );
+    if (fixture.rows[0]) {
+      proofSyntheticPath = true;
+      proofSyntheticFixtureId = String(fixture.rows[0].id);
+      qualification = {
+        ...qualification,
+        developmentCoverageReady: true,
+        qualificationReady: true,
+        qualifyingSessions: SANDBOX_QUALIFICATION_V1.requiredSessions,
+        phaseCounts: { clarity: 2, structured_execution: 2, controlled_discomfort: 2, time_pressure_stability: 2 },
+        cleanSessionIds: [],
+        reason: "Proof synthetic readiness fixture is active; this is not Specialist performance or TD sign-off.",
+        requirements: qualification.requirements.map((item) => ({
+          ...item,
+          encountered: item.required,
+          distinctCorrect: item.required,
+          met: true,
+        })),
+      };
+    }
+  }
   // Bind any later TD approval to the exact immutable evidence readback.
   const evidenceFingerprint = sandboxQualificationEvidenceFingerprint(
     qualification.policyId, qualification.policyVersion, evidenceTimeline.events,
   );
-  if (qualificationSourceGaps.length) {
+  if (qualificationSourceGaps.length && !proofSyntheticPath) {
     qualification = {
       ...qualification, qualificationReady: false,
       technicalBlockers: [...qualification.technicalBlockers, ...qualificationSourceGaps],
@@ -1546,10 +1581,12 @@ async function readinessFor(input: {
       phaseMinimums: SANDBOX_QUALIFICATION_V1.phaseMinimums,
       coverageCategories,
       coverageRequirements,
-      sourceStatus: qualificationSourceGaps.length ? "unavailable" : "available",
-      sourceGaps: qualificationSourceGaps,
+      sourceStatus: proofSyntheticPath ? "synthetic" : qualificationSourceGaps.length ? "unavailable" : "available",
+      sourceGaps: proofSyntheticPath ? [] : qualificationSourceGaps,
       reason: qualification.reason,
-      evidenceFingerprint,
+      evidenceFingerprint: proofSyntheticPath ? `proof-synthetic:${proofSyntheticFixtureId}` : evidenceFingerprint,
+      proofSyntheticPath,
+      proofSyntheticFixtureId,
     },
     qualificationSourceGaps: qualificationSourceGaps.length,
     cleanWindowEvidence: {

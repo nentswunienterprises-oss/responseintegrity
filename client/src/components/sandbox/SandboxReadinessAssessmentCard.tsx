@@ -46,9 +46,11 @@ export type CapabilityReadiness = {
     breakdownRecoveryObserved: boolean;
   };
   qualification?: {
+    proofSyntheticPath?: boolean;
+    proofSyntheticFixtureId?: string | null;
     developmentCoverageReady: boolean;
     qualificationReady: boolean;
-    sourceStatus?: "available" | "unavailable";
+    sourceStatus?: "available" | "unavailable" | "synthetic";
     qualifyingSessions: number;
     requiredSessions: number | null;
     phaseCounts: Record<string, number>;
@@ -423,6 +425,12 @@ export function SandboxReadinessAssessmentCard({
           )}
         </div>
       </div>
+      {qualification?.proofSyntheticPath ? (
+        <div role="status" className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+          <p className="font-semibold">PROOF SYNTHETIC FIXTURE — not genuine Specialist evidence</p>
+          <p className="mt-1 text-muted-foreground">This temporary Proof fixture is for acceptance-path verification only. It is not Pring’s coverage or a TD sign-off. Production does not accept it.</p>
+        </div>
+      ) : null}
 
       {isLoading ? (
         <p className="mt-4 text-sm text-muted-foreground">
