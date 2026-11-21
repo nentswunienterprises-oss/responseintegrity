@@ -226,6 +226,14 @@
     {
       "path": "migrations/20261111043902_reconcile_scheduled_sessions_view_security.sql",
       "description": "Restore Capability Proof's scheduled_sessions_with_names view to the The Hub security contract: security_invoker=true, no PUBLIC/anon/authenticated privileges, service_role SELECT only. Applied only to Preview because The Hub already has the intended configuration; explicitly excluded from Production promotion."
+    },
+    {
+      "path": "migrations/20261121190000_proof_synthetic_practicals_readiness.sql",
+      "description": "Create a private, service-role-only, expiring synthetic readiness fixture for isolated Practicals acceptance. Applied only to Capability Proof Preview; explicitly excluded from Production."
+    },
+    {
+      "path": "migrations/20261122100000_practical_recording_link_retention_90d.sql",
+      "description": "Add a protected 90-day retention lifecycle for externally hosted Practical recording links. Applied and read-back verified only in Capability Proof Preview; Production promotion requires a separate reviewed migration and authorization."
     }
   ],
   "migrationBatches": {
