@@ -211,6 +211,7 @@ export async function getSpecialistCapabilityTrainingState(input: {
   assessments: CapabilityTrainingAvailability[];
   sandboxReady: boolean;
   stageGate: SpecialistTrainingStageGate;
+  proofSyntheticFixtureAttemptCount: number;
 }> {
   await assertCapabilityTutorAssignmentOwnership(
     input.tutorAssignmentId,
