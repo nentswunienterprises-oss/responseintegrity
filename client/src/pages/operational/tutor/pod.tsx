@@ -79,7 +79,8 @@ interface TutorAlignmentSummaryData {
         completedOpportunities: number;
         requiredOpportunities: number;
       }>;
-      sourceStatus?: "available" | "unavailable";
+      sourceStatus?: "available" | "unavailable" | "synthetic";
+      proofSyntheticPath?: boolean;
       sourceGaps?: string[];
     };
     practicalsReady: boolean;
@@ -89,7 +90,7 @@ interface TutorAlignmentSummaryData {
     currentStage: string;
     pathway: { status: string; timeline?: { label?: string; daysRemaining?: number | null } | null } | null;
     training?: { sandboxReady: boolean; summary?: Record<string, { complete: number; total: number }> };
-    sandbox?: { readiness?: { practicalsReady?: boolean; qualification?: { developmentCoverageReady?: boolean; qualificationReady?: boolean; qualifyingSessions?: number; requiredSessions?: number; phaseCounts?: Record<string, number>; phaseMinimums?: Record<string, number>; reason?: string; sourceStatus?: "available" | "unavailable" } }; latestAssessment?: { decision?: string } | null };
+    sandbox?: { readiness?: { practicalsReady?: boolean; qualification?: { developmentCoverageReady?: boolean; qualificationReady?: boolean; qualifyingSessions?: number; requiredSessions?: number; phaseCounts?: Record<string, number>; phaseMinimums?: Record<string, number>; reason?: string; sourceStatus?: "available" | "unavailable" | "synthetic"; proofSyntheticPath?: boolean } }; latestAssessment?: { decision?: string } | null };
     trial?: { status?: string; gate?: { reviewable?: boolean } } | null;
   } | null;
 }
@@ -139,7 +140,9 @@ function formatDevelopmentNextAction(stage: string | null | undefined, pathway: 
   if (value === "training") return pathway?.training?.sandboxReady ? "Training gate complete; Sandbox is the next governed stage." : "Complete the assigned Deep Dives and Mastery Checks to establish the Training gate.";
   if (value === "sandbox") {
     const qualification = pathway?.sandbox?.readiness?.qualification;
+    if (qualification?.sourceStatus === "synthetic" || qualification?.proofSyntheticPath) return "Proof synthetic readiness fixture is active. Seeded counts unlock the Practicals acceptance path only; they are not genuine Sandbox graduation or TD sign-off.";
     if (qualification?.sourceStatus === "unavailable") return "Sandbox development evidence is unavailable. This is a system evidence-access issue, not a failed Specialist requirement; ask your TD to investigate.";
+    if (qualification?.qualificationReady && (qualification.sourceStatus === "synthetic" || qualification.proofSyntheticPath)) return "Proof synthetic readiness fixture is active; use Practicals to verify the acceptance path. Genuine Sandbox graduation still requires Specialist performance and assigned TD review.";
     if (qualification?.qualificationReady) return "Final Sandbox graduation evidence is complete; assigned TD review is the next gate.";
     if (qualification?.developmentCoverageReady) return "Development coverage is established. Complete the remaining Deep Dives, then RI-OS Retention and Application, before final Sandbox graduation.";
     return "Establish Sandbox development coverage. This unlocks the remaining Deep Dives; RI-OS Retention and Application and final graduation come afterward.";
@@ -721,11 +724,11 @@ export default function TutorPod() {
                 </div>
                 <ol className="grid gap-2 sm:grid-cols-2">
                   <li className="rounded-lg border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">1. Transformation qualification</span><Badge>Complete</Badge></div><p className="mt-1 text-xs text-muted-foreground">Mastery, Retention and Application are prerequisites for Sandbox entry.</p></li>
-                  <li className="rounded-lg border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">2. Sandbox development coverage</span><Badge variant={sandboxQualification?.sourceStatus === "unavailable" ? "destructive" : sandboxQualification?.developmentCoverageReady ? "default" : "outline"}>{!sandboxQualification ? "Status unavailable" : sandboxQualification.sourceStatus === "unavailable" ? "Evidence unavailable" : sandboxQualification.developmentCoverageReady ? "Complete" : "In progress"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">Establish required operating-mode, behaviour and response-situation evidence.</p></li>
-                  <li className="rounded-lg border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">3. Remaining Deep Dives</span><Badge variant={sandboxQualification?.developmentCoverageReady ? "default" : "outline"}>{!sandboxQualification ? "Status unavailable" : sandboxQualification.sourceStatus === "unavailable" ? "Evidence unavailable" : sandboxQualification.developmentCoverageReady ? "Unlocked" : "Locked until coverage"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">Complete outstanding post-Sandbox capability checks.</p></li>
+                  <li className="rounded-lg border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">2. Sandbox development coverage</span><Badge variant={sandboxQualification?.sourceStatus === "synthetic" || sandboxQualification?.proofSyntheticPath ? "outline" : sandboxQualification?.sourceStatus === "unavailable" ? "destructive" : sandboxQualification?.developmentCoverageReady ? "default" : "outline"}>{!sandboxQualification ? "Status unavailable" : sandboxQualification.sourceStatus === "synthetic" || sandboxQualification.proofSyntheticPath ? "Fixture only" : sandboxQualification.sourceStatus === "unavailable" ? "Evidence unavailable" : sandboxQualification.developmentCoverageReady ? "Complete" : "In progress"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">Establish required operating-mode, behaviour and response-situation evidence.</p></li>
+                  <li className="rounded-lg border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">3. Remaining Deep Dives</span><Badge variant={sandboxQualification?.sourceStatus === "synthetic" || sandboxQualification?.proofSyntheticPath ? "outline" : sandboxQualification?.developmentCoverageReady ? "default" : "outline"}>{!sandboxQualification ? "Status unavailable" : sandboxQualification.sourceStatus === "synthetic" || sandboxQualification.proofSyntheticPath ? "Fixture path" : sandboxQualification.sourceStatus === "unavailable" ? "Evidence unavailable" : sandboxQualification.developmentCoverageReady ? "Unlocked" : "Locked until coverage"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">Complete outstanding post-Sandbox capability checks.</p></li>
                   <li className="rounded-lg border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">4. RI-OS Retention</span><Badge variant="outline">After Deep Dives</Badge></div><p className="mt-1 text-xs text-muted-foreground">Demonstrate delayed retrieval of the operating system.</p></li>
                   <li className="rounded-lg border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">5. RI-OS Application</span><Badge variant="outline">After Retention</Badge></div><p className="mt-1 text-xs text-muted-foreground">Demonstrate correct application across mixed situations.</p></li>
-                  <li className="rounded-lg border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">6. Final Sandbox graduation</span><Badge variant={sandboxQualification?.qualificationReady ? "default" : "outline"}>{sandboxQualification?.qualificationReady ? "Ready for TD review" : "Final stage"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">Eight consecutive qualifying clean sessions: at least two in each RI-OS phase.</p></li>
+                  <li className="rounded-lg border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">6. Final Sandbox graduation</span><Badge variant={sandboxQualification?.sourceStatus === "synthetic" || sandboxQualification?.proofSyntheticPath ? "outline" : sandboxQualification?.qualificationReady ? "default" : "outline"}>{sandboxQualification?.sourceStatus === "synthetic" || sandboxQualification?.proofSyntheticPath ? "Fixture only" : sandboxQualification?.qualificationReady ? "Ready for TD review" : "Final stage"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{sandboxQualification?.sourceStatus === "synthetic" || sandboxQualification?.proofSyntheticPath ? "Proof synthetic fixture only; real qualification requires eight consecutive clean sessions with at least two in each RI-OS phase, followed by assigned TD review." : "Eight consecutive qualifying clean sessions: at least two in each RI-OS phase."}</p></li>
                 </ol>
                 {sandboxQualification?.sourceStatus === "unavailable" ? <Alert className="mt-3"><AlertDescription>The development-coverage evidence source is unavailable. Do not treat missing counters or unprovisioned Sandbox resources as Specialist failure; restore the evidence source and environment first.</AlertDescription></Alert> : null}
               </section>
@@ -738,7 +741,9 @@ export default function TutorPod() {
                     <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Final Sandbox Graduation Qualification</p>
                     <p className="mt-2 text-sm font-semibold text-foreground">
                       {effectiveSandboxProgress.qualification.qualificationReady
-                        ? `${effectiveSandboxProgress.qualification.qualifyingSessions}/${effectiveSandboxProgress.qualification.requiredSessions} clean sessions complete`
+                        ? effectiveSandboxProgress.qualification.sourceStatus === "synthetic" || effectiveSandboxProgress.qualification.proofSyntheticPath
+                          ? "Synthetic readiness counts; no clean sessions recorded"
+                          : `${effectiveSandboxProgress.qualification.qualifyingSessions}/${effectiveSandboxProgress.qualification.requiredSessions} clean sessions complete`
                         : "Final gate follows remaining Deep Dives and RI-OS Retention/Application"}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">This is the final gate after remaining Deep Dives, RI-OS Retention and RI-OS Application. Two clean sessions are required in each RI-OS phase; phase counts are shown as requirements until final qualification evidence is complete.</p>
@@ -746,7 +751,7 @@ export default function TutorPod() {
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant={effectiveSandboxProgress.qualification.qualificationReady ? "default" : "outline"}>
                       {effectiveSandboxProgress.qualification.qualificationReady
-                        ? "Ready for TD review"
+                        ? effectiveSandboxProgress.qualification.sourceStatus === "synthetic" || effectiveSandboxProgress.qualification.proofSyntheticPath ? "Fixture only" : "Ready for TD review"
                         : effectiveSandboxProgress.qualification.sourceStatus === "unavailable"
                         ? "Evidence unavailable"
                         : effectiveSandboxProgress.qualification.developmentCoverageReady
@@ -766,7 +771,7 @@ export default function TutorPod() {
                       <div key={phase} className="ri-alignment-info-card rounded-xl border border-primary/15 bg-background px-3 py-2 text-sm text-foreground">
                         <span className="font-medium">{phase}</span>
                         <span className="ml-2 text-muted-foreground">
-                          {effectiveSandboxProgress.qualification.qualificationReady ? `${count}/${required} complete` : `${required} required at final gate`}
+                          {effectiveSandboxProgress.qualification.qualificationReady && (effectiveSandboxProgress.qualification.sourceStatus === "synthetic" || effectiveSandboxProgress.qualification.proofSyntheticPath) ? "Synthetic fixture" : effectiveSandboxProgress.qualification.qualificationReady ? `${count}/${required} complete` : `${required} required at final gate`}
                         </span>
                       </div>
                     );
@@ -774,7 +779,9 @@ export default function TutorPod() {
                 </div>
                 <p className="mt-3 text-xs text-muted-foreground">
                   {effectiveSandboxProgress.qualification.qualificationReady
-                    ? "All final graduation evidence requirements are complete. TD approval is still required before Practicals."
+                    ? effectiveSandboxProgress.qualification.sourceStatus === "synthetic" || effectiveSandboxProgress.qualification.proofSyntheticPath
+                    ? "Synthetic fixture only. No real qualifying sessions or TD approval are recorded; Practicals is open solely for Proof acceptance."
+                    : "All final graduation evidence requirements are complete. TD approval is still required before Practicals."
                     : effectiveSandboxProgress.qualification.sourceStatus === "unavailable"
                       ? "Final graduation progress cannot be assessed while the evidence source is unavailable."
                       : "These phase counters belong to final graduation, not development coverage. Complete the remaining Deep Dives and both RI-OS gates before final graduation."}
