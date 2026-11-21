@@ -16,7 +16,7 @@ import {
 
 type Proof = {key:string;version:number;title:string;purpose:string;mustShow:string[];requiredArtifactTypes:string[];declarationPrompts:Array<{key:string;prompt:string;minLength:number}>;reviewRubric:{version:number;criteria:Array<{key:string;label:string;observableStandard:string;clearAnchor:string;partialAnchor:string;failAnchor:string}>}};
 type Evidence = {proofKey:string;attemptNumber:number;status:string;feedback:string|null;recordingLinkExpiresAt?:string;recordingLinkRetiredAt?:string|null};
-type Data = {entry:{ready:boolean;blockers:string[]};completion:{complete:boolean;proofs:Array<{key:string;status:string}>};proofs:Proof[];evidence:Evidence[]};
+type Data = {entry:{ready:boolean;blockers:string[];proofSyntheticPath?:boolean};completion:{complete:boolean;proofs:Array<{key:string;status:string}>};proofs:Proof[];evidence:Evidence[]};
 type Pod = {assignment?:{id?:string}};
 
 export default function SpecialistPracticals() {
@@ -92,6 +92,7 @@ export default function SpecialistPracticals() {
     <div><h1 className="text-2xl font-semibold">Practicals</h1><p className="text-sm text-muted-foreground">Demonstrate operational execution with simulated student evidence. Your TD reviews observable conduct against fixed standards.</p></div>
     {q.isLoading?<p>Loading Practicals...</p>:q.isError?<p role="alert">Practicals could not load: {String((q.error as Error)?.message||"unknown error")}</p>:<>
     {!q.data?.entry.ready && <Card><CardContent className="space-y-2 pt-5"><strong>Practicals not available yet</strong>{q.data?.entry.blockers.map((b,i)=><p key={i} className="text-sm">{b}</p>)}</CardContent></Card>}
+    {q.data?.entry.proofSyntheticPath && <Card className="border-amber-500/40 bg-amber-500/10"><CardContent className="pt-5 text-sm"><strong>PROOF SYNTHETIC FIXTURE — readiness only</strong><p className="mt-1 text-muted-foreground">This Preview entry uses seeded prerequisites and a synthetic entry approval. It does not establish genuine Specialist performance or TD sign-off. Only a real Pring demonstration and Thendo’s assigned review can validate the Specialist-to-TD run.</p></CardContent></Card>}
     <div className="grid gap-3 md:grid-cols-3">{q.data?.proofs.map(p=><button key={p.key} type="button" onClick={()=>{setSelected(p.key);setUrl("");setDeclarations({});setArtifactType(p.requiredArtifactTypes[0]);setOnlySandbox(false);setExecuteChallengeId(null);setBenchmarkRunId(null);setMinutes("");setSeconds("0");setStartedBeforeReveal(false);setContinuousUnedited(false);setToolsShown(false)}} className={"rounded-md border p-4 text-left "+(selected===p.key?"border-primary":"")}>
       <p className="font-semibold">{p.title}</p><p className="mt-1 text-xs text-muted-foreground">{p.purpose}</p><Badge variant="outline" className="mt-3">{q.data?.completion?.proofs.find(x=>x.key===p.key)?.status||"Not submitted"}</Badge>
     </button>)}</div>

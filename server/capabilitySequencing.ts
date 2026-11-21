@@ -9,6 +9,7 @@ import {
 } from "@shared/capabilityTrainingSequencing";
 import { assertCapabilityTutorAssignmentOwnership } from "./capabilityEngine";
 import { getSandboxCapabilityReadiness } from "./sandboxEnvironment";
+import { isCapabilityProofPreview } from "./proofTrainingBooking";
 
 function httpError(status: number, message: string, data?: Record<string, unknown>) {
   const error = new Error(message) as Error & {
@@ -234,6 +235,7 @@ export async function getSpecialistCapabilityTrainingState(input: {
               attempt_number,
               evidence_kind,
               passed,
+              form_id,
               completed_at
          FROM public.specialist_capability_assessment_attempts
         WHERE tutor_assignment_id = $1
@@ -283,6 +285,10 @@ export async function getSpecialistCapabilityTrainingState(input: {
       passed: Boolean(row.passed),
       completedAt: row.completed_at,
     }));
+  const proofSyntheticFixtureAttemptCount = isCapabilityProofPreview(process.env) &&
+    process.env.RI_PROOF_SYNTHETIC_PRACTICALS_V1 === "true"
+    ? attemptResult.rows.filter((row) => String(row.form_id || "").startsWith("[PROOF SYNTHETIC FIXTURE]")).length
+    : 0;
 
   const assessments = buildCapabilityTrainingAvailability({
     now: input.now || new Date(),
@@ -310,6 +316,7 @@ export async function getSpecialistCapabilityTrainingState(input: {
     assessments,
     sandboxReady: isCapabilityTransformationSandboxReady(assessments),
     stageGate,
+    proofSyntheticFixtureAttemptCount,
   };
 }
 
