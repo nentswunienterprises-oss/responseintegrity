@@ -30,7 +30,9 @@ export async function eligibleAttempt(input:RunInput) {
   const definition=getCapabilityPracticalProofDefinition(input.proofKey);
   if(!definition) throw fail(404,"Unknown Practicals benchmark.");
   const evidence=await pool.query(
-    `SELECT e.attempt_number,r.outcome
+    `SELECT e.attempt_number,
+       CASE WHEN r.outcome IS NULL AND e.recording_link_expires_at<=now()
+         THEN 'repeat_required' ELSE r.outcome END AS outcome
      FROM public.specialist_capability_practical_evidence e
      LEFT JOIN public.specialist_capability_practical_reviews r ON r.evidence_id=e.id
      WHERE e.tutor_assignment_id=$1 AND e.tutor_id=$2

@@ -15,7 +15,7 @@ import {
 } from "@shared/practicalBenchmarkPolicy";
 
 type Proof = {key:string;version:number;title:string;purpose:string;mustShow:string[];requiredArtifactTypes:string[];declarationPrompts:Array<{key:string;prompt:string;minLength:number}>;reviewRubric:{version:number;criteria:Array<{key:string;label:string;observableStandard:string;clearAnchor:string;partialAnchor:string;failAnchor:string}>}};
-type Evidence = {proofKey:string;attemptNumber:number;status:string;feedback:string|null};
+type Evidence = {proofKey:string;attemptNumber:number;status:string;feedback:string|null;recordingLinkExpiresAt?:string;recordingLinkRetiredAt?:string|null};
 type Data = {entry:{ready:boolean;blockers:string[]};completion:{complete:boolean;proofs:Array<{key:string;status:string}>};proofs:Proof[];evidence:Evidence[]};
 type Pod = {assignment?:{id?:string}};
 
@@ -98,7 +98,7 @@ export default function SpecialistPracticals() {
     {proof&&<Card><CardHeader><CardTitle>{proof.title}</CardTitle><p className="text-sm">{proof.purpose}</p></CardHeader><CardContent className="space-y-5">
       <div><h2 className="font-medium">Your demonstration must show</h2><ul className="list-disc pl-5 text-sm space-y-1">{proof.mustShow.map((t,i)=><li key={i}>{t}</li>)}</ul></div>
       <div className="space-y-3"><h2 className="font-medium">What your TD will observe</h2>{proof.reviewRubric.criteria.map(c=><div key={c.key} className="border-b pb-2 text-sm"><p className="font-medium">{c.label}</p><p>{c.observableStandard}</p><p className="text-muted-foreground">Clear: {c.clearAnchor}</p><p className="text-muted-foreground">Partial: {c.partialAnchor}</p><p className="text-muted-foreground">Fail: {c.failAnchor}</p></div>)}</div>
-      {history.length>0&&<div><h2 className="font-medium">Previous attempts</h2>{history.map((h,i)=><p key={i} className="text-sm">Attempt {h.attemptNumber}: {h.status}{h.feedback?" — "+h.feedback:""}</p>)}</div>}
+      {history.length>0&&<div><h2 className="font-medium">Previous attempts</h2>{history.map((h,i)=><p key={i} className="text-sm">Attempt {h.attemptNumber}: {h.status}{h.recordingLinkExpiresAt?` · recording link expires ${new Date(h.recordingLinkExpiresAt).toLocaleDateString()}`:""}{h.feedback?" — "+h.feedback:""}</p>)}</div>}
       {(status==="not_submitted"||status==="repeat_required")&&
         <PracticalBenchmarkRun key={proof.key+"-"+assignmentId}
           assignmentId={assignmentId} proofKey={proof.key as PracticalBenchmarkProof}
@@ -117,7 +117,7 @@ export default function SpecialistPracticals() {
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={toolsShown} onChange={e=>setToolsShown(e.target.checked)}/>My relevant delivery environment, screen, face, audio, working surface and necessary tools are visible, without unrelated personal or family information.</label>
         <label className="block text-sm">Required recording type<select className="mt-1 w-full rounded-md border bg-background p-2" value={artifactType} onChange={e=>setArtifactType(e.target.value)}>{proof.requiredArtifactTypes.map(t=><option key={t} value={t}>{t.replaceAll("_"," + ")}</option>)}</select></label>
         <label className="block text-sm">Privately accessible HTTPS recording link<Input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://..." /></label>
-        <p className="text-xs text-muted-foreground">Do not include real student or family information, credentials or private tokens. Ensure your assigned TD can access the recording.</p>
+        <p className="text-xs text-muted-foreground">Link only. Do not include real student or family information, credentials or private tokens. Grant access to your assigned TD only. RI removes the stored link 90 days after submission; delete or revoke the hosted original after 90 days as well.</p>
         {proof.declarationPrompts.map(p=><label className="block text-sm" key={p.key}>{p.prompt}<Textarea className="mt-1" value={declarations[p.key]||""} onChange={e=>setDeclarations(x=>({...x,[p.key]:e.target.value}))}/><span className="text-xs text-muted-foreground">Minimum {p.minLength} characters</span></label>)}
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={onlySandbox} onChange={e=>setOnlySandbox(e.target.checked)}/>I confirm this recording uses only simulated data.</label>
         <Button disabled={!canSubmit||submit.isPending} onClick={()=>submit.mutate()}>{submit.isPending?"Submitting...":"Submit for TD review"}</Button>

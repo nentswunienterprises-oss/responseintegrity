@@ -114,7 +114,9 @@ async function getLatestProofAttempt(tutorAssignmentId: string, proofKey: string
     `SELECT e.id,
             e.attempt_number,
             e.submitted_at,
-            r.outcome,
+            e.recording_link_expires_at,
+            CASE WHEN r.outcome IS NULL AND e.recording_link_expires_at<=now()
+              THEN 'repeat_required' ELSE r.outcome END AS outcome,
             r.feedback,
             r.reviewed_at
        FROM specialist_capability_practical_evidence e
@@ -236,7 +238,7 @@ export async function submitPracticalCapabilityEvidence(input: {
          continuous_unedited_attested,
          setup_tools_demonstrated_attested
        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11::jsonb, true, $12, $13, $14, true, true, true)
-       RETURNING id, submitted_at`,
+       RETURNING id, submitted_at, recording_link_expires_at`,
       [
         input.tutorAssignmentId,
         input.tutorId,
@@ -263,6 +265,7 @@ export async function submitPracticalCapabilityEvidence(input: {
       attemptNumber,
       status: "submitted" as const,
       submittedAt: result.rows[0]?.submitted_at,
+      recordingLinkExpiresAt: result.rows[0]?.recording_link_expires_at,
     };
   } catch (error) {
     if ((error as { code?: string })?.code === "23505") {
@@ -288,8 +291,11 @@ export async function getSpecialistPracticalEvidence(input: {
             e.execute_challenge_id,
             e.benchmark_run_id,
             e.recording_duration_seconds,
+            e.recording_link_expires_at,
+            e.recording_link_retired_at,
             e.submitted_at,
-            r.outcome,
+            CASE WHEN r.outcome IS NULL AND e.recording_link_expires_at<=now()
+              THEN 'repeat_required' ELSE r.outcome END AS outcome,
             r.feedback,
             r.reason_code,
             r.clear_count,
@@ -316,7 +322,7 @@ export async function getSpecialistPracticalEvidence(input: {
     benchmarkRunId: row.benchmark_run_id || null,
     recordingDurationSeconds: row.recording_duration_seconds || null,
     status: row.outcome || "submitted",
-    feedback: row.feedback || null,
+    feedback: row.feedback || (row.recording_link_retired_at ? "The 90-day recording link expired. Submit a new original recording for TD review." : null),
     reasonCode: row.reason_code || null,
     rubricCounts: row.outcome
       ? {
@@ -327,6 +333,8 @@ export async function getSpecialistPracticalEvidence(input: {
         }
       : null,
     submittedAt: row.submitted_at,
+    recordingLinkExpiresAt: row.recording_link_expires_at,
+    recordingLinkRetiredAt: row.recording_link_retired_at || null,
     reviewedAt: row.reviewed_at || null,
   }));
 }
@@ -362,6 +370,7 @@ export async function getPracticalReviewQueue(input: {
             e.rubric_snapshot,
             e.attempt_number,
             e.artifact_url,
+            e.recording_link_expires_at,
             e.artifact_type,
             e.declaration,
             e.execute_challenge_id,
@@ -377,6 +386,8 @@ export async function getPracticalReviewQueue(input: {
        JOIN users u ON u.id = e.tutor_id
        LEFT JOIN specialist_capability_practical_reviews r ON r.evidence_id = e.id
       WHERE r.id IS NULL
+        AND e.artifact_url IS NOT NULL
+        AND e.recording_link_expires_at > now()
         ${tdScope}
       ORDER BY e.submitted_at ASC`,
     params,
@@ -401,6 +412,7 @@ export async function getPracticalReviewQueue(input: {
       reviewRubric,
       attemptNumber: Number(row.attempt_number),
       artifactUrl: row.artifact_url,
+      recordingLinkExpiresAt: row.recording_link_expires_at,
       artifactType: row.artifact_type,
       declaration: row.declaration,
       recordingDurationSeconds:Number(row.recording_duration_seconds||0),
@@ -430,6 +442,8 @@ async function assertReviewerCanAccessEvidence(input: {
             e.execute_challenge_id,
             e.benchmark_run_id,
             e.recording_duration_seconds,
+            e.artifact_url,
+            e.recording_link_expires_at,
             e.tutor_assignment_id,
             e.tutor_id,
             p.td_id,
@@ -446,6 +460,9 @@ async function assertReviewerCanAccessEvidence(input: {
   const row = result.rows[0];
   if (!row) throw httpError(404, "Practical capability evidence not found.");
   if (row.review_id) throw httpError(409, "This practical capability evidence has already been reviewed.");
+  if (!row.artifact_url || new Date(row.recording_link_expires_at).getTime() <= Date.now()) {
+    throw httpError(409, "The 90-day recording link has expired. A new original recording is required for TD review.");
+  }
   if (reviewerRole === "td" && String(row.td_id || "") !== input.reviewerId) {
     throw httpError(403, "This evidence is outside the reviewer's assigned pod scope.");
   }
