@@ -118,6 +118,7 @@ import {
   getResponseSymptomLabels,
   normalizeResponseSymptoms,
   recommendStartingPhaseFromSymptoms,
+  RESPONSE_SYMPTOM_GROUPS,
 } from "@shared/responseSymptomMapping";
 import { z } from "zod";
 import {
@@ -28402,6 +28403,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         internetAccess,
         responseSymptoms: rawResponseSymptoms,
         topicResponseSymptoms: rawTopicResponseSymptoms,
+        topicResponseSymptomNotes: rawTopicResponseSymptomNotes,
         parentMotivation,
         processAlignment,
         agreedToTerms,
@@ -28420,6 +28422,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         acc[topic] = normalizeResponseSymptoms(rawTopicSymptoms);
         return acc;
       }, {});
+      const topicResponseSymptomNotes =
+        rawTopicResponseSymptomNotes && typeof rawTopicResponseSymptomNotes === "object"
+          ? Object.entries(rawTopicResponseSymptomNotes as Record<string, unknown>).flatMap(([topic, rawNotes]) => {
+              if (!reportedTopics.includes(topic) || !rawNotes || typeof rawNotes !== "object") return [];
+              const selectedSymptoms = normalizedTopicResponseSymptoms[topic] || [];
+              return Object.entries(rawNotes as Record<string, unknown>).flatMap(([groupId, rawNote]) => {
+                const note = String(rawNote || "").trim().slice(0, 500);
+                const symptomGroup = RESPONSE_SYMPTOM_GROUPS.find((group) => group.id === groupId);
+                const noneOptionSelected = selectedSymptoms.includes(`${groupId}_none_of_above`);
+                return note && symptomGroup && noneOptionSelected ? [`${topic} (${symptomGroup.title}): ${note}`] : [];
+              });
+            })
+          : [];
       const normalizedResponseSymptoms = normalizeResponseSymptoms(rawResponseSymptoms);
       const flattenedTopicResponseSymptoms = Array.from(
         new Set(Object.values(normalizedTopicResponseSymptoms).flat())
@@ -28448,6 +28463,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         processAlignment ? `Process alignment: ${processAlignment}` : "",
         responseSymptoms.length > 0
           ? `Observed response symptoms: ${responseSymptoms.join(", ")}`
+          : "",
+        topicResponseSymptomNotes.length > 0
+          ? `Parent notes where none of the listed patterns fit:\n${topicResponseSymptomNotes.map((note) => `- ${note}`).join("\n")}`
           : "",
       ]
         .filter(Boolean)

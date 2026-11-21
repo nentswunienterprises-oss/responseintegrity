@@ -72,6 +72,7 @@ interface ParentFormData {
   stuckAreas: string[];
   reportedTopics: string[];
   topicResponseSymptoms: Record<string, string[]>;
+  topicResponseSymptomNotes: Record<string, Record<string, string>>;
   previousTutoring: string;
   internetAccess: string;
   parentMotivation: string;
@@ -862,6 +863,7 @@ export default function ParentGateway() {
     stuckAreas: [],
     reportedTopics: [],
     topicResponseSymptoms: {},
+    topicResponseSymptomNotes: {},
     previousTutoring: "",
     internetAccess: "",
     parentMotivation: "",
@@ -899,13 +901,25 @@ export default function ParentGateway() {
   };
 
   const updateTopicResponseSymptoms = (topic: string, nextSymptoms: string[]) => {
-    setFormData((prev) => ({
-      ...prev,
-      topicResponseSymptoms: {
-        ...prev.topicResponseSymptoms,
-        [topic]: nextSymptoms,
-      },
-    }));
+    setFormData((prev) => {
+      const topicNotes = { ...(prev.topicResponseSymptomNotes[topic] || {}) };
+      RESPONSE_SYMPTOM_GROUPS.forEach((group) => {
+        if (!nextSymptoms.includes(`${group.id}_none_of_above`)) {
+          delete topicNotes[group.id];
+        }
+      });
+      return {
+        ...prev,
+        topicResponseSymptoms: {
+          ...prev.topicResponseSymptoms,
+          [topic]: nextSymptoms,
+        },
+        topicResponseSymptomNotes: {
+          ...prev.topicResponseSymptomNotes,
+          [topic]: topicNotes,
+        },
+      };
+    });
   };
 
   const syncMathTopicEntries = (entries: string[]) => {
@@ -953,10 +967,13 @@ export default function ParentGateway() {
     syncMathTopicEntries(nextTopics);
     setFormData((prev) => {
       const nextTopicResponseSymptoms = { ...prev.topicResponseSymptoms };
+      const nextTopicResponseSymptomNotes = { ...prev.topicResponseSymptomNotes };
       delete nextTopicResponseSymptoms[topicToRemove];
+      delete nextTopicResponseSymptomNotes[topicToRemove];
       return {
         ...prev,
         topicResponseSymptoms: nextTopicResponseSymptoms,
+        topicResponseSymptomNotes: nextTopicResponseSymptomNotes,
       };
     });
   };
@@ -1645,6 +1662,35 @@ export default function ParentGateway() {
                                   );
                                 })}
                               </div>
+                              {selectedTopicSymptoms.includes(`${group.id}_none_of_above`) && (
+                                <div className="space-y-1 pt-1">
+                                  <label
+                                    htmlFor={`none-above-note-${topicIndex}-${group.id}`}
+                                    className="text-xs font-medium"
+                                    style={{ color: "#5A5A5A" }}
+                                  >
+                                    Optional note: what do you usually notice?
+                                  </label>
+                                  <Textarea
+                                    id={`none-above-note-${topicIndex}-${group.id}`}
+                                    value={formData.topicResponseSymptomNotes[topic]?.[group.id] || ""}
+                                    onChange={(event) => setFormData((prev) => ({
+                                      ...prev,
+                                      topicResponseSymptomNotes: {
+                                        ...prev.topicResponseSymptomNotes,
+                                        [topic]: {
+                                          ...(prev.topicResponseSymptomNotes[topic] || {}),
+                                          [group.id]: event.target.value,
+                                        },
+                                      },
+                                    }))}
+                                    placeholder="Share anything else you have noticed"
+                                    maxLength={500}
+                                    rows={2}
+                                    className="resize-y text-sm"
+                                  />
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
