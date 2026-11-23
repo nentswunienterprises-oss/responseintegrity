@@ -90,6 +90,7 @@ import {
 import {
   cancellationNeedsReplacement,
   deriveTrainingSessionCancellationDisposition,
+  getSandboxParentCancellationBilling,
   type TrainingSessionCancellationDisposition,
 } from "@shared/trainingSessionCancellationPolicy";
 import {
@@ -3518,16 +3519,22 @@ function classifyTrainingSessionCancellation(options: {
   actorRole: "parent" | "tutor";
   reasonCodes: string[];
   scheduledTimeIso?: string | null;
+  isSandboxContext?: boolean;
 }) {
   const parentRequestedThroughSpecialist =
     options.actorRole === "tutor" &&
     options.reasonCodes.includes("parent_requested_cancellation");
   const responsibleActorRole: "parent" | "tutor" =
     parentRequestedThroughSpecialist ? "parent" : options.actorRole;
-  const billing = classifyCancellationBillingImpact({
-    actorRole: responsibleActorRole,
-    scheduledTimeIso: options.scheduledTimeIso,
-  });
+  // Sandbox session timestamps are simulated coordinates. Comparing them to
+  // the wall clock would incorrectly record a parent no-show and consume a
+  // simulated package credit when cancelling an invalid test booking.
+  const billing = options.isSandboxContext && responsibleActorRole === "parent"
+    ? getSandboxParentCancellationBilling()
+    : classifyCancellationBillingImpact({
+        actorRole: responsibleActorRole,
+        scheduledTimeIso: options.scheduledTimeIso,
+      });
   const disposition = deriveTrainingSessionCancellationDisposition({
     actorRole: options.actorRole,
     reasonCodes: options.reasonCodes,
@@ -15144,9 +15151,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         const student = studentResult.rows[0] || null;
         const studentId = student?.id ? String(student.id) : null;
+        const isSandboxContext = isSandboxPaymentEnrollment(enrollment);
         const sessionValues: unknown[] = [String(userId), String(enrollment.assigned_tutor_id)];
         const studentFilter = studentId ? " AND student_id = $3::uuid" : "";
         if (studentId) sessionValues.push(studentId);
+        const sandboxTimeFilterParameter = sessionValues.length + 1;
+        sessionValues.push(isSandboxContext);
         const [currentSessionsResult, latestCompletedSessionResult] = await Promise.all([
           pool.query(
             `SELECT ${SCHEDULED_SESSION_SELECT}
@@ -15155,7 +15165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 AND tutor_id = $2
                 AND type = 'training'${studentFilter}
                 AND status NOT IN ('completed', 'flagged')
-                AND scheduled_time >= NOW() - INTERVAL '2 hours'
+                AND ($${sandboxTimeFilterParameter}::boolean = TRUE OR scheduled_time >= NOW() - INTERVAL '2 hours')
               ORDER BY scheduled_time ASC`,
             sessionValues,
           ),
@@ -15180,9 +15190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? await getMonthlySessionQuotaSnapshot({
               parentId: String(userId),
               studentId,
-              isSandboxContext:
-                 enrollment.is_sandbox_account === true ||
-                 String(enrollment.parent_email || "").toLowerCase().startsWith("sandbox-parent-"),
+              isSandboxContext,
             })
           : null;
         const recentSessions = [...sessionRows].sort(
@@ -15319,8 +15327,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .eq("parent_id", userId)
           .eq("type", "training")
           .not("status", "in", "(completed,flagged)")
-          .gte("scheduled_time", currentTrainingSessionFloor)
           .order("scheduled_time", { ascending: true });
+        // Sandbox timestamps are simulated and may be older than the wall
+        // clock. Keep those pending bookings visible so the parent can cancel
+        // or correct them through the normal confirmation flow.
+        if (!isSandboxContext) {
+          currentQuery = currentQuery.gte("scheduled_time", currentTrainingSessionFloor);
+        }
         let latestCompletedQuery = supabase
           .from("scheduled_sessions")
           .select(SCHEDULED_SESSION_SELECT)
@@ -15782,6 +15795,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           actorRole: "parent",
           reasonCodes: normalizedReasonCodes,
           scheduledTimeIso: session.scheduled_time,
+          isSandboxContext: operationalMode === "sandbox",
         });
         const monthlyQuota = await recordSessionBillingEvent({
           sessionId: String(sessionId),

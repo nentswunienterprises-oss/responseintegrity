@@ -4,7 +4,25 @@ import assert from "node:assert/strict";
 import {
   cancellationNeedsReplacement,
   deriveTrainingSessionCancellationDisposition,
+  getSandboxParentCancellationBilling,
 } from "./trainingSessionCancellationPolicy";
+
+test("Sandbox correction cancellation never consumes package credit for simulated past times", () => {
+  const billing = getSandboxParentCancellationBilling();
+  assert.deepEqual(billing, {
+    eventType: "cancelled_early_parent",
+    impact: "none",
+    creditsDelta: 0,
+  });
+  assert.equal(
+    deriveTrainingSessionCancellationDisposition({
+      actorRole: "parent",
+      reasonCodes: ["other"],
+      ...billing,
+    }),
+    "replacement_required",
+  );
+});
 
 test("early parent cancellation preserves the replacement obligation", () => {
   assert.equal(
