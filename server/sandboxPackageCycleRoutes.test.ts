@@ -124,6 +124,24 @@ test("Sandbox Specialist feed includes simulated past sessions and completed les
   assert.match(tutor, /\.limit\(isSandboxTraining \? 100 : 1\)/);
 });
 
+test("Sandbox parent feed exposes simulated past bookings and preserves credit when cancelling them", () => {
+  const parentFeed = source(
+    'app.get("/api/parent/training-sessions"',
+    'app.post("/api/parent/training-sessions/schedule-week"',
+  );
+  assert.match(parentFeed, /const isSandboxContext = isSandboxPaymentEnrollment\(enrollment\)/);
+  assert.match(parentFeed, /AND \(\$\$\{sandboxTimeFilterParameter\}::boolean = TRUE OR scheduled_time >= NOW\(\) - INTERVAL '2 hours'\)/);
+  assert.match(parentFeed, /if \(!isSandboxContext\) \{[\s\S]*currentQuery = currentQuery\.gte\("scheduled_time", currentTrainingSessionFloor\)/);
+  assert.match(parentFeed, /Sandbox timestamps are simulated and may be older than the wall/);
+
+  const parentRespond = source(
+    'app.post("/api/parent/training-sessions/respond"',
+    'const PHASE_ORDER: TopicPhase[]',
+  );
+  assert.match(parentRespond, /isSandboxContext: operationalMode === "sandbox"/);
+  assert.match(routes, /options\.isSandboxContext && responsibleActorRole === "parent"[\s\S]*getSandboxParentCancellationBilling\(\)/);
+});
+
 test("Preview fixture retains the simulated cycle and does not grant another month", () => {
   const preview = readFileSync("server/proofSandboxCommercialState.ts", "utf8");
   const lookup = preview.slice(

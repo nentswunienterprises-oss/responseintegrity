@@ -5,6 +5,16 @@ export type TrainingSessionCancellationDisposition =
 
 export type TrainingSessionCancellationActor = "parent" | "tutor";
 
+export function getSandboxParentCancellationBilling() {
+  // Sandbox timestamps are simulated coordinates; wall-clock timing must not
+  // consume a package credit when a parent corrects a test booking.
+  return {
+    eventType: "cancelled_early_parent",
+    impact: "none" as const,
+    creditsDelta: 0,
+  };
+}
+
 export function deriveTrainingSessionCancellationDisposition(options: {
   actorRole: TrainingSessionCancellationActor;
   reasonCodes?: string[] | null;
