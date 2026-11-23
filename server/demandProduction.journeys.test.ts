@@ -161,6 +161,45 @@ test('real HTTP signup → Gateway → qualification → handover → assignment
     assert.equal(lineage.enrollment.assignment_lane,'commercial');
   });
 
+  await t.test('Sandbox Specialist can send a proposal from finalized direct diagnosis without a calendar booking',async()=>{
+    await db.query("UPDATE tutor_assignments SET operational_mode='sandbox' WHERE tutor_id='specialist'");
+    await db.query("INSERT INTO users(id,role,name,email) VALUES ('sandbox-direct-parent','parent','Sandbox Direct Parent','sandbox-direct-parent@example.test')");
+    await db.query("INSERT INTO parents(user_id,onboarding_type) VALUES ('sandbox-direct-parent','pending')");
+    const studentId='sandbox-direct-diagnosis-student';
+    const enrollment=(await db.query(
+      "INSERT INTO parent_enrollments(user_id,parent_full_name,status,current_step,is_sandbox_account,assigned_tutor_id,assigned_student_id) VALUES ('sandbox-direct-parent','Sandbox Direct Parent','assigned','assigned',true,'specialist',$1) RETURNING id",
+      [studentId],
+    )).rows[0];
+    await db.query(
+      "INSERT INTO students(id,parent_id,tutor_id,parent_enrollment_id,full_name,name,personal_profile) VALUES ($1,'sandbox-direct-parent','specialist',$2,'Sandbox Direct Student','Sandbox Direct Student',$3::jsonb)",
+      [studentId,enrollment.id,JSON.stringify({workflow:{assignmentAcceptedAt:new Date().toISOString()}})],
+    );
+    const drillId=(await db.query("SELECT gen_random_uuid()::text AS id")).rows[0].id;
+    const drill={drillType:'diagnosis',sessionContextKind:'intro',introTopic:'Algebra',summary:{phase:'Clarity',stability:'Low',reason:'Observed response evidence',nextAction:'Continue phase work'}};
+    await db.query(
+      "INSERT INTO intro_session_drills(id,student_id,tutor_id,scheduled_session_id,drill) VALUES ($1,$2,'specialist',NULL,$3)",
+      [drillId,studentId,JSON.stringify(drill)],
+    );
+    await db.query(
+      "INSERT INTO response_integrity_diagnosis_runs(id,student_id,tutor_id,topic,starting_phase,scheduled_session_id,session_context,status,source_drill_id,completed_at) VALUES ($1,$2,'specialist','Algebra','Clarity',NULL,'intro','completed',$3,now())",
+      [drillId,studentId,drillId],
+    );
+
+    const sent=await ok('POST','/api/tutor/proposal','specialist',{
+      studentId,
+      enrollmentId:enrollment.id,
+      introDrillId:drillId,
+      recommendedPlan:'Monthly package',
+      justification:'Evidence-based entry',
+      packageKey:'monthly_8',
+    });
+    const savedProposal=(await db.query("SELECT id FROM onboarding_proposals WHERE enrollment_id=$1 ORDER BY created_at DESC LIMIT 1",[enrollment.id])).rows[0];
+    assert.ok(savedProposal?.id,JSON.stringify(sent));
+    assert.equal((await db.query("SELECT COUNT(*)::int AS count FROM scheduled_sessions WHERE student_id=$1",[studentId])).rows[0].count,0);
+    assert.equal((await db.query("SELECT status FROM response_integrity_diagnosis_runs WHERE id=$1",[drillId])).rows[0].status,'completed');
+    await db.query("UPDATE tutor_assignments SET operational_mode='certified_live' WHERE tutor_id='specialist'");
+  });
+
   await t.test('ordinary pending family remains blocked from proposal acceptance',async()=>{
     await db.query("UPDATE parents SET onboarding_type='pending' WHERE user_id='legacy'");
     const studentId='legacy-pending-student';

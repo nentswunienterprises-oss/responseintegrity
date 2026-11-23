@@ -438,7 +438,8 @@ The access-gate route validates whether the Specialist may open it.
 
 Current live gating behavior includes:
 
-- intro drills require a confirmed intro session
+- Trial and Certified Live intro diagnosis and proposal submission require a confirmed intro session
+- Training and Sandbox use the direct diagnosis workflow; proposals still require an accepted Specialist assignment and a completed, finalized diagnosis linked to its source drill
 - training drills require a scheduled and launch-valid training lesson
 - handover verification requires a confirmed continuity-check session
 - if a valid lesson context is missing, the runner should not launch
