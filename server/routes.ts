@@ -141,6 +141,7 @@ import {
   type BattleTestVariantKey,
   type TutorTrainingMode,
 } from "@shared/battleTesting";
+import { proposalRequiresConfirmedIntroSession } from "./proposalBookingGate";
 import {
   buildBattleTestSuccessPayload,
   buildPodBattleTestingSummary,
@@ -28739,24 +28740,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Accept this assignment before sending a proposal." });
       }
 
-      const { data: confirmedIntroSession, error: confirmedIntroSessionError } = await supabase
-        .from("scheduled_sessions")
-        .select("id, status, type, tutor_id, student_id, created_at")
-        .eq("student_id", studentId)
-        .eq("tutor_id", tutorId)
-        .eq("type", "intro")
-        .in("status", ["confirmed", "ready", "live", "completed"])
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const operationalMode = await getTutorOperationalMode(tutorId);
+      let confirmedIntroSession: any = null;
+      if (proposalRequiresConfirmedIntroSession(operationalMode)) {
+        const { data, error } = await supabase
+          .from("scheduled_sessions")
+          .select("id, status, type, tutor_id, student_id, created_at")
+          .eq("student_id", studentId)
+          .eq("tutor_id", tutorId)
+          .eq("type", "intro")
+          .in("status", ["confirmed", "ready", "live", "completed"])
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      if (confirmedIntroSessionError) {
-        console.error("Error validating confirmed intro session before proposal:", confirmedIntroSessionError);
-        return res.status(500).json({ message: "Failed to validate confirmed intro session before proposal" });
-      }
+        if (error) {
+          console.error("Error validating confirmed intro session before proposal:", error);
+          return res.status(500).json({ message: "Failed to validate confirmed intro session before proposal" });
+        }
 
-      if (!confirmedIntroSession) {
-        return res.status(400).json({ message: "Confirm the intro session before sending a proposal." });
+        if (!data) {
+          return res.status(400).json({ message: "Confirm the intro session before sending a proposal." });
+        }
+        confirmedIntroSession = data;
       }
 
       // Tie proposal generation to latest intro drill result for this tutor+student.
@@ -28793,6 +28799,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           row.scheduled_session_id || parsed?.scheduledSessionId || ""
         ).trim();
         const scheduledSessionMatch =
+          !!confirmedIntroSession?.id &&
           resolvedScheduledSessionId === String(confirmedIntroSession.id);
         const sessionContextKind = String(parsed?.sessionContextKind || "intro").trim().toLowerCase();
         const isAcceptedProposalContext = sessionContextKind === "intro";
