@@ -2589,13 +2589,14 @@ async function recalculateMembershipMonthUsage(options: {
 
   const { data: completedSessions } = await supabase
     .from("scheduled_sessions")
-    .select("id, tutor_id")
+    .select("id, tutor_id, updated_at")
     .eq("parent_id", options.parentId)
     .eq("student_id", options.studentId)
     .eq("type", "training")
     .eq("status", "completed")
-    .gte("scheduled_time", usageWindowStart)
-    .lt("scheduled_time", evidenceUpperBoundIso);
+    // Package usage belongs to when completion was recorded, not the appointment time.
+    .gte("updated_at", usageWindowStart)
+    .lt("updated_at", evidenceUpperBoundIso);
 
   const completedSessionKeys = new Set<string>();
   const completedScheduledSessions = new Map<string, string>();
@@ -3100,8 +3101,8 @@ async function getMonthlySessionQuotaSnapshot(options: {
             AND s.student_id::text = $2::text
             AND s.type = 'training'
             AND s.status = 'completed'
-            AND s.scheduled_time >= $3::timestamptz
-            AND s.scheduled_time < $4::timestamptz
+            AND s.updated_at >= $3::timestamptz
+            AND s.updated_at < $4::timestamptz
          UNION
          SELECT CASE
                   WHEN r.scheduled_session_id IS NOT NULL
