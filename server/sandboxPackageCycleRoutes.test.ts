@@ -241,11 +241,13 @@ test("legacy and canonical keys for the same month are treated as duplicate cycl
 });
 
 
-test("Sandbox renewal usage uses completion time for scheduled sessions", () => {
+test("Sandbox renewal allocation prefers billing-event time when an event exists", () => {
   const src = source("async function recalculateMembershipMonthUsage(", "async function getMonthlySessionQuotaSnapshot(");
-  assert.match(src, /\.eq\("status", "completed"\)[\s\S]*\.gte\("updated_at", usageWindowStart\)[\s\S]*\.lt\("updated_at", evidenceUpperBoundIso\)/);
-  assert.doesNotMatch(src, /\.eq\("status", "completed"\)[\s\S]{0,180}\.gte\("scheduled_time", usageWindowStart\)/);
+  assert.match(src, /\.gte\("scheduled_time", usageWindowStart\)[\s\S]*\.lt\("scheduled_time", evidenceUpperBoundIso\)/);
+  assert.match(src, /sandboxBillingEventTimesBySession/);
+  assert.match(src, /billingTimes\.some\(\(effectiveAt\) => effectiveAt >= usageWindowStart && effectiveAt < evidenceUpperBoundIso\)/);
   const direct = source("const usageResult = await pool.query(", "const eventResult = isSandbox");
-  assert.match(direct, /s\.status = 'completed'[\s\S]*s\.updated_at >= \$3::timestamptz[\s\S]*s\.updated_at < \$4::timestamptz/);
-  assert.doesNotMatch(direct, /s\.scheduled_time >= \$3::timestamptz/);
+  assert.match(direct, /s\.scheduled_time >= \$3::timestamptz[\s\S]*in_window\.effective_at >= \$3::timestamptz/);
+  assert.match(direct, /NOT EXISTS \([\s\S]*any_cycle\.is_sandbox = TRUE/);
+  assert.match(direct, /usageWindowStart, evidenceUpperBoundIso, isSandbox/);
 });
