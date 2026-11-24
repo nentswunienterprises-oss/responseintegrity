@@ -239,3 +239,15 @@ test("legacy and canonical keys for the same month are treated as duplicate cycl
   ], "p", "s");
   assert.equal(selected, null);
 });
+
+
+test("Sandbox renewal allocation prefers billing-event time when an event exists", () => {
+  const src = source("async function recalculateMembershipMonthUsage(", "async function getMonthlySessionQuotaSnapshot(");
+  assert.match(src, /\.gte\("scheduled_time", usageWindowStart\)[\s\S]*\.lt\("scheduled_time", evidenceUpperBoundIso\)/);
+  assert.match(src, /sandboxBillingEventTimesBySession/);
+  assert.match(src, /billingTimes\.some\(\(effectiveAt\) => effectiveAt >= usageWindowStart && effectiveAt < evidenceUpperBoundIso\)/);
+  const direct = source("const usageResult = await pool.query(", "const eventResult = isSandbox");
+  assert.match(direct, /s\.scheduled_time >= \$3::timestamptz[\s\S]*in_window\.effective_at >= \$3::timestamptz/);
+  assert.match(direct, /NOT EXISTS \([\s\S]*any_cycle\.is_sandbox = TRUE/);
+  assert.match(direct, /usageWindowStart, evidenceUpperBoundIso, isSandbox/);
+});

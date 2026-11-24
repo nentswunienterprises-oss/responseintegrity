@@ -2597,6 +2597,31 @@ async function recalculateMembershipMonthUsage(options: {
     .gte("scheduled_time", usageWindowStart)
     .lt("scheduled_time", evidenceUpperBoundIso);
 
+  // Sandbox sessions may have a simulated future appointment time. If a
+  // consume event exists, its effective time is authoritative for cycle usage.
+  const sandboxBillingEventTimesBySession = new Map<string, string[]>();
+  const completedSessionIds = (completedSessions || [])
+    .map((row: any) => String(row?.id || "").trim())
+    .filter(Boolean);
+  if (options.isSandbox && completedSessionIds.length > 0) {
+    const { data: sandboxBillingEvents } = await supabase
+      .from("session_billing_events")
+      .select("session_id, effective_at")
+      .eq("parent_id", options.parentId)
+      .eq("student_id", options.studentId)
+      .eq("billing_impact", "consume")
+      .eq("is_sandbox", true)
+      .in("session_id", completedSessionIds);
+    for (const event of (sandboxBillingEvents || [])) {
+      const sessionId = String(event?.session_id || "").trim();
+      const effectiveAt = String(event?.effective_at || "").trim();
+      if (!sessionId || !effectiveAt) continue;
+      const times = sandboxBillingEventTimesBySession.get(sessionId) || [];
+      times.push(effectiveAt);
+      sandboxBillingEventTimesBySession.set(sessionId, times);
+    }
+  }
+
   const completedSessionKeys = new Set<string>();
   const completedScheduledSessions = new Map<string, string>();
   const recordCompletedScheduledSession = (row: any) => {
@@ -2608,6 +2633,15 @@ async function recalculateMembershipMonthUsage(options: {
   // Filter sessions by sandbox flag (resolve enrollment per session)
   for (const row of (completedSessions || [])) {
     try {
+      const sessionId = String(row?.id || "").trim();
+      const billingTimes = sandboxBillingEventTimesBySession.get(sessionId);
+      if (
+        options.isSandbox &&
+        billingTimes &&
+        !billingTimes.some((effectiveAt) => effectiveAt >= usageWindowStart && effectiveAt < evidenceUpperBoundIso)
+      ) {
+        continue;
+      }
       const sessionEnrollmentId = await resolveEnrollmentIdForSession({ parent_id: options.parentId, student_id: options.studentId, id: row.id });
       if (!sessionEnrollmentId) {
         // No enrollment, count as production
@@ -3100,8 +3134,46 @@ async function getMonthlySessionQuotaSnapshot(options: {
             AND s.student_id::text = $2::text
             AND s.type = 'training'
             AND s.status = 'completed'
-            AND s.scheduled_time >= $3::timestamptz
-            AND s.scheduled_time < $4::timestamptz
+            AND (
+              (s.scheduled_time >= $3::timestamptz AND s.scheduled_time < $4::timestamptz)
+              OR (
+                $5::boolean = TRUE
+                AND EXISTS (
+                  SELECT 1
+                    FROM public.session_billing_events in_window
+                   WHERE in_window.session_id = s.id
+                     AND in_window.parent_id::text = $1::text
+                     AND in_window.student_id::text = $2::text
+                     AND in_window.billing_impact = 'consume'
+                     AND in_window.is_sandbox = TRUE
+                     AND in_window.effective_at >= $3::timestamptz
+                     AND in_window.effective_at < $4::timestamptz
+                )
+              )
+            )
+            AND (
+              $5::boolean = FALSE
+              OR NOT EXISTS (
+                SELECT 1
+                  FROM public.session_billing_events any_cycle
+                 WHERE any_cycle.session_id = s.id
+                   AND any_cycle.parent_id::text = $1::text
+                   AND any_cycle.student_id::text = $2::text
+                   AND any_cycle.billing_impact = 'consume'
+                   AND any_cycle.is_sandbox = TRUE
+              )
+              OR EXISTS (
+                SELECT 1
+                  FROM public.session_billing_events in_window
+                 WHERE in_window.session_id = s.id
+                   AND in_window.parent_id::text = $1::text
+                   AND in_window.student_id::text = $2::text
+                   AND in_window.billing_impact = 'consume'
+                   AND in_window.is_sandbox = TRUE
+                   AND in_window.effective_at >= $3::timestamptz
+                   AND in_window.effective_at < $4::timestamptz
+              )
+            )
          UNION
          SELECT CASE
                   WHEN r.scheduled_session_id IS NOT NULL
@@ -3136,7 +3208,7 @@ async function getMonthlySessionQuotaSnapshot(options: {
        SELECT COUNT(*)::int AS completed_used,
              COALESCE(ARRAY_AGG(usage_key), ARRAY[]::text[]) AS completed_keys
           FROM completed_keys`,
-      [options.parentId, options.studentId, usageWindowStart, evidenceUpperBoundIso],
+      [options.parentId, options.studentId, usageWindowStart, evidenceUpperBoundIso, isSandbox],
     );
 
     const eventResult = isSandbox
