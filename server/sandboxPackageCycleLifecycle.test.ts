@@ -439,6 +439,46 @@ test("Sandbox assignment, proposal, booking, cancellation, exhaustion, renewal, 
   assert.equal(trainingAfterRenewal.monthlyQuota.month_key, "2026-12-01");
   assert.equal(trainingAfterRenewal.monthlyQuota.sessions_remaining, 8);
 
+  // The renewed cycle key is December while this Sandbox run is still in
+  // November. A real consumption after payment must update the renewed row;
+  // recalculation must use cycle activation time rather than the future key.
+  const renewedRunId = randomUUID();
+  const renewedDrillId = randomUUID();
+  await db.query(
+    `INSERT INTO intro_session_drills(id,student_id,tutor_id,scheduled_session_id,drill,submitted_at)
+     VALUES ($1,$2,'specialist',$3,'{"drillType":"training"}'::jsonb,now())`,
+    [renewedDrillId, familyA.studentId, afterRenewalIds[0]],
+  );
+  await db.query(
+    `INSERT INTO response_integrity_diagnosis_runs(id,student_id,tutor_id,topic,starting_phase,scheduled_session_id,
+      session_context,session_container,activity_kind,status,probe_history,decision,source_drill_id,completed_at)
+     VALUES ($1,$2,'specialist','Algebra','Clarity',$3,'active_training','scheduled_training_session',
+      'targeted_rediagnosis','completed','[]'::jsonb,'{}'::jsonb,$4,now())`,
+    [renewedRunId, familyA.studentId, afterRenewalIds[0], renewedDrillId],
+  );
+  await db.query(
+    `INSERT INTO response_integrity_evidence_ledger(source_drill_id,student_id,scheduled_session_id,activity_kind)
+     VALUES ($1,$2,$3,'targeted_rediagnosis')`,
+    [renewedDrillId, familyA.studentId, afterRenewalIds[0]],
+  );
+  await ok("POST", "/api/tutor/evidence-complete-diagnosis", "specialist", {
+    diagnosisRunId: renewedRunId,
+    studentId: familyA.studentId,
+    topic: "Algebra",
+    startingPhase: "Clarity",
+  });
+  const renewedUsage = (await db.query(
+    "SELECT sessions_used,sessions_remaining FROM membership_months WHERE parent_id=$1 AND student_id=$2 AND month_key='2026-12-01' AND is_sandbox=true",
+    [familyA.parentId, familyA.studentId],
+  )).rows[0];
+  assert.equal(renewedUsage.sessions_used, 1);
+  assert.equal(renewedUsage.sessions_remaining, 7);
+  const nextRenewalWeek = await ok("POST", "/api/parent/training-sessions/schedule-week", familyA.parentId, {
+    timezone: "Africa/Johannesburg",
+    slots: ["2027-02-08T09:00:00.000Z", "2027-02-10T09:00:00.000Z"].map((scheduledStart) => ({ scheduledStart })),
+  });
+  assert.equal(nextRenewalWeek.createdCount, 2);
+
   const studentBCycle = await db.query(
     "SELECT month_key,session_quota,sessions_used,sessions_remaining FROM membership_months WHERE parent_id=$1 AND student_id=$2 AND is_sandbox=true",
     [familyB.parentId, familyB.studentId],
