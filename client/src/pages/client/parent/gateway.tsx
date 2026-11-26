@@ -141,6 +141,39 @@ function submitExternalPaymentForm(action: string, fields: Record<string, string
 
 const PAYFAST_MERCHANT_REFERENCE_STORAGE_KEY = "parent-gateway:payfast-merchant-reference";
 const PAYFAST_RETURN_PATH_STORAGE_KEY = "parent-payfast:return-path";
+const PARENT_GATEWAY_ACCEPTANCE_FLOW_KEY = "parent-gateway:acceptance-flow";
+
+function markParentGatewayAcceptanceFlow(userId: string) {
+  try {
+    window.sessionStorage.setItem(
+      PARENT_GATEWAY_ACCEPTANCE_FLOW_KEY,
+      JSON.stringify({ userId, createdAt: Date.now() }),
+    );
+  } catch {
+    // The current page can still show the acceptance flow if storage is unavailable.
+  }
+}
+
+function clearParentGatewayAcceptanceFlow() {
+  try {
+    window.sessionStorage.removeItem(PARENT_GATEWAY_ACCEPTANCE_FLOW_KEY);
+  } catch {
+    // Ignore session storage failures.
+  }
+}
+
+function consumeParentGatewayAcceptanceFlow(userId: string) {
+  try {
+    const stored = window.sessionStorage.getItem(PARENT_GATEWAY_ACCEPTANCE_FLOW_KEY);
+    window.sessionStorage.removeItem(PARENT_GATEWAY_ACCEPTANCE_FLOW_KEY);
+    if (!stored) return false;
+
+    const marker = JSON.parse(stored);
+    return marker?.userId === userId && Date.now() - Number(marker.createdAt) < 24 * 60 * 60 * 1000;
+  } catch {
+    return false;
+  }
+}
 
 export default function ParentGateway() {
   const [justBooked, setJustBooked] = useState(false);
@@ -159,6 +192,8 @@ export default function ParentGateway() {
     plannedSessionsPerWeek?: number;
   } | null>(null);
   const [parentCode, setParentCode] = useState<string | null>(null);
+  const [showAcceptanceConfirmation, setShowAcceptanceConfirmation] = useState(false);
+  const [acceptanceMarkerUserId, setAcceptanceMarkerUserId] = useState<string | null>(null);
   const [emergencyDbMode, setEmergencyDbMode] = useState(false);
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [proposedDate, setProposedDate] = useState<Date | undefined>(undefined);
@@ -181,6 +216,12 @@ export default function ParentGateway() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    setShowAcceptanceConfirmation(consumeParentGatewayAcceptanceFlow(user.id));
+    setAcceptanceMarkerUserId(user.id);
+  }, [user?.id]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -357,6 +398,7 @@ export default function ParentGateway() {
   // Fetch intro session confirmation if status is assigned, awaiting assignment, or awaiting tutor acceptance
   const {
     data: introSessionConfirmation,
+    isFetched: introSessionConfirmationLoaded,
     refetch: refetchIntroSessionConfirmation,
   } = useQuery<IntroSessionConfirmation>({
     queryKey: ["/api/parent/intro-session-confirmation"],
@@ -524,6 +566,31 @@ export default function ParentGateway() {
   const isHandoverFlow =
     String(enrollmentStatus?.step || "").startsWith("handover_") ||
     effectiveIntroSessionConfirmation?.type === "handover";
+  const isPostAcceptanceStatus = ["session_booked", "report_received", "confirmed"].includes(
+    String(enrollmentStatus?.status || ""),
+  );
+  const isGatewayContextResolved =
+    introSessionConfirmationLoaded ||
+    Boolean(bookedIntroSessionOverride) ||
+    String(enrollmentStatus?.step || "").trim().toLowerCase() === "active_training";
+  const hasHandoverStep = String(enrollmentStatus?.step || "").startsWith("handover_");
+  const shouldResolveParentLanding =
+    !!user?.id && isPostAcceptanceStatus && !showAcceptanceConfirmation && !hasHandoverStep;
+  const isParentLandingResolutionPending =
+    shouldResolveParentLanding &&
+    (acceptanceMarkerUserId !== user?.id || !isGatewayContextResolved);
+  const shouldOpenParentDashboard =
+    shouldResolveParentLanding &&
+    acceptanceMarkerUserId === user?.id &&
+    isGatewayContextResolved &&
+    !isHandoverFlow &&
+    !isParentLandingResolutionPending;
+
+  useEffect(() => {
+    if (shouldOpenParentDashboard) {
+      navigate("/client/parent/dashboard", { replace: true });
+    }
+  }, [navigate, shouldOpenParentDashboard]);
   const sessionLabel = isHandoverFlow ? "continuity check" : "intro session";
   const sessionTitle = isHandoverFlow ? "Continuity Check" : "Introductory Session";
   const sessionCompletedLabel = isHandoverFlow ? "continuity check" : "introductory session";
@@ -560,6 +627,10 @@ export default function ParentGateway() {
         throw new Error(data?.message || "Failed to complete Sandbox checkout.");
       }
       if (data.parentCode) setParentCode(data.parentCode);
+      if (sandboxCheckout.kind === "proposal") {
+        clearParentGatewayAcceptanceFlow();
+        setShowAcceptanceConfirmation(true);
+      }
       setSandboxCheckout(null);
       toast({
         title: "Sandbox payment confirmed",
@@ -581,6 +652,8 @@ export default function ParentGateway() {
 
   // Handlers defined below are used by the proposal panel rendered later in the component.
   const handleAcceptProposal = async (packageKey?: MonthlyPackageKey) => {
+    setShowAcceptanceConfirmation(true);
+    if (user?.id) markParentGatewayAcceptanceFlow(user.id);
     setIsProcessingProposal(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -610,6 +683,7 @@ export default function ParentGateway() {
       }
 
       if (data?.paymentStatus === "PAID" || data?.paymentStatus === "FREE_ACCESS") {
+        clearParentGatewayAcceptanceFlow();
         if (data.parentCode) {
           setParentCode(data.parentCode);
         }
@@ -644,6 +718,8 @@ export default function ParentGateway() {
       assertPayfastCheckoutFields(data.formFields, data?.sandbox === true);
       submitExternalPaymentForm(data.checkoutUrl, data.formFields);
     } catch (error) {
+      clearParentGatewayAcceptanceFlow();
+      setShowAcceptanceConfirmation(false);
       console.error("Error accepting proposal:", error);
       toast({
         title: "Error",
@@ -1238,6 +1314,16 @@ export default function ParentGateway() {
       setLoadingDebug(false);
     }
   };
+
+  if (shouldOpenParentDashboard || isParentLandingResolutionPending) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: "#FFF5ED" }}>
+        <p className="text-sm text-muted-foreground" role="status">
+          {shouldOpenParentDashboard ? "Opening your parent dashboard..." : "Checking your parent account..."}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#FFF5ED" }}>
