@@ -246,6 +246,24 @@ test("Sandbox assignment, proposal, booking, cancellation, exhaustion, renewal, 
   await ok("POST", "/api/parent/proposal/accept", familyB.parentId, { completeSandboxPayment: true });
 
   const weekA = ["2027-01-04T09:00:00.000Z", "2027-01-06T09:00:00.000Z"];
+  // Match the production guard shown when a Sandbox cycle cannot be verified:
+  // fail closed while the authoritative row is invalid, then permit booking
+  // once the valid cycle state is restored.
+  await db.query(
+    "UPDATE membership_months SET status='inactive' WHERE parent_id=$1 AND student_id=$2 AND is_sandbox=true",
+    [familyA.parentId, familyA.studentId],
+  );
+  const invalidCycleBooking = await request("POST", "/api/parent/training-sessions/schedule-week", familyA.parentId, {
+    timezone: "Africa/Johannesburg",
+    slots: weekA.map((scheduledStart) => ({ scheduledStart })),
+  });
+  assert.equal(invalidCycleBooking.status, 409);
+  assert.equal(invalidCycleBooking.body.message, "Sandbox package-cycle authority cannot be verified. Booking remains blocked.");
+  await db.query(
+    "UPDATE membership_months SET status='active' WHERE parent_id=$1 AND student_id=$2 AND is_sandbox=true",
+    [familyA.parentId, familyA.studentId],
+  );
+
   const bookingA = await ok("POST", "/api/parent/training-sessions/schedule-week", familyA.parentId, {
     timezone: "Africa/Johannesburg",
     slots: weekA.map((scheduledStart) => ({ scheduledStart })),
