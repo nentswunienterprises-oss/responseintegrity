@@ -2310,6 +2310,9 @@ async function getLatestPaidPaymentForEnrollment(enrollmentId: string) {
     .eq("enrollment_id", enrollmentId)
     .eq("provider", PAYMENT_PROVIDER_PAYFAST)
     .eq("payment_status", "paid")
+    // Renewal rows can be paid without a proposal link. They must not be used
+    // to recover a proposal acceptance or they mask an older valid acceptance.
+    .not("proposal_id", "is", null)
     .order("paid_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -4402,15 +4405,17 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
         `UPDATE public.parent_enrollments
             SET status = 'session_booked',
                 current_step = 'active_training',
+                proposal_id = $4,
                 package_key = $1,
                 package_sessions = $2,
                 planned_sessions_per_week = $3,
-                updated_at = $4
-          WHERE id = $5`,
+                updated_at = $5
+          WHERE id = $6`,
         [
           servicePackage.key,
           servicePackage.sessionsPerMonth,
           servicePackage.plannedSessionsPerWeek,
+          proposal.id,
           nowIso,
           enrollment.id,
         ],
@@ -4690,6 +4695,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
     .update({
       status: "session_booked",
       current_step: "active_training",
+      proposal_id: proposal.id,
       package_key: servicePackage.key,
       package_sessions: servicePackage.sessionsPerMonth,
       planned_sessions_per_week: servicePackage.plannedSessionsPerWeek,
@@ -28374,26 +28380,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (String(status) === "proposal_sent") {
-        const { data: latestPaidPayment, error: latestPaidPaymentError } = await getLatestPaidPaymentForEnrollment(
-          String(enrollmentData.id),
-        );
+        const { data: previouslyAcceptedProposal, error: acceptedProposalError } = await supabase
+          .from("onboarding_proposals")
+          .select("id, accepted_at")
+          .eq("enrollment_id", String(enrollmentData.id))
+          .not("accepted_at", "is", null)
+          .order("accepted_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-        if (latestPaidPaymentError) {
-          console.error("Failed to resolve paid payment for proposal finalization:", latestPaidPaymentError);
-          enrollmentDebug.latestPaidPaymentError = String(latestPaidPaymentError.message || latestPaidPaymentError);
-        } else if (latestPaidPayment) {
-          try {
-            const finalized = await finalizeAcceptedProposalFromPayment(latestPaidPayment);
-            latestPayment = latestPaidPayment;
-            status = finalized.status;
-            effectiveStep = finalized.status;
-            enrollmentDebug.autoFinalizedFromPaidPayment = true;
-            enrollmentDebug.latestPaymentId = latestPaidPayment.id || enrollmentDebug.latestPaymentId;
-            enrollmentDebug.latestPaymentStatus = latestPaidPayment.payment_status || enrollmentDebug.latestPaymentStatus;
-          } catch (finalizationError) {
-            console.error("Failed to auto-finalize paid proposal from enrollment status:", finalizationError);
-            enrollmentDebug.autoFinalizationError =
-              finalizationError instanceof Error ? finalizationError.message : String(finalizationError);
+        if (acceptedProposalError) {
+          console.error("Failed to resolve previously accepted proposal:", acceptedProposalError);
+          enrollmentDebug.acceptedProposalLookupError = String(
+            acceptedProposalError.message || acceptedProposalError,
+          );
+        } else if (previouslyAcceptedProposal) {
+          // A later duplicate proposal can overwrite proposal_id/status on an
+          // already active enrollment. Restore the accepted proposal without
+          // replaying its payment, which could reset a newer membership cycle.
+          const { error: acceptedProposalRestoreError } = await supabase
+            .from("parent_enrollments")
+            .update({
+              status: "session_booked",
+              current_step: "active_training",
+              proposal_id: previouslyAcceptedProposal.id,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", enrollmentData.id);
+
+          if (acceptedProposalRestoreError) {
+            console.error("Failed to restore previously accepted proposal:", acceptedProposalRestoreError);
+            enrollmentDebug.acceptedProposalRestoreError = String(
+              acceptedProposalRestoreError.message || acceptedProposalRestoreError,
+            );
+          } else {
+            status = "session_booked";
+            effectiveStep = "active_training";
+            enrollmentDebug.restoredPreviouslyAcceptedProposal = true;
+          }
+        } else {
+          const { data: latestPaidPayment, error: latestPaidPaymentError } = await getLatestPaidPaymentForEnrollment(
+            String(enrollmentData.id),
+          );
+
+          if (latestPaidPaymentError) {
+            console.error("Failed to resolve paid payment for proposal finalization:", latestPaidPaymentError);
+            enrollmentDebug.latestPaidPaymentError = String(latestPaidPaymentError.message || latestPaidPaymentError);
+          } else if (latestPaidPayment) {
+            try {
+              const finalized = await finalizeAcceptedProposalFromPayment(latestPaidPayment);
+              latestPayment = latestPaidPayment;
+              status = finalized.status;
+              effectiveStep = finalized.status;
+              enrollmentDebug.autoFinalizedFromPaidPayment = true;
+              enrollmentDebug.latestPaymentId = latestPaidPayment.id || enrollmentDebug.latestPaymentId;
+              enrollmentDebug.latestPaymentStatus = latestPaidPayment.payment_status || enrollmentDebug.latestPaymentStatus;
+            } catch (finalizationError) {
+              console.error("Failed to auto-finalize paid proposal from enrollment status:", finalizationError);
+              enrollmentDebug.autoFinalizationError =
+                finalizationError instanceof Error ? finalizationError.message : String(finalizationError);
+            }
           }
         }
       }
@@ -29095,6 +29141,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "No current parent enrollment is linked to this assigned student+tutor. Refresh the assignment and try again.",
         });
       }
+
+      const existingAcceptance = await pool.query(
+        `SELECT e.status,
+                EXISTS (
+                  SELECT 1
+                    FROM public.onboarding_proposals accepted
+                   WHERE accepted.enrollment_id = e.id
+                     AND accepted.accepted_at IS NOT NULL
+                ) AS has_accepted_proposal
+           FROM public.parent_enrollments e
+          WHERE e.id = $1
+            AND e.assigned_tutor_id = $2
+          LIMIT 1`,
+        [actualEnrollmentId, tutorId],
+      );
+      const activeEnrollment = existingAcceptance.rows[0] || null;
+      if (
+        activeEnrollment &&
+        (
+          ["session_booked", "report_received", "confirmed"].includes(String(activeEnrollment.status || "")) ||
+          activeEnrollment.has_accepted_proposal === true
+        )
+      ) {
+        return res.status(409).json({
+          message: "This enrollment already has an accepted proposal. Continue the active training flow instead of sending another proposal.",
+        });
+      }
+
       const currentTopicsText = resolvedCurrentTopics.join(", ");
       const { data: proposalData, error } = await supabase
         .from("onboarding_proposals")
