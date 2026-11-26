@@ -3141,7 +3141,7 @@ async function getMonthlySessionQuotaSnapshot(options: {
                 AND EXISTS (
                   SELECT 1
                     FROM public.session_billing_events in_window
-                   WHERE in_window.session_id = s.id
+                   WHERE in_window.session_id = s.id::text
                      AND in_window.parent_id::text = $1::text
                      AND in_window.student_id::text = $2::text
                      AND in_window.billing_impact = 'consume'
@@ -3156,7 +3156,7 @@ async function getMonthlySessionQuotaSnapshot(options: {
               OR NOT EXISTS (
                 SELECT 1
                   FROM public.session_billing_events any_cycle
-                 WHERE any_cycle.session_id = s.id
+                 WHERE any_cycle.session_id = s.id::text
                    AND any_cycle.parent_id::text = $1::text
                    AND any_cycle.student_id::text = $2::text
                    AND any_cycle.billing_impact = 'consume'
@@ -3165,7 +3165,7 @@ async function getMonthlySessionQuotaSnapshot(options: {
               OR EXISTS (
                 SELECT 1
                   FROM public.session_billing_events in_window
-                 WHERE in_window.session_id = s.id
+                 WHERE in_window.session_id = s.id::text
                    AND in_window.parent_id::text = $1::text
                    AND in_window.student_id::text = $2::text
                    AND in_window.billing_impact = 'consume'
