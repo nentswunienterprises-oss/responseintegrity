@@ -47,6 +47,7 @@ export async function serveDemandDatabase(db: any) {
     try {
       const values: any[] = [];
       const bind = (value: any) => { values.push(value); return `$${values.length}`; };
+      const scalar = (value: string) => value === 'true' ? true : value === 'false' ? false : value;
       const table = identifier(req.params.table);
       const conditions: string[] = [];
       for (const [key, raw] of Object.entries(req.query)) {
@@ -54,10 +55,15 @@ export async function serveDemandDatabase(db: any) {
         for (const item of Array.isArray(raw) ? raw : [raw]) {
           const value = String(item);
           const column = identifier(key);
-          if (value.startsWith('eq.')) conditions.push(`${column} = ${bind(value.slice(3))}`);
-          else if (value.startsWith('neq.')) conditions.push(`${column} <> ${bind(value.slice(4))}`);
+          if (value.startsWith('eq.')) conditions.push(`${column} = ${bind(scalar(value.slice(3)))}`);
+          else if (value.startsWith('neq.')) conditions.push(`${column} <> ${bind(scalar(value.slice(4)))}`);
           else if (value === 'is.null') conditions.push(`${column} IS NULL`);
           else if (value === 'not.is.null') conditions.push(`${column} IS NOT NULL`);
+          else if (value.startsWith('gte.')) conditions.push(`${column} >= ${bind(value.slice(4))}`);
+          else if (value.startsWith('gt.')) conditions.push(`${column} > ${bind(value.slice(3))}`);
+          else if (value.startsWith('lte.')) conditions.push(`${column} <= ${bind(value.slice(4))}`);
+          else if (value.startsWith('lt.')) conditions.push(`${column} < ${bind(value.slice(3))}`);
+          else if (value.startsWith('cs.')) conditions.push(`${column} @> ${bind(value.slice(3))}::jsonb`);
           else if (value.startsWith('in.(')) conditions.push(`${column}::text = ANY(${bind(value.slice(4,-1).split(',').map(v => v.replace(/^"|"$/g,'')))})`);
           else throw new Error(`Unsupported test filter ${key}=${value}`);
         }
