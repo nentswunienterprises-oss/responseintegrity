@@ -5,9 +5,13 @@ on:
       - "server/sandboxPackageCycle.ts"
       - "server/sandboxPackageCycle.test.ts"
       - "server/sandboxPackageCycleRoutes.test.ts"
+      - "server/sandboxPackageCycleLifecycle.test.ts"
+      - "server/testing/demandDatabase.ts"
+      - "server/testing/demand-fixture.sql"
       - "server/proofSandboxCommercialState.ts"
       - "server/routes.ts"
       - "server/evidenceCompleteDiagnosisRoutes.ts"
+      - "migrations/**"
       - ".github/workflows/sandbox-package-cycle-ci.yml"
   push:
     branches:
@@ -16,9 +20,13 @@ on:
       - "server/sandboxPackageCycle.ts"
       - "server/sandboxPackageCycle.test.ts"
       - "server/sandboxPackageCycleRoutes.test.ts"
+      - "server/sandboxPackageCycleLifecycle.test.ts"
+      - "server/testing/demandDatabase.ts"
+      - "server/testing/demand-fixture.sql"
       - "server/proofSandboxCommercialState.ts"
       - "server/routes.ts"
       - "server/evidenceCompleteDiagnosisRoutes.ts"
+      - "migrations/**"
       - ".github/workflows/sandbox-package-cycle-ci.yml"
 permissions:
   contents: read
@@ -34,6 +42,8 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Sandbox package-cycle unit regressions
         run: node --import tsx --test server/sandboxPackageCycle.test.ts server/sandboxPackageCycleRoutes.test.ts server/diagnosisContinuation.test.ts
+      - name: Sandbox persisted lifecycle regression
+        run: node --import tsx --test server/sandboxPackageCycleLifecycle.test.ts
       - name: Compile backend
         run: npm run build:backend
       - name: Compile Vercel API

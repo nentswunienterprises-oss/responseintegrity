@@ -2536,6 +2536,28 @@ async function recalculateMembershipMonthUsage(options: {
     : nowIso;
   let usageWindowStart = `${monthStart}T00:00:00.000Z`;
 
+  const { data: membershipMonth } = await supabase
+    .from("membership_months")
+    .select("*")
+    .eq("parent_id", options.parentId)
+    .eq("student_id", options.studentId)
+    .eq("month_key", monthStart)
+    .eq("is_sandbox", !!options.isSandbox)
+    .maybeSingle();
+
+  // Sandbox cycle keys can be in the simulated future. When a cycle is
+  // activated before that key (for example, a December cycle paid in
+  // November), its creation time is the start of its usage window. Otherwise
+  // recalculation ignores real-time Sandbox consume events and leaves the
+  // persisted counters behind the billing ledger.
+  if (options.isSandbox && membershipMonth?.created_at) {
+    const cycleStartIso = `${monthStart}T00:00:00.000Z`;
+    const activatedAt = toIsoDateTime(membershipMonth.created_at);
+    if (activatedAt && activatedAt < cycleStartIso) {
+      usageWindowStart = activatedAt;
+    }
+  }
+
   try {
     let renewalPaymentQuery = supabase
       .from("payment_transactions")
@@ -2732,15 +2754,6 @@ async function recalculateMembershipMonthUsage(options: {
     const delta = Number(row?.credits_delta || 0);
     return sum + Math.max(0, delta);
   }, 0);
-
-  const { data: membershipMonth } = await supabase
-    .from("membership_months")
-    .select("*")
-    .eq("parent_id", options.parentId)
-    .eq("student_id", options.studentId)
-    .eq("month_key", toMonthKey(options.monthStartIso))
-    .eq("is_sandbox", !!options.isSandbox)
-    .maybeSingle();
 
   const servicePackage = getMonthlyServicePackage(membershipMonth?.package_key);
   const sessionQuota = Number(membershipMonth?.session_quota || servicePackage.sessionsPerMonth);
