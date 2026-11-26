@@ -5,7 +5,27 @@ import type { TopicPhase } from "./topicConditioningEngine";
 // Server-owned opt-in, persisted at trajectory creation. An absent marker is
 // historical selection, not permission to upgrade an existing learner.
 export const SANDBOX_DEVELOPMENT_PLAN_V1 = "sandbox-development-plan:v1";
+export const SANDBOX_DEVELOPMENT_PLAN_V1_BANK = {
+  bankKey: "sandbox_stateful_environment",
+  bankVersion: 4,
+  behaviorModelVersion: 2,
+} as const;
 const prefix = "sandbox-development-plan:";
+
+/**
+ * V1 is authored and accepted against the active V4 stateful environment bank.
+ * Keep earlier pinned trajectories on their historical selection stream; a
+ * later bank must opt in only after its own development-plan acceptance.
+ */
+export function isSandboxDevelopmentPlanEligible(input: {
+  bankKey: string;
+  bankVersion: number;
+  behaviorModelVersion: number;
+}): boolean {
+  return input.bankKey === SANDBOX_DEVELOPMENT_PLAN_V1_BANK.bankKey &&
+    input.bankVersion === SANDBOX_DEVELOPMENT_PLAN_V1_BANK.bankVersion &&
+    input.behaviorModelVersion === SANDBOX_DEVELOPMENT_PLAN_V1_BANK.behaviorModelVersion;
+}
 
 export function hasSandboxDevelopmentPlan(tags: readonly string[] = []): boolean {
   const versions = tags.filter(tag => tag.startsWith(prefix));

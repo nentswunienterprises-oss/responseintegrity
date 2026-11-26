@@ -1,4 +1,4 @@
-import { SANDBOX_DEVELOPMENT_PLAN_V1, hasSandboxDevelopmentPlan, advanceSandboxDevelopment, migrateSandboxDevelopmentTags } from "@shared/sandboxDevelopmentPlan";
+import { SANDBOX_DEVELOPMENT_PLAN_V1, hasSandboxDevelopmentPlan, advanceSandboxDevelopment, migrateSandboxDevelopmentTags, isSandboxDevelopmentPlanEligible } from "@shared/sandboxDevelopmentPlan";
 import { isCapabilityProofPreview } from "./proofTrainingBooking";
 import { sandboxQualificationEvidenceFingerprint } from "./sandboxQualificationFingerprint";
 import { createHash, createHmac } from "crypto";
@@ -765,15 +765,16 @@ async function ensureTrajectory(input: {
   const existing = await pool.query(selectSql, selectParams);
   if (existing.rows[0]) {
     let bundle = bundleFromRow(existing.rows[0]);
-    // The adaptive curriculum was introduced after some controlled Preview
-    // trajectories had already begun.  Keep their persisted state and all
-    // evidence intact, but attach the curriculum at the current lesson count
-    // so future native sessions can improve, regress, recover, and progress.
-    // This is deliberately isolated to the acceptance Specialist and Preview;
-    // production and historical trajectories remain untouched.
-    const isAcceptanceDevelopment = isCapabilityProofPreview(process.env) &&
-      input.tutorId === "b8448bbf-e01b-4f7b-bf6a-baf3ddb5d0bc";
-    if (isAcceptanceDevelopment && !hasSandboxDevelopmentPlan(bundle.truth.continuity_tags)) {
+    // V4 production trajectories created before the development curriculum
+    // remain on the legacy random stream unless they are migrated here. Attach
+    // the curriculum at their existing lesson count without rewriting state,
+    // outcomes, or evidence. Earlier banks and model versions stay pinned.
+    const developmentPlanEligible = isSandboxDevelopmentPlanEligible({
+      bankKey: bundle.trajectory.bank_key,
+      bankVersion: Number(bundle.trajectory.bank_version),
+      behaviorModelVersion: bundle.truth.behavior_model_version,
+    });
+    if (developmentPlanEligible && !hasSandboxDevelopmentPlan(bundle.truth.continuity_tags)) {
       const topicKey = sandboxTopicKey(bundle.trajectory.active_topic_key);
       let tags = [...bundle.truth.continuity_tags, SANDBOX_DEVELOPMENT_PLAN_V1];
       if (topicKey) {
@@ -896,13 +897,20 @@ async function ensureTrajectory(input: {
       [input.tutorAssignmentId, input.tutorId, input.bank.bankKey,
        input.bank.bankVersion, trajectory.id],
     );
-    // Initial bounded rollout: only new trajectories in the isolated Preview
-    // acceptance account. Production and every existing stream remain unchanged.
-    const developmentPlan = isCapabilityProofPreview(process.env) &&
+    // V4 was accepted against the adaptive curriculum. New V4 trajectories in
+    // every environment use its deterministic, phase-aware synthetic conduct.
+    // Profile breadth targeting still belongs only to controlled Preview.
+    const developmentPlan = isSandboxDevelopmentPlanEligible({
+      bankKey: input.bank.bankKey,
+      bankVersion: input.bank.bankVersion,
+      behaviorModelVersion: 2,
+    });
+    const profileCoverageDevelopment = developmentPlan &&
+      isCapabilityProofPreview(process.env) &&
       input.tutorId === "b8448bbf-e01b-4f7b-bf6a-baf3ddb5d0bc";
     const developmentTags = developmentPlan ? [SANDBOX_DEVELOPMENT_PLAN_V1] : [];
     let preferredProfiles: typeof SANDBOX_BEHAVIOR_PROFILE_IDS_V1[number][] | undefined;
-    if (developmentPlan) {
+    if (profileCoverageDevelopment) {
       const timeline = await loadSandboxQualificationEvidence(input, client);
       if (timeline.sourceGaps.length) throw new Error("Cannot target development coverage from incomplete source evidence.");
       const ledger = evaluateSandboxQualification(timeline.events);

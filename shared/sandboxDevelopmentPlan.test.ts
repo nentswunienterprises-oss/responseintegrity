@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { SANDBOX_DEVELOPMENT_PLAN_V1 as marker, advanceSandboxDevelopment, hasSandboxDevelopmentPlan, migrateSandboxDevelopmentTags, sandboxDevelopmentLessons } from './sandboxDevelopmentPlan';
+import { SANDBOX_DEVELOPMENT_PLAN_V1 as marker, advanceSandboxDevelopment, hasSandboxDevelopmentPlan, migrateSandboxDevelopmentTags, sandboxDevelopmentLessons, isSandboxDevelopmentPlanEligible } from './sandboxDevelopmentPlan';
 import { resolveSandboxBehaviorProfile, SANDBOX_BEHAVIOR_PROFILE_IDS_V1, selectSandboxBehaviorProfileSeed } from './sandboxBehaviorProfiles';
 import { selectSandboxOutcome, evaluateSandboxCompletedSession, nextSandboxContinuityState, compareSandboxTurn, type SandboxOutcomeDefinition, type SandboxCompletedTurn } from './sandboxEnvironment';
 import { getDrillSchemaDefinition, getFieldDefinitionsForRep, getEvidenceSelectionIdentity, resolveEvidenceSelection } from './responseIntegrityDrillRegistry';
@@ -70,6 +70,34 @@ test('all six profiles reach each subsequent phase through the unchanged evaluat
    assert.ok(reached,`${profile} must develop through ${phase}, got ${JSON.stringify(state)}`);
   }
  }
+});
+
+test('one synthetic learner can progress sequentially from Clarity through Time Pressure Stability',()=>{
+ for(const profile of SANDBOX_BEHAVIOR_PROFILE_IDS_V1) {
+  let tags=[marker],previous:any=null,sequence=0,session=0;
+  let state:any={phase:'Clarity',stability:'Low',progressionAuthority:'building'};
+  const phasesReached=new Set<TopicPhase>();
+  for(let lesson=0;lesson<40 && state.progressionAuthority!=='transfer_maintenance';lesson++) {
+   const phase=state.phase as TopicPhase;
+   phasesReached.add(phase);
+   const run=runLesson({seed:seedFor(profile),phase,state,tags,previous,session:++session,sequence});
+   ({tags,previous,sequence}=run);
+   assert.equal(run.result.systemOutcomeMatched,true,`${profile} session ${session}`);
+   assert.equal(run.result.canonicalRoute.route,'normal_training',`${profile} session ${session}`);
+   state=run.result.canonicalNext;
+  }
+  assert.deepEqual([...phasesReached],phases);
+  assert.equal(state.phase,'Time Pressure Stability',`${profile} must reach the final phase`);
+  assert.equal(state.progressionAuthority,'transfer_maintenance',`${profile} must complete final-phase exit confirmation`);
+ }
+});
+
+test('the accepted V4 adaptive curriculum is eligible in Production while historical banks remain pinned',()=>{
+ assert.equal(isSandboxDevelopmentPlanEligible({bankKey:'sandbox_stateful_environment',bankVersion:4,behaviorModelVersion:2}),true);
+ assert.equal(isSandboxDevelopmentPlanEligible({bankKey:'sandbox_stateful_environment',bankVersion:1,behaviorModelVersion:2}),false);
+ assert.equal(isSandboxDevelopmentPlanEligible({bankKey:'sandbox_stateful_environment',bankVersion:5,behaviorModelVersion:2}),false);
+ assert.equal(isSandboxDevelopmentPlanEligible({bankKey:'other_environment',bankVersion:4,behaviorModelVersion:2}),false);
+ assert.equal(isSandboxDevelopmentPlanEligible({bankKey:'sandbox_stateful_environment',bankVersion:4,behaviorModelVersion:1}),false);
 });
 
 test('weakness is phase-specific, recoverable and independent of seed luck or key names',()=>{
