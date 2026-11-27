@@ -50,6 +50,35 @@ New-plan Diagnosis/Handover responses are authored dimension by dimension from t
 
 Qualification policy, profile opportunity minima, all seven modes, condition and comparison checks, final eight clean sessions with two per phase, and governed TD sign-off remain unchanged. Local synthetic-contract reachability tests do not count as deployed acceptance or qualification evidence.
 
+### Explicit synthetic Practicals entry lane — 21 November 2026
+
+The isolated Capability Proof Preview may use an explicitly labeled, short-lived
+synthetic readiness fixture to exercise Practicals routes before genuine Sandbox
+qualification is available. The fixture is stored separately in a private,
+service-role-only table; it is never written to Sandbox evidence or the genuine
+TD assessment ledger. The server recognizes it only when the runtime is the
+Preview deployment connected to the exact Proof Supabase project and the
+`RI_PROOF_SYNTHETIC_PRACTICALS_V1` flag is enabled. It must match the Specialist,
+assignment and assigned TD and be unexpired. The response identifies
+`proofSyntheticPath`; it does not return a real assessment ID. Production and
+other Preview projects ignore the fixture. This lane verifies the Practicals
+entry flow only; it does not count as Specialist qualification, genuine TD
+approval, recording evidence, or current-head acceptance.
+
+### Practical recording links — 22 November 2026
+
+Practicals accepts a privately accessible HTTPS link only; RI does not accept a
+recording upload. Links containing embedded credentials or token-like query
+parameters are rejected. The assigned TD alone receives the pending review link;
+the Specialist's evidence-history response contains status and expiry but never
+the URL. Each submitted link expires 90 days after submission. A protected daily
+Postgres job removes the stored URL and marks it retired while preserving the
+append-only assessment, rubric, review and retention metadata. Expired evidence
+cannot be reviewed; the Specialist must submit a new original recording. RI
+cannot delete the externally hosted original, so the owner must also remove or
+revoke the Drive/Photos copy after 90 days. Consent, sandbox-only data, restricted
+access, continuous original recording and TD verification remain required.
+
 ### Sandbox profile breadth — 18 October 2026
 
 V2 capability targeting keeps state-compatible intermediate recovery candidates eligible alongside the earliest unsupported Specialist capability challenge. After breakdown, conditional or near-stable responses may compete; after an observed intermediate, stronger responses may compete. After support, supported, near-stable and conditional responses may compete so the learner can either retain support or show a valid uneven transition. Challenge targeting cannot force a relapse that makes a clean lesson impossible or suppress every observable uneven-performance signature. Selection remains deterministic and profile-weighted, never guarantees recovery or instability, and cannot bypass phase/stability compatibility, repetition rules or the ban on an immediate breakdown-to-supported jump. Historical V1 selection and submitted evidence remain unchanged.

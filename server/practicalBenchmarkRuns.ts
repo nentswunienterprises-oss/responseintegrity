@@ -30,7 +30,9 @@ export async function eligibleAttempt(input:RunInput) {
   const definition=getCapabilityPracticalProofDefinition(input.proofKey);
   if(!definition) throw fail(404,"Unknown Practicals benchmark.");
   const evidence=await pool.query(
-    `SELECT e.attempt_number,r.outcome
+    `SELECT e.attempt_number,
+       CASE WHEN r.outcome IS NULL AND e.recording_link_expires_at<=now()
+         THEN 'repeat_required' ELSE r.outcome END AS outcome
      FROM public.specialist_capability_practical_evidence e
      LEFT JOIN public.specialist_capability_practical_reviews r ON r.evidence_id=e.id
      WHERE e.tutor_assignment_id=$1 AND e.tutor_id=$2
@@ -225,6 +227,23 @@ export async function advanceBenchmarkRun(input:RunInput & {
     const run=record.rows[0] as RunRow|undefined;
     if(!run || run.status!=="active")throw fail(409,"This assigned Practical is unavailable or already completed.");
     const current=Number(run.active_case_index);
+    const progress=await client.query(
+      `SELECT r.case_snapshot->'workflowSteps' AS workflow_steps,
+         COALESCE(array_agg(a.step_number ORDER BY a.step_number)
+           FILTER (WHERE a.step_number IS NOT NULL), ARRAY[]::integer[]) AS recorded_steps
+       FROM public.specialist_practical_benchmark_case_reveals r
+       LEFT JOIN public.specialist_practical_case_actions a
+         ON a.run_id=r.run_id AND a.case_sequence=r.case_sequence
+       WHERE r.run_id=$1 AND r.case_sequence=$2
+       GROUP BY r.case_snapshot`,
+      [run.id,current],
+    );
+    const workflowSteps=progress.rows[0]?.workflow_steps;
+    const recordedSteps=progress.rows[0]?.recorded_steps;
+    if(!Array.isArray(workflowSteps)||workflowSteps.length===0
+       ||!Array.isArray(recordedSteps)||recordedSteps.length!==workflowSteps.length
+       ||recordedSteps.some((step,index)=>Number(step)!==index+1))
+      throw fail(409,"Complete and preserve every system-issued operation for the current case before revealing another case or finishing the recording.");
     if(input.action==="next"){
       if(current>=PRACTICAL_BENCHMARK_CASE_COUNT)throw fail(409,"Every case is already revealed. Finish the current recording.");
       const next=privateCases[current];

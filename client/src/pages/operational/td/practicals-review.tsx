@@ -35,6 +35,7 @@ type ReviewQueueItem = {
   reviewRubric: CapabilityPracticalReviewRubric;
   attemptNumber: number;
   artifactUrl: string;
+  recordingLinkExpiresAt: string;
   artifactType: "screen_voice" | "screen_video" | "video";
   declaration: Record<string, string>;
   recordingDurationSeconds:number;
@@ -350,6 +351,7 @@ export default function CapabilityPracticalReview() {
                       Recording is hosted externally at <span className="font-medium">{linkHost(selected.artifactUrl)}</span>. Verify that it shows only the sandbox scenario before relying on it.
                     </AlertDescription>
                   </Alert>
+                  <p className="text-xs text-muted-foreground">RI retires this stored link after {new Date(selected.recordingLinkExpiresAt).toLocaleDateString()} (90 days from submission). The external host must also remove or revoke the original recording.</p>
 
                   <Button asChild variant="outline">
                     <a href={selected.artifactUrl} target="_blank" rel="noopener noreferrer">

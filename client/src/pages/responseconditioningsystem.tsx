@@ -186,9 +186,11 @@ type SpecialistDevelopmentPathway = {
     readiness?: {
       qualification?: {
         activated?: boolean;
+        proofSyntheticPath?: boolean;
+        proofSyntheticFixtureId?: string | null;
         developmentCoverageReady?: boolean;
         qualificationReady?: boolean;
-        sourceStatus?: "available" | "unavailable";
+        sourceStatus?: "available" | "unavailable" | "synthetic";
         sourceGaps?: string[];
         coverageRequirements?: SandboxCoverageRequirement[];
         coverageCategories?: Array<{
@@ -552,6 +554,8 @@ export default function ResponseConditioningSystem() {
                       }>
                         {developmentPathwayQuery.isPending
                           ? "Loading evidence"
+                          : sandboxQualification?.proofSyntheticPath
+                            ? "Synthetic Proof fixture"
                           : sandboxQualification?.sourceStatus === "unavailable"
                             ? "Evidence unavailable"
                             : sandboxQualification?.developmentCoverageReady
@@ -567,6 +571,14 @@ export default function ResponseConditioningSystem() {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
+              {sandboxQualification?.proofSyntheticPath ? (
+                <div role="status" className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                  <p className="font-semibold">PROOF SYNTHETIC FIXTURE — not genuine Specialist evidence</p>
+                  <p className="mt-1 text-muted-foreground">
+                    This temporary fixture unlocks the Proof acceptance path only. It does not establish Pring’s actual development coverage, eight qualifying sessions, or TD sign-off. Production does not accept this fixture.
+                  </p>
+                </div>
+              ) : null}
               {sandboxQualification?.activated === false ? (
                 <div role="status" className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
                   <p className="font-semibold">Final Sandbox graduation evaluation is inactive</p>

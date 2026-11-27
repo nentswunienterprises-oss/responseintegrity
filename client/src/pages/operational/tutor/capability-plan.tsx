@@ -51,6 +51,7 @@ type PodData = {
 type CapabilityPlanResponse = {
   assessments: CapabilityAvailability[];
   sandboxReady: boolean;
+  proofSyntheticFixtureAttemptCount?: number;
 };
 
 function humanize(value: string) {
@@ -341,6 +342,15 @@ export default function SpecialistCapabilityPlan() {
             correct. You have up to three attempts.
           </AlertDescription>
         </Alert>
+
+        {planQuery.data?.proofSyntheticFixtureAttemptCount ? (
+          <Alert role="status" className="border-amber-500/40 bg-amber-500/10">
+            <ShieldCheck className="h-4 w-4" />
+            <AlertDescription>
+              PROOF SYNTHETIC FIXTURE — {planQuery.data.proofSyntheticFixtureAttemptCount} capability checks were seeded for Preview acceptance. These are not Specialist mastery results and cannot qualify anyone in Production.
+            </AlertDescription>
+          </Alert>
+        ) : null}
 
         {planQuery.error ? (
           <Alert variant="destructive">
