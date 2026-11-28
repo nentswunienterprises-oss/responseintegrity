@@ -254,6 +254,27 @@ function authorityParts(value: unknown) {
     .filter((part) => part.value && part.value.toLowerCase() !== "not recorded");
 }
 
+type SandboxCoverageGuidance = { whatToDo: string; whatCounts: string };
+
+function getSandboxCoverageGuidance(category: string): SandboxCoverageGuidance {
+  if (category === "Preparation contexts") {
+    return {
+      whatToDo: "Complete the pre-session preparation confirmation in the Sandbox flow, then finish the linked Training session.",
+      whatCounts: "A completed session confirms preparation was completed before the session began. That saved preparation evidence should count for this context; no separate post-session confirmation is needed. If it remains at 0, inspect the completed session's evidence link rather than asking the Specialist to repeat preparation.",
+    };
+  }
+  if (category === "Operating modes") {
+    return {
+      whatToDo: "Open Sandbox Training in the operating mode named above and complete the guided session.",
+      whatCounts: "The opportunity counts when the completed session's saved evidence meets this requirement's governed criteria.",
+    };
+  }
+  return {
+    whatToDo: "Complete the guided Sandbox Training opportunity for the response situation named above and record the requested response evidence.",
+    whatCounts: "The opportunity counts when the completed session's saved evidence meets this requirement's governed criteria. A single opportunity may contribute to more than one requirement.",
+  };
+}
+
 export function SandboxReadinessAssessmentCard({
   tutorId,
   tutorName,
@@ -544,24 +565,31 @@ export function SandboxReadinessAssessmentCard({
                     <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {(qualification?.coverageRequirements || [])
                         .filter((requirement) => requirement.category === category)
-                        .map((requirement) => (
-                          <div key={requirement.key} className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="font-medium">{requirement.label}</p>
-                              <Badge variant={requirement.met ? "default" : "outline"}>
-                                {requirement.met ? "Complete" : "Needed"}
-                              </Badge>
-                            </div>
-                            <p className="mt-1 text-muted-foreground">
-                              {requirement.distinctCorrect}/{requirement.required} valid opportunities
-                            </p>
-                            {requirement.encountered > requirement.distinctCorrect ? (
+                        .map((requirement) => {
+                          const guidance = getSandboxCoverageGuidance(requirement.category);
+                          return (
+                            <div key={requirement.key} className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="font-medium">{requirement.label}</p>
+                                <Badge variant={requirement.met ? "default" : "outline"}>
+                                  {requirement.met ? "Complete" : "Needed"}
+                                </Badge>
+                              </div>
                               <p className="mt-1 text-muted-foreground">
-                                {requirement.encountered} encountered · {requirement.distinctCorrect} valid
+                                {requirement.distinctCorrect}/{requirement.required} valid opportunities
                               </p>
-                            ) : null}
-                          </div>
-                        ))}
+                              {requirement.encountered > requirement.distinctCorrect ? (
+                                <p className="mt-1 text-muted-foreground">
+                                  {requirement.encountered} encountered · {requirement.distinctCorrect} valid
+                                </p>
+                              ) : null}
+                              <div className="mt-3 space-y-2 border-t pt-2">
+                                <p><span className="font-semibold">What to do:</span> {guidance.whatToDo}</p>
+                                <p className="text-muted-foreground"><span className="font-semibold text-foreground">What counts:</span> {guidance.whatCounts}</p>
+                              </div>
+                            </div>
+                          );
+                        })
                     </div>
                   </section>
                 ))}
