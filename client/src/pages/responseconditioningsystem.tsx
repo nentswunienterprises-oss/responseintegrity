@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { getSandboxCoverageGuidance } from "@/lib/sandboxCoverageGuidance";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -619,22 +620,29 @@ export default function ResponseConditioningSystem() {
                     </div>
                     {requirements.length ? (
                       <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                        {requirements.map((requirement) => (
-                          <div key={requirement.key} className="rounded-lg border bg-background p-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <p className="text-sm font-medium">{requirement.label}</p>
-                              <Badge variant={requirement.met ? "default" : "outline"}>
-                                {requirement.met ? "Met" : "Needed"}
-                              </Badge>
+                        {requirements.map((requirement) => {
+                          const guidance = getSandboxCoverageGuidance(requirement.category);
+                          return (
+                            <div key={requirement.key} className="rounded-lg border bg-background p-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="text-sm font-medium">{requirement.label}</p>
+                                <Badge variant={requirement.met ? "default" : "outline"}>
+                                  {requirement.met ? "Met" : "Needed"}
+                                </Badge>
+                              </div>
+                              <p className="mt-2 text-sm font-semibold tabular-nums">
+                                {requirement.distinctCorrect}/{requirement.required} valid opportunities
+                              </p>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {requirement.encountered} encountered · {requirement.distinctCorrect} valid and distinct
+                              </p>
+                              <div className="mt-3 space-y-2 border-t pt-2 text-xs">
+                                <p><span className="font-semibold">What to do:</span> {guidance.whatToDo}</p>
+                                <p className="text-muted-foreground"><span className="font-semibold text-foreground">What counts:</span> {guidance.whatCounts}</p>
+                              </div>
                             </div>
-                            <p className="mt-2 text-sm font-semibold tabular-nums">
-                              {requirement.distinctCorrect}/{requirement.required} valid opportunities
-                            </p>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {requirement.encountered} encountered · {requirement.distinctCorrect} valid and distinct
-                            </p>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : null}
                   </section>
