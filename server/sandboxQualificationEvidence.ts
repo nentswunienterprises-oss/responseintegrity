@@ -436,6 +436,7 @@ export async function loadSandboxQualificationEvidence(
    item.opportunityKey=["context-prepared",row.preparation_context,row.source_context_id,row.sequence_number].join(":");
    item.situationTags=["prepared_conditions",row.preparation_context];
    return item;
+ });
  const completedTrainingSessionPreparations:Event[]=[];
  const receiptSessionKeys=new Set(savedPreparations
   .filter((row:any)=>!!row.first_rep_id)
