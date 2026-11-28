@@ -46,6 +46,22 @@ test("exact versioned set/rep identity and canonical truth qualify as complete s
  assert.equal(r.events.find(e=>e.kind==="session")?.complete,true);
  assert.ok(r.sourceGaps.length);
 });
+
+test("completed Sandbox Training sessions establish the legacy Map preparation context",async()=>{
+ const r=await loadSandboxQualificationEvidence({tutorAssignmentId:"assignment",tutorId:"specialist"},db());
+ const preparation=r.events.find(e=>e.mode==="preparation"&&e.preparationContext==="training");
+ assert.ok(preparation);
+ assert.equal(preparation?.sourceType,"completed_session_map_preparation_confirmation");
+ assert.equal(preparation?.sourceId,"session-one");
+ assert.equal(preparation?.complete,true);
+ assert.equal(preparation?.technicallyValid,true);
+});
+
+test("legacy Map preparation is not inferred without a persisted completed session",async()=>{
+ const f=fixture();f.sessions=[];
+ const r=await loadSandboxQualificationEvidence({tutorAssignmentId:"assignment",tutorId:"specialist"},db(f));
+ assert.equal(r.events.some(e=>e.mode==="preparation"&&e.preparationContext==="training"),false);
+});
 test("Sandbox diagnosis bank version 3 uses its explicit V1 Training observation contract",async()=>{
  const f=fixture();
  f.reps=f.reps.map(row=>({...row,bank_version:3,truth_bank_version:3}));
