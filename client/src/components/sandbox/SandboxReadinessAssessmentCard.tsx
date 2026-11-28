@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
+import { getSandboxCoverageGuidance } from "@/lib/sandboxCoverageGuidance";
 import { useToast } from "@/hooks/use-toast";
 
 type CapabilityLayer = {
@@ -544,24 +545,31 @@ export function SandboxReadinessAssessmentCard({
                     <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {(qualification?.coverageRequirements || [])
                         .filter((requirement) => requirement.category === category)
-                        .map((requirement) => (
-                          <div key={requirement.key} className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="font-medium">{requirement.label}</p>
-                              <Badge variant={requirement.met ? "default" : "outline"}>
-                                {requirement.met ? "Complete" : "Needed"}
-                              </Badge>
-                            </div>
-                            <p className="mt-1 text-muted-foreground">
-                              {requirement.distinctCorrect}/{requirement.required} valid opportunities
-                            </p>
-                            {requirement.encountered > requirement.distinctCorrect ? (
+                        .map((requirement) => {
+                          const guidance = getSandboxCoverageGuidance(requirement.key, requirement.category, requirement.label);
+                          return (
+                            <div key={requirement.key} className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="font-medium">{requirement.label}</p>
+                                <Badge variant={requirement.met ? "default" : "outline"}>
+                                  {requirement.met ? "Complete" : "Needed"}
+                                </Badge>
+                              </div>
                               <p className="mt-1 text-muted-foreground">
-                                {requirement.encountered} encountered · {requirement.distinctCorrect} valid
+                                {requirement.distinctCorrect}/{requirement.required} valid opportunities
                               </p>
-                            ) : null}
-                          </div>
-                        ))}
+                              {requirement.encountered > requirement.distinctCorrect ? (
+                                <p className="mt-1 text-muted-foreground">
+                                  {requirement.encountered} encountered · {requirement.distinctCorrect} valid
+                                </p>
+                              ) : null}
+                              <div className="mt-3 space-y-2 border-t pt-2">
+                                <p><span className="font-semibold">What to do:</span> {guidance.whatToDo}</p>
+                                <p className="text-muted-foreground"><span className="font-semibold text-foreground">What counts:</span> {guidance.whatCounts}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
                     </div>
                   </section>
                 ))}
