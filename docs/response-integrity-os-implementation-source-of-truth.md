@@ -62,6 +62,12 @@ The isolated Capability Proof acceptance setup can add the two missing practice 
 
 A changed unstarted Sandbox plan can be reviewed again in the native Map and saved as an additive preparation receipt. Current fingerprint, actor/student/topic ownership, prescribed phase, conditions and zero delivered repetitions remain required. Earlier receipts remain on the audit ledger. Qualification projects only the last owned confirmation before the first delivered repetition; a later confirmation cannot repair or conceal submitted evidence. Preparation alone grants no observed capability, score, placement or qualification.
 
+### Legacy Map preparation confirmation — 28 November 2026
+
+The native Map requires its existing preparation confirmation before a Sandbox Training lesson can launch. For sessions completed before structured preparation capture was enabled in Production, the completed session proves that this Map confirmation was made. The qualification evidence projection represents that as `completed_session_map_preparation_confirmation` when no structured receipt exists. This derived historical evidence does not fabricate the missing plan fingerprint or alter the session, student state, or recorded observations.
+
+With structured capture active, the same single Map confirmation saves a server-verified receipt tied to the current phase, session, prescribed set, and condition fingerprint before the first rep. This preserves the existing one-confirmation flow while making future preparation evidence directly auditable.
+
 ### Controlled Preview continuation — 17 October 2026
 
 The Sandbox Map loads server-owned Training bookings and package capacity once the Specialist accepts the assignment. It does not wait for a simulated proposal to be accepted before reading that data. Server ownership, package capacity, confirmation and native Diagnosis/Handover/preparation requirements continue to govern launch; reading a confirmed booking grants no learning state or qualification evidence.
