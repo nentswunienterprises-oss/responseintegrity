@@ -546,7 +546,7 @@ export function SandboxReadinessAssessmentCard({
                       {(qualification?.coverageRequirements || [])
                         .filter((requirement) => requirement.category === category)
                         .map((requirement) => {
-                          const guidance = getSandboxCoverageGuidance(requirement.category);
+                          const guidance = getSandboxCoverageGuidance(requirement.key, requirement.category, requirement.label);
                           return (
                             <div key={requirement.key} className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
                               <div className="flex items-center justify-between gap-2">
