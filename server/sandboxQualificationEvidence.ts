@@ -436,7 +436,42 @@ export async function loadSandboxQualificationEvidence(
    item.opportunityKey=["context-prepared",row.preparation_context,row.source_context_id,row.sequence_number].join(":");
    item.situationTags=["prepared_conditions",row.preparation_context];
    return item;
- });
+ const completedTrainingSessionPreparations:Event[]=[];
+ const receiptSessionKeys=new Set(savedPreparations
+  .filter((row:any)=>!!row.first_rep_id)
+  .map((row:any)=>[String(row.trajectory_id),String(row.session_number),String(row.topic_key||"")].join(":")));
+ for(const row of sessionResult.rows){
+  const session=sessions.find(item=>item.id===String(row.id));
+  const sessionKey=[String(row.trajectory_id),String(row.session_number),String(row.topic_key||"")].join(":");
+  if(!session?.canonicalPresent||receiptSessionKeys.has(sessionKey))continue;
+  // Before structured receipt capture was enabled, the native Map checkbox
+  // was still required to launch Training. A persisted completed session is
+  // therefore proof that this single preparation confirmation was made.
+  // Keep the source type explicit: this does not invent the missing plan
+  // fingerprint or claim an exact receipt was written at the time.
+  completedTrainingSessionPreparations.push({
+   ...session,
+   id:"preparation-from-completed-session:"+session.id,
+   kind:"opportunity",
+   mode:"preparation",
+   sourceId:session.sourceId,
+   sourceType:"completed_session_map_preparation_confirmation",
+   opportunityKey:["completed-session-preparation",session.trajectoryId,
+    String(row.session_number),String(row.topic_key||"")].join(":"),
+   preparationContext:"training",
+   observed:true,
+   complete:true,
+   canonicalPresent:true,
+   conditionKept:true,
+   observationExact:true,
+   evidenceExact:true,
+   authorityAligned:true,
+   stateAligned:true,
+   materialError:false,
+   technicallyValid:true,
+   situationTags:["prepared_conditions","training","map_confirmation"],
+  });
+ }
  // Older qualifying Diagnosis opportunities predate persisted context-preparation receipts.
  // Re-project only evidence tied to a completed native Diagnosis run, so moving
  // the requirement from Operating modes preserves verified historical progress.
@@ -500,5 +535,5 @@ export async function loadSandboxQualificationEvidence(
  // An unstarted, abandoned preparation is not an observed opportunity.
  // Preserve its audit receipt in the protected table, but do not permanently
  // poison the Specialist's future clean evidence with an unattempted rep.
- return {events:[...preparations.filter(e=>e.observed),...contextPreparations,...historicalDiagnosisPreparations,...reps,...sessions,...rediagnoses,...crossEvents,...closure,...continuity],sourceGaps};
+ return {events:[...preparations.filter(e=>e.observed),...contextPreparations,...completedTrainingSessionPreparations,...historicalDiagnosisPreparations,...reps,...sessions,...rediagnoses,...crossEvents,...closure,...continuity],sourceGaps};
 }
