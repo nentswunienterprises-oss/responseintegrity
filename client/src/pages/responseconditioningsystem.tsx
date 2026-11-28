@@ -621,7 +621,7 @@ export default function ResponseConditioningSystem() {
                     {requirements.length ? (
                       <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                         {requirements.map((requirement) => {
-                          const guidance = getSandboxCoverageGuidance(requirement.category);
+                          const guidance = getSandboxCoverageGuidance(requirement.key, requirement.category, requirement.label);
                           return (
                             <div key={requirement.key} className="rounded-lg border bg-background p-3">
                               <div className="flex items-start justify-between gap-2">
