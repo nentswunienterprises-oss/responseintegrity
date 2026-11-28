@@ -589,7 +589,7 @@ export function SandboxReadinessAssessmentCard({
                               </div>
                             </div>
                           );
-                        })
+                        })}
                     </div>
                   </section>
                 ))}
